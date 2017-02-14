@@ -1,0 +1,102 @@
+<doc>
+
+<delphis>
+  <delphi cod="Delphi7" des="Delphi 7" >
+    <environment_variables reg="SOFTWARE\Borland\Delphi\7.0\Environment Variables\" />
+    <library reg="SOFTWARE\Borland\Delphi\7.0\Library\" key="Search Path" def="$(DELPHI)\Lib;$(DELPHI)\Bin;$(DELPHI)\Imports;$(DELPHI)\Projects\Bpl;$(DELPHI)\Rave5\Lib;$(DELPHI)\Source\Soap;" />
+  </delphi>
+  
+  <delphi cod="DelphiXE2" des="Delphi XE2" >
+    <environment_variables reg="SOFTWARE\Embarcadero\BDS\9.0\Environment Variables\" />
+    <library reg="SOFTWARE\Embarcadero\BDS\9.0\Library\Win32\" key="Search Path" def="$(BDSLIB)\$(Platform)\release;$(BDSUSERDIR)\Imports;$(BDS)\Imports;$(BDSCOMMONDIR)\Dcp;$(BDS)\include;$(BDS)\RaveReports\Lib;$(BDS)\lib\QR505;$(BDS)\Quickrep505;$(BDS)\Quickrep505\bpl;" />
+  </delphi>
+</delphis>
+
+<variables>
+  <variable cod="LIB_ACBR"    val="c:\projetos\acbr\fontes" />
+  <variable cod="LIB_COMPS"   val="c:\projetos\comps" />
+  <variable cod="LIB_FREPORT" val="c:\projetos\freport" />
+  <variable cod="LIB_INDY"    val="c:\projetos\Indy\Indy10" />
+  <variable cod="LIB_LOJA"    val="c:\projetos\NoStop" />
+  <variable cod="LIB_ZEOS"    val="c:\projetos\zeos\ZEOSDBO-7.0.3-stable" />
+</variables>
+
+<librarys>
+$(LIB_ACBR)\;
+$(LIB_ACBR)\ACBrCapicom;
+$(LIB_ACBR)\ACBrComum;
+$(LIB_ACBR)\ACBrDiversos;
+$(LIB_ACBR)\ACBrBoleto;
+$(LIB_ACBR)\ACBrDFe;
+$(LIB_ACBR)\ACBrDFe\ACBrBlocoX;
+$(LIB_ACBR)\ACBrDFe\ACBrNFE;
+$(LIB_ACBR)\ACBrDFe\ACBrNFE\PCNNFe;
+$(LIB_ACBR)\ACBrDFe\ACBrNFE\DANFE;
+$(LIB_ACBR)\ACBrDFe\ACBrNFe\DANFE\NFCe\EscPos;
+$(LIB_ACBR)\ACBrDFe\ACBrNFe\DANFE\NFCe\Fortes;
+$(LIB_ACBR)\ACBrDFe\ACBrNFe\DANFE\NFe\Fortes;
+$(LIB_ACBR)\ACBrDFe\ACBrNFe\DANFE\NFe\QR;
+$(LIB_ACBR)\ACBrOpenSSL;
+$(LIB_ACBR)\ACBrSAT;
+$(LIB_ACBR)\ACBrSAT\ACBrECFVirtualSAT;
+$(LIB_ACBR)\ACBrSAT\Extrato\EscPos;
+$(LIB_ACBR)\ACBrSAT\Extrato\Fortes;
+$(LIB_ACBR)\ACBrSAT\PCNSAT;
+$(LIB_ACBR)\ACBrSerial;
+$(LIB_ACBR)\ACBrTCP;
+$(LIB_ACBR)\ACBrTEFD;
+$(LIB_ACBR)\ACBrTXT\ACBrPAF;
+$(LIB_ACBR)\ACBrTXT\ACBrSPED;
+$(LIB_ACBR)\PCNComum;
+$(LIB_ACBR)\Terceiros\DelphiZXingQRCode;
+$(LIB_ACBR)\Terceiros\JediWin32API;
+$(LIB_ACBR)\Terceiros\synalist;
+$(LIB_ACBR)\Terceiros\ZLibExGZ;
+
+$(LIB_COMPS);
+$(LIB_COMPS)\_barcode;
+$(LIB_COMPS)\_etq\sckin\source;
+$(LIB_COMPS)\_etq\graphic_ruler;
+$(LIB_COMPS)\acbr;
+$(LIB_COMPS)\clas;
+$(LIB_COMPS)\dbf;
+$(LIB_COMPS)\ecf;
+$(LIB_COMPS)\frm;
+$(LIB_COMPS)\mdl;
+$(LIB_COMPS)\png;
+$(LIB_COMPS)\qr5;
+$(LIB_COMPS)\soap;
+$(LIB_COMPS)\web;
+$(LIB_COMPS)\xml;
+$(LIB_COMPS)\zip;
+
+$(LIB_FREPORT)\Completo\Source;
+$(LIB_FREPORT)\Completo\LibD7;
+$(LIB_FREPORT)\FortesReport;
+$(LIB_FREPORT)\FortesReport-ce-master\Source;
+
+$(LIB_INDY)\Lib\System;
+$(LIB_INDY)\Lib\Core;
+$(LIB_INDY)\Lib\Protocols;
+
+$(LIB_LOJA)\comps;
+$(LIB_LOJA)\comps\clas;
+$(LIB_LOJA)\comps\frm;
+$(LIB_LOJA)\fontes\cls;
+$(LIB_LOJA)\fontes\dll;
+$(LIB_LOJA)\fontes\fra;
+$(LIB_LOJA)\fontes\frc;
+$(LIB_LOJA)\fontes\frm;
+$(LIB_LOJA)\fontes\mdl;
+$(LIB_LOJA)\fontes\rpt;
+$(LIB_LOJA)\fontes\svc;
+
+$(LIB_ZEOS)\packages\delphi7;
+$(LIB_ZEOS)\src\component;
+$(LIB_ZEOS)\src\core;
+$(LIB_ZEOS)\src\dbc;
+$(LIB_ZEOS)\src\parsesql;
+$(LIB_ZEOS)\src\plain;
+</librarys>
+
+</doc>

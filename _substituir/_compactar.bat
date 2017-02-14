@@ -1,0 +1,2 @@
+upx "substituir.exe"
+exit
