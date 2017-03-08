@@ -1,0 +1,372 @@
+;-------------------------------------
+public operation RetornaProximoDiaUtil
+;-------------------------------------
+;Marcos R. Kuzminski
+;Data.....: 19/01/2005
+;Descrição: Retorna próximo dia útil baseado em uma data informada no parâmetro 
+;Chamada..: 
+;----------------------------
+
+	params
+		string  piGlobal  :IN
+		string  piParams  :IN
+		string  poParams  :OUT
+		numeric poCdErro  :OUT
+		string  poCtxErro :OUT
+	endparams
+
+	variables
+		numeric vCdEmp 
+		numeric vSabado 
+		numeric vDiaSemana 
+		string	vDiaUtil
+		string  viParams 
+		string  voParams 
+		string  vInFeriado
+		Date    vDtData
+	endvariables
+
+	vCdEmp   = $item("CD_EMPRESA"     ,piParams)
+	vDtData  = $item("DT_DATA"        ,piParams)
+	vSabado  = $item("IN_SABADOUTIL"  ,piParams)
+
+	vDiaUtil = "NAO"
+
+	while (vDiaUtil = "NAO")
+		vDiaSemana = vDtData[A]; dia da semana
+
+		;verifica se a data é um feriado
+		putitem/id viParams, "DT_DATA"   ,   vDtData
+		putitem/id viParams, "CD_EMPRESA",   vCdEmp
+
+		voParams = ""	
+		$instancehandle->VerificaFeriado(piGlobal,viParams,voParams,$xCdErro$,$xCtxErro$)
+		if ($procerror)
+			$instancehandle->SetStatus(<sts_erro>,$procerror,$procerrorcontext,"")
+			return (-1)
+		endif
+		if (voParams != "")
+			vInFeriado = $item("IN_FERIADO",voParams); S/N
+		else	
+			if (vInFeriado = ""); erro
+				$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Feriado não cadastrado!", "ADICIONAL=Operação->FGRSVCO007.VerificaFeriado")
+				return (-1)
+			endif
+		endif
+
+		if (vInFeriado ="S")  							;se for feriado, avança 1 dia
+			vDtData = vDtData + 1d 
+		else
+			if (vDiaSemana = 6)							;sabado
+				if (vSabado = 1)						;sábado é dia útil
+					vDiaUtil = "SIM" 					;avança sábado e domingo
+				else  									;não é util, somente avança
+					vDtData = vDtData + 2d 			;avança sábado e domingo
+				endif
+			else
+				if (vDiaSemana = 7)						;domingo
+					vDtData = vDtData + 1d 			;avança o domingo
+				else									;dia útil
+					vDiaUtil = "SIM"
+				endif
+			endif		
+		endif
+
+	endwhile
+
+	poParams = "DT_DIAUTIL=%%vDtData"
+
+	return (0)
+
+End;RetornaProximoDiaUtil
+
+
+
+Public Operation ValidaDiaUtil
+;Marcos R. Kuzminski
+;Data.....: 24/01/2005
+;Descrição: Retorna se o dia é útil ou não
+;OBS......: 
+;Chamada..: 
+;----------------------------
+	params
+		string    piGlobal   :IN
+		string    piParams   :IN
+		string    poParams   :OUT
+		numeric   poCdErro   :OUT
+		string    poCtxErro  :OUT
+	endparams
+
+	variables
+		numeric vCdEmp 
+		numeric vSabado 
+		numeric vDiaSemana 
+		string  viParams 
+		string  voParams 
+		string  vInFeriado
+		Date    vDtData
+		STRING  DsDiaUtil
+	endvariables
+
+	vCdEmp          = $item("CD_EMPRESA"       ,piParams)
+	vDtData         = $item("DT_DATABASE"      ,piParams)
+	vSabado         = $item("IN_SABADOUTIL"    ,piParams)
+
+	vDiaSemana = vDtData[A]; dia da semana
+
+	;verifica se a data é um feriado
+	putitem/id viParams, "DT_DATA"   ,   vDtData
+	putitem/id viParams, "CD_EMPRESA",   vCdEmp
+	voParams = ""	
+	$instancehandle->VerificaFeriado(piGlobal,viParams,voParams,$xCdErro$,$xCtxErro$)
+	if ($procerror)
+		$instancehandle->SetStatus(<sts_erro>,$procerror,$procerrorcontext,"")
+		return (-1)
+	endif
+	if (voParams != "")
+		vInFeriado = $item("IN_FERIADO",voParams); S/N
+	else	
+		if (vInFeriado = ""); erro
+			$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Feriado não cadastrado!", "ADICIONAL=Operação->FGRSVCO007.VerificaFeriado")
+			return (-1)
+		endif
+	endif
+
+	;se for feriado
+	if (vInFeriado = "S")
+		DsDiaUtil = "NAO" 
+	else
+		;se for domingo
+		if (vDiaSemana = 7)
+			DsDiaUtil = "NAO" 
+		else
+			;se for sábado
+			if (vDiaSemana = 6)
+				;se for sábado e dia útil
+				if (vSabado = 1)
+					DsDiaUtil = "SIM"
+				else
+					;se for sábado e não dia útil
+					DsDiaUtil = "NAO"
+				endif
+			else
+				;se for dia de semana(seg,ter,quar,quin,sext)
+				DsDiaUtil = "SIM"
+			endif
+		endif		
+	endif   ;teste do feriado
+
+	poParams = "DS_DIAUTIL=%%DsDiaUtil"
+
+	return (0)
+
+end   ;ValidaDiaUtil
+
+
+;------------------------
+public operation VerificaFeriado
+;-------------------------------------
+;Marcos R. Kuzminski
+;Data.....: 19/01/2005
+;Descrição: Verifica se o dia é feriado ou não. OBS: cópia da operation VerFeriado -> FCRSVCO002
+;OBS......: SEMPRE ATENTAR A QUAL EMPRESA SERÁ UTILIZADA PARA VERIFICAÇÃO DO FERIADO
+;Chamada..: 
+;----------------------------
+	params
+		string    piGlobal   :IN
+		string    piParams   :IN
+		string    poParams   :OUT
+		numeric   poCdErro   :OUT
+		string    poCtxErro  :OUT
+	endparams
+
+	variables
+		date      vData
+		numeric   vAno
+	endvariables
+
+	vData = $item("DT_DATA",piParams)	
+	if (vData = "")
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Data não informado!", "ADICIONAL=Operação->FCRCSVCO002.VerFeriado")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	vAno = vData[Y]
+	clear/e "GER_FERIADOSVC"
+	cd_empresa.ger_feriadosvc = $item("CD_EMPRESA",piParams)
+	cd_turno.ger_feriadosvc = 999
+	dt_feriado.ger_feriadosvc = vData	
+	retrieve/e "GER_FERIADOSVC"
+	if ($status >= 0)
+		poParams = "IN_FERIADO=S"
+	else
+		poParams = "IN_FERIADO=N"
+	endif
+
+	;tp_feriado     
+
+	return (0)
+	;---------------------------------------------------------------------------------
+	;Servico que verifica se uma data recebida corresponde a um feriado cadastrado
+	;Parametros de entrada: padrão
+	;Valor necessário: DT_DATA Data a consultar (em piParams)
+	;Retorno: IN_FERIADO = <S>im / <N>ão (em poParams)
+	;---------------------------------------------------------------------------------
+End;VerFeriado
+
+
+;-------------------------------------
+public operation RetornaQtDiasUtil
+;-------------------------------------
+;Marcos R. Kuzminski
+;Data.....: 17/07/2006
+;Descrição: retorna a quantidade de dias uteis de acordo com um intervalo passado
+;Chamada..: 
+;----------------------------
+
+	params
+		string    piGlobal   :IN
+		string    piParams   :IN
+		string    poParams   :OUT
+		numeric   poCdErro   :OUT
+		string    poCtxErro  :OUT
+	endparams
+
+
+	Variables
+		numeric vCdEmpresa
+		numeric vSabadoUtil
+		Date    vDataInicial
+		Date    vDataFinal
+
+		Date    vDtData
+		numeric vDiaSemana 
+		numeric vQtDiasUteis
+		string  vInFeriado
+		string  DsDiaUtil
+
+		string  viParams 
+		string  voParams 
+	EndVariables
+
+	;----------------------------------------------
+	vSabadoUtil  = $item("IN_SABADOUTIL"   ,piParams)
+	vCdEmpresa   = $item("CD_EMPRESA"      ,piParams)
+	;----------------------------------------------
+	vDataInicial = $item("DT_DATA_INICIAL" ,piParams)
+	vDataFinal   = $item("DT_DATA_FINAL"   ,piParams)
+	;----------------------------------------------
+	;----------------------------------------------
+	;valida filtros
+	if (vSabadoUtil  = "")
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=É necessário informar o parâmetro empresa IN_SABADO_UTIL !", "ADICIONAL=Operação->FGRSVCO007.RetornaQtDiasUtil")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return (-1)
+	endif
+	;----------------------------------------------
+	if (vCdEmpresa = "")
+		vCdEmpresa = $item("CD_EMPRESA", piGlobal)
+	endif
+	;----------------------------------------------
+	if (vDataInicial = "")
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=É necessário informar a data inicial !", "ADICIONAL=Operação->FGRSVCO007.RetornaQtDiasUtil")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return (-1)
+	endif
+	;----------------------------------------------
+	if (vDataFinal   = "")
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=É necessário informar a data final !", "ADICIONAL=Operação->FGRSVCO007.RetornaQtDiasUtil")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return (-1)
+	endif
+	;----------------------------------------------
+	;----------------------------------------------
+	vInFeriado   = ""	
+	DsDiaUtil    = ""
+	vQtDiasUteis = 0	
+	vDtData	     = vDataInicial
+	;----------------------------------------------
+	while(vDtData <= vDataFinal)
+		;----------------------------------------------
+		;verifica se a data é um feriado
+		putitem/id viParams, "DT_DATA"   ,   vDtData
+		putitem/id viParams, "CD_EMPRESA",   vCdEmpresa
+		voParams = ""	
+		$instancehandle->VerificaFeriado(piGlobal,viParams,voParams,$xCdErro$,$xCtxErro$)
+		if ($procerror)
+			$instancehandle->SetStatus(<sts_erro>,$procerror,$procerrorcontext,"")
+			poCdErro  = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return (-1)
+		endif
+		if ($status < 0)
+			$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")
+			poCdErro  = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return (-1)
+		endif
+
+		if (voParams != "")
+			vInFeriado = $item("IN_FERIADO",voParams); S/N
+		else
+			$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Validação do feriado não concluída!", "ADICIONAL=Operação->FGRSVCO007.RetornaQtDiasUtil (FGRSVCO007.VerificaFeriado - poParams)")
+			poCdErro  = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return (-1)
+		endif
+		;----------------------------------------------
+		if (vInFeriado = "")
+			$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Validação do feriado não concluída!", "ADICIONAL=Operação->FGRSVCO007.RetornaQtDiasUtil (FGRSVCO007.VerificaFeriado - vInFeriado)")
+			poCdErro  = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return (-1)
+		endif
+		;----------------------------------------------
+		;dia da semana
+		vDiaSemana = vDtData[A]
+		;----------------------------------------------
+		;valida feriado e dia da semana
+		;se for feriado
+		if (vInFeriado = "S")
+			DsDiaUtil = "NAO" 
+		else
+			;se for domingo
+			if (vDiaSemana = 7)
+				DsDiaUtil = "NAO" 
+			else
+				;se for sábado
+				if (vDiaSemana = 6)
+					;se for sábado e dia útil
+					if (vSabadoUtil = 1)
+						DsDiaUtil = "SIM"
+					else
+						;se for sábado e não dia útil
+						DsDiaUtil = "NAO"
+					endif
+				else
+					;se for dia de semana(seg,ter,quar,quin,sext)
+					DsDiaUtil = "SIM"
+				endif
+			endif		
+		endif   ;teste do feriado
+		;----------------------------------------------
+		;acumula quantidade de dias somente se for DIA ÚTIL
+		if (DsDiaUtil = "SIM")
+			vQtDiasUteis = vQtDiasUteis + 1
+			DsDiaUtil = ""
+		endif
+		;----------------------------------------------
+		vDtData = vDtData + 1
+		;----------------------------------------------
+	endwhile
+	;----------------------------------------------
+
+	poParams = "QT_DIAUTIL=%%vQtDiasUteis"
+
+	return(0)
+
+end   ;RetornaQtDiasUtil

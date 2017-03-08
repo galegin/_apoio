@@ -1,0 +1,1857 @@
+;-------------
+entry getParam
+;-------------
+	params
+		numeric piCdEmpresa : IN
+	endparams
+
+	variables
+		string viParams, voParams, vTpQuebraCFOP, vcdTransport
+	endvariables
+
+	if (piCdEmpresa = 0)
+		piCdEmpresa = $item("CD_EMPRESA", $xlpg$)
+	endif
+
+	$xlplemp$ = ""
+	putitem $xlplemp$, -1, "UF_ORIGEM"
+	activate "ADMSVCO001".GetParamEmpresa(piCdEmpresa, $xlplemp$, $xlplemp$, $xCdErro$, $xCtxerro$)
+	if ($procerror)
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+		return(-1)
+	elseif ($xCdErro$)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=%%$item("DESCRICAO", $xCtxErro$)", "")
+		return(-1)
+	endif
+	
+	$ufOrigem$ = $item("UF_ORIGEM", $xlplemp$)
+	
+	return(0)
+end
+
+;------------------------
+public operation CD_CUSTO
+;------------------------
+	Params
+		string  piGlobal    :IN    
+		string  piParams    :IN
+		string  poParams    :OUT
+		string  poCdErro    :OUT
+		string  poCtxErro   :OUT
+	endParams
+
+	clear/e "PRD_TIPOVALORSVC"
+	TP_VALOR.PRD_TIPOVALORSVC = "C"
+	CD_VALOR.PRD_TIPOVALORSVC = $item("VL_PARAMETRO", piParams)
+	retrieve/e "PRD_TIPOVALORSVC"
+	if ($status < 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Custo não cadastrado!", "ADICIONAL=Operação->ADMSVCO025.CD_CUSTO")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+
+	return(0)
+End ; operation CD_CUSTO
+
+;------------------------
+public operation CD_MENU
+;------------------------
+	Params
+		string  piGlobal    :IN    
+		string  piParams    :IN
+		string  poParams    :OUT
+		string  poCdErro    :OUT
+		string  poCtxErro   :OUT
+	endParams
+
+	clear/e "SIS_MENUSVC"
+	CD_MENU.SIS_MENUSVC/init = $item("VL_PARAMETRO", piParams)
+	retrieve/e "SIS_MENUSVC"
+	if ($status < 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Menu não cadastrado!", "ADICIONAL=Operação->ADMSVCO025.CD_MENU")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	else
+		if (CD_MENU.SIS_MENUSVC < 100001 | CD_MENU.SIS_MENUSVC > 999998)
+			$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Intervalo de menu não permitido!", "ADICIONAL=Operação->ADMSVCO025.CD_MENU")
+			poCdErro = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return(-1)	
+		endif
+	endif
+
+	return(0)
+End ; operation CD_MENU
+
+;------------------------
+public operation CD_CPOADIC_PESSOA
+;------------------------
+	Params
+		string  piGlobal    :IN    
+		string  piParams    :IN
+		string  poParams    :OUT
+		string  poCdErro    :OUT
+		string  poCtxErro   :OUT
+	endParams
+
+	clear/e "PES_TIPOCAMPOSVC"
+	CD_TIPOCAMPO.PES_TIPOCAMPOSVC/init = $item("VL_PARAMETRO", piParams)
+	retrieve/e "PES_TIPOCAMPOSVC"
+	if ($status < 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Tipo de campo adicional não cadastrado!", "ADICIONAL=Operação->ADMSVCO025.CD_CPOADIC_PESSOA")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+
+	return(0)
+End ; operation CD_CPOADIC_PESSOA
+
+;------------------------
+public operation CD_ETIQUETA
+;------------------------tarefa 094/805			Kazuyuki - 22/01/2008
+	Params
+		string  piGlobal    :IN    
+		string  piParams    :IN
+		string  poParams    :OUT
+		string  poCdErro    :OUT
+		string  poCtxErro   :OUT
+	endParams
+
+	variables
+		string vCdChaveModEtiq 
+	endvariables
+
+	vCdChaveModEtiq = $item("VL_PARAMETRO", piParams)
+
+	clear/e "GER_MODETIQCSVC"
+	CD_MODELO.GER_MODETIQCSVC/init = vCdChaveModEtiq[01,10]
+	CD_MODELOETIQ.GER_MODETIQCSVC/init = vCdChaveModEtiq[11,16]
+	retrieve/e "GER_MODETIQCSVC"
+	if ($status < 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Modelo de etiqueta não cadastrado!", "ADICIONAL=Operação->ADMSVCO025.CD_ETIQUETA")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+
+	poParams = ""
+	putitem/id poParams, "CD_MODELO", CD_MODELO.GER_MODETIQCSVC
+	putitem/id poParams, "CD_MODELOETIQ", CD_MODELOETIQ.GER_MODETIQCSVC
+
+	return(0)
+End ; operation CD_ETIQUETA
+
+;==BY BIANCHINI[PRJ/TAREFA 177/0048] 29/03/2011==;
+;-----------------------------
+public operation CD_FORNECEDOR
+;-----------------------------
+	Params
+		string  piGlobal    :IN    
+		string  piParams    :IN
+		string  poParams    :OUT
+		string  poCdErro    :OUT
+		string  poCtxErro   :OUT
+	endParams
+
+	clear/e "PES_FORNECEDOSVC"
+	CD_FORNECEDOR.PES_FORNECEDOSVC/init = $item("VL_PARAMETRO", piParams)
+	retrieve/e "PES_FORNECEDOSVC"
+	if ($status < 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Fornecedor não cadastrado!", "ADICIONAL=Operação->ADMSVCO025.CD_FORNECEDOR")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+
+	return(0)
+End ; operation CD_FORNECEDOR
+;==
+
+;------------------------
+public operation CD_MOEDA
+;------------------------
+	Params
+		string  piGlobal    :IN    
+		string  piParams    :IN
+		string  poParams    :OUT
+		string  poCdErro    :OUT
+		string  poCtxErro   :OUT
+	endParams
+
+	clear/e "GER_MOEDACSVC"
+	CD_MOEDA.GER_MOEDACSVC/init = $item("VL_PARAMETRO", piParams)
+	retrieve/e "GER_MOEDACSVC"
+	if ($status < 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Moeda não cadastrado!", "ADICIONAL=Operação->ADMSVCO025.GER_MOEDAC")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+
+	return(0)
+End ; operation CD_MOEDA
+
+;;ICJ [PROJ/TAR 94/837](27/02/2009)
+;------------------------
+public operation CD_IMPR_CARTAO
+;------------------------
+	Params
+		string  piGlobal    :IN    
+		string  piParams    :IN
+		string  poParams    :OUT
+		string  poCdErro    :OUT
+		string  poCtxErro   :OUT
+	endParams
+
+	variables
+		string vValorParam2, vAux, vNome, vNumero, vDsConteudo, vDsRegistro, vDsModelo
+		numeric vPos, vTam
+	endvariables
+
+	;;ICJ [94/1427] (06/07/2010)
+	vValorParam2 = $item("VL_PARAMETRO", piParams)
+
+	vPos = ""
+	scan vValorParam2, ";"
+	vPos = $result
+	vTam = $length(vValorParam2)
+	if (vPos > 0)
+		vPos = vPos-1
+		vAux = vValorParam2[1,vPos]
+		vPos = vPos + 2
+		vValorParam2 = vValorParam2[vPos,vTam]
+	else
+		vAux = vValorParam2[1,vTam]
+		if (vAux = 2)
+			$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Falta definir os parâmetros para a opção 2.", "ADICIONAL=Operação->ADMSVCO025.CD_IMPR_CARTAO")
+			poCdErro = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return(-1)
+		endif
+	endif
+	;* Claudemir - Prj/Tarefa: 186/309 - 09/11/2011
+	;if (vAux != 1) & (vAux != 2) & (vAux != 3)
+	if (vAux != 1) & (vAux != 2) & (vAux != 3) & (vAux != 4)  ;*
+	;if ($item("VL_PARAMETRO", piParams) != 1) & ($item("VL_PARAMETRO", piParams)[1:1] != 2) & ($item("VL_PARAMETRO", piParams) != 3)
+	;;
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Valor inválido para o parâmetro! Permitido apenas 01, 02 ou 03.", "ADICIONAL=Operação->ADMSVCO025.CD_IMPR_CARTAO")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	;;ICJ [PROJ/TAR 94/1427] (06/07/2010)
+	elseif (vAux = 2)
+		while (vPos > 0)
+			vNome = ""
+			vNumero = ""
+			scan vValorParam2, ";"
+			vPos = $result
+			vTam = $length(vValorParam2)
+			if (vPos > 0)
+				vPos = vPos-1
+				vNome = vValorParam2[1,vPos]
+				vPos = vPos + 2
+				vValorParam2 = vValorParam2[vPos,vTam]
+			endif
+			scan vValorParam2, ";"
+			vPos = $result
+			vTam = $length(vValorParam2)
+			if (vPos > 0)
+				vPos = vPos-1
+				vNumero = vValorParam2[1,vPos]
+				vPos = vPos + 2
+				vValorParam2 = vValorParam2[vPos,vTam]
+			endif
+			if (vNome = "") 
+				$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Falta definir o nome para o cartão.", "ADICIONAL=Operação->ADMSVCO025.CD_IMPR_CARTAO")
+				poCdErro = $xCdErro$
+				poCtxErro = $xCtxErro$
+				return(-1)
+			endif
+			if  (vNumero = "")
+				$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Falta definir o número do telefone que será impresso.", "ADICIONAL=Operação->ADMSVCO025.CD_IMPR_CARTAO")
+				poCdErro = $xCdErro$
+				poCtxErro = $xCtxErro$
+				return(-1)
+			endif
+			scan vValorParam2, ";"
+			vPos = $result		
+		endwhile
+	;;
+	;* Claudemir - Prj/Tarefa: 186/309 - 09/11/2011
+	elseif (vAux = 4)
+		vDsConteudo = $item("VL_PARAMETRO", piParams)
+		vDsConteudo = $replace(vDsConteudo, 1, ";", "·;", -1)
+		delitem vDsConteudo, 1              ; retira o número do cartão (primeiro parâmetro)
+		getitem vDsRegistro, vDsConteudo, 1 ; pega o modelo do cartão (segundo parâmetro)
+		vDsModelo	= vDsRegistro
+		if  (vDsModelo = "")
+			$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Falta definir o modelo da cartão configurável", "ADICIONAL=Operação->ADMSVCO025.CD_IMPR_CARTAO")
+			poCdErro = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return(-1)
+		endif  ;*		
+	endif
+	return(0)
+End ; operation CD_IMPR_CARTAO
+;;
+
+;------------------------
+public operation TP_AVISA_ANIVERSARIO
+;-- DBB |PRJ 094/0918| 27/04/2009 ---
+ 	Params
+		string  piGlobal    :IN    
+		string  piParams    :IN
+		string  poParams    :OUT
+		string  poCdErro    :OUT
+		string  poCtxErro   :OUT
+	endParams
+
+	if ($item("VL_PARAMETRO", piParams) != 1) & ($item("VL_PARAMETRO", piParams) != 2) & ($item("VL_PARAMETRO", piParams) != 3) & ($item("VL_PARAMETRO", piParams) != 4)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Tipo de aviso não permitido!", "ADICIONAL=Operação->ADMSVCO025.TP_AVISA_ANIVERSARIO")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+
+	return(0)
+End ; operation TP_AVISA_ANIVERSARIO
+
+;* Claudemir - Prj/Tarefa: 94/969 - 28/05/2009
+;------------------------
+public operation TP_SAC_ATIVO
+;------------------------
+ 	Params
+		string  piGlobal    :IN    
+		string  piParams    :IN
+		string  poParams    :OUT
+		string  poCdErro    :OUT
+		string  poCtxErro   :OUT
+	endParams
+
+	if ($item("VL_PARAMETRO", piParams) != "00") & ($item("VL_PARAMETRO", piParams) != "01")
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Valor não permitido!", "ADICIONAL=Operação->ADMSVCO025.TP_SAC_ATIVO")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+
+	return(0)
+End ; operation TP_SAC_ATIVO  ;*
+
+;-----------------------------------------------------------
+public operation CD_TIPOFONE
+;-----------------------------------------------------------
+;Projeto 094 - Tarefa 1000 - Aloisio Gargantini - 16/06/2009
+
+	Params
+		string  piGlobal    :IN    
+		string  piParams    :IN
+		string  poParams    :OUT
+		string  poCdErro    :OUT
+		string  poCtxErro   :OUT
+	endParams
+
+	variables
+		numeric vCdTipoFone
+	endvariables
+
+	vCdTipoFone = $item("CD_TIPOFONE", piParams)
+
+	clear/e "PES_TIPOFONESVC"
+	CD_TIPOFONE.PES_TIPOFONESVC/init = vCdTipoFone
+	retrieve/e "PES_TIPOFONESVC"
+	if ($status < 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Tipo de telefone não cadastrado!", "ADICIONAL=Operação->ADMSVCO025.CD_TIPOFONE")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+
+	return(0)
+End ; operation CD_TIPOFONE
+
+;-----------------------------------------------------------
+public operation CD_TIPOEMAIL
+;-----------------------------------------------------------
+;Projeto 094 - Tarefa 1000 - Aloisio Gargantini - 16/06/2009
+
+	Params
+		string  piGlobal    :IN    
+		string  piParams    :IN
+		string  poParams    :OUT
+		string  poCdErro    :OUT
+		string  poCtxErro   :OUT
+	endParams
+
+	variables
+		numeric vCdTipoEmail
+	endvariables
+
+	vCdTipoEmail = $item("CD_TIPOEMAIL", piParams)
+
+	clear/e "PES_TIPOEMAILSVC"
+	CD_TIPOEMAIL.PES_TIPOEMAILSVC/init = vCdTipoEmail
+	retrieve/e "PES_TIPOEMAILSVC"
+	if ($status < 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Tipo de e-mail não cadastrado!", "ADICIONAL=Operação->ADMSVCO025.CD_TIPOEMAIL")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+
+	return(0)
+End ; operation CD_TIPOEMAIL
+
+;------------------------
+public operation CD_TIPOCLASPES_MULT
+;------------------------
+	Params
+		string  piGlobal    :IN    
+		string  piParams    :IN
+		string  poParams    :OUT
+		string  poCdErro    :OUT
+		string  poCtxErro   :OUT
+	endParams
+
+	variables
+		boolean vinTipoClas
+		string vDsLstTipoClas, vCdTipoClas, vDsLista, vDsParteLstTipoClas, vChar
+		numeric vPos, vTam, vNumeric
+	endvariables
+
+	vinTipoClas	= <false>
+
+	vDsLstTipoClas = $item("VL_PARAMETRO", piParams)
+
+	; --- DionebuenO |PRJ 094/1145| 01/10/09
+	scan vDsLstTipoClas, "."
+	vPos = $result
+	if (vPos <= 0)
+		scan vDsLstTipoClas, ","
+		vPos = $result	
+	endif
+	if(vPos > 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Separação somente poderá ser efetuada por ponto-e-vígula (;), verifique!", "ADICIONAL=Operação->ADMSVCO025.CD_TIPOCLASPES_MULT")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+
+
+	vDsLstTipoClas = $replace(vDsLstTipoClas, 1, ";", "", -1)	
+	vDsLstTipoClas = $replace(vDsLstTipoClas, 1, " ", "", -1)	
+	;>-- MAC - PRJ 94 TAR 1218 - 25/11/2009
+	vPos = 1
+	repeat
+		vDsParteLstTipoClas = ""
+		vDsParteLstTipoClas = vDsLstTipoClas[vPos:10]		
+		if (vDsParteLstTipoClas != "")
+			repeat
+				vChar = vDsParteLstTipoClas[1:1]
+				if (vChar = 0)
+					vPos = vPos - 1
+					vDsParteLstTipoClas = vDsLstTipoClas[vPos:10]
+				endif	
+			until (vChar != 0)
+
+			vTam = $length(vDsParteLstTipoClas)
+			vNumeric	= vDsParteLstTipoClas
+			vDsParteLstTipoClas = vNumeric
+			if($length(vDsParteLstTipoClas) != vTam)
+				$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Separação somente poderá ser efetuada por ponto-e-vígula (;), verifique!", "ADICIONAL=Operação->ADMSVCO025.CD_TIPOCLASPES_MULT")
+				poCdErro = $xCdErro$
+				poCtxErro = $xCtxErro$
+				return(-1)
+			else
+				vPos = vPos + 10
+			endif
+		endif
+	until (vDsParteLstTipoClas = "")
+	;--<
+
+	vDsLstTipoClas = $item("VL_PARAMETRO", piParams)
+
+	vPos = ""
+	vDsLista = ""	
+	if (vDsLstTipoClas != "")
+
+		scan vDsLstTipoClas, ";"
+		vPos = $result
+		vTam = $length(vDsLstTipoClas)
+	
+		while (vDsLstTipoClas != "")
+			if (vPos >0)
+				vPos = vPos-1
+				vCdTipoClas = vDsLstTipoClas[1,vPos]
+				vPos = vPos + 2
+				vDsLstTipoClas = vDsLstTipoClas[vPos,vTam]
+			else
+				vCdTipoClas = vDsLstTipoClas
+				vDsLstTipoClas = ""
+			endIf	
+
+			clear/e "PES_TIPOCLASSVC"
+			CD_TIPOCLAS.PES_TIPOCLASSVC/init = vCdTipoClas
+			retrieve/e "PES_TIPOCLASSVC"
+			if ($status < 0)
+				if(vDsLista = "")
+					vDsLista = vCdTipoClas
+				else
+					vDsLista = "%%vDsLista/%%vCdTipoClas"
+				endif
+			endif
+
+			scan vDsLstTipoClas, ";"
+			vPos = $result
+			vTam = $length(vDsLstTipoClas)
+		endWhile	
+
+	endIf	
+
+	if(vDsLista != "")
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Tipo(s) de classificação %%vDsLista não cadastrado!", "ADICIONAL=Operação->ADMSVCO025.CD_TIPOCLASPES_MULT")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+
+	return(0)
+End ; operation CD_TIPOCLASPES_MULT
+
+;------------------------
+public operation RELAT_CONFIG
+;------------------------
+	Params
+		string  piGlobal    :IN    
+		string  piParams    :IN
+		string  poParams    :OUT
+		string  poCdErro    :OUT
+		string  poCtxErro   :OUT
+	endParams
+
+	variables
+		string vCdGrupoModelo, vCdRelatorio, vDsParametro
+		numeric vTam, vPos
+	endvariables
+
+	vCdGrupoModelo = ""
+	vCdRelatorio   = ""
+	vDsParametro = ""
+
+	if($item("VL_PARAMETRO", piParams) = "")
+		return(0)
+	endif
+	
+	vDsParametro = $item("VL_PARAMETRO", piParams)
+	vTam = $length(vDsParametro)
+	vPos = vTam - 3
+	vCdGrupoModelo = vDsParametro[1,vPos]	
+	vPos = vPos + 1
+	vCdRelatorio = vDsParametro[vPos, vTam]
+	
+	if(vCdGrupoModelo != "" & vCdRelatorio != "")
+		clear/e "GAR_RELATORIOSVC"
+		CD_GRUPOMODELO.GAR_RELATORIOSVC = vCdGrupoModelo
+		CD_RELATORIO.GAR_RELATORIOSVC = vCdRelatorio
+		retrieve/e "GAR_RELATORIOSVC"
+		if ($status < 0)
+			$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Relatório não cadastrado!", "ADICIONAL=Operação->ADMSVCO025.RELAT_CONFIG")
+			poCdErro = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return(-1)
+		endif
+	else
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Relatório não cadastrado!", "ADICIONAL=Operação->ADMSVCO025.RELAT_CONFIG")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+
+	return(0)
+End ; operation RELAT_CONFIG
+
+
+;----------------------------------------
+;-- MAD [Proj/Tar.136/034] - 27/08/2009
+public operation VALIDA_INTERVALO_NUM
+;----------------------------------------
+
+	Params
+		string  piGlobal    :IN    
+		string  piParams    :IN
+		string  poParams    :OUT
+		string  poCdErro    :OUT
+		string  poCtxErro   :OUT
+	endParams
+
+	variables
+		boolean vInAchou
+		numeric vNrAux, vNrAux2, vConsulta, vCont, vContAux, vPos
+		string  vStringAux, vDsParametro, vChar, vLimpa
+	endvariables
+
+	vDsParametro = $item("VL_PARAMETRO", piParams)
+	if (vDsParametro = "")
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Valor não informado (parâmetro DS_LST_CICLO_CUSTO)!", "ADICIONAL=Operação->ADMSVCO025.VALIDA_INTERVALO_NUM")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+
+	;valida se os dois valores estão separados por vírgula
+	vDsParametro = $item("VL_PARAMETRO", piParams)
+	vConsulta    = $scan(vDsParametro, ",")
+	if (vConsulta <= 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Valores deverão ser separados por vírgula (parâmetro DS_LST_CICLO_CUSTO)!", "ADICIONAL=Operação->ADMSVCO025.VALIDA_INTERVALO_NUM")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+
+	;valida se o campo possui mais de dois valores separados por vírgula
+	vDsParametro = $item("VL_PARAMETRO", piParams)
+	length vDsParametro
+	vPos     = $result
+	vCont    = 0
+	vContAux = 0
+	repeat
+		vCont = vCont + 1
+		vChar = vDsParametro[vCont:1]
+		selectcase vChar
+			case ","
+				vContAux = vContAux + 1
+		endselectcase
+	until (vCont > vPos)
+
+	if (vContAux > 1)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Só é permitido dois valores separados por apenas uma vírgula (parâmetro DS_LST_CICLO_CUSTO)!", "ADICIONAL=Operação->ADMSVCO025.VALIDA_INTERVALO_NUM")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+
+	;valida se o valor tem caracter especial
+	vInAchou     = <FALSE>
+	vDsParametro = $item("VL_PARAMETRO", piParams)
+	vConsulta    = $scan(vDsParametro, "·*")
+	if (vConsulta > 0)
+		vInAchou = <TRUE>
+	endif
+	vConsulta = $scan(vDsParametro, "·=")
+	if (vConsulta > 0)
+		vInAchou = <TRUE>
+	endif
+	vConsulta = $scan(vDsParametro, "·>")
+	if (vConsulta > 0)
+		vInAchou = <TRUE>
+	endif
+	vConsulta = $scan(vDsParametro, "·<")
+	if (vConsulta > 0)
+		vInAchou = <TRUE>
+	endif
+	vConsulta = $scan(vDsParametro, "·;")
+	if (vConsulta > 0)
+		vInAchou = <TRUE>
+	endif
+	vConsulta = $scan(vDsParametro, "·|")
+	if (vConsulta > 0)
+		vInAchou = <TRUE>
+	endif
+	vConsulta = $scan(vDsParametro, "·&")
+	if (vConsulta > 0)
+		vInAchou = <TRUE>
+	endif
+	vConsulta = $scan(vDsParametro, "·!")
+	if (vConsulta > 0)
+		vInAchou = <TRUE>
+	endif
+
+	if (vInAchou = <TRUE>)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Não é permitido caracteres especiais (parâmetro DS_LST_CICLO_CUSTO)!", "ADICIONAL=Operação->ADMSVCO025.VALIDA_INTERVALO_NUM")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+
+	;valida se o valor é numérico
+	vDsParametro = $replace(vDsParametro, 1, ",","",-1)
+	vNrAux       = vDsParametro
+	vStringAux   = vDsParametro
+	if (vNrAux != vStringAux)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Valor deverá ser númerico (parâmetro DS_LST_CICLO_CUSTO)!", "ADICIONAL=Operação->ADMSVCO025.VALIDA_INTERVALO_NUM")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+
+	;valida se o valor é decimal
+	vDsParametro = $item("VL_PARAMETRO", piParams)
+	vConsulta    = $scan(vDsParametro, ".")
+	if (vConsulta > 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Não é permitido casas decimais (parâmetro DS_LST_CICLO_CUSTO)!", "ADICIONAL=Operação->ADMSVCO025.VALIDA_INTERVALO_NUM")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+
+	;valida se o primeiro valor não é maior que o segundo valor
+	vNrAux       = ""
+	vNrAux2      = ""
+	vDsParametro = $item("VL_PARAMETRO", piParams)
+	while (vDsParametro != "")
+		if (vNrAux = "")
+			vPos = $scan(vDsParametro,",")
+			vNrAux = vDsParametro[1,vPos - 1]
+			vLimpa = $ltrim(vDsParametro,vDsParametro[1,vPos])
+			vDsParametro = vLimpa
+		else
+			vNrAux2 = vDsParametro
+			vDsParametro = ""
+		endif
+	endwhile
+
+	if (vNrAux > vNrAux2)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Primeiro valor não pode ser maior que o segundo valor (parâmetro DS_LST_CICLO_CUSTO)!", "ADICIONAL=Operação->ADMSVCO025.VALIDA_INTERVALO_NUM")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+
+	return(0)
+
+End ; operation VALIDA_INTERVALO_NUM
+;;
+
+;---------------------------
+public operation OBRIG_CLASS
+;---------------------------
+;-->MNT - Prj 094/1156 - 14/10/09
+	Params
+		string  piGlobal    :IN    
+		string  piParams    :IN
+		string  poParams    :OUT
+		string  poCdErro    :OUT
+		string  poCtxErro   :OUT
+	endParams
+
+	if ($item("VL_PARAMETRO", piParams) != 0) & ($item("VL_PARAMETRO", piParams) != 1) & ($item("VL_PARAMETRO", piParams) != 2)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Valor informado não permitido!", "ADICIONAL=Operação->ADMSVCO025.OBRIG_CLASS")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+
+	return(0)
+;<--
+End; operation OBRIG_CLASS
+
+;>-- PRJ 94 TAR 1166 - 16/10/09 ----
+public operation CD_TIPOEMAIL_MULT
+;-----------------------------------
+	Params
+		string  piGlobal    :IN    
+		string  piParams    :IN
+		string  poParams    :OUT
+		string  poCdErro    :OUT
+		string  poCtxErro   :OUT
+	endParams
+
+	variables
+		boolean vinTipoEmail
+		string vDsLstTipoEmail, vCdTipoEmail, vDsLista
+		numeric vPos, vTam, vNumeric
+	endvariables
+
+	vinTipoEmail	= <false>
+
+	vDsLstTipoEmail = $item("VL_PARAMETRO", piParams)
+
+	scan vDsLstTipoEmail, "."
+	vPos = $result
+	if (vPos <= 0)
+		scan vDsLstTipoEmail, ","
+		vPos = $result	
+	endif
+	if(vPos > 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Separação somente poderá ser efetuada por ponto-e-vígula (;), verifique!", "ADICIONAL=Operação->ADMSVCO025.CD_TIPOEMAIL_MULT")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+
+	vDsLstTipoEmail = $replace(vDsLstTipoEmail, 1, ";", "", -1)	
+	vDsLstTipoEmail = $replace(vDsLstTipoEmail, 1, " ", "", -1)	
+	vTam = $length(vDsLstTipoEmail)
+	vNumeric	= vDsLstTipoEmail
+	vDsLstTipoEmail = vNumeric
+	if($length(vDsLstTipoEmail) != vTam)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Separação somente poderá ser efetuada por ponto-e-vígula (;), verifique!", "ADICIONAL=Operação->ADMSVCO025.CD_TIPOEMAIL_MULT")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	; ---
+
+	vDsLstTipoEmail = $item("VL_PARAMETRO", piParams)
+	
+	vDsLista = ""	
+	if (vDsLstTipoEmail != "")
+
+		scan vDsLstTipoEmail, ";"
+		vPos = $result
+		vTam = $length(vDsLstTipoEmail)
+	
+		while (vDsLstTipoEmail != "")
+			if (vPos >0)
+				vPos = vPos-1
+				vCdTipoEmail = vDsLstTipoEmail[1,vPos]
+				vPos = vPos + 2
+				vDsLstTipoEmail = vDsLstTipoEmail[vPos,vTam]
+			else
+				vCdTipoEmail = vDsLstTipoEmail
+				vDsLstTipoEmail = ""
+			endIf	
+			if (vCdTipoEmail = "")
+				$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Tipo(s) de e-mail(s) não informado!", "ADICIONAL=Operação->ADMSVCO025.CD_TIPOEMAIL_MULT")
+				poCdErro = $xCdErro$
+				poCtxErro = $xCtxErro$
+				return(-1)
+			endif
+
+			clear/e "PES_TIPOEMAILSVC"
+			CD_TIPOEMAIL.PES_TIPOEMAILSVC/init = vCdTipoEmail
+			retrieve/e "PES_TIPOEMAILSVC"
+			if ($status < 0)
+				if(vDsLista = "")
+					vDsLista = vCdTipoEmail
+				else
+					vDsLista = "%%vDsLista/%%vCdTipoEmail"
+				endif
+			endif
+
+			scan vDsLstTipoEmail, ";"
+			vPos = $result
+			vTam = $length(vDsLstTipoEmail)
+		endWhile	
+
+	endIf	
+
+	if(vDsLista != "")
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Tipo(s) de e-mails %%vDsLista não cadastrado!", "ADICIONAL=Operação->ADMSVCO025.CD_TIPOEMAIL_MULT")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+
+	return(0)
+End ; operation CD_TIPOEMAIL_MULT
+
+;---------------------------
+public operation CD_TIPOVERBA_MULT
+;---------------------------
+;-->MNT - Prj 094/1212 - 23/11/09
+	Params
+		string  piGlobal    :IN    
+		string  piParams    :IN
+		string  poParams    :OUT
+		string  poCdErro    :OUT
+		string  poCtxErro   :OUT
+	endParams
+
+	variables
+		String vDsRegistro, vDsConteudo
+	endvariables
+
+	vDsConteudo = $item("VL_PARAMETRO", piParams)
+	vDsConteudo = $replace(vDsConteudo, 1,";","·;",-1)
+
+	if (vDsConteudo != "")
+		repeat
+			getitem vDsRegistro, vDsConteudo, 1
+			clear/e "PES_TIPOVERBASVC"
+			CD_TIPOVERBA.PES_TIPOVERBASVC = vDsRegistro
+			retrieve/e "PES_TIPOVERBASVC"
+			if ($status < 0)
+				$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Tipo de Verba %%vDsRegistro inválido!", "ADICIONAL=Operação->ADMSVCO025.CD_TIPOVERBA_MULT")
+				poCdErro = $xCdErro$
+				poCtxErro = $xCtxErro$
+				return(-1)
+			endif
+			delitem	vDsConteudo , 1	
+		until (vDsConteudo = "")
+	endif
+
+	return(0)
+;<--
+End; operation CD_TIPOVERBA_MULT
+
+;--------------------------- ;; Marcus Vinicius - 94/1364 - 29/04/2010
+public operation TAM_IMAGEM_SCANNER
+;---------------------------
+	Params
+		string  piGlobal    :IN    
+		string  piParams    :IN
+		string  poParams    :OUT
+		string  poCdErro    :OUT
+		string  poCtxErro   :OUT
+	endParams
+
+	variables
+		numeric vNrTamanho
+	endvariables
+
+	vNrTamanho = $replace($item("VL_PARAMETRO", piParams), 1, ",", ".", -1)	
+
+	;* Claudemr - Prj/Tarefa: 94/1688 - 01/03/2011
+	;if(vNrTamanho[fraction] > 0 | vNrTamanho < 1 | vNrTamanho > 100)
+	;	$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=O valor digitado precisa ser um numérico inteiro entre 001 e 100!", "ADICIONAL=Operação->ADMSVCO025.TAM_IMAGEM_SCANNER")
+	if(vNrTamanho[fraction] > 0 | vNrTamanho < 1 | vNrTamanho > 300)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=O valor digitado precisa ser um numérico inteiro entre 001 e 300!", "ADICIONAL=Operação->ADMSVCO025.TAM_IMAGEM_SCANNER")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+
+	if (vNrTamanho > 100)
+		askmess "Tamanho maior do que 100 só deve ser utilizado em servidores externos. %%^ Nos servidores internos pode causar lentidão. %%^ Confirma?", "Sim,Não" 
+		if ($status = 2)
+			$instancehandle->SetStatus(<STS_AVISO>, "GEN0001", "DESCRICAO=Gravação cancelada!", "")
+			poCdErro = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return(-1)
+		endif
+	endif  ;*
+	
+	return(0)
+End; operation TAM_IMAGEM_SCANNER
+
+;--------------------------- ;; Marcus Vinicius - 94/1364 - 29/04/2010
+public operation FOR_IMAGEM_SCANNER
+;---------------------------
+	Params
+		string  piGlobal    :IN    
+		string  piParams    :IN
+		string  poParams    :OUT
+		string  poCdErro    :OUT
+		string  poCtxErro   :OUT
+	endParams
+
+	variables
+		string vDsParametro, vDsItem
+		numeric vNrTamanho
+	endvariables
+
+	vDsParametro = $replace($item("VL_PARAMETRO", piParams), 1, ";", "·;", -1)
+	
+	repeat
+		getitem vDsItem, vDsParametro, 1
+		if($length(vDsItem) != 3)
+			$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Extenção inválida!", "ADICIONAL=Operação->ADMSVCO025.FOR_IMAGEM_SCANNER")
+			poCdErro = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return(-1)
+		endif
+		delitem vDsParametro, 1
+	until (vDsParametro = "")	
+	
+	return(0)
+End; operation FOR_IMAGEM_SCANNER
+
+;--------------------------- ;; Marcus Vinicius - 94/1439 - 15/07/2010
+public operation ACEITA_0_1_2
+;---------------------------
+	Params
+		string  piGlobal    :IN    
+		string  piParams    :IN
+		string  poParams    :OUT
+		string  poCdErro    :OUT
+		string  poCtxErro   :OUT
+	endParams
+
+	variables
+		string vDsParametro
+	endvariables
+
+	vDsParametro = $item("VL_PARAMETRO", piParams)
+	
+	if(vDsParametro != "0") & (vDsParametro != "1") & (vDsParametro != "2")
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Valor inválido!", "ADICIONAL=Operação->ADMSVCO025.ACEITA_0_1_2")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	
+	return(0)
+End; operation ACEITA_0_1_2
+
+;-------------------------------------------------;
+public operation PESFL038_EXIBICAO                ;
+;-------------------------------------------------;
+; Diogenes - 28/08/2008 - Proj. 094 - Tarefa 9929 ;
+; Funcao : Validar valor informado no parametro.  ;
+; Chamada: ADMFM014                               ;
+;-------------------------------------------------;
+;   Movido do ADMSVCO007 - 94/1472 - 27/07/2010   ;
+;-------------------------------------------------;
+	Params
+		string  piGlobal    :IN    
+		string  piParams    :IN
+		string  poParams    :OUT
+		string  poCdErro    :OUT
+		string  poCtxErro   :OUT
+	endParams
+	variables
+		numeric vCdParametro
+	endvariables
+
+	vCdParametro = $item("VL_PARAMETRO", piParams)
+	if (vCdParametro = "")
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Valor não informado!", "ADICIONAL=Operação->ADMSVCO007.PESFL038_MODO_DE_EXIBICAO")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+
+	if (vCdParametro <= 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Valor informado é inválido!", "ADICIONAL=Operação->ADMSVCO007.PESFL038_MODO_DE_EXIBICAO")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+
+	if (vCdParametro > 4)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Valor informado não deve ser maior que 4!", "ADICIONAL=Operação->ADMSVCO007.PESFL038_MODO_DE_EXIBICAO")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+
+	return(0)
+End ; operation PESFL038_EXIBICAO
+
+;-------------------------------
+public operation IN_TP_CAD_AUTOM
+;-------------------------------
+	params
+		string  piGlobal    :IN    
+		string  piParams    :IN
+		string  poParams    :OUT
+		string  poCdErro    :OUT
+		string  poCtxErro   :OUT
+	endParams
+
+	variables
+		string vDsIndicador
+	endvariables
+
+	vDsIndicador = $item("VL_PARAMETRO", piParams)
+	
+	if (vDsIndicador != "3") & (vDsIndicador != "9")
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Valor inválido! Os valores válidos são 3(normal) ou 9(em análise)!", "ADICIONAL=Operação->ADMSVCO007.IN_TP_CAD_AUTOM")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		exit(-1)
+	endif
+
+	return(0)
+End ;operation IN_TP_CAD_AUTOM
+
+;------------------------------------
+public operation IN_OBRIG_ENDERECO
+;RAH - 21/06/2007 (Prj094/Trf148)
+	;--------------------------------
+	Params
+		string  piGlobal    :IN    
+		string  piParams    :IN
+		string  poParams    :OUT
+		string  poCdErro    :OUT
+		string  poCtxErro   :OUT
+	endParams
+
+	variables
+		string vInObrigEndereco
+	endvariables
+
+	vInObrigEndereco = $item("VL_PARAMETRO", piParams)
+	if (vInObrigEndereco != 0 & vInObrigEndereco != 1 & vInObrigEndereco != 2 & vInObrigEndereco != 3)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Parâmetro inválido!", "ADICIONAL=Operação->ADMSVCO007.IN_OBRIG_ENDERECO")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+
+	return(0)
+End ; operation IN_OBRIG_ENDERECO;;
+
+;------------------------------------
+public operation CD_PESSOA_END_PADRAO
+;RAH - 21/06/2007 (Prj094/Trf174)
+	;--------------------------------
+	Params
+		string  piGlobal    :IN    
+		string  piParams    :IN
+		string  poParams    :OUT
+		string  poCdErro    :OUT
+		string  poCtxErro   :OUT
+	endParams
+
+	variables
+		string viParams, voParams
+		numeric vNrSeqEndereco
+	endvariables
+
+	clear/e "PES_PESSOASVC"
+	CD_PESSOA.PES_PESSOASVC = $item("VL_PARAMETRO", piParams)
+	retrieve/e "PES_PESSOASVC"
+	if ($status < 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Pessoa não cadastrada!", "ADICIONAL=Operação->ADMSVCO007.CD_PESSOA_END_PADRAO")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+
+	viParams = ""
+	voParams = ""
+	vNrSeqEndereco = 0
+	putitem/id viParams, "CD_PESSOA", CD_PESSOA.PES_PESSOASVC
+	activate "PESSVCO005".buscaEnderecoFaturamento($xlpg$, viParams, voParams, $xCdErro$, $xCtxErro$)
+	if ($procerror)
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+	elseif ($status < 0)
+		$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")
+	endif
+	vNrSeqEndereco = $item("NR_SEQENDERECO", voParams)
+
+	if (vNrSeqEndereco > 0)
+		clear/e "PES_ENDERECOSVC"
+		CD_PESSOA.PES_ENDERECOSVC/init = CD_PESSOA.PES_PESSOASVC
+		NR_SEQUENCIA.PES_ENDERECOSVC/init = vNrSeqEndereco
+		retrieve/e "PES_ENDERECOSVC"
+		if ($status < 0)
+			$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Pessoa sem endereço cadastrado!", "ADICIONAL=Operação->ADMSVCO007.CD_PESSOA_END_PADRAO")
+			poCdErro = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return(-1)
+		endif
+	else
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Pessoa sem endereço cadastrado!", "ADICIONAL=Operação->ADMSVCO007.CD_PESSOA_END_PADRAO")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+
+	return(0)
+End ; operation CD_PESSOA_END_PADRAO;;
+
+;-------------------------------------------------;
+public operation CD_OP_FAT_BRINDE                 ;
+;-------------------------------------------------;
+; Aloisio: 27/03/2008    Projeto 118, tarefa 0043 ;
+; Funcao : Validar valor informado no parametro.  ;
+; Chamada: ADMFM014                               ;
+;-------------------------------------------------;
+	Params
+		string  piGlobal    :IN    
+		string  piParams    :IN
+		string  poParams    :OUT
+		string  poCdErro    :OUT
+		string  poCtxErro   :OUT
+	endParams
+	variables
+		numeric vCdOperacao
+	endvariables
+
+	vCdOperacao = $item("VL_PARAMETRO", piParams)
+	if (vCdOperacao = "")
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Operacao não informada!", "ADICIONAL=Operação->ADMSVCO007.CD_OP_FAT_BRINDE")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	clear "GER_OPERACAOSVC"
+	CD_OPERACAO.GER_OPERACAOSVC/init = vCdOperacao
+	retrieve/e "GER_OPERACAOSVC"
+	if ($status < 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Operacao invalida!", "ADICIONAL=Operação->ADMSVCO007.CD_OP_FAT_BRINDE")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	return(0)
+End ; operation CD_OP_FAT_BRINDE
+
+;------------------------------------
+public operation CD_CONCEITO_ULT_COMP
+;------------------------------------
+; Projeto 071 - Tarefa 027 - Aloisio Gargantini - 08/09/2006
+	Params
+		string  piGlobal    :IN    
+		string  piParams    :IN
+		string  poParams    :OUT
+		string  poCdErro    :OUT
+		string  poCtxErro   :OUT
+	endParams
+	variables
+		numeric vCdConceitoUltCompra
+	endvariables
+	
+	vCdConceitoUltCompra = $item("VL_PARAMETRO", piParams)
+	if 	(vCdConceitoUltCompra != 1 & vCdConceitoUltCompra != 2)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Tipo de conceito de última compra inválido! Valores válidos: 1=Conceito padrão:Compra individuais 2=Soma das compras por dia", "ADICIONAL=Operação->ADMSVCO007.TP_INSTRUCAO_FIS")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	
+	return(0)
+End ;operation CD_CONCEITO_ULT_COMP
+
+;----------------------------------------------------------------;
+public operation IN_CADASTRA_PF                                  ;
+;----------------------------------------------------------------;
+; Projeto 094 - Tarefa 433 - Dione Bueno        - 14/02/2008     ;
+; Funcao : Validar Tabela PES_TIPOCAMPO.                         ;
+;----------------------------------------------------------------;
+;
+	params
+		string  piGlobal    :IN    
+		string  piParams    :IN
+		string  poParams    :OUT
+		string  poCdErro    :OUT
+		string  poCtxErro   :OUT
+	endParams
+	
+	if (($item("VL_PARAMETRO", piParams) != 0) & ($item("VL_PARAMETRO", piParams) != 1) & ($item("VL_PARAMETRO", piParams) != 2) & ($item("VL_PARAMETRO", piParams) != 3))
+		$instancehandle->setStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Valor do parâmetro não permitido.", "ADICIONAL=Operação->ADMSVCO007.IN_CADASTRA_PF")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	
+	return(0)
+End ;operation IN_CADASTRA_PF 
+
+;----------------------------
+;LSC - (30/11/2006) - Projeto: 71 - Tarefa: 73 - Validação do valor do parametro
+;----------------------------
+public operation IN_USA_COND_PGTO_ESP
+;----------------------------
+	Params
+		string  piGlobal    :IN    
+		string  piParams    :IN
+		string  poParams    :OUT
+		string  poCdErro    :OUT
+		string  poCtxErro   :OUT
+	endParams
+	variables
+		numeric vTpCondPgtoEspecial
+	endvariables
+
+	vTpCondPgtoEspecial= $item("VL_PARAMETRO", piParams)
+	if (vTpCondPgtoEspecial != 0 & vTpCondPgtoEspecial != 1 )
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Parâmetro inválido!", "ADICIONAL=Operação->ADMSVCO007.IN_USA_COND_PGTO_ESPECIAL")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	return(0)
+End ; operation IN_USA_COND_PGTO_ESP
+
+;-------------------------------- ;; Marcus Vinicius - 94/1472 - 27/07/210
+public operation CD_EMAILFOR
+;--------------------------------
+	Params
+		string  piGlobal    :IN    
+		string  piParams    :IN
+		string  poParams    :OUT
+		string  poCdErro    :OUT
+		string  poCtxErro   :OUT
+	endParams
+
+	variables
+		numeric vCdTipoEmail
+	endvariables
+
+	vCdTipoEmail = $item("VL_PARAMETRO", piParams)
+
+	clear/e "PES_TIPOEMAILSVC"
+	CD_TIPOEMAIL.PES_TIPOEMAILSVC/init = vCdTipoEmail
+	retrieve/e "PES_TIPOEMAILSVC"
+	if ($status < 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Tipo de e-mail não cadastrado!", "ADICIONAL=Operação->ADMSVCO025.CD_EMAILFOR")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+
+	return(0)
+End ; operation CD_EMAILFOR
+
+;--------------------------- ;; Marcus Vinicius - 94/1477 - 02/08/2010
+public operation PERCENTUAIS
+;---------------------------
+	Params
+		string  piGlobal    :IN    
+		string  piParams    :IN
+		string  poParams    :OUT
+		string  poCdErro    :OUT
+		string  poCtxErro   :OUT
+	endParams
+
+	variables
+		string  vDsParametro, vDsRegistro, vStringAux
+		numeric vNrContador, vNrAux 
+	endvariables
+
+	vDsParametro = $item("VL_PARAMETRO", piParams)
+	if(vDsParametro = "") 
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Parâmetro não informado!", "ADICIONAL=Operação->ADMSVCO025.PERCENTUAIS")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	
+	vDsParametro = $replace(vDsParametro, 1, ";", "·;", -1)
+
+	vNrContador = 0
+	repeat
+		getitem vDsRegistro, vDsParametro, 1
+
+		vNrAux = vDsRegistro
+		vStringAux = vDsRegistro
+		if(vNrAux != vStringAux)
+			$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Valor deverá ser númerico!", "ADICIONAL=Operação->ADMSVCO025.PERCENTUAIS")
+			poCdErro = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return(-1)
+		endif
+
+		if(vNrAux < 000.00) | (vNrAux > 999.99)
+			$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Valor inválido! Deve ser informado um ou dois percentuais entre 000.00 e 999.99 separados por ponto-e-virgula!", "ADICIONAL=Operação->ADMSVCO025.PERCENTUAIS")
+			poCdErro = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return(-1)	
+		endif
+
+		vNrContador = vNrContador + 1
+
+		delitem	vDsParametro, 1	
+	until (vDsParametro = "")
+
+	if(vNrContador < 1) | (vNrContador > 2)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Valor inválido! Deve ser informado um ou dois percentuais entre 000.00 e 999.99 separados por ponto-e-virgula!", "ADICIONAL=Operação->ADMSVCO025.PERCENTUAIS")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)	
+	endif
+
+	return(0)
+End; operation ACEITA_0_1_2
+
+;--------------------------------;
+public operation VALIDADE_SENHA  ;
+;--------------------------------;
+; DIONE |094/1525| 06/09/2010    ;
+;--------------------------------;
+	Params
+		string  piGlobal    :IN    
+		string  piParams    :IN
+		string  poParams    :OUT
+		string  poCdErro    :OUT
+		string  poCtxErro   :OUT
+	endParams
+
+	variables
+		Numeric vNrDiasValSenha
+	endvariables
+
+	vNrDiasValSenha = $item("VL_PARAMETRO", piParams)
+
+	if(vNrDiasValSenha != 0 & vNrDiasValSenha != "")
+
+		if(vNrDiasValSenha < 30 | vNrDiasValSenha > 180)
+			$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Número de dias não esta contido entre 30 a 180 dias, verifique!", "ADICIONAL=Operação->ADMSVCO025.VALIDADE_SENHA")
+			poCdErro = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return(-1)
+		endif
+
+	endif
+
+	return(0)
+End ; operation VALIDADE_SENHA
+
+;----------------------------
+public operation NR_EMPCTAPES
+;----------------------------
+	Params
+		string  piGlobal    :IN    
+		string  piParams    :IN
+		string  poParams    :OUT
+		string  poCdErro    :OUT
+		string  poCtxErro   :OUT
+	endParams
+
+	variables
+		string vpiParams, vpoParams, voLstParams
+		numeric vTpManBco, vTpManForn, vTpManCliente, vTpManCxMatriz, vTpManCxFilial, vTpManCxUsuario, vTpManCxFundo, vTpManCxTransicao
+	endvariables
+
+	; MFG - 06/04/2006 Prj 62 / Trf 2 Implantacao do Lojao
+	voLstParams = ""
+	$xlpi$ = "CD_TPMANUT_BANCO·;CD_TPMANUT_FORNECEDOR·;CD_TPMANUT_CXMATRIZ·;CD_TPMANUT_CXFILIAL·;CD_TPMANUT_CXUSUARIO·;CD_TPMANUT_CLIENTE·;CD_TPMANUT_CXFUNDO·;CD_TPMANUT_CXTRANSICAO"
+	activate "ADMSVCO001".GetLstParametro($xlpi$,voLstParams,$xCdErro$,$xCtxErro$)	
+	if ($procerror)
+		$instancehandle->SetStatus(<sts_erro>,$procerror,$procerrorcontext,"")
+		return (-1)
+	elseif (voLstParams != "")
+		vTpManBco         = $item("CD_TPMANUT_BANCO"      ,voLstParams)
+		vTpManForn        = $item("CD_TPMANUT_FORNECEDOR" ,voLstParams)
+		vTpManCliente     = $item("CD_TPMANUT_CLIENTE"    ,voLstParams)
+		vTpManCxMatriz    = $item("CD_TPMANUT_CXMATRIZ"   ,voLstParams)
+		vTpManCxFilial    = $item("CD_TPMANUT_CXFILIAL"   ,voLstParams)
+		vTpManCxUsuario   = $item("CD_TPMANUT_CXUSUARIO"  ,voLstParams)
+		vTpManCxFundo     = $item("CD_TPMANUT_CXFUNDO"    ,voLstParams)
+		vTpManCxTransicao = $item("CD_TPMANUT_CXTRANSICAO",voLstParams)
+	endif
+	;
+
+	clear/e "FCC_CTAPESSVC"
+	NR_CTAPES.FCC_CTAPESSVC = $item("VL_PARAMETRO", piParams)
+	retrieve/e "FCC_CTAPESSVC"
+	if ($status < 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Conta Corrente não cadastrada!", "ADICIONAL=Operação->ADMSVCO007.NR_EMPCTAPES")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+
+	if (CD_EMPRESA.FCC_CTAPESSVC != $item("CD_EMPRESA", piParams))
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Conta Corrente não pertence a empresa!", "ADICIONAL=Operação->ADMSVCO007.NR_EMPCTAPES")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+
+	; MFG - 06/04/2006 Prj 62 / Trf 2 Implantacao do Lojao
+	if (TP_MANUTENCAO.FCC_CTAPESSVC = vTpManCxMatriz   ) | %\
+	   (TP_MANUTENCAO.FCC_CTAPESSVC = vTpManCxFilial   ) | %\
+	   (TP_MANUTENCAO.FCC_CTAPESSVC = vTpManCxUsuario  ) | %\
+	   (TP_MANUTENCAO.FCC_CTAPESSVC = vTpManCxFundo    ) | %\
+	   (TP_MANUTENCAO.FCC_CTAPESSVC = vTpManCxTransicao)
+
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Conta Corrente informada não pode ser do TIPO MANUTENCAO CAIXA!", "ADICIONAL=Operação->ADMSVCO007.NR_EMPCTAPES")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	;
+	return(0)
+End ; operation NR_EMPCTAPES
+
+;-----------------------------------------------------------;
+public operation VALIDARCTAPES                              ;
+;-----------------------------------------------------------;
+;Projeto 078 - Tarefa 3836 - Aloisio Gargantini - 14/10/2010;
+;
+	Params
+		string  piGlobal    :IN    
+		string  piParams    :IN
+		string  poParams    :OUT
+		string  poCdErro    :OUT
+		string  poCtxErro   :OUT
+	endParams
+
+	variables
+		string vpiParams, vpoParams
+		numeric vTpManEndosso, vTpManRedutora, vTpManCxMatriz, vTpManCxFilial
+		numeric vTpManCxFundo, vTpManCxTransicao, vNrCtaPes
+	endvariables
+
+	vNrCtaPes = $item("VL_PARAMETRO", piParams)
+
+	if(vNrCtaPes = 0 & vNrCtaPes = "")
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Parâmetro não informado.", "ADICIONAL=Operação->ADMSVCO025.VALIDARCTAPES")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+
+	clear/e "FCC_CTAPESSVC"
+	NR_CTAPES.FCC_CTAPESSVC = vNrCtaPes
+	retrieve/e "FCC_CTAPESSVC"
+	if ($status < 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Conta Corrente não cadastrada!", "ADICIONAL=Operação->ADMSVCO025.VALIDARCTAPES")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif             
+
+	vpiParams = ""
+	putitem vpiParams, -1, "CD_TPMANUT_CXMATRIZ"
+	putitem vpiParams, -1, "CD_TPMANUT_CXFILIAL"
+	putitem vpiParams, -1, "CD_TPMANUT_CXFUNDO"
+	putitem vpiParams, -1, "CD_TPMANUT_CXTRANSITORIA"
+	putitem vpiParams, -1, "CD_TPMANUT_ENDOSSO"
+	putitem vpiParams, -1, "CD_TPMANUT_REDUTORA"
+	activate "ADMSVCO001".GetLstParametro(vpiParams, vpoParams, $xCdErro$, $xCtxErro$)	
+	if ($procerror)
+		$instancehandle->SetStatus(<sts_erro>,$procerror,$procerrorcontext,"")
+		return (-1)
+	elseif (vpoParams != "")
+		vTpManCxMatriz    = $item("CD_TPMANUT_CXMATRIZ"     ,vpoParams)
+		vTpManCxFilial    = $item("CD_TPMANUT_CXFILIAL"     ,vpoParams)
+		vTpManCxFundo     = $item("CD_TPMANUT_CXFUNDO"      ,vpoParams)
+		vTpManCxTransicao = $item("CD_TPMANUT_CXTRANSITORIA",vpoParams)
+		vTpManEndosso     = $item("CD_TPMANUT_ENDOSSO",vpoParams)
+		vTpManRedutora    = $item("CD_TPMANUT_REDUTORA",vpoParams)
+
+	endif
+
+	if (TP_MANUTENCAO.FCC_CTAPESSVC != vTpManCxMatriz   ) & %\
+	   (TP_MANUTENCAO.FCC_CTAPESSVC != vTpManCxFilial   ) & %\
+	   (TP_MANUTENCAO.FCC_CTAPESSVC != vTpManCxFundo    ) & %\
+	   (TP_MANUTENCAO.FCC_CTAPESSVC != vTpManCxTransicao) & %\
+	   (TP_MANUTENCAO.FCC_CTAPESSVC != vTpManEndosso    ) & %\  
+	   (TP_MANUTENCAO.FCC_CTAPESSVC != vTpManRedutora   ) 
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Conta Corrente informada deve ser do TIPO MANUTENCAO: Caixa Matriz, Caixa Filial, Caixa Fundo, Caixa Transitória, Endosso ou Redutora.", "ADICIONAL=Operação->ADMSVCO025.VALIDARCTAPES")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+
+	if ($item("CD_PARAMETRO", piParams) = "CD_CTAPES_CXMATRIZ")
+		if (vTpManCxMatriz = "") | (vTpManCxMatriz = 0)
+			$instancehandle->setStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Tipo de manutenção CAIXA MATRIZ não configurado para validação de conta caixa matriz.%%^%%^Parâmetro empresa: CD_TPMANUT_CXMATRIZ", "")
+			poCdErro  = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return(-1)
+		endif
+		if (TP_MANUTENCAO.FCC_CTAPESSVC != vTpManCxMatriz)
+			$instancehandle->setStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Conta informada não é do tipo CAIXA MATRIZ", "")
+			poCdErro  = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return(-1)
+		endif
+	elseif ($item("CD_PARAMETRO", piParams) = "CD_CTAPES_CXFILIAL")
+		if (TP_MANUTENCAO.FCC_CTAPESSVC != vTpManCxFilial)
+			$instancehandle->setStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Conta informada não é do tipo CAIXA FILIAL", "")
+			poCdErro  = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return(-1)
+		endif
+	elseif ($item("CD_PARAMETRO", piParams) = "CD_CTAPES_CXFUNDO")
+		if (TP_MANUTENCAO.FCC_CTAPESSVC != vTpManCxFundo)
+			$instancehandle->setStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Conta informada não é do tipo CAIXA FUNDO", "")
+			poCdErro  = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return(-1)
+		endif
+	elseif ($item("CD_PARAMETRO", piParams) = "CD_CTAPES_CXTRANSITORIA")
+		if (TP_MANUTENCAO.FCC_CTAPESSVC != vTpManCxTransicao)
+			$instancehandle->setStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Conta informada não é do tipo CAIXA TRANSITÓRIA", "")
+			poCdErro  = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return(-1)
+		endif
+	elseif ($item("CD_PARAMETRO", piParams) = "CD_CTAPES_ENDOSSO")
+		if (TP_MANUTENCAO.FCC_CTAPESSVC != vTpManEndosso)
+			$instancehandle->setStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Conta informada não é do tipo ENDOSSO", "")
+			poCdErro  = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return(-1)
+		endif
+	elseif ($item("CD_PARAMETRO", piParams) = "CD_CTAPES_REDUTORA")
+		if (TP_MANUTENCAO.FCC_CTAPESSVC != vTpManRedutora)
+			$instancehandle->setStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Conta informada não é do tipo REDUTORA", "")
+			poCdErro  = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return(-1)
+		endif
+	endif
+		
+	vpiParams = ""
+	putitem/id vpiParams, "CD_EMPRESA",    CD_EMPRESA.FCC_CTAPESSVC
+	putitem/id vpiParams, "IN_CCUSTO" ,    <TRUE>
+	putitem/id vpiParams, "CD_COMPONENTE", $item("CD_COMPONENTE", piParams)
+	if ($item("CD_EMPRESA", piParams) != "")
+		putitem/id vpiParams, "CD_EMPRESALOG", $item("CD_EMPRESA", piParams)
+	endif
+	activate "FGRSVCO001".validarEmpresa($$gParamGlb, vpiParams, vpoParams, $xCdErro$, $xCtxErro$)
+	if ($procerror)
+		$instancehandle->setStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	elseif ($status < 0)
+		$instancehandle->setStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	if ($item("LST_EMPRESA", vpoParams) = "")
+		$instancehandle->setStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Conta corrente inválida para a empresa informada", "")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+
+	return(0)
+End ; operation VALIDARCTAPES
+
+;----------------------------
+public operation NR_CICLO_ATUAL_OS
+;--->MNT - Prj 174/0010 - 23/09/2010
+
+	Params
+		string  piGlobal    :IN    
+		string  piParams    :IN
+		string  poParams    :OUT
+		string  poCdErro    :OUT
+		string  poCtxErro   :OUT
+	endParams
+	
+	clear/e "ODS_CICLOSVC"
+	CD_EMPRESA.ODS_CICLOSVC/init = $item("CD_EMPRESA", piGlobal)
+	NR_CICLO.ODS_CICLOSVC/init   = $item("VL_PARAMETRO", piParams)
+	retrieve/e "ODS_CICLOSVC"
+	if ($status < 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Ciclo não encontrado!", "ADICIONAL=Operação->ADMSVCO025.NR_CICLO_ATUAL_OS")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	
+	if (IN_FECHADO.ODS_CICLOSVC = <TRUE>)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Ciclo já fechado!", "ADICIONAL=Operação->ADMSVCO025.NR_CICLO_ATUAL_OS")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	
+	return(0)
+End ; operation NR_CICLO_ATUAL_OS
+
+;----------------------------------------------------------------;
+public operation CD_CAMPO_ADIC_FCP                               ;
+;----------------------------------------------------------------;
+; Projeto 078 - Tarefa 3888 - Aloisio Gargantini - 05/11/2010    ;
+; Funcao : Validar Tipo de campo adicional da Duplicata          ;
+;----------------------------------------------------------------;
+	Params
+		string  piGlobal    :IN    
+		string  piParams    :IN
+		string  poParams    :OUT
+		string  poCdErro    :OUT
+		string  poCtxErro   :OUT
+	endParams
+
+	clear/e "FCP_TIPOCAMPOSVC"
+	CD_TIPOCAMPO.FCP_TIPOCAMPOSVC/init = $item("VL_PARAMETRO", piParams)
+	retrieve/e "FCP_TIPOCAMPOSVC"
+	if ($status < 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Campo adicional de duplicata não cadastrado!", "ADICIONAL=Operação->ADMSVCO025.CD_CAMPOADIC_FCP")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+
+	return(0)
+End ; operation CD_CAMPO_ADIC_FCP.
+
+;----------------------------------------------------------------;
+public operation CD_CCUSTO_FIN                                   ;
+;----------------------------------------------------------------;
+; Projeto 078 - Tarefa 3936 - Aloisio Gargantini - 30/11/2010    ;
+; Funcao : Validar Centro de custo                               ;
+;----------------------------------------------------------------;
+	Params
+		string  piGlobal    :IN    
+		string  piParams    :IN
+		string  poParams    :OUT
+		string  poCdErro    :OUT
+		string  poCtxErro   :OUT
+	endParams
+
+	clear/e "GEC_CCUSTOSVC"
+	CD_CCUSTO.GEC_CCUSTOSVC/init = $item("VL_PARAMETRO", piParams)
+	retrieve/e "GEC_CCUSTOSVC"
+	if ($status < 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Centro de custo inválido!", "ADICIONAL=Operação->ADMSVCO025.CD_CCUSTO_FIN")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+
+	return(0)
+End ; operation CD_CCUSTO_FIN.
+
+;----------------------------------------------------------------;
+public operation VALIDA_COB_BANCO_REC                            ;
+;----------------------------------------------------------------;
+; Projeto 078 - Tarefa 4094 - Aloisio Gargantini - 23/02/2011    ;
+; Tipos de cobrança autorizados:                                 :
+; 1-Simples  2-Descontada  3-Caucionada  4-Vinculada  6-Vendor   ;
+;----------------------------------------------------------------;
+	Params
+		string  piGlobal    :IN    
+		string  piParams    :IN
+		string  poParams    :OUT
+		string  poCdErro    :OUT
+		string  poCtxErro   :OUT
+	endParams
+
+	variables
+		string  vDsCobBanco, vDsCobBancoSai
+		numeric vTpCobranca
+	endvariables
+
+	vDsCobBanco    = $item("VL_PARAMETRO", piParams)
+	vDsCobBancoSai = "*"
+	repeat
+		getitem vTpCobranca, vDsCobBanco, 1	
+		if (vTpCobranca = 1) | (vTpCobranca = 2) | (vTpCobranca = 3) | (vTpCobranca = 4) | (vTpCobranca = 6) 
+			if (vDsCobBancoSai = "*")
+				vDsCobBancoSai = ""
+			endif
+			putitem vDsCobBancoSai, -1, vTpCobranca
+		endif
+		delitem vDsCobBanco , 1
+	until (vDsCobBanco = "")	
+
+	putitem/id poParams, "VL_PARAMETRO", vDsCobBancoSai
+
+	return(0)
+End ; operation VALIDA_COB_BANCO_REC.
+
+;Cris - PRJ/TAR: 094/1829 - 12/08/2011
+;----------------------------
+public operation CONSISTE_DIA
+;----------------------------
+	Params
+		string  piGlobal    :IN    
+		string  piParams    :IN
+		string  poParams    :OUT
+		string  poCdErro    :OUT
+		string  poCtxErro   :OUT
+	endParams
+
+	variables
+		Numeric vDiaMes
+	endvariables
+
+	vDiaMes = $item("VL_PARAMETRO", piParams)
+	if (vDiaMes < 1 | vDiaMes > 27)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Valor inválido! Os valores válidos devem estar entre 01 e 27!", "ADICIONAL=Operação->ADMSVCO025.CONSISTE_DIA")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		exit(-1)
+	endif
+
+	return(0)
+End ; operation CONSISTE_DIA
+
+;----------------------------------
+public operation CD_CLIENTE_PDV_EMP
+;----------------------------------
+; DIONE | 156/0617 | 26/08/2011
+;------------------------------
+	Params
+		string  piGlobal    :IN    
+		string  piParams    :IN
+		string  poParams    :OUT
+		string  poCdErro    :OUT
+		string  poCtxErro   :OUT
+	endParams
+
+	variables
+		Numeric vCdPessoa, vNrSeqEndereco, vCdEmpresa
+		String viParams, voParams
+	endvariables
+
+	vCdEmpresa = $item("CD_EMPRESA", piParams)
+	if (vCdEmpresa = 0)
+		vCdEmpresa = $item("CD_EMPRESA", piGlobal)
+	endif
+
+	vCdPessoa = $item("CD_PESSOA", piParams)
+	if(vCdPessoa = 0)
+		vCdPessoa = $item("VL_PARAMETRO", piParams)
+	endif
+
+	if(vCdPessoa = 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Pessoa não informada!", "ADICIONAL=Operação->ADMSVCO025.CD_CLIENTE_PDV_EMP")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		exit(-1)
+	endif	
+
+	clear/e "PES_PESSOASVC"
+	CD_PESSOA.PES_PESSOASVC/init = vCdPessoa
+	retrieve/e "PES_PESSOASVC"
+	if($status < 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Pessoa %%vCdPessoa não cadastrada!", "ADICIONAL=Operação->ADMSVCO025.CD_CLIENTE_PDV_EMP")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		exit(-1)
+	endif	
+
+	call getParam(vCdEmpresa)
+	if ($procerror)
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	if ($status < 0)
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif 
+
+	putitem/id viParams, "CD_PESSOA", vCdPessoa
+	activate "PESSVCO005".buscaEnderecoFaturamento($xlpg$, viParams, voParams, $xCdErro$, $xCtxErro$)
+	if ($procerror)       
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	elseif ($status < 0)
+		$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif    
+	
+	vNrSeqEndereco = $item("NR_SEQENDERECO", voParams)
+
+	if (vNrSeqEndereco = 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Sequência de endereço não encontrada para a pessoa %%vCdPessoa%%%!", "ADICIONAL=Operação->ADMSVCO025.CD_CLIENTE_PDV_EMP")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		exit(-1)
+	endif
+
+	clear/e "V_PES_ENDERECSVC"
+	CD_PESSOA.V_PES_ENDERECSVC/init = vCdPessoa
+	NR_SEQUENCIA.V_PES_ENDERECSVC/init = vNrSeqEndereco
+	retrieve/e "V_PES_ENDERECSVC"
+	if($status < 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Sequência de endereço %%vNrSeqEndereco não encontrada para a pessoa %%vCdPessoa!", "ADICIONAL=Operação->ADMSVCO025.CD_CLIENTE_PDV_EMP")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		exit(-1)
+	endif		
+
+	if(DS_SIGLAESTADO.V_PES_ENDERECSVC != $ufOrigem$)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Parâmetro CD_CLIENTE_PDV_EMP não esta configurado corretamente ou UF do cliente consumidor final está incorreta!", "ADICIONAL=Operação->ADMSVCO025.CD_CLIENTE_PDV_EMP")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		exit(-1)		
+	endif
+
+	return(0)
+End ; operation CD_CLIENTE_PDV_EMP

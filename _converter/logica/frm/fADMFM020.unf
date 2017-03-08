@@ -1,0 +1,550 @@
+;------------------------
+entry preEDIT 
+;------------------------
+	$instancehandle->inicializa()
+	if ($procerror)
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+		exit(-1)
+	endif
+
+	return(0)
+End ; operation preEDIT
+
+;------------------------
+entry posEDIT 
+;------------------------
+
+	$xlpo$ = ""
+	putitem/id $xlpo$, "CD_USUARIO", CD_USUARIO.ADM_USUARIO
+	putitem/id $xlpo$, "CD_NIVEL", $xCdNivel$
+
+	return (0)
+End ; operation posEDIT
+
+;---------------------
+partner operation INIT 
+;---------------------
+
+	$formtitle = "%%$componentname - Validação de Usuário"
+End ; operation INIT
+
+;---------------------------
+partner operation inicializa
+;---------------------------
+	variables
+		numeric vCdUsuario
+		string  vDsHint, VDSMENSAGEM, viParams, voParams
+		boolean vInAcesso
+	endvariables
+	
+	$InUtilizaBiometria$ = $item("IN_UTILIZA_BIOMETRIA", $xlpi$)
+	vCdUsuario = $item("CD_USUARIO", $xlpi$)
+
+	; MFGGALEGO 12/07/2006
+	vDsHint = $item("DS_HINT", $xlpi$)
+	if (vDsHint<>"")
+		message/hint vDsHint
+	endif
+	;
+
+	if (vCdUsuario != 0)
+		;-----------------------------------
+		clear/e "ADM_USUARIO"
+		CD_USUARIO.ADM_USUARIO/init = vCdUsuario
+		retrieve/e "ADM_USUARIO"
+		;-----------------------------------
+		NM_LOGIN.SIS_DUMMY = NM_LOGIN.ADM_USUARIO
+		fieldsyntax NM_LOGIN.SIS_DUMMY, "DIM"
+		$prompt = CD_SENHA.SIS_DUMMY
+	else
+		$prompt = NM_LOGIN.SIS_DUMMY
+	endif
+
+	;-----------------------------------------
+	;retorna a data do sistema (do banco de dados)
+	sql "select to_char(sysdate,'dd/mm/yyyy') from dual","$DEF"
+	$vDtSistema$ = $result 
+	;---------------------------------------
+
+
+	if ((CD_USUARIO.ADM_USUARIO = "999998") || (CD_USUARIO.ADM_USUARIO = "999999") || (CD_USUARIO.ADM_USUARIO = "999995") || (CD_USUARIO.ADM_USUARIO = "999992") || (CD_USUARIO.ADM_USUARIO = "999993") )
+		$InUtilizaBiometria$ = <False>
+	endif
+
+	if ($InUtilizaBiometria$ = <True>)
+		$instancehandle->ativarLeitorBiometrico()
+		if ($procerror)
+			$instancehandle->setStatus(-1,$procerror,$procerrorcontext,"")
+		endif
+
+		newInstance "UTIMER", $myTimer$
+		$myTimer$ -> setRepeat(0)
+		$myTimer$ -> setMessage("%%$instancename", "CONSULTA", "")
+		$myTimer$ -> start($nrTempo$)
+
+		$instancehandle->verificaAcessoBiometria(CD_USUARIO.ADM_USUARIO,vInAcesso)
+		if ($procerror)
+			$instancehandle->setStatus(-1,$procerror,$procerrorcontext,"")
+			exit (-1)
+		endif
+		if (vInAcesso = <FALSE>)
+			viParams = ""
+			voParams = ""
+			vDsMensagem	= ""
+			vDsMensagem = "Acesso restrito.%%^"
+			vDsMensagem = "%%vDsMensagem%%%Parametro coorporativo IN_UTILIZA_BIOMETRIA.%%^"
+			vDsMensagem = "%%vDsMensagem%%%Usuário %%NM_LOGIN.ADM_USUARIO não possui acesso ao sistema.%%^"
+			vDsMensagem = "%%vDsMensagem%%%É necessário cadastrar usuário no LOGFM008.%%^"
+			vDsMensagem = "%%vDsMensagem%%%VirtualAge"
+			putitem/id viParams,"TITULO", "Atenção acesso não autorizado"
+			putitem/id viParams,"MENSAGEM", vDsMensagem
+			activate "GERFP008".EXEC(viParams,voParams,$xCdErro$,$xCtxErro$)
+			if ($procerror)       
+				$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+				exit (-1)
+			endif
+			exit (-1)
+		endif
+
+;		$instancehandle->confirma(CD_USUARIO.ADM_USUARIO,vInAcesso)
+		NM_LOGIN.SIS_DUMMY/init = NM_LOGIN.ADM_USUARIO
+		$instancehandle->confirma()
+		if ($procerror)
+			$instancehandle->setStatus(-1,$procerror,$procerrorcontext,"")
+		elseif ($status < 0)
+			exit (-1)
+		endif
+
+		call PosEdit()
+		if ($procerror)
+			$instancehandle->setStatus(-1,$procerror,$procerrorcontext,"")
+		endif
+
+		exit (0)
+
+	endif
+	
+	return(0)
+end ;inicializa
+
+;-------------------------
+partner operation confirma
+;-------------------------
+	variables
+		string vComponente
+		numeric vCdUsuario, vCdEmpresa, vCdUsuLogado, vCdOperador
+		boolean vInUsuLogado
+	endvariables
+
+	vCdOperador  = $item("CD_USUARIO", $xlpi$)
+	vCdUsuLogado = $item("CD_USUARIO", $$gParamGlb)
+
+	if (NM_LOGIN.SIS_DUMMY = "")
+		message/info "Informe o usuário!"
+		$prompt = NM_LOGIN.SIS_DUMMY
+		return(-1)
+	endif
+
+	if (!$dbocc("ADM_USUARIO"))
+;		login com 20 digitos (EVJ)
+		clear/e "ADM_USUACES"
+		NM_LOGIN20.ADM_USUACES = NM_LOGIN.SIS_DUMMY
+		retrieve/e "ADM_USUACES"
+		if ($status >= 0)
+			clear/e "ADM_USUARIO"
+			CD_USUARIO.ADM_USUARIO/init = CD_USUARIO.ADM_USUACES
+			retrieve/e "ADM_USUARIO"
+		else
+			clear/e "ADM_USUARIO"
+			NM_LOGIN.ADM_USUARIO = NM_LOGIN.SIS_DUMMY
+			retrieve/e "ADM_USUARIO"
+		endif
+
+		if ($status < 0)
+			message/info "Usuário não cadastrado!"
+			if (vCdOperador = 0)
+				clear/e "SIS_DUMMY"
+				$prompt = NM_LOGIN.SIS_DUMMY
+			else
+				CD_SENHA.SIS_DUMMY = ""
+				$prompt = CD_SENHA.SIS_DUMMY
+			endif
+			return(-1)
+		endif
+	endif
+
+	;------------------------------------------------
+	;------------------------------------------------
+	;se o usuário for igual a 1-ADMIN ou 999999-VIRTUAL  ou 999998-DESEN ou 999995-FINAN, validar senha em senha especiais
+	;valida senha em GLB_SENHAESPEC
+
+	;Hugo em 21/11
+	;Comentei por enquanto, até que seja implemantada a funcao de senha pelo GLB							 ;================== DBB |PRJ 094/0865| 12/03/2009 =================
+	if (CD_USUARIO.ADM_USUARIO = 1 | CD_USUARIO.ADM_USUARIO = 999999 | CD_USUARIO.ADM_USUARIO = 999998 | CD_USUARIO.ADM_USUARIO = 999995 | CD_USUARIO.ADM_USUARIO = 999992 | CD_USUARIO.ADM_USUARIO = 999993 | CD_USUARIO.ADM_USUARIO = 999987 | CD_USUARIO.ADM_USUARIO = 999988 | CD_USUARIO.ADM_USUARIO = 999989) ;--MSOUZA(22/11/2011) [PRJ 94/TAR 1978] implementado a validação dos usuários COMER,SMALL, LIGHT
+		clear/e "GLB_SENHAESPEC"														                
+		CD_USUARIO.GLB_SENHAESPEC/init = CD_USUARIO.ADM_USUARIO
+		DT_ANOMES.GLB_SENHAESPEC/init  = "01/%%$vDtSistema$[M]%%%/%%$vDtSistema$[Y]"
+		retrieve/e "GLB_SENHAESPEC"
+		if ($status >= 0)
+			;---------------------------------------
+			if (CD_SENHA.SIS_DUMMY != CD_SENHA.GLB_SENHAESPEC)
+				message/info "Senha incorreta para o usuário!"
+				if (vCdOperador = 0)
+					clear/e "SIS_DUMMY"
+					$prompt = NM_LOGIN.SIS_DUMMY
+				else
+					CD_SENHA.SIS_DUMMY = ""
+					$prompt = CD_SENHA.SIS_DUMMY
+				endif
+				return(-1)
+			endif
+			;---------------------------------------
+		else
+			;------------------------------------------------
+			message/info "Usuário não cadastrado em senha especiais para o MÊS/ANO corrente !"
+			if (vCdOperador = 0)
+				clear/e "SIS_DUMMY"
+				$prompt = NM_LOGIN.SIS_DUMMY
+			else
+				CD_SENHA.SIS_DUMMY = ""
+				$prompt = CD_SENHA.SIS_DUMMY
+			endif
+			return(-1)
+			;------------------------------------------------
+		endif
+	else
+		;------------------------------------------------
+		;senão valida senha em ADM_USUARIO
+		if (CD_SENHA.SIS_DUMMY != CD_SENHA.ADM_USUARIO)
+			message/info "Senha incorreta para o usuário!"
+			if (vCdOperador = 0)
+				clear/e "SIS_DUMMY"
+				$prompt = NM_LOGIN.SIS_DUMMY
+			else
+				clear/e "SIS_DUMMY"
+				CD_SENHA.SIS_DUMMY = ""
+				$prompt = CD_SENHA.SIS_DUMMY
+			endif
+			clear/e "ADM_USUARIO"
+			return(-1)
+		endif
+		;------------------------------------------------
+	endif
+	;------------------------------------------------
+	;------------------------------------------------
+
+;------------------------------------------------------
+;esta validação foi incluida no código acima...........
+;	if (CD_SENHA.SIS_DUMMY != CD_SENHA.ADM_USUARIO)
+;		message/info "Senha incorreta para o usuário!"
+;		if (vCdOperador = 0)
+;			clear/e "SIS_DUMMY"
+;			$prompt = NM_LOGIN.SIS_DUMMY
+;		else
+;			CD_SENHA.SIS_DUMMY = ""
+;			$prompt = CD_SENHA.SIS_DUMMY
+;		endif
+;		return(-1)
+;	endif
+;------------------------------------------------------
+
+	if (TP_BLOQUEIO.ADM_USUARIO != 0)
+		message/info "Usuário bloqueado, contate o administrador!"
+		if (vCdOperador = 0)
+			clear/e "SIS_DUMMY"
+			$prompt = NM_LOGIN.SIS_DUMMY
+		else
+			CD_SENHA.SIS_DUMMY = ""
+			$prompt = CD_SENHA.SIS_DUMMY
+		endif
+		clear/e "ADM_USUARIO" ;Diogenes - 27/08/2008 - Proj.094 - Tarefa 652
+		return(-1)
+	endif
+
+	vInUsuLogado = $item("IN_USULOGADO", $xlpi$)
+	if (vInUsuLogado = <FALSE>)
+		if (vCdUsuLogado = CD_USUARIO.ADM_USUARIO)
+			clear/e "ADM_USUARIO"
+			message/info "Usuário dever ser diferente do usuário de login!"
+			if (vCdOperador = 0)
+				clear/e "SIS_DUMMY"
+				$prompt = NM_LOGIN.SIS_DUMMY
+			else
+				CD_SENHA.SIS_DUMMY = ""
+				$prompt = CD_SENHA.SIS_DUMMY
+			endif
+			clear/e "ADM_USUARIO" ;Diogenes - 27/08/2008 - Proj.094 - Tarefa 652
+			return(-1)
+		endif
+	endif
+
+	vCdUsuario = CD_USUARIO.ADM_USUARIO
+	vCdEmpresa = $item("CD_EMPRESA", $$gParamGlb)
+	vComponente = $item("DS_COMPONENTE", $xlpi$)
+	if (vComponente != "")
+		activate "LOGSVCO003".GetNivelComponente(vCdUsuario, vCdEmpresa, vComponente, $xCdNivel$, $xCdErro$, $xCtxErro$)
+		if ($procerror)
+			$instancehandle->SetStatus(<STS_ERRO>,$procerror,$procerrorcontext,"ADICIONAL=LOGSVCO003.GETNIVELCOMPONENTE")
+			return(-1)
+		endif
+		if ($xCdNivel$ = 0)
+			message/info "Usuário sem nível de acesso para o componente: %%vComponente"
+			if (vCdOperador = 0)
+				clear/e "SIS_DUMMY"
+				$prompt = NM_LOGIN.SIS_DUMMY
+			else
+				CD_SENHA.SIS_DUMMY = ""
+				$prompt = CD_SENHA.SIS_DUMMY
+			endif			
+			clear/e "ADM_USUARIO" ;Diogenes - 27/08/2008 - Proj.094 - Tarefa 652
+			return(-1)
+		endif
+	endif
+
+	macro "ACCEPT"
+
+	return(0)
+end ;confirma
+
+;---------------------------------------
+partner operation ativarLeitorBiometrico
+;---------------------------------------
+	variables
+		string viParams, voParams, vDsMensagem
+		numeric vQtde
+		boolean vInResp
+	endvariables
+
+	viParams = ""
+	voParams = ""	
+	activate "GERSVCO068".ativar(viParams,voParams,$xcderro$,$xctxerro$)
+	if ($procerror)       
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+		return(-1)
+	elseif ($status = -1)
+		viParams = ""
+		voParams = ""
+		vDsMensagem	= ""
+		vDsMensagem = "Erro de comunicação com o Leitor Biometrico.%%^"
+		vDsMensagem = "%%vDsMensagem%%%Verique se o Leitor esta conectado ao computador.%%^"
+		vDsMensagem = "%%vDsMensagem%%%Verique se o Leitor esta ativo ao lado do relógio do Windows.%%^"
+		vDsMensagem = "%%vDsMensagem%%%Ative o Leitor, pasta C:\BIO\BioMetrico.exe.%%^"
+		vDsMensagem = "%%vDsMensagem%%%VirtualAge"
+		putitem/id viParams,"TITULO", "Erro de comunicação com Leitor Biometrico"
+		putitem/id viParams,"MENSAGEM", vDsMensagem
+		activate "GERFP008".EXEC(viParams,voParams,$xCdErro$,$xCtxErro$)
+		if ($procerror)       
+			$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+			exit (-1)
+		endif
+		return(-1)
+	elseif ($status < 0)
+		$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")
+		exit (-1)
+	endif
+	
+	vQtde = 0
+	while (vQtde < 200)
+		vQtde = vQtde + 1
+		$instancehandle->verificaResposta(vInResp)
+		if ($procerror)
+			$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+		endif 
+		if (vInResp = <True>)
+			vQtde = 201
+		endif
+	endwhile
+
+	return(0)
+end;operation ativarLeitorBiometrico
+
+;----------------------------------------
+partner operation verificaAcessoBiometria
+;----------------------------------------
+	params
+		numeric  piCdUsuario  : IN 
+		boolean  poAutorizado : OUT
+	endparams
+
+	;Desen / Virtual / VSpool / Finan / Engen / Supex
+	if ((piCdUsuario = "999998") || (piCdUsuario = "999999") || (piCdUsuario = "999995") || (piCdUsuario = "999992") || (piCdUsuario = "999993") )
+		poAutorizado = <TRUE>
+	else
+		clear/e "LOG_BIOMETRIA"
+		CD_USUARIO.LOG_BIOMETRIA/init = piCdUsuario
+		retrieve/e "LOG_BIOMETRIA"
+		if ($status >= 0 )
+			poAutorizado = <TRUE>
+		else
+			clear/e "LOG_USUBIOPER"
+			CD_USUARIO.LOG_USUBIOPER/init = piCdUsuario  
+			retrieve/e "LOG_USUBIOPER"
+			if ($status >=0)
+				poAutorizado = <TRUE>
+			else
+				poAutorizado = <FALSE>
+			endif
+		endif
+	endif
+	
+	return(0)
+end;operation verificaRestricaoBiometria
+
+;---------------------------------
+partner operation verificaResposta
+;---------------------------------
+	params
+		boolean vInResp:Out
+	endparams
+	variables
+		string viParams, voParams, vDsRetorno, vCdSenha, vNmLogin, vDsMensagem  
+		date vDtSistema
+	endvariables
+
+	viParams = ""
+	voParams = ""	
+	activate "GERSVCO068".verificaResposta(viParams,voParams,$xcderro$,$xctxerro$)
+	if ($procerror)       
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+		exit (-1)
+	elseif ($status = -1)
+		viParams = ""
+		voParams = ""
+		vDsMensagem	 = ""
+		vDsMensagem = "Erro de comunicação com o Leitor Biometrico.%%^"
+		vDsMensagem = "%%vDsMensagem%%%Verique se o Leitor esta conectado ao computador.%%^"
+		vDsMensagem = "%%vDsMensagem%%%Verique se o Leitor esta ativo ao lado do relógio do Windows.%%^"
+		vDsMensagem = "%%vDsMensagem%%%Ative o Leitor, pasta C:\BIO\BioMetrico.exe.%%^"
+		vDsMensagem = "%%vDsMensagem%%%VirtualAge"
+		putitem/id viParams,"TITULO", "Erro de comunicação com Leitor Biometrico"
+		putitem/id viParams,"MENSAGEM", vDsMensagem
+		activate "GERFP008".EXEC(viParams,voParams,$xCdErro$,$xCtxErro$)
+		if ($procerror)       
+			$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+			exit (-1)
+		endif
+		exit (-1)
+	elseif ($status < 0)
+		$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")
+		exit (-1)
+	endif
+
+	vInResp = "False"
+	if ($item("CD_USUARIO",voParams) != "") 
+		clear/e "ADM_USUARIO"
+		CD_USUARIO.ADM_USUARIO = $item("CD_USUARIO",voParams)
+		retrieve/e "ADM_USUARIO"
+		if ($status >= 0)
+
+			NM_LOGIN.SIS_DUMMY = NM_LOGIN.ADM_USUARIO
+			vCdSenha = CD_SENHA.ADM_USUARIO
+;			activate "GERSVCO003".DECRYPT(NM_LOGIN.SIS_DUMMY,vCdSenha)
+			CD_SENHA.SIS_DUMMY = vCdSenha
+
+			$inTimerAtivo$ = <FALSE>
+			deleteInstance $myTimer$
+
+			$instancehandle->desativarLeitorBiometrico()
+			if ($procerror)
+				$instancehandle->setStatus(-1,$procerror,$procerrorcontext,"")
+				exit (-1)
+			endif
+						
+			$instancehandle->trataFoco(<TRUE>)
+			if ($procerror)
+				$instancehandle->setStatus(-1,$procerror,$procerrorcontext,"")
+			endif
+			vInResp = <True>
+		endif
+	endif
+	
+	return(0)
+end ;operation verificaResposta
+
+;------------------------------------------
+partner operation desativarLeitorBiometrico
+;------------------------------------------
+	variables
+		string viParams, voParams, vDsMensagem
+	endvariables
+
+	viParams = ""
+	voParams = ""	
+	activate "GERSVCO068".desativar(viParams,voParams,$xcderro$,$xctxerro$)
+	if ($procerror)       
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+		return(-1)
+	elseif ($status = -1)
+		viParams = ""
+		voParams = ""
+		vDsMensagem	 = ""
+		vDsMensagem = "Erro de comunicação com o Leitor Biometrico.%%^"
+		vDsMensagem = "%%vDsMensagem%%%Verique se o Leitor esta conectado ao computador.%%^"
+		vDsMensagem = "%%vDsMensagem%%%Verique se o Leitor esta ativo ao lado do relógio do Windows.%%^"
+		vDsMensagem = "%%vDsMensagem%%%Ative o Leitor, pasta C:\BIO\BioMetrico.exe.%%^"
+		vDsMensagem = "%%vDsMensagem%%%VirtualAge"
+		putitem/id viParams,"TITULO", "Erro de comunicação com Leitor Biometrico"
+		putitem/id viParams,"MENSAGEM", vDsMensagem
+		activate "GERFP008".EXEC(viParams,voParams,$xCdErro$,$xCtxErro$)
+		if ($procerror)       
+			$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+			exit (-1)
+		endif
+		exit (-1)
+	elseif ($status < 0)
+		$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")
+		exit (-1)
+	endif
+	
+	return(0)
+end;operation desativarLeitorBiometrico
+
+;--------------------------
+partner operation trataFoco
+;--------------------------
+	params
+		boolean piParams : IN
+		;string poParams : OUT
+	endparams
+
+	variables
+		string viParams, voParams, vDsMensagem
+		boolean vStatusFoco
+	endvariables
+
+	if (piParams = <TRUE>)
+		vStatusFoco = <TRUE> ;Minimiza
+	else
+		vStatusFoco = <FALSE> ;Maximiza
+	endif
+
+	viParams = ""
+	putitem/id viParams "IN_MINIMIZA", vStatusFoco
+	activate "GERSVCO068".trataFoco(viParams,voParams,$xcderro$,$xctxerro$)
+	if ($procerror)       
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+		exit (-1)
+	elseif ($status = -1)
+		viParams = ""
+		voParams = ""
+		vDsMensagem	 = ""
+		vDsMensagem = "Erro de comunicação com o Leitor Biometrico.%%^"
+		vDsMensagem = "%%vDsMensagem%%%Verique se o Leitor esta conectado ao computador.%%^"
+		vDsMensagem = "%%vDsMensagem%%%Verique se o Leitor esta ativo ao lado do relógio do Windows.%%^"
+		vDsMensagem = "%%vDsMensagem%%%Ative o Leitor, pasta C:\BIO\BioMetrico.exe.%%^"
+		vDsMensagem = "%%vDsMensagem%%%VirtualAge"
+		putitem/id viParams,"TITULO", "Erro de comunicação com Leitor Biometrico"
+		putitem/id viParams,"MENSAGEM", vDsMensagem
+		activate "GERFP008".EXEC(viParams,voParams,$xCdErro$,$xCtxErro$)
+		if ($procerror)       
+			$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+			return(-1)
+		endif
+		exit (-1)
+	elseif ($status < 0)
+		$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")
+		exit (-1)
+	endif
+	
+	return(0)
+end;operation trataFoco

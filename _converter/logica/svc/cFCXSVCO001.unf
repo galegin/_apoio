@@ -1,0 +1,602 @@
+entry getParam
+	variables
+		numeric vCdEmpresa
+		string viParams, voParams
+	endvariables
+
+	viParams = ""
+	putitem viParams, -1, "IN_LANCTO_RETROATIVO_CX"
+	activate "ADMSVCO001".GetLstParametro(viParams, voParams, $xCdErro$, $xCtxerro$)
+	if ($procerror)
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+		return(-1)
+	elseif ($xCdErro$)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=%%$item("DESCRICAO", $xCtxErro$)", "ADICIONAL=Operação->TRASVCO004.agrupaTransacao")
+		return(-1)
+	elseif ($status < 0)
+		return(-1)
+	endif
+	
+	$inLanctoRetro$ = $item("IN_LANCTO_RETROATIVO_CX", voParams)
+	
+	vCdEmpresa = $item("CD_EMPRESA", $xlpg$)
+	viParams = ""
+	putitem viParams, -1, "IN_CAIXA_TERMINAL"
+	putitem viParams, -1, "IN_PDV_OTIMIZADO"
+	putitem viParams, -1, "IN_VALIDA_CX_ENCERRAMENTO"
+	putitem viParams, -1, "VL_ALERTA_SANGRIA_CX_USU"
+	activate "ADMSVCO001".GetParamEmpresa(vCdEmpresa, viParams, voParams, $xCdErro$, $xCtxerro$)
+	if ($procerror)
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+		return(-1)
+	elseif ($xCdErro$)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=%%$item("DESCRICAO", $xCtxErro$)", "ADICIONAL=Operação->FCXSVCO001.getParam")
+		return(-1)
+	elseif ($status < 0)
+		return(-1)
+	endif
+	
+	$inCxTerminal$ = $item("IN_CAIXA_TERMINAL", voParams)
+	$inPdvOtimizado$ = $item("IN_PDV_OTIMIZADO", voParams)
+	$inValidaCxEncerramento$ = $item("IN_VALIDA_CX_ENCERRAMENTO", voParams) ; MFGALEGO - 25/09/2006 
+	$VlAlertaSangriaCxUsu$ = $item("VL_ALERTA_SANGRIA_CX_USU", voParams) ;Diogenes - 02/10/2009 - Proj. 078 - Tarefa 2820
+	return(0)
+end
+
+;--------------------------
+public operation buscaCaixa
+;--------------------------
+	params
+		string  $xlpg$      :IN    
+		string  piParams    :IN
+		string  poParams    :OUT
+		string  poCdErro    :OUT
+		string  poCtxErro   :OUT
+	endparams
+	
+	variables
+		string viParams, voParams
+		numeric vCdTerminal, vCdOperCx, vCdEmpresa, vCdEmpLogin
+		date vDtSistema
+	endvariables
+
+	vCdEmpLogin = $item("CD_EMPRESA", $xlpg$)
+
+	vCdEmpresa = $item("CD_EMPRESA", piParams)
+	if (vCdEmpresa = 0)
+		vCdEmpresa = $item("CD_EMPRESA", $xlpg$)
+	endif
+	vCdOperCx = $item("CD_OPERADOR", piParams)
+	if (vCdOperCx = 0)
+		vCdOperCx = $item("CD_USUARIO", $xlpg$)
+	endif
+	vCdTerminal = $item("CD_TERMINAL", $xlpg$)
+	
+	if (vCdTerminal = 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Terminal não informado - Empresa %%vCdEmpLogin%%%!", "ADICIONAL=Operação->FCXSVCO001.BuscaCaixa")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		exit(-1)
+	endif
+	
+	call getParam()
+	if ($procerror)
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		exit(-1)
+	endif
+	if ($status < 0)
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		exit(-1)
+	endif
+
+	clear/e "FCX_CAIXACSVC"
+	CD_EMPRESA.FCX_CAIXACSVC/init = vCdEmpresa
+	CD_TERMINAL.FCX_CAIXACSVC/init = vCdTerminal
+	IN_FECHADO.FCX_CAIXACSVC/init = <FALSE>	
+	retrieve/e "FCX_CAIXACSVC"
+	if ($status < 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Não existe caixa aberto para o terminal %%vCdTerminal - Empresa %%vCdEmpLogin%%%!", "ADICIONAL=Operação->FCXSVCO001.buscaCaixa")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		exit(-1)
+	else
+		if (CD_OPERCONF.FCX_CAIXACSVC > 0)
+			$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Caixa para o terminal %%vCdTerminal encerrado!", "ADICIONAL=Operação->FCXSVCO001.buscaCaixaOper")
+			poCdErro = $xCdErro$
+			poCtxErro = $xCtxErro$
+			exit(-1)
+		endif
+	endif
+
+	;if ($inCxTerminal$ = 0)
+	if ($inCxTerminal$ != <TRUE>)
+		if (CD_OPERCX.FCX_CAIXACSVC != vCdOperCx)	
+			$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Terminal %%vCdTerminal possui caixa aberto para o usuário %%CD_OPERCX.FCX_CAIXACSVC - Empresa %%vCdEmpLogin%%%!", "ADICIONAL=Operação->FCXSVCO001.buscaCaixa")
+			poCdErro = $xCdErro$
+			poCtxErro = $xCtxErro$
+			exit(-1)
+		endif
+	endif
+	
+	viParams = ""
+	putlistitems/occ viParams, "FCX_CAIXACSVC"
+	activate "SICSVCO007".validaCaixa($$gParamGlb, viParams, voParams, $xCdErro$, $xCtxErro$)
+	if ($procerror)       
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		exit(-1)
+	elseif ($status < 0)
+		$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		exit(-1)
+	endif    
+	
+	vDtSistema = $item("DT_SISTEMA", $xlpg$)
+
+	poParams = ""
+	putitem/id poParams, "CD_EMPRESA", CD_EMPRESA.FCX_CAIXACSVC
+	putitem/id poParams, "CD_TERMINAL", CD_TERMINAL.FCX_CAIXACSVC
+	putitem/id poParams, "DT_ABERTURA", DT_ABERTURA.FCX_CAIXACSVC
+	putitem/id poParams, "NR_SEQ", NR_SEQ.FCX_CAIXACSVC
+	putitem/id poParams, "NR_CTAPES", NR_CTAPES.FCX_CAIXACSVC
+
+	;if ($inLanctoRetro$ = 0) & (DT_ABERTURA.FCX_CAIXACSVC != vDtSistema)
+	if ($inLanctoRetro$ != <TRUE>) & (DT_ABERTURA.FCX_CAIXACSVC != vDtSistema)
+		putitem/id poParams, "IN_CONTINUA", <TRUE>
+
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Caixa aberto com data retroativa %%DT_ABERTURA.FCX_CAIXACSVC%%%. Verifique!", "ADICIONAL=Operação->FCXSVCO001.buscaCaixa")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		exit(-1)
+	endif
+
+	return(0)
+end ; CLEANUP
+
+;------------------------------------
+public operation validaCaixaAberto
+	;------------------------------------
+	params
+		string  $xlpg$      :IN    
+		string  piParams    :IN
+		string  poParams    :OUT
+		string  poCdErro    :OUT
+		string  poCtxErro   :OUT
+	endparams
+	
+	variables
+		string vCdEmpresa, vDsErro, viParams, voParams
+	endvariables
+
+	$nmLogin$ = ""
+	vCdEmpresa = $item("CD_EMPRESA", piParams)
+	if (vCdEmpresa = "")
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Empresa não informada!", "ADICIONAL=Operação->FCXSVCO001.validaCaixaAberto")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		exit(-1)
+	endif
+
+	call getParam()
+	if ($procerror)
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		exit(-1)
+	endif
+	if ($status < 0)
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		exit(-1)
+	endif
+
+	vDsErro = ""
+
+	clear/e "FCX_CAIXACSVC"
+	CD_EMPRESA.FCX_CAIXACSVC/init = vCdEmpresa
+	IN_FECHADO.FCX_CAIXACSVC/init = <FALSE>
+	retrieve/e "FCX_CAIXACSVC"
+	if ($status >= 0)
+		setocc "FCX_CAIXACSVC", 1
+		while($status >= 0)
+			if ($inPdvOtimizado$ = <TRUE>)
+				if ($empty("FCX_CAIXAMSVC") = 0)
+					clear/e "FCX_TERMINALUSVC"
+					CD_EMPRESA.FCX_TERMINALUSVC/init = CD_EMPRESA.FCX_CAIXACSVC
+					CD_TERMINAL.FCX_TERMINALUSVC/init = CD_TERMINAL.FCX_CAIXACSVC
+					retrieve/e "FCX_TERMINALUSVC"
+					if ($status >= 0)
+						if(CD_USUARIO.FCX_TERMINALUSVC != "")
+							viParams = ""
+							putitem/id viParams, "CD_USUARIO", CD_USUARIO.FCX_TERMINALUSVC
+							activate "ADMSVCO027".validaUsuarioEspecial($$gParamGlb, viParams, voParams, $xCdErro$, $xCtxerro$)
+							if ($procerror)       
+								$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+							elseif ($status < 0)
+								vDsErro = "%%vDsErro%%%Empresa/Terminal: %%CD_EMPRESA.FCX_CAIXACSVC / %%CD_TERMINAL.FCX_CAIXACSVC %%^"
+							else
+								$nmLogin$ = $item("NM_LOGIN", voParams)
+								vDsErro = "%%vDsErro%%%Empresa/Terminal: %%CD_EMPRESA.FCX_CAIXACSVC / %%$nmLogin$ %%^"
+							endif
+						endif
+					else
+						vDsErro = "%%vDsErro%%%Empresa/Terminal: %%CD_EMPRESA.FCX_CAIXACSVC / %%CD_TERMINAL.FCX_CAIXACSVC %%^"    
+					endif
+				else
+					viParams = ""
+					putlistitems/occ viParams, "FCX_CAIXACSVC"
+					;putitem/id viParams, "IN_CXTERMINAL", 1
+					putitem/id viParams, "IN_CXTERMINAL", <TRUE>
+					activate "FCXSVCO002".fechaCaixa($$gParamGlb, viParams, voParams, $xCdErro$, $xCtxErro$)
+					if ($procerror)       
+						$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+						poCdErro = $xCdErro$
+						poCtxErro = $xCtxErro$
+						exit(-1)
+					elseif ($status < 0)
+						$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")
+						poCdErro = $xCdErro$
+						poCtxErro = $xCtxErro$
+						exit(-1)
+					endif    
+				endif
+			else
+				vDsErro = "%%vDsErro%%%Empresa/Terminal: %%CD_EMPRESA.FCX_CAIXACSVC / %%CD_TERMINAL.FCX_CAIXACSVC %%^"    
+			endif
+			setocc "FCX_CAIXACSVC", $curocc("FCX_CAIXACSVC") + 1
+		endWhile
+	endif
+	
+	poParams = ""
+	if (vDsErro != "")
+		putitem/id poParams, "DS_LOGERRO", vDsErro
+		exit(-1)
+	endif	
+	
+	exit(0)
+End;
+
+;------------------------------
+public operation buscaCaixaOper
+;------------------------------
+	params
+		string  $xlpg$      :IN    
+		string  piParams    :IN
+		string  poParams    :OUT
+		string  poCdErro    :OUT
+		string  poCtxErro   :OUT
+	endparams
+	
+	variables
+		string viParams, voParams
+		numeric vCdOperCx, vCdEmpresa, vCdTerminal
+	endvariables
+
+	call getParam()
+	if ($procerror)
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		exit(-1)
+	endif
+	if ($status < 0)
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		exit(-1)
+	endif
+
+	vCdEmpresa = $item("CD_EMPRESA", piParams)
+	if (vCdEmpresa = 0)
+		vCdEmpresa = $item("CD_EMPRESA", $xlpg$)
+	endif
+
+	;if ($inCxTerminal$ = 0)
+	if ($inCxTerminal$ != <TRUE>)
+		vCdOperCx = $item("CD_OPERCX", piParams)
+	
+		if (vCdOperCx = 0)
+			$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Operador não informado!", "ADICIONAL=Operação->FCXSVCO001.BuscaCaixaOper")
+			poCdErro = $xCdErro$
+			poCtxErro = $xCtxErro$
+			exit(-1)
+		endif
+
+		clear/e "FCX_CAIXACSVC"
+		CD_EMPRESA.FCX_CAIXACSVC/init = vCdEmpresa
+		CD_OPERCX.FCX_CAIXACSVC/init = vCdOperCx
+		IN_FECHADO.FCX_CAIXACSVC/init = <FALSE>	
+		retrieve/e "FCX_CAIXACSVC"
+		if ($status < 0)
+			$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Não existe caixa aberto para o operador %%vCdOperCx%%%!", "ADICIONAL=Operação->FCXSVCO001.buscaCaixaOper")
+			poCdErro = $xCdErro$
+			poCtxErro = $xCtxErro$
+			exit(-1)
+		else
+			if (CD_OPERCONF.FCX_CAIXACSVC > 0)
+				$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Caixa para o operador %%vCdOperCx encerrado!", "ADICIONAL=Operação->FCXSVCO001.buscaCaixaOper")
+				poCdErro = $xCdErro$
+				poCtxErro = $xCtxErro$
+				exit(-1)
+			endif
+		endif
+	else
+		vCdTerminal = $item("CD_TERMINAL", piParams)
+		if (vCdTerminal = 0)
+			vCdTerminal = $item("CD_TERMINAL", $xlpg$)
+		endif
+		if (vCdTerminal = 0)
+			$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Terminal não informado!", "ADICIONAL=Operação->FCXSVCO001.BuscaCaixaOper")
+			poCdErro = $xCdErro$
+			poCtxErro = $xCtxErro$
+			exit(-1)
+		endif
+
+		clear/e "FCX_CAIXACSVC"
+		CD_EMPRESA.FCX_CAIXACSVC/init = vCdEmpresa
+		CD_TERMINAL.FCX_CAIXACSVC/init = vCdTerminal
+		IN_FECHADO.FCX_CAIXACSVC/init = <FALSE>	
+		retrieve/e "FCX_CAIXACSVC"
+		if ($status < 0)
+			$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Não existe caixa aberto para o terminal %%vCdTerminal%%%!", "ADICIONAL=Operação->FCXSVCO001.buscaCaixaOper")
+			poCdErro = $xCdErro$
+			poCtxErro = $xCtxErro$
+			exit(-1)
+		else
+			if (CD_OPERCONF.FCX_CAIXACSVC > 0)
+				$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Caixa para o terminal %%vCdTerminal encerrado!", "ADICIONAL=Operação->FCXSVCO001.buscaCaixaOper")
+				poCdErro = $xCdErro$
+				poCtxErro = $xCtxErro$
+				exit(-1)
+			endif
+		endif
+	endif
+	
+	viParams = ""
+	putlistitems/occ viParams, "FCX_CAIXACSVC"
+	activate "SICSVCO007".validaCaixa($$gParamGlb, viParams, voParams, $xCdErro$, $xCtxErro$)
+	if ($procerror)       
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		exit(-1)
+	elseif ($status < 0)
+		$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		exit(-1)
+	endif    
+	
+	poParams = ""
+	putitem/id poParams, "CD_EMPRESA", CD_EMPRESA.FCX_CAIXACSVC
+	putitem/id poParams, "CD_TERMINAL", CD_TERMINAL.FCX_CAIXACSVC
+	putitem/id poParams, "DT_ABERTURA", DT_ABERTURA.FCX_CAIXACSVC
+	putitem/id poParams, "NR_SEQ", NR_SEQ.FCX_CAIXACSVC
+	putitem/id poParams, "NR_CTAPES", NR_CTAPES.FCX_CAIXACSVC
+
+	exit(0)
+end ; CLEANUP
+
+;------------------------------
+public operation buscaCaixaConf
+;------------------------------
+; Projeto 24, Tarefa 30, 19/12/2005, Aloisio Gargantini, inicio
+	params
+		string  $xlpg$      :IN    
+		string  piParams    :IN
+		string  poParams    :OUT
+		string  poCdErro    :OUT
+		string  poCtxErro   :OUT
+	endparams
+	
+	variables
+		string viParams, voParams
+		numeric vCdTerminal, vCdOperCx, vCdEmpresa, vCdEmpLogin
+		date vDtSistema
+	endvariables
+
+	vCdEmpLogin = $item("CD_EMPRESA", $xlpg$)
+
+	vCdEmpresa = $item("CD_EMPRESA", piParams)
+	if (vCdEmpresa = 0)
+		vCdEmpresa = $item("CD_EMPRESA", $xlpg$)
+	endif
+	vCdOperCx = $item("CD_OPERADOR", piParams)
+	if (vCdOperCx = 0)
+		vCdOperCx = $item("CD_USUARIO", $xlpg$)
+	endif
+	vCdTerminal = $item("CD_TERMINAL", $xlpg$)
+	
+	if (vCdTerminal = 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Terminal não informado - Empresa %%vCdEmpLogin%%%!", "ADICIONAL=Operação->FCXSVCO001.BuscaCaixa")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		exit(-1)
+	endif
+	
+	call getParam()
+	if ($procerror)
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		exit(-1)
+	endif
+	if ($status < 0)
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		exit(-1)
+	endif
+
+	clear/e "FCX_CAIXACSVC"
+	CD_EMPRESA.FCX_CAIXACSVC/init = vCdEmpresa
+	CD_TERMINAL.FCX_CAIXACSVC/init = vCdTerminal
+	IN_FECHADO.FCX_CAIXACSVC/init = <FALSE>	
+	retrieve/e "FCX_CAIXACSVC"
+	if ($status < 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Não existe caixa aberto para o terminal %%vCdTerminal - Empresa %%vCdEmpLogin%%%!", "ADICIONAL=Operação->FCXSVCO001.buscaCaixa")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		exit(-1)
+	endif
+
+	;if ($inCxTerminal$ = 0)
+	if ($inCxTerminal$ != <TRUE>)
+		if (CD_OPERCX.FCX_CAIXACSVC != vCdOperCx)	
+			$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Terminal %%vCdTerminal possui caixa aberto para o usuário %%CD_OPERCX.FCX_CAIXACSVC - Empresa %%vCdEmpLogin%%%!", "ADICIONAL=Operação->FCXSVCO001.buscaCaixa")
+			poCdErro = $xCdErro$
+			poCtxErro = $xCtxErro$
+			exit(-1)
+		endif
+	endif
+	
+	viParams = ""
+	putlistitems/occ viParams, "FCX_CAIXACSVC"
+	activate "SICSVCO007".validaCaixa($$gParamGlb, viParams, voParams, $xCdErro$, $xCtxErro$)
+	if ($procerror)       
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		exit(-1)
+	elseif ($status < 0)
+		$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		exit(-1)
+	endif    
+	
+	vDtSistema = $item("DT_SISTEMA", $xlpg$)
+
+	poParams = ""
+	putitem/id poParams, "CD_EMPRESA", CD_EMPRESA.FCX_CAIXACSVC
+	putitem/id poParams, "CD_TERMINAL", CD_TERMINAL.FCX_CAIXACSVC
+	putitem/id poParams, "DT_ABERTURA", DT_ABERTURA.FCX_CAIXACSVC
+	putitem/id poParams, "NR_SEQ", NR_SEQ.FCX_CAIXACSVC
+	putitem/id poParams, "NR_CTAPES", NR_CTAPES.FCX_CAIXACSVC
+
+	exit(0)
+; Projeto 24, Tarefa 30, 19/12/2005, Aloisio Gargantini, fim
+end ; buscaCaixaConf
+
+;----------------------------------------------------------------------------
+public operation buscarSaldoCaixaUsuario
+;Diogenes - 02/10/2009 - Proj. 078 - Tarefa 2820
+;----------------------------------------------------------------------------
+	params
+		string  $xlpg$      :IN    
+		string  piParams    :IN
+		string  poParams    :OUT
+		string  poCdErro    :OUT
+		string  poCtxErro   :OUT
+	endparams
+	
+	variables
+		string viParams, voParams, vLstEmpresa, vCdEmpresa, viValores
+		Numeric vSaldoDinheiro, vSaldoCheque, vSaldoCaixa, vCdTerminal, vNrCtaPes
+	endvariables
+		
+	vLstEmpresa = $item("LST_EMPRESA", piParams)
+	if (vLstEmpresa = "")
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Empresa não informada!", "ADICIONAL=Operação->FCXSVCO001.buscarSaldoCaixaUsuario")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		exit(-1)
+	endif
+
+	call getParam()
+	if ($procerror)
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		exit(-1)
+	elseif ($status < 0)
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		exit(-1)
+	elseif ($VlAlertaSangriaCxUsu$ = "") | ($VlAlertaSangriaCxUsu$ = 0)
+		return(0)
+	endif	
+
+	vSaldoDinheiro = 0
+	vSaldoCheque = 0
+	repeat
+		getitem vCdEmpresa, vLstEmpresa, 1	
+
+		viParams = ""
+		putitem/id viParams, "CD_EMPRESA", vCdEmpresa
+		$instancehandle->buscaCaixa($xlpg$, viParams, voParams, $xCdErro$, $xCtxErro$)
+		if ($procerror)       
+			$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+			poCdErro = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return(-1)
+		elseif ($status < 0)
+			$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")
+			poCdErro = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return(-1)
+		endif 
+
+		if ($item("NR_CTAPES",voParams)!= "")
+			vNrCtaPes = $item("NR_CTAPES",voParams)
+			;BUSCA SALDO DINHEIRO
+			viParams = ""
+			putitem/id viParams, "NR_CTAPES", vNrCtaPes
+			putitem/id viParams, "TP_DOCUMENTO", 3 ;DINHEIRO
+			putitem/id viParams, "NR_SEQHISTRELSUB", 1
+			putitem/id viParams, "DT_SALDO", $item("DT_SISTEMA", $xlpg$)
+			activate "FCCSVCO002".buscaSaldoCtaTp($xlpg$, viParams, viValores, voParams, $xCdErro$, $xCtxErro$)
+			if ($procerror)       
+				$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+				poCdErro = $xCdErro$
+				poCtxErro = $xCtxErro$
+				return(-1)
+			elseif ($status < 0)
+				$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")
+				poCdErro = $xCdErro$
+				poCtxErro = $xCtxErro$
+				return(-1)
+			endif 
+			if ($item("VL_SALDO",voParams) > 0)
+				vSaldoDinheiro = vSaldoDinheiro + $item("VL_SALDO",voParams)
+			endif
+
+			;BUSCA SALDO CHEQUE
+			viParams = ""
+			putitem/id viParams, "NR_CTAPES", vNrCtaPes
+			putitem/id viParams, "TP_DOCUMENTO", 2 ;CHEQUE
+			putitem/id viParams, "NR_SEQHISTRELSUB", 1
+			putitem/id viParams, "DT_SALDO", $item("DT_SISTEMA", $xlpg$)
+			activate "FCCSVCO002".buscaSaldoCtaTp($xlpg$, viParams, viValores, voParams, $xCdErro$, $xCtxErro$)
+			if ($procerror)       
+				$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+				poCdErro = $xCdErro$
+				poCtxErro = $xCtxErro$
+				return(-1)
+			elseif ($status < 0)
+				$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")
+				poCdErro = $xCdErro$
+				poCtxErro = $xCtxErro$
+				return(-1)
+			endif 
+			if ($item("VL_SALDO",voParams) > 0)
+				vSaldoCheque = vSaldoCheque + $item("VL_SALDO",voParams)
+			endif
+		endif
+		delitem vLstEmpresa, 1
+	until(vLstEmpresa = "")
+
+	if ((vSaldoDinheiro + vSaldocheque) >= $VlAlertaSangriaCxUsu$)
+		$instancehandle->SetStatus(<STS_AVISO>, "GEN0001", "DESCRICAO=<<<< ATENÇÃO >>>>%%^%%^Efetuar sangria de caixa.", "")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		poParams = ""
+		putitem/id poParams, "IN_SANGRIA", <TRUE>
+		return(0)
+	endif
+
+	return(0)
+End;

@@ -1,0 +1,975 @@
+;------------------------
+entry preEDIT 
+;------------------------
+	variables
+		numeric vMesAniver, vMesAtual
+		date vDtSistema
+	endvariables
+	
+	$cdEmpresa$ = $item("CD_EMPRESA", $xlpi$)
+	$dtTransacao$ = $item("DT_TRANSACAO", $xlpi$)
+	$nrTransacao$ = $item("NR_TRANSACAO", $xlpi$)
+	
+	if ($cdEmpresa$ = 0)
+		$instancehandle->setStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Empresa da transação não informada!", "")
+		exit(-1)
+	endif
+	
+	if ($dtTransacao$ = 0)
+		$instancehandle->setStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Data da transação não informada!", "")
+		exit(-1)
+	endif
+	
+	if ($nrTransacao$ = 0)
+		$instancehandle->setStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Número da transação não informada!", "")
+		exit(-1)
+	endif
+	
+	$instancehandle->carregaDadosIniciais()
+	if ($procerror)
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+	endif 
+	
+	$inAniver$ = <FALSE>
+	
+	if ($prDescAniver$ > 0)
+		clear/e "PES_PESFISICA"
+		CD_PESSOA.PES_PESFISICA/init = CD_PESSOA.TRA_TRANSACAO
+		retrieve/e "PES_PESFISICA"
+		if ($status >= 0)
+			vMesAniver = DT_NASCIMENTO[M]
+			vDtSistema = $item("DT_SISTEMA", $$gParamGlb)
+			vMesAtual = vDtSistema[M]
+			
+			if (vMesAniver = vMesAtual)
+				$inAniver$ = <TRUE>
+				message/info "Aniversariante do mês!!! Desconto de %%$prDescAniver$%%%%"
+			endif
+		endif
+		
+		$prDescAniver$ = $prDescAniver$ * (-1)
+	endif
+
+	return(0)
+End ; operation preEDIT
+
+;------------------------
+entry posEDIT 
+;------------------------
+	variables
+		numeric vVlAbatimento
+	endvariables
+	
+	vVlAbatimento = VL_ADIANTAMENTO.SIS_DUMMY + VL_CREDEV.SIS_DUMMY + VL_ENTRADA.SIS_DUMMY + VL_DESCONTO.SIS_DUMMY
+	
+	$xlpo$ = ""
+	
+	if (VL_TRANSACAO.TRA_TRANSACAO = vVlAbatimento)
+		clear/e "TRA_TRANSCONDPGTOH"
+		CD_EMPRESA.TRA_TRANSCONDPGTOH = CD_EMPRESA.TRA_TRANSACAO
+		NR_TRANSACAO.TRA_TRANSCONDPGTOH = NR_TRANSACAO.TRA_TRANSACAO
+		DT_TRANSACAO.TRA_TRANSCONDPGTOH = DT_TRANSACAO.TRA_TRANSACAO
+		CD_CONDPGTO.TRA_TRANSCONDPGTOH = 0
+		TP_DOCUMENTO.TRA_TRANSCONDPGTOH = 0
+		NR_SEQHISTRELSUB.TRA_TRANSCONDPGTOH = 0
+		VL_ENTRADA.TRA_TRANSCONDPGTOH = VL_ENTRADA.SIS_DUMMY
+		VL_CREDEV.TRA_TRANSCONDPGTOH = VL_CREDEV.SIS_DUMMY
+		VL_ADIANTAMENTO.TRA_TRANSCONDPGTOH = VL_ADIANTAMENTO.SIS_DUMMY
+		VL_DESCONTO.TRA_TRANSCONDPGTOH = VL_DESCONTO.SIS_DUMMY
+		PR_DESCONTO.TRA_TRANSCONDPGTOH = PR_DESCONTO.SIS_DUMMY
+		
+		putlistitems/occ $xlpo$, "TRA_TRANSCONDPGTOH"
+		putitem/id $xlpo$, "CD_USUARIODESC", $cdUsuarioDesc$
+	else
+		if ($dbocc("GER_CONDPGTOH"))
+			clear/e "TRA_TRANSCONDPGTOH"
+			CD_EMPRESA.TRA_TRANSCONDPGTOH = CD_EMPRESA.TRA_TRANSACAO
+			NR_TRANSACAO.TRA_TRANSCONDPGTOH = NR_TRANSACAO.TRA_TRANSACAO
+			DT_TRANSACAO.TRA_TRANSCONDPGTOH = DT_TRANSACAO.TRA_TRANSACAO
+			CD_CONDPGTO.TRA_TRANSCONDPGTOH = CD_CONDPGTO.GER_CONDPGTOH
+			TP_DOCUMENTO.TRA_TRANSCONDPGTOH = TP_DOCUMENTO.GER_CONDPGTOH
+			NR_SEQHISTRELSUB.TRA_TRANSCONDPGTOH = NR_SEQHISTRELSUB.GER_CONDPGTOH
+			VL_ENTRADA.TRA_TRANSCONDPGTOH = VL_ENTRADA.SIS_DUMMY
+			VL_CREDEV.TRA_TRANSCONDPGTOH = VL_CREDEV.SIS_DUMMY
+			VL_ADIANTAMENTO.TRA_TRANSCONDPGTOH = VL_ADIANTAMENTO.SIS_DUMMY
+			VL_DESCONTO.TRA_TRANSCONDPGTOH = VL_DESCONTO.SIS_DUMMY
+			PR_DESCONTO.TRA_TRANSCONDPGTOH = PR_DESCONTO.SIS_DUMMY
+			
+			putlistitems/occ $xlpo$, "TRA_TRANSCONDPGTOH"
+			putitem/id $xlpo$, "CD_USUARIODESC", $cdUsuarioDesc$
+		endif
+	endif
+	
+	return(0)
+End ; operation posEDIT
+
+#include <LIB_PADRAO>:DEF_TEMPLATE
+;---------------------
+partner operation INIT 
+;---------------------
+	;;Retire o comentário das linhas abaixo para carregar os parâmetros locais
+	;;Parametros gerais  
+	$xlpl$ = ""
+	putitem $xlpl$, -1, "CLIENTE_PDV"
+	putitem $xlpl$, -1,	"IN_USA_CALCULO_LIMITE_4" ; DIONE |094/1874| 16/09/2011
+	putitem $xlpl$, -1,	"PR_ESCORE_ENTRADA_4" ; DIONE |094/1874| 16/09/2011
+	activate "ADMSVCO001".GetLstParametro($xlpl$, $xlpl$, $xcderro$, $xctxerro$)
+	if ($procerror)
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+	elseif ($xcdErro$)
+		$instancehandle->SetErroApl($xCtxErro$, $xCdErro$, $xCtxErro$)
+	endif
+	
+	$cdClientePDV$ = $item("CLIENTE_PDV", $xlpl$)
+	$inUsaCalculoLimite4$= $item("IN_USA_CALCULO_LIMITE_4" ,$xlpl$) ; DIONE |094/1874| 16/09/2011
+	$prEscoreEntrada4$	 = $item("PR_ESCORE_ENTRADA_4" , $xlpl$) ; DIONE |094/1874| 16/09/2011
+	
+	;;Parametros por empresa
+	$xlplemp$ = ""
+	putitem $xlplemp$, -1, "TP_SIMULADOR_FAT"
+	putitem $xlplemp$, -1, "TP_CALCULO_SIMULADOR_VD" ;---Elia Proj. 102/590 23/06/09
+	putitem $xlplemp$, -1, "IN_BLOQ_DESC_ITEM_PROM"
+	putitem $xlplemp$, -1, "PR_DESC_ANIVERSARIANTE"
+	putitem $xlplemp$, -1, "VL_MAX_ABATIMENTO_SIM"   ;>-- MAC - PRJ 156/404 - 31/08/2010
+	putitem $xlplemp$, -1, "DS_LST_CONDPGTO_SIM_FAT";0da
+	activate "ADMSVCO001".GetParamEmpresa($item("CD_EMPRESA", $$gParamGlb), $xlplemp$, $xlplemp$, $xcderro$, $xctxerro$)
+	if ($procerror)
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+	elseif ($xcdErro$)
+		$instancehandle->SetErroApl($xCtxErro$, $xCdErro$, $xCtxErro$)
+	endif
+	
+	$tpSimuladorFat$     = $item("TP_SIMULADOR_FAT"        , $xlplemp$)
+	$tpCalculoSimularVd$ = $item("TP_CALCULO_SIMULADOR_VD" , $xlplemp$) ;---Elia Proj. 102/590 23/06/09
+	$inBloqDesItemProm$  = $item("IN_BLOQ_DESC_ITEM_PROM"  , $xlplemp$)
+	$prDescAniver$       = $item("PR_DESC_ANIVERSARIANTE"  , $xlplemp$)
+	$vlMaxAbatimentoSim$ = $item("VL_MAX_ABATIMENTO_SIM"   , $xlplemp$) ;>-- MAC - PRJ 156/404 - 31/08/2010
+	$dsLstCondPgto$      = $item("DS_LST_CONDPGTO_SIM_FAT"  , $xlplemp$);0da
+	$dsLstCondPgto$      = $replace($dsLstCondPgto$, 1, ";", "·;", -1);oda
+
+	$formtitle = "%%$componentname - Simulação de Forma de Pagamento"
+End ; operation INIT
+
+;------------------------
+partner operation CLEANUP 
+;------------------------
+	
+End ; operation CLEANUP
+
+;-------------------------------------
+partner operation carregaDadosIniciais
+;-------------------------------------
+	variables
+		numeric vNrCtaCliente
+		date vDtSaldo
+		string viParams, voParams, viValores
+		boolean vInPDV, vInTroca, vInUtilizar
+		string vDsGeral, vDsLstTpDocumento, vDsTpDocumento, vDsDocumento, vDsLstDocumento, vDsCampo
+		numeric vNrDocumento
+	endvariables
+	
+	vInPDV = $item("IN_PDV", $xlpi$)
+	if (vInPDV = <TRUE>)
+		fieldsyntax BT_CONFIRMA.SIS_BOTOES, "HID"
+	endif
+	
+	clear/e "TRA_TRANSACAO"
+	CD_EMPRESA.TRA_TRANSACAO/init = $cdEmpresa$
+	DT_TRANSACAO.TRA_TRANSACAO/init = $dtTransacao$
+	NR_TRANSACAO.TRA_TRANSACAO/init = $nrTransacao$
+	retrieve/e "TRA_TRANSACAO"
+	if ($status < 0)
+		$instancehandle->setStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Transação não encontrada. Emp. %%$cdEmpresa$ Transação %%$nrTransacao$  Dt. %%$dtTransacao$", "")
+		exit(-1)
+	endif
+	
+	vInTroca = <FALSE>
+	if (TP_MODALIDADE.GER_OPERACAO = 8 & TP_OPERACAO.TRA_TRANSACAO = "S")
+		vInTroca = <TRUE>
+		
+		if ($empty("R_TRA_TRANSACAO") = 0)
+			VL_CREDEV.SIS_DUMMY/init = VL_TRANSACAO.R_TRA_TRANSACAO
+		endif
+	endif
+		
+	vNrCtaCliente = 0
+	
+	if (CD_PESSOA.TRA_TRANSACAO != $cdClientePDV$) & (vInTroca = <FALSE>)
+		viParams = ""
+		putitem/id viParams, "CD_EMPRESA", CD_EMPFAT.TRA_TRANSACAO
+		putitem/id viParams, "CD_PESSOA", CD_PESSOA.TRA_TRANSACAO
+		if (TP_OPERACAO.TRA_TRANSACAO = "S")
+			putitem/id viParams, "TP_CONTA", "C" ;Cliente
+		else
+			putitem/id viParams, "TP_CONTA", "F" ;Fornecedor
+		endif
+		putitem/id viParams, "IN_OBRIGATORIO", <FALSE>
+		activate "FCCSVCO002".buscaContaPessoa($$gParamGlb, viParams, voParams, $xCdErro$, $xCtxErro$)
+		if ($procerror)       
+			$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+			exit(-1)
+		elseif ($status < 0)
+			$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")
+			exit(-1)
+		endif
+		
+		vNrCtaCliente = $item("NR_CTAPES", voParams)
+	else
+		fieldsyntax VL_ADIANTAMENTO.SIS_DUMMY, "DIM"
+		fieldsyntax VL_CREDEV.SIS_DUMMY, "DIM"
+		fieldsyntax VL_SALDOADIANT.SIS_DUMMY, "DIM"
+		fieldsyntax VL_SALDOCREDEV.SIS_DUMMY, "DIM"
+	endif
+		
+	if (vNrCtaCliente > 0)
+		vDtSaldo = $item("DT_SISTEMA", $$gParamGlb)
+		
+		viParams = ""
+		putitem/id viParams, "NR_CTAPES", vNrCtaCliente
+		putitem/id viParams, "TP_DOCUMENTO", 10 ;Adiantamento
+		putitem/id viParams, "NR_SEQHISTRELSUB", 1
+		putitem/id viParams, "DT_SALDO", vDtSaldo
+		activate "FCCSVCO002".buscaSaldoCtaTp($$gParamGlb, viParams, viValores, voParams, $xCdErro$, $xCtxerro$)
+		if ($procerror)       
+			$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+			return(-1)
+		elseif ($status < 0)
+			$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")
+			return(-1)
+		endif
+		
+		VL_SALDOADIANT.SIS_DUMMY/init = $item("VL_SALDO", voParams)
+		
+		viParams = ""
+		putitem/id viParams, "NR_CTAPES", vNrCtaCliente
+		putitem/id viParams, "TP_DOCUMENTO", 20 ;CREDEV
+		putitem/id viParams, "NR_SEQHISTRELSUB", 1
+		putitem/id viParams, "DT_SALDO", vDtSaldo
+		activate "FCCSVCO002".buscaSaldoCtaTp($$gParamGlb, viParams, viValores, voParams, $xCdErro$, $xCtxerro$)
+		if ($procerror)       
+			$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+			return(-1)
+		elseif ($status < 0)
+			$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")
+			return(-1)
+		endif
+		
+		VL_SALDOCREDEV.SIS_DUMMY = $item("VL_SALDO", voParams)
+	endif
+	
+	;>-- MAC - PRJ 156 TAR 208 ---
+	if (CD_CARTAO.CTC_TRACARTAO != "")
+		vDsLstDocumento = $valrep(TP_DOCUMENTO.SIS_FILTRO)        
+		$valrep(TP_DOCUMENTO.SIS_FILTRO) = ""
+		repeat
+			getitem vDsDocumento, vDsLstDocumento, 1
+			vNrDocumento = vDsDocumento
+			vDsCampo = $item("%%vNrDocumento", vDsLstDocumento)	
+			viParams = ""
+			putitem/id viParams, "CD_CARTAO", CD_CARTAO.CTC_TRACARTAO
+			putitem/id viParams, "TP_DOCUMENTO", vNrDocumento
+			activate "CTCSVCO004".verificaTpDocumentoCartao($$gParamGlb, viParams, voParams, $xCdErro$, $xCtxErro$)
+			if ($procerror)     
+				$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+				return(-1)
+			elseif ($status < 0)
+				$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")
+				return(-1)
+			endif
+			if (voParams != "")
+				vInUtilizar = $item("IN_VALIDO", voParams)
+			endif
+			if (vInUtilizar = <TRUE>)
+				vDsTpDocumento = ""
+				putitem/id vDsTpDocumento, vNrDocumento, vDsCampo
+				putitem vDsLstTpDocumento, -1, vDsTpDocumento
+			endif
+			delitem vDsLstDocumento, 1
+		until (vDsLstDocumento = "")		
+
+		$valrep(TP_DOCUMENTO.SIS_FILTRO) = vDsLstTpDocumento
+		$prompt = TP_DOCUMENTO.SIS_FILTRO
+	endif
+	;--<
+
+	if ($vlMaxAbatimentoSim$ <= 0)
+		fieldsyntax VL_ABATIMENTO.SIS_ABATIMENTO, "DIM"
+	endif
+
+	; --- DIONE |094/1874| 16/09/2011
+	$instancehandle->sugereValorEntrada()
+	if ($procerror)
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+		return(-1)  
+	elseif ($status < 0)
+		exit(-1)  
+	endif
+	; ---
+
+	return(0)
+end
+
+;--------------------------
+partner operation recalcula
+;--------------------------
+	variables
+		numeric vVlAbatimento, vVlTotal, vVlTransacao, vVlPlano, vCdCondPgto
+		boolean vInAniver
+	endvariables
+
+
+	vVlTransacao = VL_TRANSACAO.TRA_TRANSACAO + VL_BONUSUTIL.CTC_TRACARTAO + VL_BONUSDESC.TRA_TRANSACADIC ; DIONE | 102/0933| 09/09/10 VL_BONUSDESC
+	vVlAbatimento = VL_ADIANTAMENTO.SIS_DUMMY + VL_CREDEV.SIS_DUMMY + VL_ENTRADA.SIS_DUMMY + VL_DESCONTO.SIS_DUMMY
+	vVlTotal = vVlTransacao - vVlAbatimento
+	
+	if (vVlTotal < 0)
+		message/info "Valores incorretos para geração das formas de pagamento!"
+		return(-1)
+	endif
+	
+	vCdCondPgto = ""
+	
+	clear/e "PES_PREFCLIENTE"
+	CD_CLIENTE.PES_PREFCLIENTE/init = CD_PESSOA.TRA_TRANSACAO
+	retrieve/e "PES_PREFCLIENTE"
+	if ($status >= 0)
+		vCdCondPgto = CD_CONDPAGTO.PES_PREFCLIENTE
+	endif
+	
+	clear/e "GER_CONDPGTOH"
+	
+	if (vVlTotal > 0)
+		if (vCdCondPgto != 0)
+			CD_CONDPGTO.GER_CONDPGTOH/init = vCdCondPgto
+		elseif($dsLstCondPgto$ != "");oda
+			CD_CONDPGTO.GER_CONDPGTOH/init = $dsLstCondPgto$;oda
+		endif
+
+		if (TP_DOCUMENTO.SIS_FILTRO != 0)
+			TP_DOCUMENTO.GER_CONDPGTOH/init = TP_DOCUMENTO.SIS_FILTRO
+		endif
+		retrieve/e "GER_CONDPGTOH"
+		if ($status >= 0)
+			setocc "GER_CONDPGTOH", 1
+			while ($status >= 0)
+				if ($inAniver$ = <TRUE>)
+					if (PR_VARIACAO.GER_CONDPGTOH <= 0) & ($prDescAniver$ < PR_VARIACAO.GER_CONDPGTOH)
+						PR_VARIACAO.GER_CONDPGTOH = $prDescAniver$
+					endif
+					
+					vVlTransacao = VL_TRANSACAO.TRA_TRANSACAO + VL_BONUSUTIL.CTC_TRACARTAO + VL_BONUSDESC.TRA_TRANSACADIC ; DIONE | 102/0933| 09/09/10 VL_BONUSDESC
+					;vVlTransacao = VL_TRANSACAO.TRA_TRANSACAO + VL_BONUSUTIL.CTC_TRACARTAO
+					vVlAbatimento = VL_ADIANTAMENTO.SIS_DUMMY + VL_CREDEV.SIS_DUMMY + VL_ENTRADA.SIS_DUMMY + VL_DESCONTO.SIS_DUMMY
+					vVlTotal = vVlTransacao - vVlAbatimento
+					
+					if ($tpCalculoSimularVd$ = 0) ; 0 - Liquido
+						if (PR_VARIACAO.GER_CONDPGTOH > 0)
+							vVlPlano = vVlTotal + (vVlTotal * $prDescAniver$ / 100)
+							vVlTotal = vVlPlano
+						endif
+						
+						vVlPlano = vVlTotal + (vVlTotal * PR_VARIACAO.GER_CONDPGTOH / 100)
+					elseif ($tpCalculoSimularVd$ = 1) ; 1 - Bruto
+						if (PR_VARIACAO.GER_CONDPGTOH > 0)
+							vVlPlano = vVlTransacao + (vVlTransacao * $prDescAniver$ / 100)
+							vVlTransacao = vVlPlano
+						endif
+						
+						vVlPlano = vVlTransacao + (vVlTransacao * PR_VARIACAO.GER_CONDPGTOH / 100)
+						vVlPlano = vVlPlano - vVlAbatimento
+					elseif ($tpCalculoSimularVd$ = 2) ; 2 - Bruto(Desconto) X Liquido(Acrescimo)
+						if (PR_VARIACAO.GER_CONDPGTOH <= 0) 
+							vVlPlano = vVlTransacao + (vVlTransacao * PR_VARIACAO.GER_CONDPGTOH / 100)
+							vVlPlano = vVlPlano - vVlAbatimento						
+						else 
+							vVlPlano = vVlTotal + (vVlTotal * $prDescAniver$ / 100)
+							vVlPlano = vVlPlano + (vVlPlano * PR_VARIACAO.GER_CONDPGTOH / 100)
+						endif
+					elseif ($tpCalculoSimularVd$ = 3) ; 3 - Liquido(Desconto) X Bruto(Acrescimo)
+						if (PR_VARIACAO.GER_CONDPGTOH <= 0) 
+							vVlPlano = vVlTotal + (vVlTotal * PR_VARIACAO.GER_CONDPGTOH / 100)
+						else 
+							vVlPlano = vVlTransacao + (vVlTotal * $prDescAniver$ / 100)
+							vVlPlano = vVlPlano + (vVlTransacao * PR_VARIACAO.GER_CONDPGTOH / 100)
+							vVlPlano = vVlPlano - vVlAbatimento
+						endif
+					endif
+				else
+					if ($tpCalculoSimularVd$ = 0) ; 0 - Liquido
+						vVlPlano = vVlTotal + (vVlTotal * PR_VARIACAO.GER_CONDPGTOH / 100)
+					elseif ($tpCalculoSimularVd$ = 1) ; 1 - Bruto
+						vVlPlano = vVlTransacao + (vVlTransacao * PR_VARIACAO.GER_CONDPGTOH / 100)
+						vVlPlano = vVlPlano - vVlAbatimento
+					elseif ($tpCalculoSimularVd$ = 2) ; 2 - Bruto(Desconto) X Liquido(Acrescimo)
+						if (PR_VARIACAO.GER_CONDPGTOH <= 0) 
+							vVlPlano = vVlTransacao + (vVlTransacao * PR_VARIACAO.GER_CONDPGTOH / 100)
+							vVlPlano = vVlPlano - vVlAbatimento						
+						else 
+							vVlPlano = vVlTotal + (vVlTotal * PR_VARIACAO.GER_CONDPGTOH / 100)
+						endif
+					elseif ($tpCalculoSimularVd$ = 3) ; 3 - Liquido(Desconto) X Bruto(Acrescimo)
+						if (PR_VARIACAO.GER_CONDPGTOH <= 0) 
+							vVlPlano = vVlTotal + (vVlTotal * PR_VARIACAO.GER_CONDPGTOH / 100)
+						else 
+							vVlPlano = vVlTransacao + (vVlTransacao * PR_VARIACAO.GER_CONDPGTOH / 100)
+							vVlPlano = vVlPlano - vVlAbatimento
+						endif
+					endif
+				endif
+
+				vVlPlano = vVlPlano - (VL_BONUSUTIL.CTC_TRACARTAO + VL_BONUSDESC.TRA_TRANSACADIC) ; DIONE | 102/0933| 09/09/10 VL_BONUSDESC
+
+				
+				if (vVlPlano < 0)
+					vVlPlano = 0
+				endif
+				
+				NR_PARCELAS.GER_CONDPGTOH/init = 1
+				
+				if (TP_DOCUMENTO.GER_CONDPGTOH = 4) ; Cartao Credito
+					clear/e "FCX_HISTRELSUB"
+					TP_DOCUMENTO.FCX_HISTRELSUB/init = TP_DOCUMENTO.GER_CONDPGTOH
+					NR_SEQHISTRELSUB.FCX_HISTRELSUB/init = NR_SEQHISTRELSUB.GER_CONDPGTOH
+					retrieve/e "FCX_HISTRELSUB"
+					if ($status >= 0)
+						NR_PARCELAS.GER_CONDPGTOH/init = NR_PARCELAS.FCX_HISTRELSUB
+					endif
+				else
+					clear/e "GER_CONDPGTOC"
+					CD_CONDPGTO.GER_CONDPGTOC/init = CD_CONDPGTO.GER_CONDPGTOH
+					retrieve/e "GER_CONDPGTOC"
+					if ($status >= 0)
+						NR_PARCELAS.GER_CONDPGTOH/init = NR_PARCELAS.GER_CONDPGTOC
+					endif
+				endif
+
+				; --- DIONE |156/0638| 01/11/11  (7 TEF) (8 CHEQUE TEF) (13 VALE) (19 TEF TECBAN) (22 TEF HYPERCARD)
+				if (TP_DOCUMENTO.GER_CONDPGTOH = 7 | TP_DOCUMENTO.GER_CONDPGTOH = 8 | TP_DOCUMENTO.GER_CONDPGTOH = 13 | TP_DOCUMENTO.GER_CONDPGTOH = 19 | TP_DOCUMENTO.GER_CONDPGTOH = 22)
+					NR_PARCELAS.GER_CONDPGTOH/init = 1	
+				endif
+				; ---
+			
+				vVlPlano = vVlPlano[round,2]
+			
+				if (VL_ABATIMENTO.SIS_ABATIMENTO > 0)
+					vVlPlano = vVlPlano - VL_ABATIMENTO.SIS_ABATIMENTO
+				endif
+
+				VL_PARCELA.GER_CONDPGTOH/init = vVlPlano / NR_PARCELAS.GER_CONDPGTOH
+				;>-- MAC - PRJ 102 TAR 719 - 19/10/09
+				; Devido a algumas situações os valores não podem ser arredondados
+				;VL_PARCELA.GER_CONDPGTOH/init = VL_PARCELA.GER_CONDPGTOH[round, 2]
+				;--<
+				VL_TOTAL.GER_CONDPGTOH/init = VL_PARCELA.GER_CONDPGTOH * NR_PARCELAS.GER_CONDPGTOH
+				
+				setocc "GER_CONDPGTOH", $curocc("GER_CONDPGTOH") + 1
+			endwhile
+			
+			clear/e "PES_CLIENTEFPGTO"
+			CD_CLIENTE.PES_CLIENTEFPGTO/init = CD_PESSOA.TRA_TRANSACAO
+			retrieve/e "PES_CLIENTEFPGTO"
+			if ($status >= 0)
+				setocc "PES_CLIENTEFPGTO", -1
+				setocc "GER_CONDPGTOH", -1
+				setocc "GER_CONDPGTOH", 1
+				while ($status >= 0)
+					creocc "PES_CLIENTEFPGTO", -1
+					CD_CLIENTE.PES_CLIENTEFPGTO = CD_PESSOA.TRA_TRANSACAO
+					TP_DOCUMENTO.PES_CLIENTEFPGTO = TP_DOCUMENTO.GER_CONDPGTOH
+					retrieve/o "PES_CLIENTEFPGTO"
+					if ($status != 4)
+						discard "PES_CLIENTEFPGTO"
+						discard "GER_CONDPGTOH"
+						if ($status = 0)
+							$status = -1
+						endif
+					else
+						setocc "GER_CONDPGTOH", $curocc("GER_CONDPGTOH") + 1
+					endif
+				endwhile
+			endif
+				
+			sort/e "GER_CONDPGTOH", "DS_RESUMIDA.GER_CONDPGTOH"
+			setocc "GER_CONDPGTOH", 1
+		endif
+	endif
+	
+	reset $formmod
+	
+	return(0)
+end
+
+;-------------------------
+partner operation desconto
+;-------------------------
+	params
+		numeric piVlDesconto : IN
+	endparams
+	
+	variables
+		string viParams, voParams
+		numeric vVlDesconto, vVlTotalDesc, vPrTotalDesc, vVlCalc, vVlBonus
+		numeric vVlBrutoTransacao, vVlLiquidoTransacao, vCdUsuario, vVlLiquido
+	endvariables
+	
+	vCdUsuario  = $item("CD_USUARIO", $$gParamGlb)
+	vVlDesconto = 0
+	vVlLiquido = 0
+
+	if ($empty("TRA_TRANSITEM") = 0)
+		setocc "TRA_TRANSITEM", 1
+		while ($status >= 0)    
+			if (($inBloqDesItemProm$ = <TRUE>) & (CD_PROMOCAO.TRA_TRANSITEM > 0))
+			else
+				vVlLiquido = vVlLiquido +  VL_TOTALLIQUIDO.TRA_TRANSITEM
+				vVlDesconto = vVlDesconto + VL_TOTALDESCCAB.TRA_TRANSITEM
+			endif
+			
+			setocc "TRA_TRANSITEM", $curocc("TRA_TRANSITEM") + 1
+		endwhile
+	endif
+	
+	viParams = ""
+	;>-- MAC - PRJ 102 TAR 789 - 03/02/2010 ----------------------;
+	; Sempre ao chamar o componente TRAFM062 passar os valores    ;
+	; da transacao e comentar a leitura da tabela TRA_LIMDESCONTO ;
+	;-------------------------------------------------------------;
+	;clear/e "TRA_LIMDESCONTO"
+	;CD_OPERACAO.TRA_LIMDESCONTO/init = CD_OPERACAO.TRA_TRANSACAO
+	;CD_USUARIO.TRA_LIMDESCONTO/init = vCdUsuario
+	;retrieve/e "TRA_LIMDESCONTO"
+	;if ($status >= 0)
+	;	putitem/id viParams, "PR_DESCMAXIMO", PR_DESCMAX.TRA_LIMDESCONTO
+	;else  
+	;	clear/e "TRA_LIMDESCONTO"
+	;	putitem/id viParams, "PR_DESCMAXIMO", 0
+	;endif
+	;-------------------------------------------------------------<
+	putitem/id viParams, "CD_EMPTRA"   , CD_EMPRESA.TRA_TRANSACAO
+	putitem/id viParams, "DT_TRANSACAO", DT_TRANSACAO.TRA_TRANSACAO
+	putitem/id viParams, "NR_TRANSACAO", NR_TRANSACAO.TRA_TRANSACAO
+	vVlBonus = (VL_BONUSUTIL.CTC_TRACARTAO +  VL_BONUSDESC.TRA_TRANSACADIC) ; DIONE | 102/0933| 09/09/10 VL_BONUSDESC
+	;>-- MAC - PRJ 102 TAR 775 - 12/01/2010 ---
+	if ($tpCalculoSimularVd$ = 0) ; 0 - Liquido
+		vVlCalc = vVlLiquido
+	elseif ($tpCalculoSimularVd$ = 1) ; 1 - Bruto
+		vVlCalc = vVlLiquido + vVlDesconto
+		putitem/id viParams, "VL_BONUS", vVlBonus ; DIONE | 102/0933| 09/09/10 VL_BONUSDESC
+;		putitem/id viParams, "VL_BONUS",VL_BONUSUTIL.CTC_TRACARTAO
+;---Elia Proj. 102/538 12/05/09	
+	elseif ($tpCalculoSimularVd$ = 2) ; 2 - Bruto(Desconto) X Liquido(Acrescimo)
+		vVlCalc = vVlLiquido + vVlDesconto
+		putitem/id viParams, "VL_BONUS",	vVlBonus ; DIONE | 102/0933| 09/09/10 VL_BONUSDESC
+;		putitem/id viParams, "VL_BONUS", VL_BONUSUTIL.CTC_TRACARTAO 
+ ;---Elia Proj. 102/538 12/05/09
+	elseif ($tpCalculoSimularVd$ = 3) ; 3 - Liquido(Desconto) X Bruto(Acrescimo)
+		vVlCalc = vVlLiquido
+	endif
+	;vVlCalc = vVlLiquido + vVlDesconto
+	;--<
+
+	putitem/id viParams, "VL_BASEDESC", vVlCalc
+	;putitem/id viParams, "VL_DESCONTO", vVlDesconto
+	putitem/id viParams, "IN_ARREDONDA_PRECO", <FALSE>
+	putitem/id viParams, "CD_OPERACAO", CD_OPERACAO.TRA_TRANSACAO
+	putitem/id viParams, "CD_PESSOA", CD_PESSOA.TRA_TRANSACAO
+;	putitem/id viParams, "VL_BONUS", VL_BONUSUTIL.CTC_TRACARTAO ;---Elia Proj. 102/538 12/05/09
+	activate "TRAFM062".EXEC(viParams, voParams, $xCdErro$, $xCtxErro$)
+	if ($procerror)       
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+		return(-1)
+	elseif ($status < 0)
+		return(-1) 
+	endif
+	
+	vVlTotalDesc = $item("VL_TOTALDESC", voParams)
+	vPrTotalDesc = $item("PR_TOTALDESC", voParams)
+	$cdUsuarioDesc$ = $item("CD_USUARIODESC", voParams)
+	
+	if ($cdUsuarioDesc$ > 0) & ($cdUsuarioDesc$ != vCdUsuario)
+		clear/e "TRA_LIMDESCONTO"
+		CD_OPERACAO.TRA_LIMDESCONTO/init = CD_OPERACAO.TRA_TRANSACAO
+		CD_USUARIO.TRA_LIMDESCONTO/init = $cdUsuarioDesc$
+		retrieve/e "TRA_LIMDESCONTO"
+		if ($status < 0)
+			clear/e "TRA_LIMDESCONTO"
+		endif
+	endif
+	
+	if ($dbocc("TRA_LIMDESCONTO"))
+		vVlBrutoTransacao = VL_TRANSACAO.TRA_TRANSACAO + VL_DESCONTO.TRA_TRANSACAO 
+		vVlLiquidoTransacao = VL_TRANSACAO.TRA_TRANSACAO + (VL_BONUSUTIL.CTC_TRACARTAO + VL_BONUSDESC.TRA_TRANSACADIC) - vVlTotalDesc  ; DIONE | 102/0933| 09/09/10 VL_BONUSDESC
+		vVlCalc = (vVlBrutoTransacao - vVlLiquidoTransacao) / vVlBrutoTransacao * 100
+		vVlCalc = vVlCalc[round, 6]
+		if (vVlCalc > PR_DESCMAX.TRA_LIMDESCONTO)
+			$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Perc. de desconto na transação de %%vVlCalc maior que o máximo permitido de %%PR_DESCMAX.TRA_LIMDESCONTO%%%! Existe desconto nos itens!", "")
+			return(-1)
+		endif
+	endif
+	 
+	VL_DESCONTO.SIS_DUMMY/init = vVlTotalDesc
+	PR_DESCONTO.SIS_DUMMY/init = vPrTotalDesc
+	
+	$instancehandle->recalcula()
+	if ($procerror)
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+	endif 
+
+	return(0)
+end
+
+;-------------------------
+partner operation confirma
+;-------------------------
+
+	variables
+		numeric vVlResto, vPrTotalDesc, vVlCalc, vPrVariacao, vVlMaior, vNrOcc, vVlAbatimento, vVlDesconto
+		numeric vVlBrutoTransacao, vVlLiquidoTransacao, vPrAbatimento, vPrSimulador, vVlLiquido
+		string vDsLstTransacao, vDsRegistro, viParams, voParams
+	endvariables
+
+	vVlAbatimento = VL_ADIANTAMENTO.SIS_DUMMY + VL_CREDEV.SIS_DUMMY + VL_ENTRADA.SIS_DUMMY + VL_DESCONTO.SIS_DUMMY + VL_ABATIMENTO.SIS_ABATIMENTO
+	vVlResto      = VL_TOTAL.GER_CONDPGTOH + vVlAbatimento - VL_TRANSACAO.TRA_TRANSACAO; + VL_ABATIMENTO.SIS_ABATIMENTO
+	vPrTotalDesc  = PR_DESCONTO.SIS_DUMMY
+	vPrVariacao   = PR_VARIACAO.GER_CONDPGTOH
+	
+	;---Hugo em 04/08/11 Tarefa 182-128
+	if (IN_DESCVARIACAO.GER_CONDPGTOH = <TRUE>)
+		vPrVariacao = 0
+		vVlResto    = 0
+	endif
+	;---
+
+	;---Elia Proj. 102/538 12/05/09                                             
+	vVlBrutoTransacao = VL_TRANSACAO.TRA_TRANSACAO + VL_BONUSUTIL.CTC_TRACARTAO + VL_BONUSDESC.TRA_TRANSACADIC ; DIONE | 102/0933| 09/09/10 VL_BONUSDESC
+	vVlCalc = vVlAbatimento / vVlBrutoTransacao * 100
+	vPrAbatimento = vVlCalc[round, 6]
+	;
+	
+	if (VL_TOTAL.GER_CONDPGTOH <= 0) & (VL_TRANSACAO.TRA_TRANSACAO != vVlAbatimento)
+		message/info "Valor insuficiente para forma de pagamento selecionada!"
+		return(-1)
+	endif
+	
+	if ($empty("TRA_TRANSITEM") = 0) & (VL_TRANSACAO.TRA_TRANSACAO != vVlAbatimento)
+		vVlMaior = 0
+		setocc "TRA_TRANSITEM", 1
+		while ($status >= 0)
+			;---Elia Proj. 102/538 12/05/09
+			if (VL_BONUSUTIL.CTC_TRACARTAO = 0 & VL_BONUSDESC.TRA_TRANSACADIC = 0); DIONE | 102/0933| 09/09/10 VL_BONUSDESC
+				VL_TOTALBRUTO.TRA_TRANSITEM = VL_TOTALLIQUIDO.TRA_TRANSITEM
+				VL_UNITBRUTO.TRA_TRANSITEM = VL_UNITLIQUIDO.TRA_TRANSITEM
+				PR_DESCONTO.TRA_TRANSITEM = ""
+				VL_TOTALDESC.TRA_TRANSITEM = ""		
+				VL_TOTALDESCCAB.TRA_TRANSITEM = ""
+				VL_UNITDESCCAB.TRA_TRANSITEM = ""
+				VL_UNITDESC.TRA_TRANSITEM = ""
+			endif
+			;			
+
+			if (vPrVariacao != 0)
+				;---Elia Proj. 102/538 - Teste
+				;vVlCalc = (VL_TOTALBRUTO.TRA_TRANSITEM * vPrVariacao / 100)
+				vVlDesconto = VL_TOTALBRUTO.TRA_TRANSITEM * vPrAbatimento / 100
+				vVlCalc = ((VL_TOTALBRUTO.TRA_TRANSITEM - vVlDesconto) * vPrVariacao) / 100
+				;
+				vVlCalc = vVlCalc[round, 2]
+				vVlResto = vVlResto - vVlCalc
+				VL_TOTALBRUTO.TRA_TRANSITEM = VL_TOTALBRUTO.TRA_TRANSITEM + vVlCalc
+				vVlCalc = VL_TOTALBRUTO.TRA_TRANSITEM / QT_SOLICITADA.TRA_TRANSITEM
+				VL_UNITBRUTO.TRA_TRANSITEM = vVlCalc[round, 6]
+				VL_TOTALLIQUIDO.TRA_TRANSITEM = VL_TOTALBRUTO.TRA_TRANSITEM ;oda
+				VL_UNITLIQUIDO.TRA_TRANSITEM = VL_UNITBRUTO.TRA_TRANSITEM ;oda
+			endif
+			
+			if (VL_TOTALBRUTO.TRA_TRANSITEM > vVlMaior)
+				vVlMaior = VL_TOTALLIQUIDO.TRA_TRANSITEM
+				vNrOcc = $curocc("TRA_TRANSITEM")
+			endif
+			
+			setocc "TRA_TRANSITEM", $curocc("TRA_TRANSITEM") + 1
+		endwhile
+		
+		if (vVlResto != 0) & (vVlAbatimento != 0 | vPrVariacao != 0)
+			setocc "TRA_TRANSITEM", vNrOcc
+			VL_TOTALBRUTO.TRA_TRANSITEM = VL_TOTALBRUTO.TRA_TRANSITEM + vVlResto
+			vVlCalc = VL_TOTALBRUTO.TRA_TRANSITEM / QT_SOLICITADA.TRA_TRANSITEM
+			VL_UNITBRUTO.TRA_TRANSITEM = vVLCalc[round, 6]
+			VL_TOTALLIQUIDO.TRA_TRANSITEM = VL_TOTALBRUTO.TRA_TRANSITEM;oda
+			VL_UNITLIQUIDO.TRA_TRANSITEM = VL_UNITBRUTO.TRA_TRANSITEM;0da
+		endif
+		
+	endif
+
+	;---Elia Proj. 102/538 12/05/09
+;	vVlResto = VL_DESCONTO.SIS_DUMMY + VL_BONUSUTIL.CTC_TRACARTAO + VL_ABATIMENTO.SIS_ABATIMENTO ;>-- MAC - PRJ 156/404 -31/08/2010
+	vVlResto = VL_DESCONTO.SIS_DUMMY + VL_BONUSUTIL.CTC_TRACARTAO + VL_ABATIMENTO.SIS_ABATIMENTO + VL_BONUSDESC.TRA_TRANSACADIC;  DIONE | 102/0933| 09/09/10 VL_BONUSDESC
+	;
+	; --- DIONE |156/0392| 12/08/10
+	;>-- MAC - PRJ 156/473 - 10/11/2010 ---
+	; Inclusão do valor de abatimento no calculo
+	if(VL_DESCONTO.SIS_DUMMY > 0) | (VL_ABATIMENTO.SIS_ABATIMENTO > 0)
+		vVlBrutoTransacao = VL_TRANSACAO.TRA_TRANSACAO + VL_DESCONTO.TRA_TRANSACAO; + VL_ABATIMENTO.SIS_ABATIMENTO	
+		vPrTotalDesc = (((VL_DESCONTO.SIS_DUMMY + VL_ABATIMENTO.SIS_ABATIMENTO) / vVlBrutoTransacao) * 100)
+		vPrTotalDesc = vPrTotalDesc[round, 2]
+	endif
+	; ---
+
+	if ($empty("TRA_TRANSITEM") = 0) & (vVlResto > 0)
+		vVlMaior = 0
+		setocc "TRA_TRANSITEM", 1
+		while ($status >= 0)
+			;* Claudemir - Prj/Tarefa: 102/744 - 26/11/2009
+			; não permitir dar desconto quando o item estiver em promoção 
+			if (($InBloqDesItemProm$ = <TRUE>) & (CD_PROMOCAO.TRA_TRANSITEM > 0))
+			else
+				vVlCalc = VL_TOTALLIQUIDO.TRA_TRANSITEM + VL_TOTALDESCCAB.TRA_TRANSITEM  
+				vVlCalc = vVlCalc * vPrTotalDesc / 100
+				VL_TOTALDESCCAB.TRA_TRANSITEM = VL_TOTALDESCCAB.TRA_TRANSITEM + vVlCalc[round, 2]
+				VL_TOTALLIQUIDO.TRA_TRANSITEM = VL_TOTALBRUTO.TRA_TRANSITEM - (VL_TOTALDESC.TRA_TRANSITEM + VL_TOTALDESCCAB.TRA_TRANSITEM)
+				vVlCalc = VL_TOTALDESCCAB.TRA_TRANSITEM / QT_SOLICITADA.TRA_TRANSITEM
+				VL_UNITDESCCAB.TRA_TRANSITEM = vVLCalc[round, 6]
+				vVlCalc = VL_TOTALLIQUIDO.TRA_TRANSITEM / QT_SOLICITADA.TRA_TRANSITEM
+				VL_UNITLIQUIDO.TRA_TRANSITEM = vVLCalc[round, 6]
+				vVlResto = vVlResto - VL_TOTALDESCCAB.TRA_TRANSITEM
+				if (VL_TOTALLIQUIDO.TRA_TRANSITEM > vVlMaior)
+					vVlMaior = VL_TOTALLIQUIDO.TRA_TRANSITEM
+					vNrOcc = $curocc("TRA_TRANSITEM")
+				endif
+			endif
+			
+			setocc "TRA_TRANSITEM", $curocc("TRA_TRANSITEM") + 1
+		endwhile
+		
+		if (vVlResto != 0)
+			setocc "TRA_TRANSITEM", vNrOcc
+			VL_TOTALDESCCAB.TRA_TRANSITEM = VL_TOTALDESCCAB.TRA_TRANSITEM + vVlResto
+			VL_TOTALLIQUIDO.TRA_TRANSITEM = VL_TOTALBRUTO.TRA_TRANSITEM - (VL_TOTALDESC.TRA_TRANSITEM + VL_TOTALDESCCAB.TRA_TRANSITEM)
+			vVlCalc = VL_TOTALDESCCAB.TRA_TRANSITEM / QT_SOLICITADA.TRA_TRANSITEM
+			VL_UNITDESCCAB.TRA_TRANSITEM = vVLCalc[round, 6]
+			vVlCalc = VL_TOTALLIQUIDO.TRA_TRANSITEM / QT_SOLICITADA.TRA_TRANSITEM
+			VL_UNITLIQUIDO.TRA_TRANSITEM = vVLCalc[round, 6]
+		endif	
+	endif ;oda
+
+	setocc "TRA_TRANSITEM", 1 
+	while ($status >= 0)
+		;---Elia Proj. 102/538 12/05/09
+		if (VL_UNITLIQUIDO.TRA_TRANSITEM < 0.01)
+			VL_UNITLIQUIDO.TRA_TRANSITEM = 0.01
+			vVlCalc = VL_UNITLIQUIDO.TRA_TRANSITEM * QT_SOLICITADA.TRA_TRANSITEM
+			VL_TOTALLIQUIDO.TRA_TRANSITEM = vVlCalc[round, 2]		
+		endif
+		;
+
+		viParams = ""
+		putlistitems/occ viParams, "TRA_TRANSITEM"
+		putitem/id viParams, "IN_TOTAL", <FALSE>
+		activate "TRASVCO004".gravaItemTransacao($$gParamGlb, viParams, voParams, $xCdErro$, $xCtxErro$)
+		if ($procerror)       
+			$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+			return(-1)
+		elseif ($status < 0)
+			$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")
+			return(-1)
+		endif
+		setocc "TRA_TRANSITEM", $curocc("TRA_TRANSITEM") + 1
+	endwhile
+		
+	vDsLstTransacao = ""
+	vDsRegistro = ""
+	putitem/id vDsRegistro, "CD_EMPRESA", CD_EMPRESA.TRA_TRANSACAO
+	putitem/id vDsRegistro, "NR_TRANSACAO", NR_TRANSACAO.TRA_TRANSACAO
+	putitem/id vDsRegistro, "DT_TRANSACAO", DT_TRANSACAO.TRA_TRANSACAO
+	putitem vDsLstTransacao, -1, vDsRegistro
+	putitem/id viParams, "DS_LSTTRANSACAO", vDsLstTransacao
+	activate "TRASVCO004".gravaTotalTransacao($$gParamGlb, viParams, voParams, $xCdErro$, $xCtxErro$)
+	if ($procerror)       
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+		return(-1)
+	elseif ($status < 0)
+		$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")
+		return(-1)
+	endif
+	
+	viParams = ""
+	putitem/id viParams, "CD_EMPRESA", CD_EMPRESA.TRA_TRANSACAO
+	putitem/id viParams, "NR_TRANSACAO", NR_TRANSACAO.TRA_TRANSACAO
+	putitem/id viParams, "DT_TRANSACAO", DT_TRANSACAO.TRA_TRANSACAO
+	putitem/id viParams, "IN_SOBREPOR", <TRUE>
+	activate "TRASVCO004".gravaParcelaTransacao($$gParamGlb, viParams, voParams, $xCdErro$, $xCtxErro$)
+	if ($procerror)       
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+		return(-1)
+	elseif ($status < 0)
+		$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")
+		return(-1)
+	endif
+	
+	;==BY BIANCHINI[PRJ/TAREFA 180/224] 22/07/2011==;
+	vVlLiquido   = VL_TRANSACAO.TRA_TRANSACAO - (VL_ENTRADA.SIS_DUMMY + VL_ADIANTAMENTO.SIS_DUMMY + VL_CREDEV.SIS_DUMMY + VL_DESCONTO.SIS_DUMMY + VL_ABATIMENTO.SIS_ABATIMENTO)
+	vVlLiquido   = vVlLiquido[round, 2] 
+	vPrSimulador = ((vVlLiquido / VL_TOTAL.GER_CONDPGTOH) * 100) - 100
+	vPrSimulador = vPrSimulador[round, 4]
+	vPrSimulador = $abs(vPrSimulador)
+	viParams     = ""
+	putitem/id viParams, "CD_EMPRESA"  , CD_EMPRESA.TRA_TRANSACAO
+	putitem/id viParams, "NR_TRANSACAO", NR_TRANSACAO.TRA_TRANSACAO
+	putitem/id viParams, "DT_TRANSACAO", DT_TRANSACAO.TRA_TRANSACAO
+	putitem/id viParams, "VL_SIMULADOR", VL_TOTAL.GER_CONDPGTOH
+	putitem/id viParams, "PR_SIMULADOR", vPrSimulador
+	activate "TRASVCO016".gravaDadosAdicionais($$gParamGlb, viParams, voParams, $xCdErro$, $xCtxErro$)
+	if ($procerror)
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+		return(-1)
+	elseif ($status < 0)
+		$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")
+		return(-1)
+	endif
+	;==
+	return(0)
+end
+
+;-----------------------------------
+partner operation sugereValorEntrada
+;-----------------------------------
+;--- DIONE |094/1874| 16/09/2011 ---
+;-----------------------------------
+	variables
+		Numeric vNrEscore, vNrInicial, vNrFinal, vPrEntrada
+		Boolean vInPrimeiraCompra
+		String vDsLstPrEscoreEntrada4
+	endvariables
+
+	if($inUsaCalculoLimite4$)
+		show
+		if($prEscoreEntrada4$ = 0)
+			message/error "Parâmetro IN_USA_CALCULO_LIMITE4 setado e parâmetro PR_ESCORE_ENTRADA_4 sem valor setado, verifique!"
+			return(-1)
+		endif
+
+		clear/e "PES_PESFISICA"
+		CD_PESSOA.PES_PESFISICA/init = CD_PESSOA.TRA_TRANSACAO
+		retrieve/e "PES_PESFISICA"
+
+ 		vNrEscore = 0
+		vInPrimeiraCompra = <TRUE>
+		clear/e "F_TRA_TRANSACAO"
+		CD_PESSOA.F_TRA_TRANSACAO/init = CD_PESSOA.TRA_TRANSACAO
+		TP_SITUACAO.F_TRA_TRANSACAO/init = 4 	; ATENDIDA
+		retrieve/e "F_TRA_TRANSACAO"
+		if($status >= 0)
+			setocc "F_TRA_TRANSACAO", 1
+			while($status >= 0) & (vInPrimeiraCompra)
+				clear/e "F_GER_OPERACAO"
+				CD_OPERACAO.F_GER_OPERACAO/init = CD_OPERACAO.F_TRA_TRANSACAO
+				retrieve/e "F_GER_OPERACAO"
+				if($status >= 0)
+					if(NR_TRANSACAO.F_TRA_TRANSACAO != NR_TRANSACAO.TRA_TRANSACAO) & (TP_MODALIDADE.F_GER_OPERACAO = 4) & (TP_OPERACAO.F_TRA_TRANSACAO = "S")
+						vInPrimeiraCompra = <FALSE>
+					endif
+				endif
+
+				setocc "F_TRA_TRANSACAO", $curocc("F_TRA_TRANSACAO") + 1
+			endwhile
+		endif
+
+		if(vInPrimeiraCompra)
+			vDsLstPrEscoreEntrada4 = $replace($prEscoreEntrada4$, 1, ";", "·;", -1)				
+
+			if(NR_ESCORE.PES_PFADIC > 0)
+				vNrEscore = NR_ESCORE.PES_PFADIC
+			else
+				message/info "Escore não informado. Será utilizado o Escore zero."
+				vNrEscore = 0	
+			endif
+
+			$vlEntrada$	= 0
+			repeat
+
+				getitem vNrInicial, vDsLstPrEscoreEntrada4, 1
+				delitem vDsLstPrEscoreEntrada4, 1
+				getitem vNrFinal, vDsLstPrEscoreEntrada4, 1
+				delitem vDsLstPrEscoreEntrada4, 1
+				getitem vPrEntrada, vDsLstPrEscoreEntrada4 , 1
+				delitem vDsLstPrEscoreEntrada4, 1
+
+				if(vNrInicial = "")
+					message/info "Valor inicial para parâmetro PR_ESCORE_ENTRADA_4 não cadastrado!"
+					return(-1)
+				endif
+
+				if(vNrFinal = "")
+					message/info "Valor final para parâmetro PR_ESCORE_ENTRADA_4 não cadastrado!"
+					return(-1)
+				endif
+
+				if(vPrEntrada = "")
+					message/info "Valor percentual para parâmetro PR_ESCORE_ENTRADA_4 não cadastrado!"
+					return(-1)
+				endif
+
+				if(vNrEscore >= vNrInicial) & (vNrEscore <= vNrFinal)
+					if(vPrEntrada > 0)
+						$vlEntrada$ = (VL_TRANSACAO.TRA_TRANSACAO * (vPrEntrada / 100))
+					endif									
+					vDsLstPrEscoreEntrada4 = ""
+				endif
+							
+			until(vDsLstPrEscoreEntrada4 = "")
+
+			$vlEntrada$	= $vlEntrada$[round, 2]
+			VL_ENTRADA.SIS_DUMMY/init = $vlEntrada$ 
+		endif
+	endif
+
+	return(0)
+End ; operation sugereEntrada
+
+;----------------------------
+partner operation validaSenha
+;----------------------------
+	variables
+		string viParams, voParams
+	endvariables
+
+	viParams = ""
+	activate "ADMFM020".EXEC(viParams, voParams, $xCdErro$, $xCtxErro$)
+	if ($procerror)
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+		return (-1)
+	elseif($status < 0)
+		return(-1)
+	endif    
+
+	return (0)
+end; chamaListaOp
+
+;------------------------
+partner operation validaRestricaoUsuario
+	;------------------------
+	Params
+		string psParametro   : IN
+		string psAcao        : IN
+		string psComponente  : IN
+	EndParams
+	
+	variables
+		string vpiParams, vpoParams
+	endvariables
+	
+	vpiParams = ""
+	putitem/id vpiParams, "CD_COMPONENTE", $componentname
+	putitem/id vpiParams, "DS_CAMPO",      "%%psParametro"
+	putitem/id vpiParams, "CD_EMPRESA",    $item("CD_EMPRESA", $$gParamGlb)
+	putitem/id vpiParams, "CD_USUARIO",    $item("CD_USUARIO", $$gParamGlb)
+	activate "ADMSVCO009".verificaRestricao(vpiParams, vpoParams, $xCdErro$, $xCtxerro$)
+	if ($procerror)       
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "ADICIONAL=  Problema na consulta de restrição")
+		return(-1)
+	elseif ($status < 0)
+		message/warning "Usuário não possui permissão para %%psAcao valor de entrada.%%^Comunique a administração a restrição %%psParametro para liberar o processo."
+		return(-1)
+	endif
+	return (0)
+end ;validaRestricaoUsuario

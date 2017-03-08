@@ -1,0 +1,166 @@
+;-------------
+entry getParam
+;-------------
+	params
+		numeric piCdEmpresa : IN
+	endparams
+
+	variables
+		string viParams, voParams
+	endvariables
+
+	viParams = ""
+	putitem viParams, -1, "DT_IMPLANTACAO_V3"
+	activate "ADMSVCO001".GetLstParametro(viParams, voParams, $xCdErro$, $xCtxerro$)
+	if ($procerror)
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+		return(-1)
+	elseif ($xCdErro$)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=%%$item("DESCRICAO", $xCtxErro$)", "")
+		return(-1)
+	endif
+	
+	$dtImplantacaoV3$ = $item("DT_IMPLANTACAO_V3", voParams)
+
+	if (piCdEmpresa = 0)
+		piCdEmpresa = $item("CD_EMPRESA", $xlpg$)
+	endif
+	viParams = ""
+	putitem viParams, -1, "IN_CAIXA_TERMINAL"
+	activate "ADMSVCO001".GetParamEmpresa(piCdEmpresa, viParams, voParams, $xCdErro$, $xCtxerro$)
+	if ($procerror)
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+		return(-1)
+	elseif ($xCdErro$)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=%%$item("DESCRICAO", $xCtxErro$)", "")
+		return(-1)
+	endif
+	
+	$inCaixaTerminal$ = $item("IN_CAIXA_TERMINAL", voParams)
+	
+	return(0)
+end
+
+;------------------------------------
+public operation validaEncerramentoCx
+;------------------------------------
+	params
+		string  $xlpg$      :IN    
+		string  piParams    :IN
+		string  poParams    :OUT
+		string  poCdErro    :OUT
+		string  poCtxErro   :OUT
+	endparams
+	
+	variables
+		string vCdEmpresa, vDsErro, vCdOperador, vCdTerminal
+	endvariables
+	
+	vCdEmpresa = $item("CD_EMPRESA", piParams)
+	if (vCdEmpresa = "")
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Empresa não informada!", "ADICIONAL=Operação->FISSVCO014.consultaImpressaoNF")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		exit(-1)
+	endif
+
+	call getParam(vCdEmpresa)
+	if ($procerror)
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		exit(-1)
+	endif
+	if ($status < 0)
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		exit(-1)
+	endif
+	
+	vCdOperador = ""
+
+	if ($inCaixaTerminal$ = <TRUE>)
+		vCdOperador = $item("CD_OPERADOR", piParams)
+	else
+		vCdTerminal = $item("CD_TERMINAL", piParams)
+
+		clear/e "FCX_TERMINALUSVC"
+		CD_EMPRESA.FCX_TERMINALUSVC = vCdEmpresa
+		CD_TERMINAL.FCX_TERMINALUSVC = vCdTerminal
+		retrieve/e "FCX_TERMINALUSVC"
+		if ($status >= 0)
+			setocc "FCX_TERMINALUSVC"
+			while ($status >= 0)
+				if (vCdOperador = "")
+					vCdOperador = CD_USUARIO.FCX_TERMINALUSVC
+				else
+					vCdOperador = "%%vCdOperador%%%·;%%CD_USUARIO.FCX_TERMINALUSVC%%%"
+				endif
+
+				setocc "FCX_TERMINALUSVC", $curocc("FCX_TERMINALUSVC") + 1
+			endwhile
+		endif
+	endif
+
+	vDsErro = ""
+	;Projeto 180 - Tarefa 0126 - Aloisio Gargantini - 23/03/2011	
+	;substituição da entidade FIS_NF pela V_FIS_NF
+	;
+	;clear/e "FIS_NFSVC"
+	;if ($dtImplantacaoV3$ != "")
+	;	DT_FATURA.FIS_NFSVC/init = "·>·=%%$dtImplantacaoV3$"
+	;endif
+	;CD_EMPFAT.FIS_NFSVC/init = vCdEmpresa
+	;TP_SITUACAO.FIS_NFSVC/init = "N" ;Normal
+	;CD_OPERADOR.FIS_NFSVC/init = vCdOperador
+	;retrieve/e "FIS_NFSVC"
+	;if ($status >= 0)
+	;	setocc "FIS_NFSVC", 1
+	;	while ($status >=0)
+	;
+	;		; MFGALEGO - 16/03/2007 ; Edvaldo / KRINDGES			
+	;		clear/e "GER_OPERACAOSVC"
+	;		CD_OPERACAO.GER_OPERACAOSVC/init = CD_OPERACAO.FIS_NFSVC
+	;		retrieve/e "GER_OPERACAOSVC"
+	;		if ($status >= 0) & (TP_DOCTO.GER_OPERACAOSVC > 0) ; 0-Nao definido / 1-Nota fiscal / 2-ECF Nao concomitante / 3-ECF Concomitante
+	;			vDsErro = "%%vDsErro%%%Empresa/Fatura: %%CD_EMPFAT.FIS_NFSVC / %%NR_FATURA.FIS_NFSVC / %%DT_FATURA.FIS_NFSVC %%^"
+	;		endif
+	;		;
+	;
+	;		setocc "FIS_NFSVC", $curocc("FIS_NFSVC") + 1
+	;	endWhile
+	;endif
+	clear/e "V_FIS_NFSVC"
+	if ($dtImplantacaoV3$ != "")
+		DT_FATURA.V_FIS_NFSVC/init  = "·>·=%%$dtImplantacaoV3$"
+	endif
+	CD_EMPFAT.V_FIS_NFSVC/init        = vCdEmpresa
+	TP_SITUACAONF.V_FIS_NFSVC/init    = "N" ;Normal
+	CD_USUNF.V_FIS_NFSVC/init         = vCdOperador
+	TP_MODALIDADE.V_FIS_NFSVC/init    = 4   ;Venda/Compra
+	TP_OPERACAO.V_FIS_NFSVC/init      = "S" ;Saída
+	TP_ORIGEMEMISSAO.V_FIS_NFSVC/init = 1   ;Emissão própria
+	retrieve/e "V_FIS_NFSVC"
+	if ($status >= 0)
+		setocc "V_FIS_NFSVC", 1
+		while ($status >=0)
+
+			clear/e "GER_OPERACAOSVC"
+			CD_OPERACAO.GER_OPERACAOSVC/init = CD_OPERACAO.V_FIS_NFSVC
+			retrieve/e "GER_OPERACAOSVC"
+			if ($status >= 0) & (TP_DOCTO.GER_OPERACAOSVC > 0) ; 0-Nao definido / 1-Nota fiscal / 2-ECF Nao concomitante / 3-ECF Concomitante
+				vDsErro = "%%vDsErro%%%Empresa/Fatura: %%CD_EMPFAT.V_FIS_NFSVC / %%NR_FATURA.V_FIS_NFSVC / %%DT_FATURA.V_FIS_NFSVC %%^"
+			endif
+
+			setocc "V_FIS_NFSVC", $curocc("V_FIS_NFSVC") + 1
+		endWhile
+	endif
+	;	
+	poParams = ""
+	if (vDsErro != "")
+		putitem/id poParams, "DS_LOGERRO", vDsErro
+		exit(-1)
+	endif
+	
+	exit(0)
+end

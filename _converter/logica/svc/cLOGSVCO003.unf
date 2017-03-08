@@ -1,0 +1,583 @@
+;---------------
+Entry SetSession
+	;----------------
+	Params
+		numeric piCdEmpresa      :IN
+		numeric piCdGrupoEmpresa :IN
+		numeric piCdUsuario      :IN
+		string  piTpPrivilegio   :IN
+		numeric poSession        :OUT
+		numeric poCdErro         :OUT
+		string  poCtxErro        :OUT
+	endParams
+	
+	variables
+		string  viParams,voParams
+	endvariables
+	
+	viParams = ""
+	putitem/id viParams, "CD_EMPRESA", piCdEmpresa
+	putitem/id viParams, "CD_GRUPOEMPRESA", piCdGrupoEmpresa
+	putitem/id viParams, "CD_USUARIO", piCdUsuario
+	putitem/id viParams, "TP_PRIVILEGIO", piTpPrivilegio
+	activate  "SISSVCO001".GetSessaoLogin(viParams,voParams,poCderro,poCtxErro)
+	if ($procerror)
+		$instancehandle->SetErroProc($procerrorcontext,poCdErro,poCtxErro)
+		return (-1)
+	elseif (poCdErro)
+		$instancehandle->SetErroApl(poCtxErro,poCdErro,poCtxErro)
+		return (poCdErro)
+	endif
+	
+	poSession = $item("NR_SESSAO",voParams)
+	
+	return (0)
+end; SetSessao
+
+;--------------------------------
+public operation ExecLoginEmpresa 
+;-------------------------------- 
+	params
+		string  piNmLogin   :IN
+		string  piCdSenha   :IN
+		numeric piCdEmpresa :IN
+		numeric poCdErro    :OUT
+		string  poCtxErro   :OUT 
+	endparams
+	
+	variables
+		numeric vSessao, vDiaSistema, vMesSistema
+		string  voParams, viParams, vDescMes
+		date vDtSistema
+	endvariables
+	
+	poCdErro = 0 ; inicializacao de valor
+	poCtxErro = "" ; inicializacao de valor
+	
+	;activate "LOGSVCO002".DeleteComponenteAtivo(poCdErro,poCtxErro)
+	;if ($procerror)
+	;    $instancehandle->SetErroProc($procerrorcontext,poCdErro,poCtxErro) ; chamada de uma operation que retorno o erro diferente de -1 e -2
+	;else
+	
+;-> Quando o usuario utilizar login com 20 digitos (EVJ)
+	clear/e "ADM_USUACESSVC"
+	NM_LOGIN20.ADM_USUACESSVC/init = piNmLogin
+	retrieve/e "ADM_USUACESSVC"
+	if ($status >= 0)
+		clear/e "ADM_USUARIOSVC"
+		CD_USUARIO.ADM_USUARIOSVC/init = CD_USUARIO.ADM_USUACESSVC
+		retrieve/o "ADM_USUARIOSVC"
+		if ($status = -7)
+			retrieve/x "ADM_USUARIOSVC"
+		endif
+		piNmLogin = NM_LOGIN.ADM_USUARIOSVC
+	endif
+
+	;Verifica se n?o exite sair com erro
+	clear/e "ADM_USUARIOSVC"
+	nm_login.adm_usuariosvc/init = piNmLogin
+	retrieve/e "ADM_USUARIOSVC"
+	if ($status < 0)
+		$instancehandle->SetErroApl("ERRO=-1·;DESCRICAO=Login não confere.",poCdErro,poCtxErro) ; chamada de uma operation que retorno o erro diferente de -1 e -2
+		exit (-1)
+	endif
+	
+	if (TP_PRIVILEGIO.ADM_USUARIOSVC != 2)
+		clear/e "ADM_USUEMPSVC"
+		cd_usuario.adm_usuempsvc/init = cd_usuario.adm_usuariosvc
+		retrieve/e "ADM_USUEMPSVC"
+		if ($status >= 0)
+			clear/e "ADM_USUEMPSVC"
+			cd_usuario.adm_usuempsvc/init = cd_usuario.adm_usuariosvc
+			cd_empresa.adm_usuempsvc/init = piCdEmpresa
+			retrieve/e "ADM_USUEMPSVC"
+			if ($Status < 0)
+				$instancehandle->SetErroApl("ERRO=-1·;DESCRICAO=Login em empresa invalido.",poCdErro,poCtxErro) ; chamada de uma operation que retorno o erro diferente de -1 e -2
+				exit (-1)
+			endif
+		endif
+	endif
+	
+
+	;Verifica se a senha nao confere sair com erro
+	;Verifica se for usuário Virtual para validar a senha em outro banco - Hugo 28/11/06									    ;------------------------ DBB |PRJ 094/0867| 16/11/2009 --------------------
+	if (CD_USUARIO.ADM_USUARIOSVC = 1     ) | (CD_USUARIO.ADM_USUARIOSVC = 999987) | (CD_USUARIO.ADM_USUARIOSVC = 999988) | (CD_USUARIO.ADM_USUARIOSVC = 999989) | %\
+		(CD_USUARIO.ADM_USUARIOSVC = 999998) | (CD_USUARIO.ADM_USUARIOSVC = 999999) | (CD_USUARIO.ADM_USUARIOSVC = 999995) | (CD_USUARIO.ADM_USUARIOSVC = 999992) | %\
+		(CD_USUARIO.ADM_USUARIOSVC = 999993)
+		sql "select to_char(sysdate,'dd/mm/yyyy') from dual","$DEF"							
+		vDtSistema = $result 
+	
+		;IAS - PRJ/TAR - 094/1905 - 03/10/2011	
+		vDescMes = ""
+		$instancehandle->montaDescricaoMes(vDtSistema[M],vDescMes)
+		;--
+		
+		$dtAnoMesAtual$ = "01/%%vDtSistema[M]%%%/%%vDtSistema[Y]"
+		clear/e "GLB_SENHAESPESVC"
+		CD_USUARIO.GLB_SENHAESPESVC/init = CD_USUARIO.ADM_USUARIOSVC
+		DT_ANOMES.GLB_SENHAESPESVC/init = $dtAnoMesAtual$
+		retrieve/e "GLB_SENHAESPESVC"
+		if ($status < 0)
+			if (CD_USUARIO.ADM_USUARIOSVC = 999999)
+				clear/e "GLB_SENHAESPESVC"
+				CD_USUARIO.GLB_SENHAESPESVC/init = CD_USUARIO.ADM_USUARIOSVC
+				DT_ANOMES.GLB_SENHAESPESVC/init = "·<%%$dtAnoMesAtual$%%%"
+				retrieve/e "GLB_SENHAESPESVC"
+				if ($status > 0)
+					setocc "GLB_SENHAESPESVC", -1
+				else
+					$instancehandle->SetErroApl("ERRO=-1·;DESCRICAO=Senha para o usuário VIRTUAL não cadastrada.",poCdErro,poCtxErro)
+					exit (-1)
+				endif
+			else
+				;IAS - PRJ/TAR - 094/1905 - 03/10/2011	
+				if(vDescMes != "")
+					$instancehandle->SetErroApl("ERRO=-1·;DESCRICAO=Senha para o usuário %%NM_LOGIN.ADM_USUARIOSVC para o mes/ano %%vDescMes%%%/%%vDtSistema[Y]%%% não cadastrada.",poCdErro,poCtxErro) ; chamada de uma operation que retorno o erro diferente de -1 e -2
+					exit (-1)
+				else
+					$instancehandle->SetErroApl("ERRO=-1·;DESCRICAO=Senha para o usuário %%NM_LOGIN.ADM_USUARIOSVC para o mes/ano %%vDtSistema[M]%%%/%%vDtSistema[Y]%%% não cadastrada.",poCdErro,poCtxErro) ; chamada de uma operation que retorno o erro diferente de -1 e -2
+					exit (-1)
+				endif	
+				;--	
+			endif
+		endif
+		if (piCdSenha != CD_SENHA.GLB_SENHAESPESVC)
+			$instancehandle->SetErroApl("ERRO=-1·;DESCRICAO=Senha não confere.",poCdErro,poCtxErro) ; chamada de uma operation que retorno o erro diferente de -1 e -2
+			exit (-6)
+		endif
+	else
+		if (piCdSenha != cd_senha.adm_usuariosvc)
+			$instancehandle->SetErroApl("ERRO=-1·;DESCRICAO=Senha não confere.",poCdErro,poCtxErro) ; chamada de uma operation que retorno o erro diferente de -1 e -2
+			exit (-6)
+		endif
+	endif
+	
+	;Verifica se exedeu o n?mero de tentativas sair com erro
+	if (tp_bloqueio.adm_usuariosvc=1)
+		$instancehandle->SetErroApl("ERRO=-1·;DESCRICAO=Bloqueado, excedeu número de tentativas de acesso negados.",poCdErro,poCtxErro) ; chamada de uma operation que retorno o erro diferente de -1 e -2
+		exit (-4)
+	endif
+	
+	;Se houve um bloqueio feito pela Administrador sair com erro
+	if (tp_bloqueio.adm_usuariosvc=2) & (NM_LOGIN.ADM_USUARIOSVC != "VIRTUAL")
+		$instancehandle->SetErroApl("ERRO=-1·;DESCRICAO=Bloqueado pelo administrador do sistema.",poCdErro,poCtxErro) ; chamada de uma operation que retorno o erro diferente de -1 e -2
+		exit (-5) ; DIONE |094/1492| 17/08/10
+		;exit (-1)
+	endif
+	
+	;Se n?o existir a empresa tem que sair com erro
+	cd_empresa.ger_empresasvc/init = piCdEmpresa 
+	retrieve/e "GER_EMPRESASVC"
+	if ($status < 0) ;Ocorrencia nao encontrada
+		;-- MAD [Proj/Tar.094/676] - 23/09/2008
+		;$instancehandle->SetErroProc($procerrorcontext,poCdErro,poCtxErro) ; chamada de uma operation que retorno o erro diferente de -1 e -2
+		 $instancehandle->SetErroProc("ERRO=-1·;DESCRICAO=Empresa não cadastrada.",poCdErro,poCtxErro)
+		;;
+		exit (-1)
+	endif
+	
+	;Ler o Poll Empresa
+	CD_GRUPOEMPRESA.GER_POOLGRUPOSVC/init = CD_GRUPOEMPRESA.GER_EMPRESASVC
+	retrieve/e "GER_POOLGRUPOSVC"
+	if ($status >= 0)
+		$$gCdPoolEmpresa = CD_POOLEMPRESA.GER_POOLGRUPOSVC
+	else;DBB |PRJ 094/0885| 01/04/09 - Se não encontrar o Pool o $$gCdPoolEmpresa = "" pois quando se utilizava o CTRL+ALT+L ele ficava com a empresa anterior.
+		$$gCdPoolEmpresa = "" 
+	endif
+	
+	;Le a tabela de pessoa p/ pegar o nome da Empresa
+	cd_pessoa.pes_pessoasvc/init = cd_pessoa.ger_empresasvc 
+	retrieve/e "PES_PESSOASVC"
+	if ($status < 0) ;Ocorrencia nao encontrada
+		$instancehandle->SetErroProc($procerrorcontext,poCdErro,poCtxErro) ; chamada de uma operation que retorno o erro diferente de -1 e -2
+		exit (-1)
+	else
+		if (IN_INATIVO.PES_PESSOASVC = <TRUE>)															     ;------------------------ DBB |PRJ 094/0867| 16/11/2009 --------------------
+			if (CD_USUARIO.ADM_USUARIOSVC != 1      & CD_USUARIO.ADM_USUARIOSVC != 999987 & CD_USUARIO.ADM_USUARIOSVC != 999988 & CD_USUARIO.ADM_USUARIOSVC != 999989 & %\
+			    CD_USUARIO.ADM_USUARIOSVC != 999998 & CD_USUARIO.ADM_USUARIOSVC != 999999 & CD_USUARIO.ADM_USUARIOSVC != 999996 & CD_USUARIO.ADM_USUARIOSVC != 999995 & %\
+				 CD_USUARIO.ADM_USUARIOSVC != 999992 & CD_USUARIO.ADM_USUARIOSVC != 999993) ;Acesso livre a Admin / Desen / Virtual / VSpool / Finan / Engen / Supex
+				$instancehandle->SetErroApl("ERRO=-1·;DESCRICAO=Empresa inativa. Acesso não permitido.",poCdErro,poCtxErro)
+				exit(-1)
+			endif
+		endif
+	endif
+	
+	;Verifica se existe o perfil do usuario
+	if (TP_PRIVILEGIO.ADM_USUARIOSVC != "2") & (TP_PRIVILEGIO.ADM_USUARIOSVC != "3") & (TP_PRIVILEGIO.ADM_USUARIOSVC != "5") & (TP_PRIVILEGIO.ADM_USUARIOSVC != "R")
+		clear/e "ADM_USUCMPEMPSVC" 
+		CD_USUARIO.ADM_USUCMPEMPSVC/init = CD_USUARIO.ADM_USUARIOSVC
+		CD_EMPRESA.ADM_USUCMPEMPSVC/init = PICDEMPRESA
+		retrieve/e "ADM_USUCMPEMPSVC"
+		if ($status < 0) ;Ocorrencia nao encontrada
+			$instancehandle->SetErroApl("ERRO=-1·;DESCRICAO=Falta Definir componente p/ o usuário %%NM_LOGIN.",poCdErro,poCtxErro) ; chamada de uma operation que retorno o erro diferente de -1 e -2
+			exit (-1)
+		endif
+	endif
+	
+	;verifica se tem sessao aberta
+	if ($$gMenu)
+		vSessao  = $item("NR_SESSAO",$$gParamUsr)
+		viParams = ""
+		putitem/id viParams, "NR_SESSAO", vSessao
+		putitem/id viParams, "NR_CONTROLE", 27 ; DIONE |094/1492| 17/08/10	
+		activate  "SISSVCO001".getSessaoLogout(viParams, voParams, $xCderro$, $xCtxErro$)
+		;activate  "SISSVCO001".GetSessaoLogout(vSessao,voParams,poCderro,poCtxErro)
+		if ($procerror)
+			$instancehandle->SetErroProc($procerrorcontext,poCdErro,poCtxErro)
+		elseif (poCdErro)
+			$instancehandle->SetErroApl(poCtxErro,poCdErro,poCtxErro)
+		endif
+	endif
+	
+	;Carrega variáveis Globais
+	$instancehandle->SetLoginParam(cd_empresa.ger_empresasvc,cd_grupoempresa.ger_empresasvc,nm_pessoa.pes_pessoasvc,cd_usuario.adm_usuariosvc,tp_privilegio.adm_usuariosvc,ds_sigla.glb_estadosvc,cd_moeda.ger_moedacsvc,poCdErro,poCtxErro)
+	if ($procerror)
+		$instancehandle->SetErroProc($procerrorcontext,poCdErro,poCtxErro)
+		exit (-1)
+	elseif (poCdErro)
+		$instancehandle->SetErroApl(poCtxErro,poCdErro,poCtxErro)
+		exit (-1)
+	endif
+	
+	clear/e "PES_PESSOASVC"
+	CD_PESSOA.PES_PESSOASVC/init = CD_PESSOA.GER_EMPRESASVC
+	retrieve/e "PES_PESSOASVC"
+	if ($status >= 0)
+		if (IN_INATIVO.PES_PESSOASVC = <TRUE>)
+			$instancehandle->SetErroApl("ERRO=-1·;DESCRICAO=Empresa inativa. Acesso restrito.",poCdErro,poCtxErro)
+			exit(-10)
+		endif
+	endif
+	
+	exit(0)
+End ; operation ExecLoginEmpresa
+
+;-----------------------------    
+public operation SetLoginParam 
+	;-----------------------------
+	params
+		numeric piCdEmpresa        :IN
+		numeric piCdGrupoEmpresa:IN
+		string  piNmEmpresa        :IN
+		numeric piCdUsuario        :IN
+		numeric piTpPrivilegio    :IN
+		string  piDsUF            :IN
+		string  piParams        :IN
+		string  poCdErro        :OUT
+		string  poCtxErro        :OUT
+	endparams
+
+	variables
+		date    vDtSistema
+		numeric vSession, vInModuloPedido, vCdTerminal
+		string voParams, viParams, vDsLstParamGlobal
+		boolean vInManterSessao
+	endvariables
+	
+	;Projeto 35, tarefa 17. MTF - 29/12/2005
+	vCdTerminal = $item("CD_TERMINAL", $$gParamGlb)
+	vInManterSessao = $item("IN_MANTERSESSAO", piParams)
+	;
+	
+	;    Valida??o do Usuario
+	clear/e "ADM_USUARIOSVC"
+	cd_usuario.adm_usuariosvc/init = piCdUsuario
+	retrieve/e "ADM_USUARIOSVC"
+	if ($status < 0) ;Ocorrencia nao encontrada
+		$instancehandle->SetErroApl("ERRO=-1·;DESCRICAO=Login Invalido.",poCdErro,poCtxErro) ; chamada de uma operation que retorno o erro diferente de -1 e -2
+	else
+		vDtSistema = $item("DT_SISTEMA",$$gParamGlb)
+		$appltitle = "%%piNmEmpresa "
+	endif 
+	
+	;    Validacao da Sessao
+	
+	; Hugo em 19/09/06 Não abre uma nova sessao no encerramento diaria, permanece a sessao de login
+	if (vInManterSessao != <TRUE>)
+		call SetSession(piCdEmpresa,piCdGrupoEmpresa,piCdUsuario,TP_PRIVILEGIO.ADM_USUARIOSVC,vSession,poCdErro,poCtxErro)
+		if ($status < 0)
+			$instancehandle->SetErroApl(poCtxErro,poCdErro,poCtxErro)
+			return (poCdErro)
+		endif
+	endif
+	
+	$$gCdEmpresa      = piCdEmpresa
+	$$gCdGrupoEmpresa = piCdGrupoEmpresa
+	$$gNmEmpresa      = piNmEmpresa
+	$$gCdUsuario      = piCdUsuario
+	
+	;Parametros do usu?rio
+	;    $$gParamUsr       = "CD_USUARIO=%%$$gCdUsuario·;NM_LOGIN=%%nm_login.adm_usuariosvc·;CD_USRLOGON=%%$$GCDUSUARIO"
+	putitem/id $$GPARAMUSR, "CD_USUARIO"    ,piCdUsuario
+	putitem/id $$GPARAMUSR, "NM_LOGIN"      ,nm_login.adm_usuariosvc
+	putitem/id $$GPARAMUSR, "CD_USRLOGON"   ,piCdUsuario
+	putitem/id $$GPARAMUSR, "TP_PRIVILEGIO" ,piTpPrivilegio
+	putitem/id $$GPARAMUSR, "TP_PRIVILEGIOALFA" ,tp_privilegio.adm_usuariosvc
+	;Projeto 094 - Tarefa 459 - Aloisio Gargantini - 25/02/2008
+	putitem $xlplemp$, -1, "NM_EMPRESA_BARRA"
+	;
+	if (vInManterSessao != <TRUE>)
+		putitem/id $$GPARAMUSR, "NR_SESSAO", vSession
+	endif
+
+	;---Elia Proj. 94/675 14/10/08
+	;;Carga dos Parametros da Empresa
+	;activate  "ADMSVCO001".GetParamEmpresa($$gCdEmpresa,"",$$gParamEmp,$xcderro$,$xctxerro$)
+	;if ($procerror)
+	;	$instancehandle->SetErroProc($procerrorcontext,poCdErro,poCtxErro)
+	;	return (-1)
+	;elseif (poCdErro)
+	;	$instancehandle->SetErroApl(poCtxErro,poCdErro,poCtxErro)
+	;	return (-1)
+	;endif
+	viParams = ""
+	putitem/id viParams, "CD_EMPRESA", $$gCdEmpresa
+	activate "ADMSVCO001".GetParamEmpresaLogin($$gParamGlb, viParams, $$gParamEmp, $xCdErro$, $xCtxErro$)
+	if ($procerror)       
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+		return(-1)
+	elseif ($status < 0)
+		$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")
+		return(-1)
+	endif
+	;Projeto 094 - Tarefa 459 - Aloisio Gargantini - 25/02/2008    
+	$nmEmpresaBarra$ = $item("NM_EMPRESA_BARRA", $$gParamEmp)
+	if ($nmEmpresaBarra$ != "") 
+		$$gNmEmpresa = $nmEmpresaBarra$    
+	endif
+
+	viParams = ""
+	activate "ADMSVCO001".GetLstParametroLogin($$gParamGlb, viParams, vDsLstParamGlobal, $xCdErro$, $xCtxErro$)
+	if ($procerror)       
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+		return(-1)
+	elseif ($status < 0)
+		$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")
+		return(-1)
+	endif
+	;
+
+	activate "ADMSVCO001".GetParamGrupo("SIS",$SIS$,$xCdErro$,$xCtxErro$)
+	if ($procerror)
+		$instancehandle->SetErroProc($procerrorcontext,$xcderro$,$xctxerro$)
+	elseif($xcderro$)
+		$instancehandle->SetErroProc($xctxerro$,$xcderro$,$xctxerro$)
+	else
+		
+	endif
+	
+	$$gParamGlb = "%%vDsLstParamGlobal·;%%$$gParamEmp·;NM_EMPRESA=%%$$gNmEmpresa·;%%$$gParamUsr%%%·;%%$SIS$%%%·;NM_TERMINAL=%%$$GNMHOST%%%·;CD_POOLEMPRESA=%%$$gCdPoolEmpresa"
+	
+	viParams = ""
+	putitem/id viParams, "CD_EMPRESA", $$gCdEmpresa
+	activate "SICSVCO009".validaCentroCusto($$GparamGlb,viParams,voParams,$xCdErro$,$xCtxErro$)
+	if ($procerror)
+		$instancehandle->setErroProc($procerrorcontext,$xCdErro$,$xCtxErro$)
+	elseif ($xcdErro$)
+		$instancehandle->setErroApl($xCtxErro$,$xCdErro$,$xCtxErro$)
+	endif
+	putitem/id $$gParamGlb, "CD_EMP", $item("CD_CENTROCUSTO", voParams)
+	
+	
+	; putitem $$GPARAMGLB,-1,$$GPARAMEMP
+	; putitem $$GPARAMGLB,-1,$$GPARAMUSR
+	
+	
+	;    Pedido modulo de representante tem que usar a data do sistema operacional
+	vInModuloPedido = $item("IN_MODULO_PEDIDO",$$gParamGLB)
+	if (vInModuloPedido = 1)
+		putitem/id $$gParamGLB,"DT_SISTEMA",$date
+	endif
+	
+	;Projeto 35, tarefa 17. MTF - 29/12/2005
+	putitem/id $$gParamGlb, "CD_TERMINAL", vCdTerminal
+	;
+	
+	return (0) 
+End ; operation SetLoginParam
+
+;----------------------------------
+public operation GetNivelComponente 
+	;---------------------------------- 
+	params
+		string  piCdUsuario    :IN
+		string  piCdEmpresa    :IN
+		string  piCdComponente :IN
+		numeric poCdNivel      :OUT 
+		string  poCdErro       :OUT
+		string  poCtxErro      :OUT
+	endparams
+	
+	variables
+		string viParams, voParams
+		string vComponente 
+	endvariables
+	
+	;    Verifica se o usuario é Adminstrador
+	clear/e "ADM_USUARIOSVC"
+	cd_usuario.adm_usuariosvc/init = piCdUsuario
+	retrieve/e "ADM_USUARIOSVC"
+	if ($status >= 0)
+		if (tp_privilegio.adm_usuariosvc = "2") | (tp_privilegio.adm_usuariosvc = "3")
+			poCdNivel = 5
+			;            exit (0)
+			;;;DBB | PRJ 094/0570 | 23/05/2008
+		elseif (tp_privilegio.adm_usuariosvc = "5")
+			clear/e "ADM_USUEMPSVC"
+			CD_USUARIO.ADM_USUEMPSVC/init = cd_usuario.adm_usuariosvc
+			retrieve/e "ADM_USUEMPSVC"
+			if ($status >= 0)
+				poCdNivel = 5
+			else
+				poCdNivel = 0    
+			endif
+			;;;
+		endif
+	endif
+	
+	;    Privilégio do Usuário no Componente
+	if ((poCdNivel != 5) & (tp_privilegio.adm_usuariosvc != "5"))
+		clear/e "ADM_USUCMPEMPSVC"
+		cd_usuario.adm_usucmpempsvc/init    = piCdUsuario
+		cd_empresa.adm_usucmpempsvc/init    = piCdEmpresa
+		cd_componente.adm_usucmpempsvc/init = piCdComponente
+		retrieve/e "ADM_USUCMPEMPSVC"
+		if ($status < 0) ;Ocorrencia nao encontrada
+			poCdNivel = 0
+			;   $instancehandle->SetErroProc($procerrorcontext,poCdErro,poCtxErro) ; chamada de uma operation que retorno o erro diferente de -1 e -2
+		else
+			poCdNivel = cd_nivel.adm_usucmpempsvc
+			if (poCdNivel = 1) ;correcao para acertar problemas na inclusao evj 05/01/07
+				poCdNivel = 3
+			endif
+		endif
+	endif
+	
+	viParams = ""
+	putitem/id viParams, "CD_USUARIO", piCdUsuario
+	putitem/id viParams, "CD_COMPONENTE", piCdComponente
+	putitem/id viParams, "CD_NIVEL", poCdNivel
+	putitem/id viParams, "TP_LOG", 5 ;Acesso a componente
+	newinstance "ADMSVCO022", "ADMSVCO022", "TRANSACTION=TRUE"
+	activate "ADMSVCO022".gravaLog($$gParamGlb, viParams, voParams, $xCdErro$, $xCtxErro$)
+	if ($procerror)       
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+		;        rollback
+		return(-1)
+	elseif ($status < 0)
+		$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")
+		;        rollback
+		return(-1)
+	endif
+	deleteinstance "ADMSVCO022"
+	
+	vComponente = piCdComponente
+	vComponente = vComponente[4:2]
+	if (vComponente != "FL")
+		;-=LSC=- (13/02/2008) PRJ 94 TAR 441     
+		viParams = ""
+		putitem/id viParams, "CD_USUARIO",    piCdUsuario
+		putitem/id viParams, "CD_COMPONENTE", piCdComponente
+		newinstance "LOGSVCO004", "LOGSVCO004", "TRANSACTION=TRUE"
+		activate "LOGSVCO004".gravaUltComponente($$gParamGlb, viParams, voParams, $xCdErro$, $xCtxErro$)
+		if ($procerror)
+			$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+			;            rollback
+			return (-1)
+		elseif ($status < 0)
+			$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")
+			;            rollback
+			return(-1)
+		endif
+		deleteinstance "LOGSVCO004"
+		;-=LSC=- (13/02/2008) PRJ 94 TAR 441     
+	endif
+	exit (0)
+End ; operation GetNivelComponente
+
+;------------------------------
+public operation VldAutorizacao 
+	;------------------------------ 
+	params
+		string  piNmLogin   :IN
+		string  piCdSenha   :IN
+		numeric piCdEmpresa :IN
+		string  piCdUsuario :OUT
+		numeric poCdErro    :OUT
+		string  poCtxErro   :OUT 
+	endparams
+	
+	clear/e "ADM_USUARIOSVC"
+	nm_login.adm_usuariosvc/init = piNmLogin
+	retrieve/e "ADM_USUARIOSVC"
+	if ($status < 0) ;Ocorrencia nao encontrada
+		$instancehandle->SetErroApl("ERRO=-1·;DESCRICAO=Autorização negada.",poCdErro,poCtxErro)
+	else
+		if (piCdSenha != cd_senha.adm_usuariosvc) | (tp_bloqueio.adm_usuariosvc > 0)
+			$instancehandle->SetErroApl("ERRO=-1·;DESCRICAO=Autorização negada.",poCdErro,poCtxErro)
+		else
+			piCdUsuario = cd_usuario.adm_usuariosvc
+			$instancehandle->SetErroApl("ERRO=1000·;DESCRICAO=Autorização efetuada com sucesso.",poCdErro,poCtxErro)
+		endif
+	endif
+	
+	exit(0)
+End ; operation VldAutorizacao
+
+;IAS - PRJ/TAR - 094/1905 - 03/10/2011
+;---------------------------------
+public operation montaDescricaoMes 
+;---------------------------------
+	params
+		numeric piMes     :IN
+		string  poDescMes :OUT
+	endparams
+
+	poDescMes	= ""
+
+	if(piMes > 0)
+		selectcase(piMes)
+			case 01
+				poDescMes = "Janeiro"
+
+			case 02
+				poDescMes = "Fevereiro"
+
+			case 03
+				poDescMes = "Março"
+
+			case 04
+				poDescMes = "Abril"
+
+			case 05
+				poDescMes = "Maio"
+
+			case 06
+				poDescMes = "Junho"
+
+			case 07
+				poDescMes = "Julho"
+
+			case 08
+				poDescMes = "Agosto"
+
+			case 09
+				poDescMes = "Setembro"
+
+			case 10
+				poDescMes = "Outubro"
+
+			case 11
+				poDescMes = "Novembro"
+
+			case 12
+				poDescMes = "Dezembro"
+
+		endselectcase
+	
+	endif
+
+	return (0)
+
+End ;montaDescricaoMes
+;--

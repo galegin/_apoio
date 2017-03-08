@@ -1,0 +1,155 @@
+public operation GetSeqKardex 
+	params
+		numeric pCdEmpresa  :IN 
+		date    piDtLcto    :IN       
+		numeric piCdProduto :IN
+		string  piGlobal    :IN 
+		numeric poNrSeq     :OUT
+		string  $xCdErro$   :OUT
+		string  $xCtxErro$  :OUT
+	endparams
+
+	$xCdErro$  = ""
+	$xCtxErro$ = ""
+	clear/e "prd_seqkardexsvc" 
+	cd_empresa.prd_seqkardexsvc/init = pCdEmpresa
+	cd_produto.prd_seqKardexsvc/init = piCdProduto
+	retrieve/e "prd_seqkardexsvc" 
+	if ($status = 0) ;Ocorrencia encontrada, comparar as data, proceder atualizacao 
+		if (piDtLcto < dt_lancamento.prd_seqkardexsvc)
+			; ERRO - recebeu uma data anterior ao ultimo registro 
+			;$instancehandle->SetErroApl("ERRO=-1·;DESCRICAO=Data de Movimento anterior ao ?ltimo registro do Kardex",$xCdErro$,$xCdErro$)
+			$instancehandle->SetErroApl("ERRO=-1·;DESCRICAO=Data de movimento inválida!", $xCdErro$, $xCtxErro$)
+			return(-1)
+		elseif (piDtLcto = dt_lancamento.prd_seqkardexsvc)
+			;as data s?o iguais, acrescer um na ultima sequencia
+			nr_sequencia.prd_seqkardexsvc = nr_sequencia.prd_seqkardexsvc + 1
+			if (nr_sequencia.prd_seqkardexsvc > 99998)
+				; ERRO - estouro da quantidade de lancamento permitidos para um dia no produto 
+				$instancehandle->SetErroApl("ERRO=-1·;DESCRICAO=Estouro na quantidade de lançamentos permitidos no dia para o produto!", $xCdErro$, $xCdErro$)
+				return (-1)
+			else   
+				poNrSeq = nr_sequencia.prd_seqkardexsvc          
+			endif
+		elseif (piDtLcto > dt_lancamento.prd_seqkardexsvc)
+			dt_lancamento.prd_seqkardexsvc = piDtLcto
+			nr_sequencia.prd_seqkardexsvc = 1 
+			poNrSeq = 1
+		else
+			$instancehandle->SetErroApl("ERRO=-1·;DESCRICAO=Data de movimento inválida",$xCdErro$,$xCtxErro$)
+			return(-1)
+		endif
+		$xCdErro$  = ""
+		$xCtxErro$ = ""
+	elseif ($status = -2) ; Ocorrencia nao encontrada 
+		$xCdErro$  = ""
+		$xCtxErro$ = ""
+		$status    = 0
+		creocc "prd_seqkardexsvc", -1 ; -1 indica para criar ocorrencia no final do Hitlist
+		cd_empresa.prd_seqkardexsvc      = pCdEmpresa
+		cd_produto.prd_seqkardexsvc      = piCdProduto
+		nr_sequencia.prd_seqkardexsvc    = 1
+		cd_grupoempresa.prd_seqkardexsvc = $item("CD_GRUPOEMPRESA",piGlobal)
+		dt_lancamento.prd_seqkardexsvc   = piDtLcto
+		cd_operador.prd_seqkardexsvc     = $item("CD_USUARIO",piGlobal)
+		dt_cadastro.prd_seqkardexsvc     = $datim
+		poNrSeq = 1
+	else
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+		return(-1)
+	endif
+	$collhandle("prd_seqkardexsvc")->Salvar()
+	if ($procerror)
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+		return(-1)    
+	elseif ($status < 0)
+		$instancehandle->SetErroApl($xCtxErro$, $xCdErro$, $xCtxErro$)
+		return(-1)
+	else
+		$xCdErro$  = ""
+		$xCtxErro$ = ""
+	endif
+
+	return(0)
+End ; operation GetSeqKardex
+
+public operation GetSeqValor 
+	params
+		numeric pCdEmpresa  :IN 
+		date    piDtLcto    :IN       
+		numeric piCdProduto :IN
+		string  piTpValor   :IN
+		numeric piCdValor   :IN 
+		string  piGlobal    :IN 
+		numeric poNrSeq     :OUT
+		string  $xCdErro$   :OUT
+		string  $xCtxErro$   :OUT
+	endparams
+	$xCdErro$  = ""
+	$xCtxErro$ = ""
+	clear/e "prd_seqvalorsvc" 
+	cd_empresa.prd_seqvalorsvc/init = pCdEmpresa
+	cd_produto.prd_seqvalorsvc/init = piCdProduto
+	tp_valor.prd_seqvalorsvc/init = piTpValor
+	cd_valor.prd_seqvalorsvc/init = piCdValor
+	retrieve/e "prd_seqvalorsvc" 
+	if ($status >= 0) ;Ocorrencia encontrada, comparar as data, proceder atualizacao 
+		if (piDtLcto < dt_lancamento.prd_seqvalorsvc)
+			; ERRO - recebeu uma data anterior ao ultimo registro 
+			;$instancehandle->SetErroApl("ERRO=-1·;DESCRICAO=Data de Movimento anterior ao ?ltimo registro ",$xCdErro$,$xCdErro$)
+			$instancehandle->SetErroApl("ERRO=-1·;DESCRICAO=Data de movimento inválida!", $xCdErro$, $xCtxErro$)
+			return(-1)
+		elseif (piDtLcto = dt_lancamento.prd_seqvalorsvc)
+			;as data s?o iguais, acrescer um na ultima sequencia
+			nr_sequencia.prd_seqvalorsvc = nr_sequencia.prd_seqvalorsvc + 1
+			if (nr_sequencia.prd_seqvalorsvc > 9998)
+				; ERRO - estouro da quantidade de lancamento permitidos para um dia no produto 
+				$instancehandle->SetErroApl("ERRO=-1·;DESCRICAO=Estouro na quantidade de lan?amentos permitidos no dia para o produto",$xCdErro$,$xCtxErro$)
+				return(-1)
+			else   
+				poNrSeq = nr_sequencia.prd_seqvalorsvc          
+			endif
+		elseif (piDtLcto > dt_lancamento.prd_seqvalorsvc)
+			dt_lancamento.prd_seqvalorsvc = piDtLcto
+			nr_sequencia.prd_seqvalorsvc = 1 
+			poNrSeq = 1
+		else
+			; ERRO - desconhecido 
+			$instancehandle->SetErroApl("ERRO=-1·;DESCRICAO=Data de movimento inválida",$xCdErro$,$xCtxErro$)
+			return(-1)
+		endif
+		$xCdErro$  = ""
+		$xCtxErro$ = ""
+	elseif ($status = -2) ; Ocorrencia nao encontrada 
+		$status    = 0
+		$xCdErro$  = ""
+		$xCtxErro$ = ""
+		creocc "prd_seqvalorsvc", -1 
+		cd_empresa.prd_seqvalorsvc = pCdEmpresa
+		cd_produto.prd_seqvalorsvc = piCdProduto
+		tp_valor.prd_seqvalorsvc = piTpValor
+		cd_valor.prd_seqvalorsvc = piCdValor
+		nr_sequencia.prd_seqvalorsvc = 1
+		cd_grupoempresa.prd_seqvalorsvc = $item("CD_GRUPOEMPRESA",piGlobal)
+		dt_lancamento.prd_seqvalorsvc = piDtLcto
+		cd_operador.prd_seqvalorsvc = $item("CD_USUARIO",piGlobal)
+		dt_cadastro.prd_seqvalorsvc = $datim
+		poNrSeq = 1
+	else
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+		return(-1)
+	endif
+	$collhandle("prd_seqvalorsvc")->Salvar() 
+	if ($procerror)
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+		return(-1)    
+	elseif ($status < 0)
+		$instancehandle->SetErroApl($xCtxErro$, $xCdErro$, $xCtxErro$)
+		return(-1)
+	else
+		$xCdErro$  = ""
+		$xCtxErro$ = ""
+	endif
+
+	return(0)
+End ; operation GetSeqValor

@@ -1,0 +1,162 @@
+;---------------------------------------
+partner operation valorPadrao
+;---------------------------------------
+	if ($item("VL_UTILIZAR", $xlpi$))
+		VL_SALDOCOMPRA.FGR_DUMMY = $item("VL_UTILIZAR", $xlpi$)
+	endif
+
+	$prompt = DS_BARRA.FGR_DUMMY
+
+	return(0)
+end ; operation valorPadrao
+
+
+;----------------------------------------------------;
+partner operation validaCodigoBarras                 ;
+;----------------------------------------------------;
+;
+	variables
+		string  viParams, voParams
+		numeric vCdCliente, vNrCtaPes, vVlSaldo
+		date    vDtSistema
+	endvariables
+
+	if (DS_BARRA.FGR_DUMMY = "")
+		return(0)
+	endif
+
+	clear/e "FCR_CHEQUEPRES"
+	CD_BARRA.FCR_CHEQUEPRES/init    = DS_BARRA.FGR_DUMMY
+	TP_SITUACAO.FCR_CHEQUEPRES/init = 1
+	TP_CHEQUE.FCR_CHEQUEPRES/init   = 1
+	retrieve/e "FCR_CHEQUEPRES"
+	if ($status < 0)
+		$instancehandle->setStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Não existe cheque presente com o código de barras informado.", "")
+		return(-1)
+	else
+		if ($hits("FCR_CHEQUEPRES") > 1)
+			$instancehandle->setStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Existe mais de um cheque presente com o código de barras informado.", "")
+			clear/e "FGR_DUMMY"
+			clear/e "FCR_CHEQUEPRES"
+			return(-1)
+		endif
+		if (DT_CANCELAMENTO.FCR_CHEQUEPRES != "") & (CD_OPERCANCEL.FCR_CHEQUEPRES != "")
+			$instancehandle->setStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Cheque presente cancelado.", "")
+			clear/e "FGR_DUMMY"
+			clear/e "FCR_CHEQUEPRES"
+			return(-1)
+		endif
+		if (DT_VALIDADE.FCR_CHEQUEPRES < $item("DT_SISTEMA",$$gParamGlb))
+			$instancehandle->setStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Cheque presente com data de validade menor que a data do sistema. Não pode ser utilizado.", "")
+			clear/e "FGR_DUMMY"
+			clear/e "FCR_CHEQUEPRES"
+			return(-1)
+		endif
+		if (DT_UTILIZACAO.FCR_CHEQUEPRES > 0)
+			$instancehandle->setStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Cheque presente já utilizado.", "")
+			clear/e "FGR_DUMMY"
+			clear/e "FCR_CHEQUEPRES"
+			return(-1)
+		endif
+	endif
+	CD_CLIENTE.FGR_DUMMY/init  = CD_CLIENTE.FCR_CHEQUEPRES
+	clear/e "V_PES_CLIENTE"
+	CD_CLIENTE.V_PES_CLIENTE/init = CD_CLIENTE.FGR_DUMMY
+	retrieve/e "V_PES_CLIENTE"
+	if ($status >=0)
+		NM_CLIENTE.FGR_DUMMY/init = NM_PESSOA.V_PES_CLIENTE
+	else
+		NM_CLIENTE.FGR_DUMMY/init = "Inexistente"
+	endif
+	;busca conta do cliente
+	;viParams = ""
+	;putitem/id viParams, "CD_PESSOA",        CD_CLIENTE.FGR_DUMMY
+	;putitem/id viParams, "TP_CONTA",         "C"
+	;activate "FCCSVCO002".buscaContaPessoa($$gParamGlb, viParams, voParams, $xCdErro$, $xCtxerro$)
+	;if ($procerror)       
+	;	$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+	;	return(-1)
+	;elseif ($status < 0)
+	;	$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")
+	;	return(-1)
+	;endif
+	;vNrCtapes = $item("NR_CTAPES", voParams)
+	vNrCtaPes = NR_CTAPES.FCR_CHEQUEPRES
+	viParams   = ""
+	vDtSistema = $item("DT_SISTEMA", $$gParamGlb)
+	putitem/id viParams, "NR_CTAPES",        vNrCtapes
+	putitem/id viParams, "TP_DOCUMENTO",     18 ;Cheque presente
+	putitem/id viParams, "NR_SEQHISTRELSUB", 1
+	putitem/id viParams, "CD_EMPRESA",       CD_EMPRESA.FCR_CHEQUEPRES
+	putitem/id viParams, "CD_CLIENTE",       CD_CLIENTE.FCR_CHEQUEPRES
+	putitem/id viParams, "NR_CHEQUE",        NR_CHEQUE.FCR_CHEQUEPRES
+	activate "FCRSVCO068".buscaSaldoChequePresente($$gParamGlb, viParams, voParams, $xCdErro$, $xCtxErro$)
+	if ($procerror)       
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+		return(-1)
+	elseif ($status < 0)
+		$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")
+		return(-1)
+	endif
+
+	vVlSaldo = $item("VL_SALDO", voParams) 
+	VL_SALDO.FGR_DUMMY/init    = vVlSaldo
+	DT_VALIDADE.FGR_DUMMY/init = DT_VALIDADE.FCR_CHEQUEPRES
+	VL_UTILIZAR.FGR_DUMMY/init = vVlSaldo
+	if (VL_SALDOCOMPRA.FGR_DUMMY < vVlSaldo)
+		VL_UTILIZAR.FGR_DUMMY/init = VL_SALDOCOMPRA.FGR_DUMMY
+	endif
+	return(0)
+End ;operation validaCodigoBarras.
+
+
+;--------------------------------------------------;
+partner operation confirmarCheque                  ;
+;--------------------------------------------------;
+;
+	variables
+		string vpiParams, vpoParams, vpiFiltro
+	endvariables
+
+	if (DS_BARRA.FGR_DUMMY = 0) | (DS_BARRA.FGR_DUMMY = "")
+		$instancehandle->setStatus(<STS_AVISO>, "GEN001", "DESCRICAO=Deve ser informado o código de barras!", "")
+		$prompt = DS_BARRA.FGR_DUMMY
+		return(-1)
+	endif
+	if (VL_UTILIZAR.FGR_DUMMY = 0) | (VL_UTILIZAR.FGR_DUMMY = "")
+		$instancehandle->setStatus(<STS_AVISO>, "GEN001", "DESCRICAO=Deve ser informado o valor que será utilizado!", "")
+		$prompt = VL_UTILIZAR.FGR_DUMMY
+		return(-1)
+	endif
+	if (VL_UTILIZAR.FGR_DUMMY > VL_SALDO.FGR_DUMMY)
+		$instancehandle->setStatus(<STS_AVISO>, "GEN001", "DESCRICAO=Saldo insuficiente!", "")
+		VL_UTILIZAR.FGR_DUMMY = VL_SALDO.FGR_DUMMY
+		$prompt = VL_UTILIZAR.FGR_DUMMY
+		return(-1)
+	endif
+	if (VL_UTILIZAR.FGR_DUMMY > VL_SALDOCOMPRA.FGR_DUMMY)
+		$instancehandle->setStatus(<STS_AVISO>, "GEN001", "DESCRICAO=Valor informado maior que o valor do saldo da compra!", "")
+		$prompt = DS_BARRA.FGR_DUMMY
+		return(-1)
+	endif
+	if ($dbocc(FCR_CHEQUEPRES))
+		putitem/id $xlpo$, "CD_BARRA",    DS_BARRA.FGR_DUMMY
+		putitem/id $xlpo$, "CD_EMPRESA",  CD_EMPRESA.FCR_CHEQUEPRES
+		putitem/id $xlpo$, "CD_CLIENTE",  CD_CLIENTE.FCR_CHEQUEPRES
+		putitem/id $xlpo$, "NR_CHEQUE",   NR_CHEQUE.FCR_CHEQUEPRES
+		putitem/id $xlpo$, "CD_EMPLIQ",   CD_EMPLIQ.FCR_CHEQUEPRES
+		putitem/id $xlpo$, "DT_LIQ",      DT_LIQ.FCR_CHEQUEPRES
+		putitem/id $xlpo$, "NR_SEQLIQ",   NR_SEQLIQ.FCR_CHEQUEPRES
+		putitem/id $xlpo$, "VL_CHEQUE",   VL_UTILIZAR.FGR_DUMMY
+		putitem/id $xlpo$, "DT_CHEQUE",   $item("DT_SISTEMA", $$gParamGlb)
+		putitem/id $xlpo$, "NR_CTAPES",   NR_CTAPES.FCR_CHEQUEPRES
+	else
+		$instancehandle->setStatus(<STS_AVISO>, "GEN001", "DESCRICAO=Deve ser informado o código de barras para consulta do cheque presente antes de confirmar.", "")
+		$prompt = DS_BARRA.FGR_DUMMY
+		return(-1)
+	endif
+
+	macro "^ACCEPT"
+
+	return(0)
+End ;operation confirmarCheque.

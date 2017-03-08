@@ -1,0 +1,238 @@
+;------------------------
+entry preEDIT 
+	;------------------------
+	$nrFaturaPadrao$ = $item("NR_FATURAPADRAO", $xlpi$)
+	$inFatura$ = $item("IN_FATURA", $xlpi$)
+	$inCheque$ = $item("IN_CHEQUE", $xlpi$)
+	$inNotaP$ = $item("IN_NOTAPROMISSORIA", $xlpi$)
+	$cdEmpTransacao$ = $item("CD_EMPTRANSACAO", $xlpi$)
+	$nrTransacao$ = $item("NR_TRANSACAO", $xlpi$)
+	$dtTransacao$ = $item("DT_TRANSACAO", $xlpi$)
+	
+	$instancehandle->valorPadrao()
+	if ($procerror)
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")        
+		exit(-1)
+	elseif ($status < 0)
+		exit(-1)
+	endif
+	
+	return(0)
+End ; operation preEDIT
+
+;---------------------
+partner operation INIT 
+	;---------------------
+	$xlplemp$ = ""
+	putitem $xlplemp$, -1, "TP_ARREDOND_PARCELA_VD"
+	putitem $xlplemp$, -1, "IN_IMOBILIARIA"
+	activate "ADMSVCO001".GetParamEmpresa($item("CD_EMPRESA", $$gParamGlb), $xlplemp$, $xlplemp$, $xcderro$, $xctxerro$)
+	if ($procerror)
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+	elseif ($xcdErro$)
+		$instancehandle->SetErroApl($xCtxErro$, $xCdErro$, $xCtxErro$)
+	endif
+	
+	$tpArredondamento$ = $item("TP_ARREDOND_PARCELA_VD", $xlplemp$)
+	$inImobiliaria$ = $item("IN_IMOBILIARIA", $xlplemp$)
+
+	$formtitle = "%%$componentname - Parcelamento de Recebimento da Transação de Venda"
+End ; operation INIT
+
+;----------------------------
+partner operation valorPadrao 
+;----------------------------
+	$instancehandle->carregaTipoDocumento()
+	if ($procerror)
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "") 
+		return(-1)       
+	endif
+
+	if ($item("IN_RECEBIMENTO", $xlpi$) = <TRUE>)
+		$formtitle = "%%$componentname - Parcelamento de Recebimento"
+	endif
+	
+	;-Hugo em 20/01/12 Tarefa 182-219
+	$cdPessoa$ = 0
+	
+	clear/e "TRA_S_TRANSACAO"
+	CD_EMPRESA.TRA_S_TRANSACAO/init = $cdEmpTransacao$
+	NR_TRANSACAO.TRA_S_TRANSACAO/init = $nrTransacao$
+	DT_TRANSACAO.TRA_S_TRANSACAO/init = $dtTransacao$
+	retrieve/e "TRA_S_TRANSACAO"
+	if ($status >= 0)
+		$cdPessoa$ = CD_PESSOA.TRA_S_TRANSACAO
+	endif
+	;-
+	
+	;Fiuza - projeto imobiliaria MA -10/05/07
+	if ($inImobiliaria$ = <TRUE>)
+		clear/e "IMB_CONTRATOTRA"
+		CD_EMPTRANSACAO.IMB_CONTRATOTRA/init = $CdEmpTransacao$	
+		NR_TRANSACAO.IMB_CONTRATOTRA/init = $NrTransacao$	
+		DT_TRANSACAO.IMB_CONTRATOTRA/init = $DtTransacao$	
+		retrieve/e "IMB_CONTRATOTRA"
+		if ($status >= 0)
+			if (NR_PARCELA.IMB_CONTRATO > 0) & (NR_DIABASEVCTO.IMB_CONTRATO > 0)
+				fieldsyntax "CD_CONDPGTO.GER_CONDPGTOC", "DIM"
+				fieldsyntax "BT_BUSCA.GER_CONDPGTOC", "DIM"
+				$nrFaturaPadrao$ = NR_CONTRATO.IMB_CONTRATO
+			else
+				fieldsyntax "CD_CONDPGTO.GER_CONDPGTOC", ""
+				fieldsyntax "BT_BUSCA.GER_CONDPGTOC", ""
+			endif
+		endif	
+	endif
+
+	return(0)
+End ; operation valorPadrao
+
+;-------------------------------------
+partner operation carregaTipoDocumento
+;-------------------------------------
+	variables
+		string vDsLstTotal, vDsGeral, vDsTpDocumento, vDsLstTpDocumento
+	endvariables
+
+	vDsLstTotal = $valrep(DS_FORMAPGTO.SIS_DUMMY)
+	vDsLstTpDocumento = ""
+	clear/e "FCX_HISTREL"
+	if ($item("IN_RECEBIMENTO", $xLpi$) = <TRUE>)
+		TP_DOCUMENTO.FCX_HISTREL/init = 2 ;Cheque.
+	else
+		vDsTpDocumento = ""
+		if ($inFatura$ != <FALSE>)
+			putitem vDsTpDocumento, -1, 1 ;Fatura
+		endif
+		if ($inCheque$ != <FALSE>)
+			putitem vDsTpDocumento, -1, 2 ;Cheque
+		endif
+		if ($inNotaP$ != <FALSE>)
+			putitem vDsTpDocumento, -1, 14 ;Nota promissória
+		endif
+		if (vDsTpDocumento = "")
+			putitem vDsTpDocumento, -1, 1 ;Fatura
+			putitem vDsTpDocumento, -1, 14 ;Nota promissória
+			putitem vDsTpDocumento, -1, 2 ;Cheque			
+		endif
+		TP_DOCUMENTO.FCX_HISTREL/init = vDsTpDocumento
+	endif
+	IN_FATURAMENTO.FCX_HISTREL/init = <TRUE>
+	retrieve/e "FCX_HISTREL"
+	if ($status >= 0)
+		setocc "FCX_HISTREL", 1            
+		while ($status >= 0)			
+			vDsGeral = $item(TP_DOCUMENTO.FCX_HISTREL, vDsLstTotal)
+			vDsTpDocumento = ""
+			putitem/id vDsTpDocumento, TP_DOCUMENTO.FCX_HISTREL, vDsGeral
+			putitem vDsLstTpDocumento, -1, vDsTpDocumento
+			setocc "FCX_HISTREL", $curocc("FCX_HISTREL") + 1
+		endwhile
+	endif
+
+	$valrep(DS_FORMAPGTO.SIS_DUMMY) = vDsLstTpDocumento
+
+	return(0)
+end
+
+;----------------------------
+partner operation geraParcela 
+;----------------------------
+	variables
+		string viParams, voParams
+		string  vDsRegistro, vDsLstParcela, vDtVencto, vDsListaParcela
+		numeric vNrDia, vNrMes, vNrAno, vNrBisexto
+		date vDtVencimento
+	endvariables
+
+	if ($inImobiliaria$ = <TRUE>) & (NR_PARCELA.IMB_CONTRATO > 0) & (NR_DIABASEVCTO.IMB_CONTRATO > 0)
+		viParams = ""
+		putitem/id viParams, "CD_EMPCONTRATO", CD_EMPRESA.IMB_CONTRATO
+		putitem/id viParams, "NR_SEQCONTRATO", NR_SEQ.IMB_CONTRATO
+		putitem/id viParams, "VL_TOTAL", VL_VALOR.SIS_DUMMY
+		if ($tpArredondamento$ != "")
+			putitem/id viParams, "TP_ARREDONDAMENTO", $tpArredondamento$
+		else
+			putitem/id viParams, "TP_ARREDONDAMENTO", 1
+		endif
+		activate "IMBSVCO001".geraParcelaContrato($$gParamGlb, viParams, voParams, $xCdErro$, $xCtxErro$)
+		if ($procerror)       
+			$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+			return(-1)
+		elseif ($status < 0)
+			$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")
+			return(-1)
+		endif	
+	else
+		viParams = ""
+		putitem/id viParams, "CD_CONDPGTO", CD_CONDPGTO.GER_CONDPGTOC
+		putitem/id viParams, "VL_TOTAL", VL_VALOR.SIS_DUMMY
+		putitem/id viParams, "DT_BASE", $item("DT_SISTEMA", $$gParamGlb)
+		putitem/id viParams, "CD_PESSOA", $cdPessoa$ ;Hugo em 20/01/12 Tarefa 182-219
+		if ($tpArredondamento$ != "")
+			putitem/id viParams, "TP_ARREDONDAMENTO", $tpArredondamento$
+		else
+			putitem/id viParams, "TP_ARREDONDAMENTO", 1
+		endif
+		activate "GERSVCO013".geraParcela($$gParamGlb, viParams, voParams, $xCdErro$, $xCtxErro$)
+		if ($procerror)       
+			$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+			return(-1)
+		elseif ($status < 0)
+			$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")
+			return(-1)
+		endif
+	endif
+	
+	$lsParcela$ = $item("DS_LSTPARCELA", voParams)
+	vNrMes = 0
+	
+	if (NR_DIA.GER_CONDPGTOC != 0) & ($lsParcela$ != "")
+		vDsListaParcela = ""
+		vDsLstParcela = $lsParcela$
+		
+		repeat
+			getitem vDsRegistro, vDsLstParcela, 1
+			
+			vDtVencimento = $item("DT_VENCIMENTO", vDsRegistro)
+			vNrDia = NR_DIA.GER_CONDPGTOC
+			;>-- MAC - PRJ 102 TAR 771 - 07/01/2010 -- 
+			;  Alteração da posição de atribuição do ano da parcela.
+;			vNrAno = vDtVencimento[Y]
+
+			if (vNrMes = 0)
+				vNrMes = vDtVencimento[M]
+				vNrAno = vDtVencimento[Y]
+			else
+				vNrMes = vNrMes + 1
+				if (vNrMes > 12)
+					vNrMes = 1
+					vNrAno = vNrAno + 1
+				endif
+			endif
+			
+			vNrBisexto = vNrAno / 4
+			
+			if (vNrMes = 4 | vNrMes = 6 | vNrMes = 9 | vNrMes = 11) & (vNrDia = 31)
+				vNrDia = 30
+			elseif (vNrMes = 2) & (vNrDia > 28)
+				if (vNrBisexto = vNrBisexto[trunc])
+					vNrDia = 29
+				else
+					vNrDia = 28
+				endif
+			endif
+			
+			vDtVencto = "%%vNrDia%%%/%%vNrMes%%%/%%vNrAno%%%"
+			
+			putitem/id vDsRegistro, "DT_VENCIMENTO", vDtVencto
+			putitem vDsListaParcela, -1, vDsRegistro
+			
+			delitem vDsLstParcela, 1
+		until (vDsLstParcela = "")
+		
+		$lsParcela$ = vDsListaParcela
+	endif
+	
+	return (0)
+End ; operation geraParcela

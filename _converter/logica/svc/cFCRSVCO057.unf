@@ -1,0 +1,230 @@
+entry getParam
+	params
+		numeric piCdEmpresa : IN
+		string piDsOperacao : IN
+	endparams
+
+	variables
+		string viParams, voParams
+	endvariables
+
+	if (piCdEmpresa = 0)
+		piCdEmpresa = $item("CD_EMPRESA", $xlpg$)
+	endif
+
+	viParams = ""
+	putitem viParams, -1, "CD_TPCLASS_IMPOSTO_FCR"
+	putitem viParams, -1, "CD_CLASS_IMPOSTO_FCR"
+	activate "ADMSVCO001".GetParamEmpresa(piCdEmpresa, viParams, voParams, $xCdErro$, $xCtxerro$)
+	if ($procerror)
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+		return(-1)
+	elseif ($xCdErro$)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=%%$item("DESCRICAO", $xCtxErro$)", "ADICIONAL=Operação->PEDSVCO001.%%piDsOperacao")
+		return(-1)
+	endif
+	
+	$cdTipoClasOrgaoPublico$ = $item("CD_TPCLASS_IMPOSTO_FCR", voParams)
+	$cdClassificacaoOrgaoPublico$ = $item("CD_CLASS_IMPOSTO_FCR", voParams)
+	
+	return(0)
+end
+
+;----------------------------------------
+public operation validaPessoaOrgaoPublico
+;----------------------------------------
+	params
+		string  $xlpg$      :IN    
+		string  piParams    :IN
+		string  poParams    :OUT
+		string  poCdErro    :OUT
+		string  poCtxErro   :OUT
+	endparams
+	
+	variables
+		numeric vCdPessoa, vCdEmpresa
+		boolean vInOrgaoPublico
+	endvariables
+	
+	poParams = ""
+	vCdPessoa = $item("CD_PESSOA", piParams)
+	vCdEmpresa = $item("CD_EMPRESA", $xlpg$)
+	vInOrgaoPublico = <FALSE>
+	
+	if (vCdPessoa = 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Pessoa não informada!", "ADICIONAL=Operação->FCRSVCO057.validaPessoaOrgaoPublico")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	
+	call getParam(vCdEmpresa, "validaPessoaOrgaoPublico")
+	if ($procerror)
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	if ($status < 0)
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	
+	if ($cdTipoClasOrgaoPublico$ != "") & ($cdClassificacaoOrgaoPublico$ != "")
+		clear/e "PES_PESSOACLASVC"
+		CD_PESSOA.PES_PESSOACLASVC/init = vCdPessoa
+		CD_TIPOCLAS.PES_PESSOACLASVC/init = $cdTipoClasOrgaoPublico$
+		CD_CLASSIFICACAO.PES_PESSOACLASVC/init = $cdClassificacaoOrgaoPublico$
+		retrieve/e "PES_PESSOACLASVC"
+		if ($status >= 0)
+			vInOrgaoPublico = <TRUE>
+		endif
+	endif
+	
+	putitem/id poParams, "IN_ORGAOPUBLICO", vInOrgaoPublico
+	
+	return(0)
+end
+
+;----------------------------------
+public operation gravaImpostoFatura
+;----------------------------------
+	params
+		string  $xlpg$      :IN    
+		string  piParams    :IN
+		string  poParams    :OUT
+		string  poCdErro    :OUT
+		string  poCtxErro   :OUT
+	endparams
+	
+	variables
+		numeric vCdEmpresa, vCdCliente, vNrFatura, vNrParcela, vVlImposto, vVlTotImposto
+	endvariables
+	
+	poParams = ""
+	vCdEmpresa = $item("CD_EMPRESA", piParams)
+	vCdCliente = $item("CD_CLIENTE", piParams)
+	vNrFatura = $item("NR_FAT", piParams)
+	vNrParcela = $item("NR_PARCELA", piParams)
+	
+	if (vCdEmpresa = 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Empresa não informada!", "ADICIONAL=Operação->FCRSVCO057.gravaImpostoFatura")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	
+	if (vCdCliente = 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Cliente não informado!", "ADICIONAL=Operação->FCRSVCO057.gravaImpostoFatura")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	
+	if (vNrFatura = 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Número da fatura não informada!", "ADICIONAL=Operação->FCRSVCO057.gravaImpostoFatura")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	
+	if (vNrParcela = 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Parcela da fatura não informada!", "ADICIONAL=Operação->FCRSVCO057.gravaImpostoFatura")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	
+	clear/e "FCR_FATURAISVC"
+	CD_EMPRESA.FCR_FATURAISVC/init = vCdEmpresa
+	CD_CLIENTE.FCR_FATURAISVC/init = vCdCliente
+	NR_FAT.FCR_FATURAISVC/init = vNrFatura
+	NR_PARCELA.FCR_FATURAISVC/init = vNrParcela
+	retrieve/e "FCR_FATURAISVC"
+	if ($status < 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Fatura: %%vCdEmpresa/%%vCdCliente/%%vNrFatura/%%vNrParcela não encontrada!", "ADICIONAL=Operação->FCRSVCO057.gravaImpostoFatura")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	
+	if (TP_DOCUMENTO.FCR_FATURAISVC != 1)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=A fatura informada: %%vCdEmpresa/%%vCdCliente/%%vNrFatura/%%vNrParcela não é um documento do tipo fatura!", "ADICIONAL=Operação->FCRSVCO057.gravaImpostoFatura")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	
+	;Diogenes - 20/10/2008 - Proj. 114 - Tarefa 2
+	clear/e "PES_CLIIMPOSTSVC"
+	CD_CLIENTE.PES_CLIIMPOSTSVC/init = vCdCliente
+	retrieve/e "PES_CLIIMPOSTSVC"
+	if ($status < 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=O cliente informado não possui alíquota de imposto cadastrado!", "ADICIONAL=Operação->FCRSVCO057.gravaImpostoFatura")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	;;
+
+	vVlTotImposto = 0
+	clear/e "FIS_IMPRETENCSVC"
+	CD_EMPRESA.FIS_IMPRETENCSVC = vCdEmpresa
+	retrieve/e "FIS_IMPRETENCSVC"
+	if ($status >= 0)
+		setocc "FIS_IMPRETENCSVC", 1
+		while ($status >= 0)
+			;Diogenes - 20/10/2008 - Proj. 114 - Tarefa 2
+			;Verifica primeiro se o cliente tem o imposto informado	
+			clear/e "PES_CLIIMPOSTSVC"
+			CD_CLIENTE.PES_CLIIMPOSTSVC/init = vCdCliente
+			CD_IMPOSTO.PES_CLIIMPOSTSVC/init = CD_IMPOSTO.FIS_IMPRETENCSVC
+			retrieve/e "PES_CLIIMPOSTSVC"
+			if ($status >=0)
+				creocc "FCR_FATIMPOSTSVC", -1
+				CD_IMPOSTO.FCR_FATIMPOSTSVC = CD_IMPOSTO.FIS_IMPRETENCSVC
+				retrieve/o "FCR_FATIMPOSTSVC"
+				if ($status = -7)
+					retrieve/x "FCR_FATIMPOSTSVC"
+				endif			
+
+				;verifica se o cliente tem a aliquota para o imposto, senão usa a aliquota padrao		
+				if (PR_ALIQUOTA.PES_CLIIMPOSTSVC > 0)
+					vVlImposto = VL_FATURA.FCR_FATURAISVC * PR_ALIQUOTA.PES_CLIIMPOSTSVC / 100
+					vVlImposto = vVlImposto[round, 2]
+					vVlTotImposto = vVlTotImposto + vVlImposto
+		
+					VL_IMPOSTO.FCR_FATIMPOSTSVC = vVlImposto
+					PR_ALIQUOTA.FCR_FATIMPOSTSVC = PR_ALIQUOTA.PES_CLIIMPOSTSVC
+				else ;;
+					vVlImposto = VL_FATURA.FCR_FATURAISVC * PR_ALIQUOTA.FIS_IMPRETENCSVC / 100
+					vVlImposto = vVlImposto[round, 2]
+					vVlTotImposto = vVlTotImposto + vVlImposto
+		
+					VL_IMPOSTO.FCR_FATIMPOSTSVC = vVlImposto
+					PR_ALIQUOTA.FCR_FATIMPOSTSVC = PR_ALIQUOTA.FIS_IMPRETENCSVC
+				endif
+			CD_OPERADOR.FCR_FATIMPOSTSVC = $item("CD_USUARIO", $xlpg$)
+			DT_CADASTRO.FCR_FATIMPOSTSVC = $datim
+			endif;;
+			setocc "FIS_IMPRETENCSVC", $curocc("FIS_IMPRETENCSVC") + 1	
+		endwhile
+		
+		VL_IMPOSTO.FCR_FATURAISVC = vVlTotImposto
+		$collhandle("FCR_FATURAISVC")->Salvar()
+		if ($procerror)
+			$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+			poCdErro = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return(-1)
+		elseif ($status < 0)
+			$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")
+			poCdErro = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return(-1)
+		endif
+	endif
+	
+	return(0)
+end

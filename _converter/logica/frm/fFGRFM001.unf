@@ -1,0 +1,554 @@
+;------------------------
+entry preEDIT 
+	;------------------------
+	$vlCheque$ = $item("VL_CHEQUE", $xlpi$)
+	$NrBanco$ = $item("NR_BANCO", $xlpi$)
+	$NrAgencia$ = $item("NR_AGENCIA", $xlpi$)
+	$NrConta$ = $item("NR_CONTA", $xlpi$)
+	$NrCheque$ = $item("NR_CHEQUE", $xlpi$)
+	$NrBanda$ = $item("NR_BANDA", $xlpi$)
+	$dtVencimento$ = $item("DT_VENCIMENTO", $xlpi$)
+	$NrTelefone$ = $item("NR_TELEFONE", $xlpi$)
+	$CpfCnpj$ = $item("NR_CPFCNPJ", $xlpi$)
+	$nrUltimoBanco$ = $item("NR_ULTIMOBANCO", $xlpi$)
+	$nrUltimaAgencia$ = $item("NR_ULTIMAAGENCIA", $xlpi$)
+	$dsUltimaConta$ = $item("DS_ULTIMACONTA", $xlpi$)
+	$nrUltimoCheque$ = $item("NR_ULTIMOCHEQUE", $xlpi$)
+	$cdCliente$ = $item("CD_CLIENTE", $xlpi$)
+
+	$instancehandle->valorPadrao()
+	if ($procerror)
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+	endif
+
+	if ($item("IN_ENDOSSO",$xlpi$)=<TRUE>)
+		$prompt = NR_BANDA.SIS_DUMMY
+	endif
+
+	return(0)
+End ; operation preEDIT
+
+;------------------------
+entry posEDIT 
+	;------------------------
+	putitem/id $xlpo$, "NR_BANCO", NR_BANCO.SIS_DUMMY
+	putitem/id $xlpo$, "NR_AGENCIA", NR_AGENCIA.SIS_DUMMY 
+	putitem/id $xlpo$, "NR_CONTA", NR_CONTA.SIS_DUMMY
+	putitem/id $xlpo$, "NR_CHEQUE", NR_CHEQUE.SIS_DUMMY 
+	putitem/id $xlpo$, "NR_BANDA", NR_BANDA.SIS_DUMMY 
+	putitem/id $xlpo$, "DT_VENCIMENTO", DT_VENCIMENTO.SIS_DUMMY 
+	putitem/id $xlpo$, "NR_CPFCNPJ", NR_CPFCNPJ.SIS_DUMMY
+	putitem/id $xlpo$, "NR_TELEFONE", NR_TELEFONE.SIS_DUMMY
+	putitem/id $xlpo$, "CD_CLIENTE", CD_CLIENTE.V_PES_CLIENTE
+	;MTF(30/08/2006) - Projeto 078, tarefa 028.
+	putitem/id $xlpo$, "IN_TERCEIRO", in_chqterceiro.sis_dummy
+	;
+	
+	return(0)
+End ; operation posEDIT
+
+;---------------------
+partner operation INIT 
+	;---------------------
+	$formtitle = "%%$componentname - Entrada de Cheque"
+
+	putitem $xlpl$, -1, "CLIENTE_PDV"
+	activate "ADMSVCO001".GetLstParametro($xlpl$, $xlpl$, $xcderro$, $xctxerro$)
+	if ($procerror)
+		$instancehandle->setStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+	elseif ($status < 0)
+		$instancehandle->setStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")
+	endif
+	$cdClientePdv$ = $item("CLIENTE_PDV", $xlpl$)
+	
+	;Parametros por empresa
+	$xlplemp$ = ""
+	putitem $xlplemp$, -1, "IN_UTILIZA_APENAS_BANDA"
+	putitem $xlplemp$, -1, "IN_DATAHORA_VERSO_CHEQUE"
+	putitem $xlplemp$, -1, "IN_PDV_OTIMIZADO"
+	putitem $xlplemp$, -1, "DS_NOMINAL_CHQ_ENT" 
+	;Projeto 078 - Tarefa 756 - Aloisio Gargantini - 23/08/2007
+	putitem $xlplemp$, -1, "TP_NOMINAL_CHEQUE" 
+	;
+	;MTF(30/10/2007) - Projeto 078, tarefa 891.
+	putitem $xLplEmp$, -1, "IN_RECEB_CHQ_PROPRIO"
+	;
+	activate "ADMSVCO001".GetParamEmpresa($item("CD_EMPRESA", $$gParamGlb), $xlplemp$, $xlplemp$, $xcderro$, $xctxerro$)
+	if ($procerror)
+		$instancehandle->setStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+	elseif ($status < 0)
+		$instancehandle->setStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")
+	endif
+	
+	$inSomenteBanda$ = $item("IN_UTILIZA_APENAS_BANDA", $xlplemp$)
+	$inPdvOtimizado$ = $item("IN_PDV_OTIMIZADO", $xlplemp$)
+	$dsNominalChqEnt$= $item("DS_NOMINAL_CHQ_ENT",$xlplemp$)
+	;Projeto 078 - Tarefa 756 - Aloisio Gargantini - 23/08/2007
+	$tpNominalCheque$= $item("TP_NOMINAL_CHEQUE",$xlplemp$)
+	;
+	;MTF(30/10/2007) - Projeto 078, tarefa 891.
+	$inRecebChqProprio$ = $item("IN_RECEB_CHQ_PROPRIO", $xLplEmp$)
+	;
+	
+	return(0)
+End ; operation INIT
+
+;---------------------------------
+partner operation validaBanco
+	;---------------------------------
+	clear/e "GER_BANCO"
+	if (NR_BANCO.SIS_DUMMY > 0)
+		NR_BANCO.GER_BANCO/init = NR_BANCO.SIS_DUMMY
+		retrieve/e "GER_BANCO"
+		if ($status <0)
+			askmess "Banco não cadastrado!","Continua,Cancelar" 
+			if ($status = 2) 
+				$prompt = NR_BANCO.SIS_DUMMY
+			endif
+		else
+			DS_BANCO.SIS_DUMMY/init = NM_BANCO.GER_BANCO
+		endif
+	endif
+	
+	return(0)        
+end;
+
+;-----------------------------
+partner operation validaCampos
+;-----------------------------
+	variables
+		date vDtSistema
+	endvariables
+	
+	vDtSistema = $item("DT_SISTEMA", $$gParamGlb)
+	if ($item("IN_RECEBIMENTO", $xlpi$) = <TRUE>)
+		vDtSistema = $item("DT_PAGAMENTO", $xlpi$)
+	endif
+	if (CD_CLIENTE.SIS_DUMMY = 0) & ($item("IN_ENDOSSO",$xlpi$) != <TRUE>) ; MFGALEGO - 09/02/2007 ; Michelin / FIVEBROS ; SM 2060
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Cliente não informado!", "")
+		$prompt = CD_CLIENTE.SIS_DUMMY
+		return(-1)
+	endif
+	if (NR_BANCO.SIS_DUMMY = 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Banco não informado!", "")
+		$prompt = NR_BANCO.SIS_DUMMY
+		return(-1)
+	endif
+	if (NR_AGENCIA.SIS_DUMMY = 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Agência não informada!", "")
+		$prompt = NR_AGENCIA.SIS_DUMMY
+		return(-1)
+	endif
+	if (NR_CONTA.SIS_DUMMY = 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Conta não informada!", "")
+		$prompt = NR_CONTA.SIS_DUMMY
+		return(-1)
+	endif
+	if (NR_CHEQUE.SIS_DUMMY = 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Cheque não informada!", "")
+		$prompt = NR_CHEQUE.SIS_DUMMY
+		return(-1)
+	endif
+	if (DT_VENCIMENTO.SIS_DUMMY = "")
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Data vencimento não informada!", "")
+		$prompt = DT_VENCIMENTO.SIS_DUMMY
+		return(-1) 
+	endif
+	if (DT_VENCIMENTO.SIS_DUMMY < vDtSistema)
+		if ($item("IN_RECEBIMENTO", $xlpi$) = <TRUE>)
+			$instancehandle->setStatus(<STS_AVISO>, "GEN001", "DESCRICAO=Data de vencimento menor que a data de pagamento.", "")
+		else
+			$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Data vencimento menor que a data do sistema!", "")
+		endif
+		$prompt = DT_VENCIMENTO.SIS_DUMMY
+		return(-1) 
+	endif
+	if (IN_BLOQUEADO.V_PES_CLIENTE = <TRUE>) & ($item("IN_RECEBIMENTO", $xlpi$) != <TRUE>)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Cliente %%CD_CLIENTE.V_PES_CLIENTE bloqueado!", "")
+		return(-1)
+	endif
+	if (IN_INATIVO.V_PES_CLIENTE = <TRUE>) & ($item("IN_RECEBIMENTO", $xlpi$) != <TRUE>)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Cliente %%CD_CLIENTE.V_PES_CLIENTE inativo!", "")
+		return(-1)
+	endif
+
+	if($inPdvOtimizado$ = <TRUE>)
+		if($cdclientePdv$ = CD_CLIENTE.SIS_DUMMY)
+			$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Cliente não pode ser consumidor final!", "")
+			$prompt = CD_CLIENTE.SIS_DUMMY
+			return(-1) 
+		endif
+	endif
+	
+	;MTF(30/10/2007) - Projeto 078, tarefa 891.
+	$instancehandle->validarChequeProprio()
+	if ($procerror)
+		$instancehandle->setStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+		return(-1)
+	elseif ($status < 0)
+		return(-1)
+	endif
+	;
+	
+	return(0)    
+end;
+
+;---------------------------------
+partner operation validaBanda
+	;---------------------------------
+	variables
+		string viParams, voParams
+	endvariables
+	
+	if (NR_BANDA.SIS_DUMMY = "")
+		return(0)
+	endif
+	
+	viParams = ""
+	putitem/id viParams, "NR_BANDA", NR_BANDA.SIS_DUMMY
+	;MTF - 11/07/2005 O programa FCPFP006 somente faz a consulta do cheque pela banda p/ selecionar
+	;automaticamente o cheque no processo de endosso.    
+	if ($item("IN_SOMENTE_CONSULTA", $xLpi$) = <TRUE>)
+		putitem/id viParams, "IN_VALIDACADASTRO", <FALSE>
+	else
+		putitem/id viParams, "IN_VALIDACADASTRO", <TRUE>
+	endif
+	activate "FGRSVCO002".validaBandaCheque($$gParamGlb, viParams, voParams, $xCdErro$, $xCtxErro$)
+	if ($procerror)       
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+		return(-1)
+	elseif ($status < 0)
+		$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")
+		if (voParams != "")
+			NR_BANDA.SIS_DUMMY/init = $item("NR_BANDA", voParams)
+		endif
+		return(-1)
+	endif
+	
+	NR_BANDA.SIS_DUMMY/init = $item("NR_BANDA", voParams)
+	NR_BANCO.SIS_DUMMY/init = $item("NR_BANCO",voParams)
+	NR_AGENCIA.SIS_DUMMY/init = $item("NR_AGENCIA",voParams)
+	NR_CONTA.SIS_DUMMY/init = $item("NR_CONTA",voParams)
+	NR_CHEQUE.SIS_DUMMY/init = $item("NR_CHEQUE",voParams)
+	
+	return(0)
+end
+
+;----------------------------
+partner operation valorPadrao
+	;----------------------------
+	variables
+		string vDsLstDocumento
+		numeric vNrDocumento
+	endvariables
+	
+	if ($item("IN_ENDOSSO",$xlpi$)!=<TRUE>)
+		clear/e "V_PES_CLIENTE"
+		CD_CLIENTE.V_PES_CLIENTE/init = $cdCliente$
+		retrieve/e "V_PES_CLIENTE"
+	endif
+	
+	if ($inPdvOtimizado$ = 1)
+		fieldsyntax CD_CLIENTE.SIS_DUMMY, ""
+		fieldsyntax BT_LPESSOA.V_PES_CLIENTE, ""
+	else
+		fieldsyntax CD_CLIENTE.SIS_DUMMY, "DIM"
+		fieldsyntax BT_LPESSOA.V_PES_CLIENTE, "DIM"
+	endif
+	
+	if ($item("IN_ENDOSSO",$xlpi$)=<TRUE>)
+		fieldsyntax cd_cliente.sis_dummy,     "DIM"
+		fieldsyntax bt_lpessoa.v_pes_cliente, "DIM"
+	endif
+
+	CD_CLIENTE.SIS_DUMMY/init = $cdCliente$
+	VL_CHEQUE.SIS_DUMMY/init = $vlCheque$
+	NR_BANDA.SIS_DUMMY/init = $nrBanda$
+	NR_BANCO.SIS_DUMMY/init = $nrBanco$
+	NR_AGENCIA.SIS_DUMMY/init = $nrAgencia$
+	NR_CONTA.SIS_DUMMY/init = $nrConta$
+	NR_CHEQUE.SIS_DUMMY/init = $nrCheque$
+	NR_TELEFONE.SIS_DUMMY/init = $nrTelefone$
+	NR_CPFCNPJ.SIS_DUMMY/init = $CpfCnpj$
+	;MTF(30/08/2006) - Projeto 078, tarefa 028.
+	in_chqterceiro.sis_dummy = $item("IN_TERCEIRO", $xlpi$)
+	;
+	if ($dtVencimento$ = "")
+		DT_VENCIMENTO.SIS_DUMMY/init = $item("DT_SISTEMA", $$gParamGlb)
+		;        fieldsyntax DT_VENCIMENTO.SIS_DUMMY, ""
+	else
+		DT_VENCIMENTO.SIS_DUMMY/init = $dtVencimento$
+		;        fieldsyntax DT_VENCIMENTO.SIS_DUMMY, "DIM"
+	endif
+	
+	if ($inSomenteBanda$ = <TRUE>)
+		fieldsyntax NR_BANCO.SIS_DUMMY, "DIM"
+		fieldsyntax NR_AGENCIA.SIS_DUMMY, "DIM"
+		fieldsyntax NR_CONTA.SIS_DUMMY, "DIM"
+		fieldsyntax NR_CHEQUE.SIS_DUMMY, "DIM"
+	else
+		fieldsyntax NR_BANCO.SIS_DUMMY, ""
+		fieldsyntax NR_AGENCIA.SIS_DUMMY, ""
+		fieldsyntax NR_CONTA.SIS_DUMMY, ""
+		fieldsyntax NR_CHEQUE.SIS_DUMMY, ""
+
+		if (NR_BANCO.SIS_DUMMY = 0) & ($nrUltimoBanco$ > 0)
+			NR_BANCO.SIS_DUMMY/init = $nrUltimoBanco$
+		endif
+		if (NR_AGENCIA.SIS_DUMMY = 0) & ($nrUltimaAgencia$ > 0)
+			NR_AGENCIA.SIS_DUMMY/init = $nrUltimaAgencia$
+		endif
+		if (NR_CONTA.SIS_DUMMY = "") & ($dsUltimaConta$ > 0)
+			NR_CONTA.SIS_DUMMY/init = $dsUltimaConta$
+		endif
+		if (NR_CHEQUE.SIS_DUMMY = 0) & ($nrUltimoCheque$ > 0)
+			NR_CHEQUE.SIS_DUMMY/init = $nrUltimoCheque$ + 1
+		endif
+	endif
+	
+	if ($inPdvOtimizado$ = 1)
+		$prompt = CD_CLIENTE.SIS_DUMMY
+	else
+		$prompt = DT_VENCIMENTO.SIS_DUMMY
+	endif
+	;MTF(08/03/2006) - Projeto 056, tarefa 001.
+	if ($item("IN_NAO_ALTERA", $xlpi$) = <TRUE>)
+		fieldsyntax cd_cliente.sis_dummy,     "DIM"
+		fieldsyntax bt_lpessoa.v_pes_cliente, "DIM"
+		$prompt = dt_vencimento.sis_dummy
+	endif
+	;
+	;MTF(06/09/2006) - Projeto 078, tarefa 036.
+	if ($item("IN_LOTE_CHEQUE", $xlpi$) = <TRUE>)
+		fieldsyntax dt_vencimento.sis_dummy, "DIM"
+	else
+		fieldsyntax dt_vencimento.sis_dummy, ""
+	endif
+	;
+	
+	return(0)
+end;
+
+;-------------------------------
+partner operation processaCheque
+	;-------------------------------
+	variables
+		string viParams, voParams, vDsParamTransacao, vDsParamNF, vDsVerso
+		numeric vInDataHora
+		date vDtSistema
+		time vTmSistema
+	endvariables
+
+	vInDataHora = $item("IN_DATAHORA_VERSO_CHEQUE", $xlplemp$)
+
+	vDsVerso = ""
+	if (vInDataHora = 1)
+		vDtSistema = $date
+		vTmSistema = $clock
+		vDsVerso = "%%vDtSistema[D]/%%vDtSistema[M]/%%vDtSistema[Y] %%vTmSistema[H]:%%vTmSistema[N]:%%vTmSistema[S]"
+	endif
+
+	viParams = vDsParamNF
+	putitem/id viParams, "VL_CHEQUE", VL_CHEQUE.SIS_DUMMY        
+	putitem/id viParams, "NR_BANCO", NR_BANCO.SIS_DUMMY
+	putitem/id viParams, "DT_VENCIMENTO", DT_VENCIMENTO.SIS_DUMMY
+	putitem/id viParams, "NR_CHEQUE", NR_CHEQUE.SIS_DUMMY
+	putitem/id viParams, "TP_CHEQUE", "CR"
+	putitem/id viParams, "DS_VERSO", vDsVerso
+	; LSC (27/12/2006) Projeto: 78 Tarefa: 131
+	if ($dsNominalChqEnt$ != "" & $cdCliente$ != "")
+		;Projeto 078 - Tarefa 756 - Aloisio Gargantini - 23/08/2007
+		if ($tpNominalCheque$ = <TRUE>)
+			putitem/id viParams, "DS_NOMINAL", "%%$dsNominalChqEnt$" ;somente parametro DS_NOMINAL_CHQENT
+		else
+		;
+			putitem/id viParams, "DS_NOMINAL", "%%$dsNominalChqEnt$ - %%$cdCliente$"
+		endif
+	else
+		putitem/id viParams, "DS_NOMINAL", $dsNominalChqEnt$
+	endif
+	;
+	activate "FGRSVCO003".processaCheque($$gParamGlb, viParams, voParams, $xCdErro$, $xCtxErro$)
+	if ($procerror)       
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+		return(-1)
+	elseif ($status < 0)
+		$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")
+		return(-1)
+	endif
+	
+	;* Claudemir - Prj/Tarefa: 78/3068 - 03/02/2010
+	;NR_BANDA.SIS_DUMMY = $item("DS_CMC7", voParams)
+	if ($item("DS_CMC7", voParams) != "")
+		NR_BANDA.SIS_DUMMY = $item("DS_CMC7", voParams)
+	endif ;*
+	
+	$instancehandle->validaBanda()
+	if ($procerror)
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+	endif
+	
+	if ($status < 0)
+		return(-1)
+	endif
+	
+	$prompt = BT_CONFIRMA.SIS_BOTOES
+	
+	return(0)
+end
+
+;-------------------------
+partner operation leCheque
+	;-------------------------
+	variables
+		string viParams, voParams, vDsParamTransacao, vDsParamNF
+	endvariables
+	
+	viParams = ""
+	activate "FGRSVCO003".leCheque($$gParamGlb, viParams, voParams, $xCdErro$, $xCtxErro$)
+	if ($procerror)       
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+		return(-1)
+	elseif ($status < 0)
+		$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")
+		return(-1)
+	endif
+	
+	NR_BANDA.SIS_DUMMY = $item("DS_CMC7", voParams)
+	
+	$instancehandle->validaBanda()
+	if ($procerror)
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+	endif
+	
+	if ($status < 0)
+		return(-1)
+	endif
+	
+	$prompt = BT_CONFIRMA.SIS_BOTOES
+	
+	return(0)
+end
+
+
+;---------------------------------------------------;
+partner operation validarChequeProprio              ;
+;---------------------------------------------------;
+; MTF    : 30/10/2007       Projeto 078, tarefa 891 ;
+; Funcao : Validar se cheque é proprio ou terceiro. ;
+; Chamada: operation - validarCampos()              ;
+;---------------------------------------------------;
+;
+	if ($inRecebChqProprio$ != <TRUE>)
+		return(0)
+	endif
+	
+	clear/e "PES_PESSOACC"
+	cd_pessoa.pes_pessoacc/init  = cd_cliente.sis_dummy
+	nr_banco.pes_pessoacc/init   = nr_banco.sis_dummy
+	nr_agencia.pes_pessoacc/init = nr_agencia.sis_dummy
+	ds_conta.pes_pessoacc/init   = nr_conta.sis_dummy
+	retrieve/e "PES_PESSOACC"
+	if ($status < 0)
+		$instancehandle->setStatus(<STS_AVISO>, "GEN001", "DESCRICAO=Cheque informado não corresponde ao cliente %%cd_cliente.sis_dummy.", "")
+		$prompt = nr_banda.sis_dummy
+		return(-1)
+	endif
+	
+	return(0)
+End ;operation validarChequeProprio.
+
+;---------------------------------------------------;
+partner operation validarCheque                     ;
+;---------------------------------------------------;
+; Aloisio: 06/04/2010       Projeto 078, tarefa 3162;
+; Funcao : Verifica se os dados do cheque já estão  ;
+;          cadastrados em outro cheque.             ;
+; Chamada: DETAIL - botão BT_CONFIRMA.SIS_BOTOES    ;
+;---------------------------------------------------;
+;
+	variables
+		numeric vCdEmpresa
+	endvariables
+
+	if ($item("IN_VALIDACHEQUE", $xlpi$) != <TRUE>)
+		return(0)
+	endif
+		
+	;carregar a lista de empresas do pool
+	if ($$gCdPoolEmpresa > 0)
+		clear/e "GER_POOLGRUPOEMP"
+		CD_POOLEMPRESA.GER_POOLGRUPOEMP/init = $$gCdPoolEmpresa
+		retrieve/e "GER_POOLGRUPOEMP"
+		if ($status >= 0)
+			setocc "GER_POOLGRUPOEMP", 1
+			while ($status >= 0)
+				
+				clear/e "GER_EMPRESA"
+				CD_GRUPOEMPRESA.GER_EMPRESA/init = CD_GRUPOEMPRESA.GER_POOLGRUPOEMP
+				retrieve/e "GER_EMPRESA"
+				if ($status >= 0)
+					setocc "GER_EMPRESA", 1
+					while ($status >= 0)
+							
+						vCdEmpresa = CD_EMPRESA.GER_EMPRESA
+	
+						if ($LstEmpresa$ = "")
+							$LstEmpresa$ = vCdEmpresa
+						else
+							$LstEmpresa$ = "%%$LstEmpresa$·;%%vCdEmpresa"
+						endif
+					
+						setocc "GER_EMPRESA", $curocc("GER_EMPRESA") + 1
+					endwhile
+				endif		
+	
+				setocc "GER_POOLGRUPOEMP", $curocc("GER_POOLGRUPOEMP") + 1
+			endwhile
+		endif		
+	endif	
+	
+	;Validar se já existe cheque cadastrado com a banda magnética informada. 
+	if (NR_BANDA.SIS_DUMMY != "")
+		clear/e "F_FCR_CHEQUE"
+		DS_BANDA.F_FCR_CHEQUE/init = NR_BANDA.SIS_DUMMY[1:30]
+		if ($LstEmpresa$ != "")
+			CD_EMPRESA.F_FCR_CHEQUE/init = $LstEmpresa$
+		endif
+		retrieve/e "F_FCR_CHEQUE"
+		if ($status >= 0)
+			$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Banda magnética do cheque já foi informada para outro cheque!%%^(Empresa=%%CD_EMPRESA.F_FCR_CHEQUE Cliente=%%CD_CLIENTE.F_FCR_CHEQUE Fatura=%%NR_FAT.F_FCR_CHEQUE Parcela=%%NR_PARCELA.F_FCR_CHEQUE)", "ADICIONAL=Operação->FGRFM001.validaCheque")
+			return(-1)
+		endif
+	endif
+
+	;Validar se os dados informados do cheque já estão lançados em outro cheque. 
+
+	clear/e "F_FCR_CHEQUE"
+	NR_BANCO.F_FCR_CHEQUE/init   = NR_BANCO.SIS_DUMMY
+	NR_AGENCIA.F_FCR_CHEQUE/init = NR_AGENCIA.SIS_DUMMY
+	DS_CONTA.F_FCR_CHEQUE/init   = NR_CONTA.SIS_DUMMY
+	NR_CHEQUE.F_FCR_CHEQUE/init  = NR_CHEQUE.SIS_DUMMY
+	retrieve/e "F_FCR_CHEQUE"
+	if ($status >= 0)
+				
+		setocc "F_FCR_CHEQUE", 1
+		while ($status >= 0)
+				
+			clear/e "F_FCR_FATURAI"
+			CD_EMPRESA.F_FCR_FATURAI/init = CD_EMPRESA.F_FCR_CHEQUE
+			CD_CLIENTE.F_FCR_FATURAI/init = CD_CLIENTE.F_FCR_CHEQUE
+			NR_FAT.F_FCR_FATURAI/init     = NR_FAT.F_FCR_CHEQUE
+			NR_PARCELA.F_FCR_FATURAI/init = NR_PARCELA.F_FCR_CHEQUE
+			retrieve/e "F_FCR_FATURAI"
+			if ($status >= 0) & (TP_SITUACAO.F_FCR_FATURAI = 1) ; Normal
+				$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Cheque já incluido no sistema!%%^(Empresa=%%CD_EMPRESA.F_FCR_FATURAI Cliente=%%CD_CLIENTE.F_FCR_FATURAI Fatura=%%NR_FAT.F_FCR_FATURAI Parcela=%%NR_PARCELA.F_FCR_FATURAI", "")
+				return(-1)
+			endif						
+					
+			setocc "F_FCR_CHEQUE", $curocc("F_FCR_CHEQUE") + 1
+		endwhile
+	endif
+
+	return(0)
+End ;operation validarCheque.

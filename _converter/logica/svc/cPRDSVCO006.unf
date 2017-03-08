@@ -1,0 +1,904 @@
+entry getParam
+	params
+		numeric piCdEmpresa : IN
+	endparams
+
+	variables
+		string viParams, voParams
+	endvariables
+
+	if (piCdEmpresa = 0)
+		$instancehandle->SetErroApl("ERRO=-1·;DESCRICAO=Empresa para busca de parâmetros não infomada!", $xCdErro$, $xCtxErro$)
+		return(-1)
+	endif
+
+	viParams = ""
+	putitem viParams, -1, "DS_LST_VLR_KARDEX"
+	activate "ADMSVCO001".GetParamEmpresa(piCdEmpresa, viParams, voParams, $xCdErro$, $xCtxErro$)
+	if ($procerror)
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+		return(-1)
+	elseif ($xCdErro$)
+		$instancehandle->SetErroApl($xCtxErro$, $xCdErro$, $xCtxErro$)
+		return(-1)
+	endif
+
+	$dsLstValorKardex$ = $item("DS_LST_VLR_KARDEX", voParams)
+	
+	return(0)
+end
+
+entry buscaValor
+	params
+		numeric piCdEmpresa : IN
+		numeric piCdProduto : IN
+		string piTpValor : IN
+		numeric piCdValor : IN
+		numeric poVlValor : OUT
+	endparams
+
+	variables
+		string viParams, viListas, voParams, vCdEmpresa
+	endvariables
+
+	if (piCdValor = "")
+		poVlValor = ""
+		return(0)
+	endif
+
+	viParams = ""
+	putitem/id viParams,"CD_EMPRESA", piCdEmpresa
+	putitem/id viParams,"CD_PRODUTO", piCdProduto
+	putitem/id viParams,"TP_VALOR", piTpValor
+	putitem/id viParams,"CD_VALOR", piCdValor
+	putitem/id viParams,"DT_VALOR", ""
+	viListas = ""	
+	activate "PRDSVCO007".buscaValorData($dsPiGlobal$, viParams, viListas, voParams, $xCdErro$, $xCtxErro$)
+	if ($procerror)       
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+		return(-1)
+	elseif ($xCtxErro$)
+	    $instancehandle->SetErroApl($xCtxErro$, $xCdErro$, $xCtxErro$) 
+	    return(-1)
+	elseif ($status < 0)
+		return(-1)
+	endif
+
+	poVlValor = $item("VL_VALOR", voParams)
+
+	return(0)
+end
+
+;-----------------------------
+public operation atualizaSaldo
+;----------------------------- 
+	params
+		string  piGlobal    :IN    
+		string  piParams    :IN
+		string  piValores   :IN
+		string  poParams    :OUT
+		string  poCdErro    :OUT
+		string  poCtxErro   :OUT
+	endparams
+	
+	variables
+		numeric vCdHistorico, vCdEmpresa, vCdGrupoEmpresa, vCdProduto, vCdSaldo, vCdOperador, vResult
+		numeric vQtMovimento, vQtSaldoAnt, vNrSeq, vVlUnitLiquido, vVlUnitario, vQtSaldo, vVlProduto
+		numeric vCdValor, vCdValorPadrao, vTpDctoOrigem, vNrDctoOrigem, vNrItem, vInBloqNeg
+		numeric vTamParam, vDSPosInicio, vPosFim
+		string viParams, voParams, viListas, vTpValor, vTpValorPadrao, vTpMvto, vCdComponente
+		string vDsValor, vDsListaValores
+		boolean vInEstorno, vInProdAcabado, vInMatPrima, vInRetroativo, vInMovimentoZerado
+		date vDtSistema, vDtMovimento, vDtSaldoAnt, vDtDctoOrigem
+	endvariables
+
+	$dsPiGlobal$ = piGlobal
+
+	vCdHistorico = $item("CD_HISTORICO", piParams)    
+	vCdEmpresa = $item("CD_EMPRESA", piParams)    
+	vCdOperador = $item("CD_USUARIO", piGlobal)
+	vCdProduto = $item("CD_PRODUTO", piParams)
+	vNrItem = $item("NR_ITEM", piParams)
+	vCdSaldo = $item("CD_SALDO", piParams)
+	vQtMovimento = $item("QT_MOVIMENTO", piParams)
+	vTpDctoOrigem = $item("TP_DCTOORIGEM", piParams)
+	vNrDctoOrigem = $item("NR_DCTOORIGEM", piParams)
+	vDtDctoOrigem = $item("DT_DCTOORIGEM", piParams)
+	vInEstorno = $item("IN_ESTORNO", piParams)
+	vTpValorPadrao = $item("TP_VALOR", piParams)
+	vCdValorPadrao = $item("CD_VALOR", piParams)
+	vVlUnitLiquido = $item("VL_UNITLIQUIDO", piParams)    
+	vDtSistema = $item("DT_SISTEMA", piGlobal)
+	vDtMovimento = $item("DT_MOVIMENTO", piParams)
+	vInRetroativo = $item("IN_RETROATIVO", piParams) ;<ANO Pjt130 Trf986 - 11/03/2010>
+	vInMovimentoZerado = $item("IN_MOVIMENTOZERADO", piParams) ;Hugo em 30/11/2010 Tarefa 177-8
+
+	;<ANO Pjt130 Trf986 - 11/03/2010>
+	if(vInRetroativo = "")
+		vInRetroativo = <False>
+	endif
+	;</ANO Pjt130 Trf986 - 11/03/2010>
+
+	if(vDtMovimento < vDtSistema & vDtMovimento > 0) & (!vInRetroativo)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Data de movimento menor que a data de sistema!", "ADICIONAL=Operação->PRDSVCO006.atualizaSaldo")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		exit(-1)
+	endif
+
+	if (vDtMovimento = "")
+		vDtMovimento = vDtSistema
+	endif
+	vCdComponente = $item("CD_COMPONENTE", piParams)
+	vInBloqNeg = $item("IN_BLOQ_SALDO_NEG", piGlobal)
+
+	if (vCdEmpresa = 0)
+		$instancehandle->SetErroApl("ERRO=-1·;DESCRICAO=Código da Empresa não informado!", poCdErro, poCtxErro)
+		return (-1)
+	endif
+	
+	if (vCdProduto = 0)
+		$instancehandle->SetErroApl("ERRO=-1·;DESCRICAO=Código do Produto não informado!", poCdErro, poCtxErro)
+		return (-1)
+	endif
+	
+	if (vCdSaldo = 0)
+		$instancehandle->SetErroApl("ERRO=-1·;DESCRICAO=Código do Saldo não informado!", poCdErro, poCtxErro)
+		return (-1)
+	endif
+	
+	clear/e "PRD_TPSALDOFSVC"
+	CD_SALDO.PRD_TPSALDOFSVC/init = vCdSaldo
+	retrieve/e "PRD_TPSALDOFSVC"
+	if ($status >= 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Saldo %%vCdSaldo consolidado. Não permitido movimentar!", "ADICIONAL=Operação->PRDSVCO006.atualizaSaldo")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)	
+	endif
+	
+	if (vQtMovimento = 0)
+		$instancehandle->SetErroApl("ERRO=-1·;DESCRICAO=Quantidade a ser movimentada não informada!", poCdErro, poCtxErro)
+		return (-1)
+	endif
+
+	;thamati 25/02/2010 [Proj. 0156 - Tar. 0203]
+	vResult = $abs(vQtMovimento)
+	if (vResult > 99999999.999)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Quantidade não pode ser superior a 99.999.999,999!", "ADICIONAL=Operação->PRDSVCO006.atualizaSaldo")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)	
+	endif
+	;
+	
+	if (vCdHistorico = 0)
+		$instancehandle->SetErroApl("ERRO=-1·;DESCRICAO=Código do Histórico não informado!", poCdErro, poCtxErro)    
+		return (-1)
+	endif
+
+	call getParam(vCdEmpresa)
+	if ($procerror)
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif                    
+	if ($status < 0)
+		$instancehandle->SetErroApl("ERRO=-1·;DESCRICAO=Erro ao carregar parâmetros!", $xCdErro$, $xCtxErro$)
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	
+	if (vDtMovimento > vDtSistema)
+		$dtMovimento$ = vDtMovimento
+		$dtSistema$ = vDtSistema
+		$instancehandle->SetErroApl("ERRO=-1·;DESCRICAO=Data de movimento %%$dtMovimento$ maior que a data do sistema %%$dtSistema$%%%!", poCdErro, poCtxErro)    
+		return (-1)
+	endif
+
+;	if (vDtMovimento != $dtSistemaParam$)
+;		$dtMovimento$ = vDtMovimento
+;		$instancehandle->SetErroApl("ERRO=-1·;DESCRICAO=Data de movimento %%$dtMovimento$ diferente da data do sistema %%$dtSistemaParam$%%%!", poCdErro, poCtxErro)    
+;		return (-1)
+;	endif
+	
+	if (vQtMovimento < 0)
+		vQtMovimento = vQtMovimento * -1
+	endif
+	
+	if($item("CD_GRUPOEMPRESA", piParams) = "")
+		clear/e "GER_EMPRESASVC"
+		CD_EMPRESA.GER_EMPRESASVC = vCdEmpresa
+		retrieve/e "GER_EMPRESASVC"
+		if ($status >= 0)
+			vCdGrupoEmpresa = CD_GRUPOEMPRESA.GER_EMPRESASVC
+		else
+			vCdGrupoEmpresa = $item("CD_GRUPOEMPRESA", piGlobal)
+		endif
+	else
+		vCdGrupoEmpresa = $item("CD_GRUPOEMPRESA", piParams)
+	endif
+	
+	clear/e "SIS_PRDHISTSVC"
+	CD_HISTORICO.SIS_PRDHISTSVC = vCdHistorico
+	retrieve/o "SIS_PRDHISTSVC"
+	if ($status = -7)
+		retrieve/x "SIS_PRDHISTSVC"
+		vTpMvto = TP_OPERACAO.SIS_PRDHISTSVC
+	else
+		$instancehandle->SetErroApl("ERRO=-1·;DESCRICAO=Histórico %%vCdHistorico não cadastrado!", poCdErro, poCtxErro)
+		return (-1)
+	endif
+	
+	if (vTpMvto = "")
+		$instancehandle->SetErroApl("ERRO=-1·;DESCRICAO=Tipo de movimentação(Baixa/Entrada) não infomado!", poCdErro, poCtxErro)
+		return (-1)
+	endif
+	
+	if (vTpMvto = "N")
+		return (0)
+	endif
+	
+;	;cria uma transaction p/ que o commit do GERSVCO009 se extenda somente as tabelas
+;	;envolvidas nele
+;	newinstance "GERSVCO009", "GERSVCO009", "TRANSACTION=TRUE"
+;	;servico para buscar o nr_sequencia
+;	vNrSeq = 0 ; esta sequencia tambserutilizada pelo kardex/valor
+;	activate "GERSVCO009".GetSeqKardex(vCdEmpresa, vDtMovimento, vCdProduto, piGlobal, vNrSeq, $xCdErro$, $xCtxErro$)
+;	if ($procerror)
+;		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+;		poCdErro = $xCdErro$
+;		poCtxErro = $xCtxErro$
+;		return (-1)  
+;	elseif ($xCdErro$)
+;	elseif ($status < 0)
+;		return (-1)
+;	endif 
+
+	viParams = ""
+	voParams = ""
+	putitem/id viParams, "NM_ENTIDADE", "PRD_KARDEX"
+	activate "GERSVCO031".getNumSeq(piGlobal, viParams, voParams, $xCdErro$, $xCtxerro$)
+	if ($procerror)
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)  
+	elseif ($status < 0)
+		$instancehandle->SetErroApl("ERRO=-1·;DESCRICAO=Não foi possível obter sequência de movimentação!", poCdErro, poCtxErro)
+		return (-1)
+	endif    
+
+	vNrSeq = $item("NR_SEQUENCIA", voParams)   
+	
+	if (vInEstorno = <TRUE>)
+		if (vTpMvto = "E")
+			vQtMovimento = vQtMovimento * -1
+		endif
+	else
+		if (vTpMvto = "S")
+			vQtMovimento = vQtMovimento * -1
+		endif
+	endif	
+	
+	;MARTINEZ - PRJ/TAR 177/040 - 11/03/2011
+	;if (vInBloqNeg > 0)
+	if (vInBloqNeg > 0) & (vInMovimentoZerado != <TRUE>) ;Nao atualizar saldo negativo
+	;
+		if (vTpDctoOrigem = 3) ;Balanco
+		elseif (vInEstorno = <TRUE> & vTpMvto = "E") | (vTpDctoOrigem != 1 & vTpDctoOrigem != 2 & vTpMvto = "S")
+			if(vInBloqNeg = 2 | vInBloqNeg = 3)
+				viParams = ""
+				putitem/id viParams, "CD_PRODUTO", vCdProduto
+				activate "PRDSVCO008".buscaDadosFilial(piGlobal, viParams, voParams, $xCdErro$, $xCtxErro$)
+				if ($procerror)       
+					$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+					poCdErro = $xCdErro$
+					poCtxErro = $xCtxErro$
+					return(-1)
+				elseif ($status < 0)
+					$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")
+					poCdErro = $xCdErro$
+					poCtxErro = $xCtxErro$
+					return(-1)
+				endif
+				vInProdAcabado = $item("IN_PRODACABADO", voParams)
+				vInMatPrima = $item("IN_MATPRIMA", voParams)
+			endif
+
+			if((vInBloqNeg = 1) | (vInBloqNeg = 2 & vInProdAcabado = <TRUE>) | (vInBloqNeg = 3 & vInMatPrima = <TRUE>))
+				viParams = ""
+				viListas = ""
+				putitem/id viParams, "CD_PRODUTO", vCdProduto
+				putitem/id viParams, "CD_SALDO", vCdSaldo
+				putitem/id viParams, "CD_GRUPOEMPRESA", vCdGrupoEmpresa
+				putitem/id viParams, "IN_VALIDALOCAL", <FALSE>
+				activate "PRDSVCO006".buscaSaldoData(piGlobal, viParams, viListas, voParams, $xCdErro$, $xCtxErro$)
+				if ($procerror)       
+					$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+					poCdErro = $xCdErro$
+					poCtxErro = $xCtxErro$
+					return(-1)
+				elseif ($xCdErro$)
+					$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=%%$item("DESCRICAO", $xCtxErro$)", "ADICIONAL=Operação->PRDSVCO006.atualizaSaldo")
+					poCdErro = $xCdErro$
+					poCtxErro = $xCtxErro$
+					return(-1)
+				endif
+			
+				vQtSaldo = $item("QT_SALDO", voParams)
+				vQtSaldo = vQtSaldo + vQtMovimento
+				
+				if (vQtSaldo < 0)
+					;---Elia Proj. 102/535 29/04/09
+					;vQtSaldo = vQtSaldo + vQtMovimento
+					vQtSaldo = $item("QT_SALDO", voParams)
+					vQtMovimento = vQtMovimento * -1
+					;
+					$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Quantidade de saída: %%vQtMovimento do produto: %%vCdProduto não pode ser maior que a quantidade do estoque: %%vQtSaldo%%%!", "ADICIONAL=Operação->PRDSVCO006.atualizaSaldo")
+					poCdErro = $xCdErro$
+					poCtxErro = $xCtxErro$
+					return(-1)
+				endif
+			endif
+		endif
+	endif
+
+	clear/e "PRD_KARDEXSVC" 
+	CD_EMPRESA.PRD_KARDEXSVC = vCdEmpresa
+	CD_PRODUTO.PRD_KARDEXSVC = vCdProduto
+	NR_ITEM.PRD_KARDEXSVC = vNrItem
+	CD_SALDO.PRD_KARDEXSVC = vCdSaldo
+	DT_MOVIMENTO.PRD_KARDEXSVC = vDtMovimento
+	NR_SEQUENCIA.PRD_KARDEXSVC = vNrSeq
+	CD_GRUPOEMPRESA.PRD_KARDEXSVC = vCdGrupoEmpresa
+	CD_HISTORICO.PRD_KARDEXSVC = vCdHistorico
+	IN_ESTORNO.PRD_KARDEXSVC = vInEstorno
+	TP_DCTOORIGEM.PRD_KARDEXSVC = vTpDctoOrigem
+	NR_DCTOORIGEM.PRD_KARDEXSVC = vNrDctoOrigem
+	DT_DCTOORIGEM.PRD_KARDEXSVC = vDtDctoOrigem
+	
+	;Por Hugo em 30/11/2010 Tarefa 177-8
+	if (vInMovimentoZerado = <TRUE>)
+		QT_MOVIMENTADA.PRD_KARDEXSVC = 0
+	else
+	;
+		QT_MOVIMENTADA.PRD_KARDEXSVC = vQtMovimento
+	endif
+	
+	CD_COMPONENTE.PRD_KARDEXSVC = vCdComponente
+	CD_OPERADOR.PRD_KARDEXSVC = vCdOperador
+	DT_CADASTRO.PRD_KARDEXSVC = $datim
+	if (vTpValorPadrao != "" & vCdValorPadrao != "")
+		TP_VALOR.PRD_KARDEXSVC = vTpValorPadrao
+		CD_VALOR.PRD_KARDEXSVC = vCdValorPadrao
+		if (vVlUnitLiquido > 0)
+			VL_UNITARIO.PRD_KARDEXSVC = vVlUnitLiquido
+		else
+			call buscaValor(vCdEmpresa, vCdProduto, vTpValorPadrao, vCdValorPadrao, vVlUnitario)
+			if ($procerror)
+				$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+			endif            
+			VL_UNITARIO.PRD_KARDEXSVC = vVlUnitario
+		endif
+		creocc "PRD_KARDEXVALSVC", -1
+		TP_VALOR.PRD_KARDEXVALSVC = vTpValorPadrao
+		CD_VALOR.PRD_KARDEXVALSVC = vCdValorPadrao
+		CD_GRUPOEMPRESA.PRD_KARDEXVALSVC = vCdGrupoEmpresa    
+		CD_OPERADOR.PRD_KARDEXVALSVC = vCdOperador
+		DT_CADASTRO.PRD_KARDEXVALSVC = $datim
+		VL_VALOR.PRD_KARDEXVALSVC = VL_UNITARIO.PRD_KARDEXSVC
+	endif
+	
+	vDsListaValores = piValores
+	if (vDsListaValores != "")
+		repeat
+			getitem vDsValor, vDsListaValores, 1
+			vTpValor = $item("TP_VALOR", vDsValor)
+			vCdValor = $item("CD_VALOR", vDsValor)
+			vVlProduto = $item("VL_PRODUTO", vDsValor)
+			if (vTpValor != "" & vCdValor != "")
+				if (vTpValor = vTpValorPadrao & vCdValor = vCdValorPadrao)
+				else
+					creocc "PRD_KARDEXVALSVC", -1
+					TP_VALOR.PRD_KARDEXVALSVC = vTpValor
+					CD_VALOR.PRD_KARDEXVALSVC = vCdValor
+					retrieve/o "PRD_KARDEXVALSVC"
+					if ($status = -7)
+						retrieve/x "PRD_KARDEXVALSVC"
+					endif
+					
+					CD_GRUPOEMPRESA.PRD_KARDEXVALSVC = vCdGrupoEmpresa    
+					CD_OPERADOR.PRD_KARDEXVALSVC = vCdOperador
+					DT_CADASTRO.PRD_KARDEXVALSVC = $datim	
+					if (vVlProduto > 0)
+						vVlUnitario = vVlProduto
+					else
+						call buscaValor(vCdEmpresa, vCdProduto, vTpValor, vCdValor, vVlUnitario)
+						if ($procerror)
+							$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+						endif						
+					endif
+					VL_VALOR.PRD_KARDEXVALSVC = vVlUnitario
+				endif
+			endif
+			delitem vDsListaValores, 1
+		until (vDsListaValores = "")
+	endif
+	
+	$collhandle("PRD_KARDEXSVC")->Salvar()
+	if ($procerror)
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return (-1)
+	elseif ($status < 0)
+		$instancehandle->SetErroApl($xCtxErro$, $xCdErro$, $xCtxErro$)
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return (-1)
+	endif
+	
+	;--->MNT - Prj 130/0769 - 19/10/09
+	if ($item("TP_VALIDACAO_SALDO_LOTE", piGlobal) = 1)		
+		if ($item("CD_OPER_ENT_INSPECAO", piGlobal ) != "")			
+			clear/e "GER_OPERSALDOSVC"
+			CD_OPERACAO.GER_OPERSALDOSVC = $item("CD_OPER_ENT_INSPECAO", piGlobal)
+			IN_PADRAO.GER_OPERSALDOSVC = <TRUE>
+			retrieve/e "GER_OPERSALDOSVC"	
+			if ($status >= 0)
+				if (vCdSaldo != CD_SALDO.GER_OPERSALDOSVC)
+					clear/e "V_PRD_LOTESALSVC"
+					CD_EMPRESA.V_PRD_LOTESALSVC = vCdEmpresa
+					CD_PRODUTO.V_PRD_LOTESALSVC = vCdProduto
+					CD_SALDO.V_PRD_LOTESALSVC = vCdSaldo
+					retrieve/e "V_PRD_LOTESALSVC"
+					if ($status >= 0)
+						if (QT_LOTE.V_PRD_LOTESALSVC != QT_SALDO.V_PRD_LOTESALSVC)
+							$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=O saldo %%CD_SALDO.V_PRD_LOTESALSVC do produto %%CD_PRODUTO.V_PRD_LOTESALSVC na empresa %%CD_EMPRESA.V_PRD_LOTESALSVC possui quantidade diferente entre estoque %%QT_SALDO.V_PRD_LOTESALSVC e quantidade em lote %%QT_LOTE.V_PRD_LOTESALSVC !", "ADICIONAL=Operação->PRDSVCO006.atualizaSaldo")
+							poCdErro = $xCdErro$
+							poCtxErro = $xCtxErro$	
+							return(-1)
+						endif
+					endif
+				endif
+			endif			
+		endif	
+	endif
+	;<---
+
+	return(0)
+end
+
+;------------------------------
+public operation buscaSaldoData
+;------------------------------ 
+	params
+		string  piGlobal    :IN    
+		string  piParams    :IN
+		string  piListas    :IN
+		string  poParams    :OUT
+		numeric poCdErro    :OUT
+		string  poCtxErro   :OUT
+	endparams
+	
+	variables
+		numeric vCdGrupoEmpresa, vCdProduto, vCdSaldo, vQtSaldo, vCdSaldoF, vCdSeqGrupo
+		string vCdEmpresa, viParams, voParams, vDsLstProduto
+		date vDtSaldo, vDtSaldoEstoque, vDtUltimoSaldo
+		boolean vInValidaLocal, vInVerificaProdutoPadrao, vInSaldoConsolidado
+		string vCdSaldoConsolidado
+	endvariables
+	
+	$dsPiGlobal$ = piGlobal
+	
+	vQtSaldo = 0
+	vCdGrupoEmpresa = $item("CD_GRUPOEMPRESA", piParams)
+	vCdEmpresa = piListas
+	vCdProduto = $item("CD_PRODUTO", piParams)
+	vCdSeqGrupo = $item("CD_SEQGRUPO", piParams)
+	vCdSaldo = $item("CD_SALDO", piParams)
+	vDtSaldo = $item("DT_SALDO", piParams)
+	vInValidaLocal = $item("IN_VALIDALOCAL", piParams)
+	;Esta parâmetro é utilizado pela FISSVCO004 para no momento do cálculo do valor médio leve em conta
+	;o saldo de todo o grupo quando possui produto padrão
+	vInVerificaProdutoPadrao = $item("IN_VERIFICAPRODUTOPADRAO", piParams)
+	if (vInValidaLocal = "")
+		vInValidaLocal = <TRUE>
+	endif
+
+	;>-- MAC - PRJ 101 TAR 511 - 19/01/2010
+	vInSaldoConsolidado = $item("IN_SALDOCONSOLIDADO", piParams)
+	if (vInSaldoConsolidado = "")
+		vInSaldoConsolidado = <FALSE>
+	endif
+	
+	if (vInSaldoConsolidado = <TRUE>)
+		vCdSaldoConsolidado = ""
+		clear/e "PRD_TIPOSALDOSVC"
+		retrieve/e "PRD_TIPOSALDOSVC"
+		if ($status >= 0)
+			setocc "PRD_TIPOSALDOSVC", 1
+			while ($status >= 0)
+				clear/e "PRD_TPSALDOFSVC"
+				CD_SALDO.PRD_TPSALDOFSVC/init = CD_SALDO.PRD_TIPOSALDOSVC
+				retrieve/e "PRD_TPSALDOFSVC"
+				if ($status >= 0)
+				else
+					putitem vCdSaldoConsolidado, -1, CD_SALDO.PRD_TIPOSALDOSVC				
+				endif
+				setocc ("PRD_TIPOSALDOSVC"), $curocc ("PRD_TIPOSALDOSVC") + 1
+			endwhile 
+			vCdSaldo = vCdSaldoConsolidado
+		endif
+	endif
+	;--<
+
+	vDtUltimoSaldo = ""
+	
+	if (vCdEmpresa = "") & (vCdGrupoEmpresa > 0)
+		clear/e "GER_EMPRESASVC"
+		CD_GRUPOEMPRESA.GER_EMPRESASVC/init = vCdGrupoEmpresa
+		retrieve/e "GER_EMPRESASVC"
+		if ($status >= 0)
+			setocc "GER_EMPRESASVC", -1
+			setocc "GER_EMPRESASVC", 1
+			putlistitems vCdEmpresa, CD_EMPRESA.GER_EMPRESASVC
+		endif
+	endif
+
+	if (vInValidaLocal = <TRUE>)
+		viParams = ""
+		putitem/id viParams, "CD_EMPRESA", vCdEmpresa
+		activate "SICSVCO002".validaLocal(piGlobal, viParams, voParams, $xCdErro$, $xCtxErro$)
+		if ($procerror)
+			$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+			poCdErro = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return (-1)
+		elseif ($status < 0)
+			$instancehandle->SetErroApl($xCtxErro$, $xCdErro$, $xCtxErro$)
+			poCdErro = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return (-1)
+		endif
+		vCdEmpresa = $item("CD_EMPRESA", voParams)
+	endif
+
+	if (vCdEmpresa = "")
+		vCdEmpresa = $item("CD_EMPRESA", piGlobal)
+	endif
+
+	if (vCdProduto > 0) & (vCdSeqGrupo > 0)
+		$instancehandle->SetErroApl("ERRO=-1·;DESCRICAO=Não é possível buscar saldo de produto e grupo simultaneamente!", poCdErro, poCtxErro)
+		return (-1)
+	endif
+
+	vDsLstProduto = ""
+
+	if (vCdSeqGrupo > 0)
+		clear/e "PRD_PRDGRADESVC"
+		CD_SEQGRUPO.PRD_PRDGRADESVC/init = vCdSeqGrupo
+		retrieve/e "PRD_PRDGRADESVC"
+		if ($status >= 0)
+			setocc "PRD_PRDGRADESVC", -1
+			setocc "PRD_PRDGRADESVC", 1
+			putlistitems vDsLstProduto, CD_PRODUTO.PRD_PRDGRADESVC
+		endif		
+	else
+		if (vInVerificaProdutoPadrao = <TRUE>)
+			clear/e "PRD_PRDGRADESVC"
+			CD_PRODUTO.PRD_PRDGRADESVC/init = vCdProduto
+			retrieve/e "PRD_PRDGRADESVC"
+			if ($status >= 0)
+				clear/e "PRD_GRUPOSVC"
+				CD_SEQ.PRD_GRUPOSVC/init = CD_SEQGRUPO.PRD_PRDGRADESVC
+				retrieve/e "PRD_GRUPOSVC"
+				if ($status >= 0)
+					if (CD_PRODUTO.PRD_GRUPOSVC > 0)
+						clear/e "PRD_PRDGRADESVC"
+						CD_SEQGRUPO.PRD_PRDGRADESVC/init = CD_SEQ.PRD_GRUPOSVC
+						retrieve/e "PRD_PRDGRADESVC"
+						if ($status >= 0)
+							setocc "PRD_PRDGRADESVC", -1
+							setocc "PRD_PRDGRADESVC", 1
+							putlistitems vDsLstProduto, CD_PRODUTO.PRD_PRDGRADESVC
+						endif						
+					endif
+				endif				
+			endif
+		endif
+
+		if (vDsLstProduto = "")
+			putitem vDsLstProduto, -1, vCdProduto
+		endif
+	endif
+
+	if (vDsLstProduto = "")
+		poParams = ""
+		return(0)
+	endif
+
+; > Anderson Sales - 14/12/2007
+; > Projeto/Tarefa - 0101/0174
+	repeat
+		getitem vCdProduto, vDsLstProduto, 1
+
+		clear/e "PRD_TPSALDOFSVC"
+		CD_SALDO.PRD_TPSALDOFSVC/init = vCdSaldo
+		retrieve/e "PRD_TPSALDOFSVC"
+		if ($status >= 0)
+			setocc "PRD_TPSALDOFSVC", 1
+			while ($status >= 0)
+	 			clear/e "GER_EMPRESASVC"
+				CD_EMPRESA.GER_EMPRESASVC = vCdEmpresa
+				retrieve/e "GER_EMPRESASVC"
+				if ($status >= 0)
+					setocc "GER_EMPRESASVC", 1
+					while ($status >= 0)
+						if (vDtSaldo = "")
+							clear/e "V_PRD_SALDOSVC"
+							CD_EMPRESA.V_PRD_SALDOSVC/init = CD_EMPRESA.GER_EMPRESASVC
+							CD_PRODUTO.V_PRD_SALDOSVC/init = vCdProduto
+							CD_SALDO.V_PRD_SALDOSVC/init = CD_SALDOF.PRD_TPSALDOFSVC
+							retrieve/e "V_PRD_SALDOSVC"
+							if ($status >= 0)
+								if (TP_OPERACAO.PRD_TPSALDOFSVC = 0) ; 0 = Somar
+									vQtSaldo = vQtSaldo + QT_SALDO.V_PRD_SALDOSVC
+								else
+									vQtSaldo = vQtSaldo - QT_SALDO.V_PRD_SALDOSVC
+								endif
+	
+								if (DT_SALDO.V_PRD_SALDOSVC > vDtUltimoSaldo)
+									vDtUltimoSaldo = DT_SALDO.V_PRD_SALDOSVC
+								endif
+							endif	
+						else
+							vDtSaldoEstoque = ""			
+							selectdb max(DT_SALDO) %\
+							FROM "PRD_PRDSALDOSVC" %\
+							U_WHERE (CD_EMPRESA.PRD_PRDSALDOSVC = CD_EMPRESA.GER_EMPRESASVC & %\
+							CD_PRODUTO.PRD_PRDSALDOSVC = vCdProduto & %\
+							CD_SALDO.PRD_PRDSALDOSVC = CD_SALDOF.PRD_TPSALDOFSVC & %\
+							DT_SALDO.PRD_PRDSALDOSVC <= vDtSaldo) %\
+							to vDtSaldoEstoque
+							if ($status < 0)
+								$instancehandle->SetErroOpr($procerrorcontext, $xCdErro$, $xCtxErro$)
+								poCdErro = $xCdErro$
+								poCtxErro = $xCtxErro$
+								return (-1)
+							else
+								if (vDtSaldoEstoque != "")    
+									clear/e "PRD_PRDSALDOSVC"
+									CD_EMPRESA.PRD_PRDSALDOSVC = CD_EMPRESA.GER_EMPRESASVC
+									CD_PRODUTO.PRD_PRDSALDOSVC = vCdProduto
+									CD_SALDO.PRD_PRDSALDOSVC = CD_SALDOF.PRD_TPSALDOFSVC
+									DT_SALDO.PRD_PRDSALDOSVC = vDtSaldoEstoque
+									retrieve/e "PRD_PRDSALDOSVC"
+									if ($status >= 0)
+										if (TP_OPERACAO.PRD_TPSALDOFSVC = 0) ; 0 = Somar
+												vQtSaldo = vQtSaldo + QT_SALDO.PRD_PRDSALDOSVC
+										else
+												vQtSaldo = vQtSaldo - QT_SALDO.PRD_PRDSALDOSVC
+										endif
+										if (vDtSaldoEstoque > vDtUltimoSaldo)
+												vDtUltimoSaldo = vDtSaldoEstoque
+										endif
+									endif            
+								endif
+							endif 
+						endif    			
+						setocc "GER_EMPRESASVC", $curocc("GER_EMPRESASVC") + 1
+					endwhile
+				endif	
+				setocc "PRD_TPSALDOFSVC", $curocc("PRD_TPSALDOFSVC") + 1
+			endwhile	    
+		else ; < Projeto/Tarefa - 0101/0174
+		 	clear/e "GER_EMPRESASVC"
+			CD_EMPRESA.GER_EMPRESASVC = vCdEmpresa
+			retrieve/e "GER_EMPRESASVC"
+			if ($status >= 0)
+				setocc "GER_EMPRESASVC", 1
+				while ($status >= 0)
+					if (vDtSaldo = "")
+						clear/e "V_PRD_SALDOSVC"
+						CD_EMPRESA.V_PRD_SALDOSVC/init = CD_EMPRESA.GER_EMPRESASVC
+						CD_PRODUTO.V_PRD_SALDOSVC/init = vCdProduto
+						CD_SALDO.V_PRD_SALDOSVC/init = vCdSaldo
+						retrieve/e "V_PRD_SALDOSVC"
+						if ($status >= 0)
+							;>-- MAC - PRJ 101 TAR 511 - 19/01/2010 ---
+							if (vInSaldoConsolidado = <TRUE>)
+								setocc "V_PRD_SALDOSVC", 1
+								while ($status >= 0)
+									vQtSaldo = vQtSaldo + QT_SALDO.V_PRD_SALDOSVC
+									if (DT_SALDO.V_PRD_SALDOSVC > vDtUltimoSaldo)
+										vDtUltimoSaldo = DT_SALDO.V_PRD_SALDOSVC
+									endif
+									setocc ("V_PRD_SALDOSVC"), $curocc ("V_PRD_SALDOSVC") + 1
+								endwhile
+							else
+							;--<
+								vQtSaldo = vQtSaldo + QT_SALDO.V_PRD_SALDOSVC
+								if (DT_SALDO.V_PRD_SALDOSVC > vDtUltimoSaldo)
+									vDtUltimoSaldo = DT_SALDO.V_PRD_SALDOSVC
+								endif
+							endif
+						endif
+					else	
+						vDtSaldoEstoque = ""			
+						selectdb max(DT_SALDO) %\
+						FROM "PRD_PRDSALDOSVC" %\
+						U_WHERE (CD_EMPRESA.PRD_PRDSALDOSVC = CD_EMPRESA.GER_EMPRESASVC & %\
+						CD_PRODUTO.PRD_PRDSALDOSVC = vCdProduto & %\
+						CD_SALDO.PRD_PRDSALDOSVC = vCdSaldo & %\
+						DT_SALDO.PRD_PRDSALDOSVC <= vDtSaldo) %\
+						to vDtSaldoEstoque
+						if ($status < 0)
+							$instancehandle->SetErroOpr($procerrorcontext, $xCdErro$, $xCtxErro$)
+							poCdErro = $xCdErro$
+							poCtxErro = $xCtxErro$
+							return (-1)
+						else
+							if (vDtSaldoEstoque != "")    
+								clear/e "PRD_PRDSALDOSVC"
+								CD_EMPRESA.PRD_PRDSALDOSVC = CD_EMPRESA.GER_EMPRESASVC
+								CD_PRODUTO.PRD_PRDSALDOSVC = vCdProduto
+								CD_SALDO.PRD_PRDSALDOSVC = vCdSaldo
+								DT_SALDO.PRD_PRDSALDOSVC = vDtSaldoEstoque
+								retrieve/e "PRD_PRDSALDOSVC"
+								if ($status >= 0)
+									;>-- MAC - PRJ 101 TAR 511 - 19/01/2010 ---
+									if (vInSaldoConsolidado = <TRUE>)
+										setocc "PRD_PRDSALDOSVC", 1
+										while ($status >= 0)
+					     				    vQtSaldo = vQtSaldo + QT_SALDO.PRD_PRDSALDOSVC
+										    if (vDtSaldoEstoque > vDtUltimoSaldo)
+										 	vDtUltimoSaldo = vDtSaldoEstoque
+										    endif
+										    setocc ("PRD_PRDSALDOSVC"), $curocc ("PRD_PRDSALDOSVC") + 1
+										endwhile
+									else
+									;--<
+										vQtSaldo = vQtSaldo + QT_SALDO.PRD_PRDSALDOSVC
+										if (vDtSaldoEstoque > vDtUltimoSaldo)
+											vDtUltimoSaldo = vDtSaldoEstoque
+										endif
+									endif
+								endif            
+							endif
+						endif 
+					endif				
+					setocc "GER_EMPRESASVC", $curocc("GER_EMPRESASVC") + 1
+				endwhile
+			endif
+		endif
+		delitem vDsLstProduto, 1
+	until (vDsLstProduto = "")
+
+	poParams = ""
+	putitem/id poParams, "QT_SALDO", vQtSaldo
+	putitem/id poParams, "DT_SALDO", vDtUltimoSaldo    
+	
+	return(0)
+end
+
+;--------------------------------------
+public operation buscaSaldoAnteriorData
+;-------------------------------------- 
+	params
+		string  piGlobal    :IN    
+		string  piParams    :IN
+		string  piListas    :IN
+		string  poParams    :OUT
+		numeric poCdErro    :OUT
+		string  poCtxErro   :OUT
+	endparams
+	
+	variables
+		numeric vCdGrupoEmpresa, vCdProduto, vCdSaldo, vQtSaldo
+		string vCdEmpresa, viParams, voParams
+		date vDtSaldo, vDtSaldoEstoque, vDtUltimoSaldo
+		boolean vInValidaLocal
+	endvariables
+	
+	$dsPiGlobal$ = piGlobal
+	
+	vQtSaldo = 0
+	vCdGrupoEmpresa = $item("CD_GRUPOEMPRESA", piParams)
+	vCdEmpresa = piListas
+	vCdProduto = $item("CD_PRODUTO", piParams)
+	vCdSaldo = $item("CD_SALDO", piParams)
+	vDtSaldo = $item("DT_SALDO", piParams)
+	vInValidaLocal = $item("IN_VALIDALOCAL", piParams)
+	if (vInValidaLocal = "")
+		vInValidaLocal = <TRUE>
+	endif
+	if (vDtSaldo = "")
+		vDtSaldo = $item("DT_SISTEMA", piGlobal)
+	endif
+
+	vDtUltimoSaldo = ""
+	
+	if (vCdEmpresa = "") & (vCdGrupoEmpresa > 0)
+		clear/e "GER_EMPRESASVC"
+		CD_GRUPOEMPRESA.GER_EMPRESASVC/init = vCdGrupoEmpresa
+		retrieve/e "GER_EMPRESASVC"
+		if ($status >= 0)
+			setocc "GER_EMPRESASVC", -1
+			setocc "GER_EMPRESASVC", 1
+			putlistitems vCdEmpresa, CD_EMPRESA.GER_EMPRESASVC
+		endif
+	endif
+
+	if (vInValidaLocal = <TRUE>)
+		viParams = ""
+		putitem/id viParams, "CD_EMPRESA", vCdEmpresa
+		activate "SICSVCO002".validaLocal(piGlobal, viParams, voParams, $xCdErro$, $xCtxErro$)
+		if ($procerror)
+			$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+			poCdErro = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return (-1)
+		elseif ($status < 0)
+			$instancehandle->SetErroApl($xCtxErro$, $xCdErro$, $xCtxErro$)
+			poCdErro = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return (-1)
+		endif
+		vCdEmpresa = $item("CD_EMPRESA", voParams)
+	endif
+
+	if (vCdEmpresa = "")
+		vCdEmpresa = $item("CD_EMPRESA", piGlobal)
+	endif
+	
+	clear/e "GER_EMPRESASVC"
+	CD_EMPRESA.GER_EMPRESASVC = vCdEmpresa
+	retrieve/e "GER_EMPRESASVC"
+	if ($status >= 0)
+		setocc "GER_EMPRESASVC", 1
+		while ($status >= 0)
+			vDtSaldoEstoque = ""			
+			selectdb max(DT_SALDO) %\
+			FROM "PRD_PRDSALDOSVC" %\
+			U_WHERE (CD_EMPRESA.PRD_PRDSALDOSVC = CD_EMPRESA.GER_EMPRESASVC & %\
+			CD_PRODUTO.PRD_PRDSALDOSVC = vCdProduto & %\
+			CD_SALDO.PRD_PRDSALDOSVC = vCdSaldo & %\
+			DT_SALDO.PRD_PRDSALDOSVC < vDtSaldo) %\
+			to vDtSaldoEstoque
+			if ($status < 0)
+				$instancehandle->SetErroOpr($procerrorcontext, $xCdErro$, $xCtxErro$)
+				poCdErro = $xCdErro$
+				poCtxErro = $xCtxErro$
+				return (-1)
+			else
+				if (vDtSaldoEstoque != "")    
+					clear/e "PRD_PRDSALDOSVC"
+					CD_EMPRESA.PRD_PRDSALDOSVC = CD_EMPRESA.GER_EMPRESASVC
+					CD_PRODUTO.PRD_PRDSALDOSVC = vCdProduto
+					CD_SALDO.PRD_PRDSALDOSVC = vCdSaldo
+					DT_SALDO.PRD_PRDSALDOSVC = vDtSaldoEstoque
+					retrieve/e "PRD_PRDSALDOSVC"
+					if ($status >= 0)
+						vQtSaldo = vQtSaldo + QT_SALDO.PRD_PRDSALDOSVC
+						if (vDtSaldoEstoque > vDtUltimoSaldo)
+							vDtUltimoSaldo = vDtSaldoEstoque
+						endif
+					endif            
+				endif
+			endif 
+		
+			setocc "GER_EMPRESASVC", $curocc("GER_EMPRESASVC") + 1
+		endwhile
+	endif
+	
+	poParams = ""
+	putitem/id poParams, "QT_SALDO", vQtSaldo
+	putitem/id poParams, "DT_SALDO", vDtUltimoSaldo
+
+	return(0)
+end
+

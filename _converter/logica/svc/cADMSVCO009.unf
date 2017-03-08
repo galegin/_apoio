@@ -1,0 +1,635 @@
+;----------------------------
+Public Operation VerificaRestricao
+;Marcos R. Kuzminski
+;Data.....: 02/06/2005
+;Descrição: Verifica e valida a restrição por usuário
+;Chamada..: 
+;----------------------------
+
+	Params
+		string  viParams   :IN
+		string  voParams   :OUT
+		numeric poCdErro   :OUT
+		string  poCtxErro  :OUT
+	EndParams
+
+	Variables
+		string  vCdComponente, viLogParams
+		string  vDsCampo, vDsAux
+		string  vCdEmpresa
+		string  vCdUsuario
+		numeric VlValor, vTpRestricaoLog, vInicioOriginal, vFimOriginal
+		string  vCdUsuarioValidado
+		string  DsPermite
+		boolean vInErro, vInValidaSenha, vInValidaCadastro, vInRetornoErro
+	EndVariables
+
+	viLogParams       = viParams;armazena para gravar o log
+	vCdComponente     = $item("CD_COMPONENTE"     , viParams)
+	vDsCampo          = $item("DS_CAMPO"          , viParams)
+	vCdEmpresa        = $item("CD_EMPRESA"        , viParams)
+	vCdUsuario        = $item("CD_USUARIO"        , viParams)
+	VlValor           = $item("VL_VALOR"          , viParams)
+	vInValidaCadastro = $item("IN_VALIDA_CADASTRO", viParams)
+	vInRetornoErro    = $item("IN_RETORNA_ERRO"   , viParams) ; FCPFP004
+
+	;MTF(08/09/2008) - Projeto 078, tarefa 1827.
+	vDsAux          = $item("DS_AUX", viParams)
+	vDsAux          = $replace(vDsAux, 1, "·;", ";", -1)
+	;
+	
+	; MFGALEGO 12/07/2006 - INCLUSAO PARA NAO VALIDAR SENHA PELO ADMFM020 PARA OS COMPONENTES FCRFM001 e FCPFM004 SOMENTE
+	; RETORNAR APENAS O STATUS DE PERMISSAO SIM/NAO
+	vInValidaSenha  = $item("IN_VALIDASENHA" , viParams) 
+	if (vInValidaSenha = "")
+		vInValidaSenha = <TRUE>
+	endif
+	;
+	if (vInValidaCadastro = "")
+		vInValidaCadastro = <TRUE>
+	endif
+
+	vTpRestricaoLog = 1;sem restricao
+
+	;---------------------------------------------------
+	;validação de parâmetros obrigatórios.
+	if (vCdComponente = "")
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Validação de restrição, Componente não informado.", "")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		exit(-1)
+	endif
+
+	if (vDsCampo = "")
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Validação de restrição, Campo não iformado.", "")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		exit(-1)
+	endif
+
+	if (vCdEmpresa = "")
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Validação de restrição, Empresa não iformada.", "")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		exit(-1)
+	endif
+
+	if (vCdUsuario = "")
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Validação de restrição, Usuário não informado.", "")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		exit(-1)
+	endif
+	;---------------------------------------------------
+
+	clear/e "F2_GLB_RESTRISVC"
+	CD_COMPONENTE.F2_GLB_RESTRISVC/init = vCdComponente
+	DS_CAMPO.F2_GLB_RESTRISVC/init      = vDsCampo
+	retrieve/e "F2_GLB_RESTRISVC"
+	if ($status < 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Restrição %%vDsCampo não cadastrada para o componente %%vCdComponente%%%. Realizar o cadastro em GLBFM043", "")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		;vInErro = <TRUE>
+		;vTpRestricaoLog = 3;bloqueado
+		exit(-1)
+	endif
+
+	DsPermite = "NAO"
+
+	clear/e "ADM_RESTUSUSVC"
+	CD_COMPONENTE.ADM_RESTUSUSVC/init = vCdComponente
+	DS_CAMPO.ADM_RESTUSUSVC/init      = vDsCampo
+	CD_EMPRESA.ADM_RESTUSUSVC/init    = vCdEmpresa
+	CD_USUARIO.ADM_RESTUSUSVC/init    = vCdUsuario
+	retrieve/e "ADM_RESTUSUSVC"
+	if ($status >= 0)
+		vInicioOriginal = VL_INICIO.ADM_RESTUSUSVC
+		vFimOriginal = 	  VL_FIM.ADM_RESTUSUSVC
+		;quando tipo de restrição for SIM ou NÃO	
+		if (TP_RESTRICAO.GLB_RESTRICAOSVC = 3)
+			;---------------------------------------------------
+			;se o indicador de pedesenha estiver marcado, será solicitado a senha do... 
+			;...usuário com restrição que permitirá realizar a operação
+			;Projeto 078 - Tarefa 3221 - Aloisio Gargantini - 11/03/2010
+			;if (IN_PEDESENHA.ADM_RESTUSUSVC = <TRUE>)
+			if (IN_PEDESENHA.ADM_RESTUSUSVC = <TRUE>) & (vInValidaSenha = <TRUE>)	
+			;
+				;---------------------------------------------------
+				;executa programa de validação de usuario e senha (usuario e senha cadastrada no sistema
+				viParams = ""
+				putitem/id viParams, "IN_USULOGADO"  , <TRUE>         ;(igual     a  <TRUE>) - valida também o usuário Logado
+				putitem/id viParams, "CD_USUARIO"    , 0              ;(igual     a  0     ) - permite informar o usuário a ser validado
+				putitem/id viParams, "DS_COMPONENTE" , vCdComponente  ;(diferente de null  ) - valida o nível do usuário informado
+				putitem/id viParams, "DS_HINT" , "Componente: %%vCdComponente / Restrição: %%vDsCampo" ; MFGALEGO 12/07/2006
+				activate "ADMFM020".exec(viParams, voParams, $xCdErro$, $xCtxerro$)
+				if ($procerror)       
+;					exit(-1)
+					vInErro = <TRUE>
+				endif
+				if ($status < 0)
+					;exit(-1)
+				endif
+				vCdUsuarioValidado = $item("CD_USUARIO", voParams)
+				;---------------------------------------------------
+				;valida restrição para o usuario informado.
+				if (vCdUsuarioValidado != "")
+					clear/e "F_ADM_RESTUSUSVC"
+					CD_COMPONENTE.F_ADM_RESTUSUSVC/init = vCdComponente
+					DS_CAMPO.F_ADM_RESTUSUSVC/init      = vDsCampo
+					CD_EMPRESA.F_ADM_RESTUSUSVC/init    = vCdEmpresa
+					CD_USUARIO.F_ADM_RESTUSUSVC/init    = vCdUsuarioValidado
+					retrieve/e "F_ADM_RESTUSUSVC"
+					if ($status >= 0)
+						;---------------------------------------------------
+						;caso o indicador de restrição estiver desmarcado, significa que determinado... 
+						;...usuário foi restrito para executar determinada operação
+						if (IN_SEMRESTRICAO.F_ADM_RESTUSUSVC = <FALSE> | IN_SEMRESTRICAO.F_ADM_RESTUSUSVC = "")
+							$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Usuário com restrição para esta ação. Verificar o cadastro de restrições.%%^Componente: %%vCdComponente  Campo: %%vDsCampo", "")
+							poCdErro  = $xCdErro$
+							poCtxErro = $xCtxErro$
+							vInErro = <TRUE>
+							vTpRestricaoLog = 3;Bloqueado
+;							exit(-1)
+						else
+							;---------------------------------------------------
+							;retorna valores a ser verificado pelo programa chamador
+							DsPermite = "SIM"
+							putitem/id voParams, "TP_RESTRICAO" , TP_RESTRICAO.F_GLB_RESTRICSVC 
+							putitem/id voParams, "VL_INICIO"    , VL_INICIO.F_ADM_RESTUSUSVC
+							putitem/id voParams, "VL_FIM"       , VL_FIM.F_ADM_RESTUSUSVC
+							putitem/id voParams, "CD_USUARIO"   , vCdUsuarioValidado
+							vTpRestricaoLog = 2;liberado com senha
+							;---------------------------------------------------
+						endif					
+					else
+						;caso não exista nenhuma restrição cadastrada para o CAMPO, COMPONENTE, EMPRESA e USUARIO em validação
+						$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Restrição não cadastrada para o usuário %%vCdUsuarioValidado%%%.%%^Componente: %%vCdComponente  Campo: %%vDsCampo", "")
+						poCdErro  = $xCdErro$
+						poCtxErro = $xCtxErro$
+						vInErro = <TRUE>
+						vTpRestricaoLog = 1;sem restricao					
+						;exit(-1)
+					endif ; fim do teste de restrião cadastrada
+					;---------------------------------------------------
+				else ;quando o usuario informado for NULL
+					$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Validação do usuário não concluída.", "")
+					poCdErro  = $xCdErro$
+					poCtxErro = $xCtxErro$
+					vInErro = <TRUE>
+					vTpRestricaoLog = 3;bloqueado
+;					exit(-1)
+				endif ;fim da validação para o usuário informado
+				;---------------------------------------------------
+			else
+				;---------------------------------------------------
+				;caso o indicador de restrição estiver desmarcado, significa que determinado... 
+				;...usuário foi restrito para executar determinada operação
+				if (IN_SEMRESTRICAO.ADM_RESTUSUSVC = <FALSE> | IN_SEMRESTRICAO.ADM_RESTUSUSVC = "")
+					$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Usuário com restrição para esta ação. Verificar o cadastro de restrições.%%^Componente: %%vCdComponente  Campo: %%vDsCampo", "")
+					poCdErro  = $xCdErro$
+					poCtxErro = $xCtxErro$
+					vInErro = <TRUE>
+					vTpRestricaoLog = 3;bloqueado
+;				;	exit(-1)
+				else					
+					;---------------------------------------------------
+					;retorna valores a ser verificado pelo programa chamador
+					DsPermite = "SIM"
+					putitem/id voParams, "TP_RESTRICAO" , TP_RESTRICAO.GLB_RESTRICAOSVC 
+					putitem/id voParams, "VL_INICIO"    , VL_INICIO.ADM_RESTUSUSVC
+					putitem/id voParams, "VL_FIM"       , VL_FIM.ADM_RESTUSUSVC
+					putitem/id voParams, "CD_USUARIO"   , vCdUsuario
+					vTpRestricaoLog = 1;sem restricao
+					;---------------------------------------------------
+				endif ;fim do teste IN_SEMRESTRICAO
+			endif ;fim do teste em IN_PEDESENHA
+			;---------------------------------------------------
+		else ;senão do teste de tipo de restrição igual a 3
+			;---------------------------------------------------
+			;quando tipo de restrição for VALOR
+			if (TP_RESTRICAO.GLB_RESTRICAOSVC = 1)
+				if (VlValor = "")	
+					$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Valor não informado.", "")
+					poCdErro  = $xCdErro$
+					poCtxErro = $xCtxErro$
+					vInErro = <TRUE>
+					vTpRestricaoLog = 3;bloqueado
+					;exit(-1)
+				else
+					;quando valor for preenchido e fora da faixa cadastrada na restrição
+					if (VlValor < VL_INICIO.ADM_RESTUSUSVC | VlValor > VL_FIM.ADM_RESTUSUSVC)
+						if (IN_PEDESENHA.ADM_RESTUSUSVC = <TRUE>) & (vInValidaSenha = <TRUE>)							
+							;---------------------------------------------------
+							;executa programa de validação de usuario e senha (usuario e senha cadastrada no sistema
+							viParams = ""
+							putitem/id viParams, "IN_USULOGADO"  , <TRUE>         ;(igual     a  <TRUE>) - valida também o usuário Logado
+							putitem/id viParams, "CD_USUARIO"    , 0              ;(igual     a  0     ) - permite informar o usuário a ser validado
+							putitem/id viParams, "DS_COMPONENTE" , vCdComponente  ;(diferente de null  ) - valida o nível do usuário informado
+							putitem/id viParams, "DS_HINT" , "Componente: %%vCdComponente / Restrição: %%vDsCampo" ; MFGALEGO 12/07/2006
+							activate "ADMFM020".exec(viParams, voParams, $xCdErro$, $xCtxerro$)
+							if ($procerror)       
+								;exit(-1)
+								vInErro = <TRUE>
+							endif
+							if ($status < 0)
+								;exit(-1)
+							endif
+							vCdUsuarioValidado = $item("CD_USUARIO", voParams)
+							;---------------------------------------------------
+							;valida restrição para o usuario informado.
+							if (vCdUsuarioValidado != "")
+								clear/e "F_ADM_RESTUSUSVC"
+								CD_COMPONENTE.F_ADM_RESTUSUSVC/init = vCdComponente
+								DS_CAMPO.F_ADM_RESTUSUSVC/init      = vDsCampo
+								CD_EMPRESA.F_ADM_RESTUSUSVC/init    = vCdEmpresa
+								CD_USUARIO.F_ADM_RESTUSUSVC/init    = vCdUsuarioValidado
+								retrieve/e "F_ADM_RESTUSUSVC"
+								if ($status >= 0)
+									;---------------------------------------------------
+									if (VlValor < VL_INICIO.F_ADM_RESTUSUSVC | VlValor > VL_FIM.F_ADM_RESTUSUSVC)
+										$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Valor fora da faixa estabelecida. Verifique o cadastro de restrições.%%^Componente: %%vCdComponente  Campo: %%vDsCampo", "")
+										poCdErro  = $xCdErro$
+										poCtxErro = $xCtxErro$
+										;---------------------------------------------------
+										DsPermite = "NAO"
+										putitem/id voParams, "TP_RESTRICAO" , TP_RESTRICAO.GLB_RESTRICAOSVC 
+										putitem/id voParams, "VL_INICIO"    , VL_INICIO.ADM_RESTUSUSVC
+										putitem/id voParams, "VL_FIM"       , VL_FIM.ADM_RESTUSUSVC
+										putitem/id voParams, "CD_USUARIO"   , vCdUsuario
+										;---------------------------------------------------
+										vInErro = <TRUE>;
+										vTpRestricaoLog = 3;bloqueado
+									else
+										;---------------------------------------------------
+										;retorna valores a ser verificado pelo programa chamador
+										DsPermite = "SIM"
+										putitem/id voParams, "TP_RESTRICAO" , TP_RESTRICAO.F_GLB_RESTRICSVC 
+										putitem/id voParams, "VL_INICIO"    , VL_INICIO.F_ADM_RESTUSUSVC
+										putitem/id voParams, "VL_FIM"       , VL_FIM.F_ADM_RESTUSUSVC
+										putitem/id voParams, "CD_USUARIO"   , vCdUsuarioValidado
+										vTpRestricaoLog = 2;liberado com senha
+										;---------------------------------------------------
+									endif
+								else
+									;caso não exista nenhuma restrição cadastrada para o CAMPO, COMPONENTE, EMPRESA e USUARIO em validação
+									$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Restrição não cadastrada para o usuário %%vCdUsuarioValidado%%%.%%^Componente: %%vCdComponente  Campo: %%vDsCampo", "")
+									poCdErro  = $xCdErro$
+									poCtxErro = $xCtxErro$
+									vInErro = <TRUE>
+									vTpRestricaoLog = 1;sem restricao					
+									;exit(-1)
+								endif ; fim do teste de restrião cadastrada
+								;---------------------------------------------------
+							else ;quando o usuario informado for NULL
+								$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Validação do usuário não concluída.", "")
+								poCdErro  = $xCdErro$
+								poCtxErro = $xCtxErro$
+								vInErro = <TRUE>
+								vTpRestricaoLog = 3;bloqueado
+								;exit(-1)
+								;fim da validação para o usuário informado
+								;---------------------------------------------------
+							endif
+						else
+								$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Valor fora da faixa estabelecida. Verifique o cadastro de restrições.%%^Componente: %%vCdComponente  Campo: %%vDsCampo", "")
+								poCdErro  = $xCdErro$
+								poCtxErro = $xCtxErro$
+								;---------------------------------------------------
+								DsPermite = "NAO"
+								putitem/id voParams, "TP_RESTRICAO" , TP_RESTRICAO.GLB_RESTRICAOSVC 
+								putitem/id voParams, "VL_INICIO"    , VL_INICIO.ADM_RESTUSUSVC
+								putitem/id voParams, "VL_FIM"       , VL_FIM.ADM_RESTUSUSVC
+								putitem/id voParams, "CD_USUARIO"   , vCdUsuario
+								;---------------------------------------------------
+								vInErro = <TRUE>;
+								vTpRestricaoLog = 3;bloqueado
+								;exit(-1)
+						endif
+					else
+						;---------------------------------------------------
+						;quando valor informado atender o que está no cadastro de restrição
+						;retorna valores a ser verificado pelo programa chamador
+						DsPermite = "SIM"
+						putitem/id voParams, "TP_RESTRICAO" , TP_RESTRICAO.GLB_RESTRICAOSVC 
+						putitem/id voParams, "VL_INICIO"    , VL_INICIO.ADM_RESTUSUSVC
+						putitem/id voParams, "VL_FIM"       , VL_FIM.ADM_RESTUSUSVC
+						putitem/id voParams, "CD_USUARIO"   , vCdUsuario
+						vTpRestricaoLog = 1;liberado
+						;---------------------------------------------------
+					endif
+				endif
+			endif
+			;---------------------------------------------------
+			;---------------------------------------------------
+			;quando tipo de restrição for PERCENTUAL
+			if (TP_RESTRICAO.GLB_RESTRICAOSVC = 2)
+				if (VlValor = "")	
+					$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Percentual não informado.", "")
+					poCdErro  = $xCdErro$
+					poCtxErro = $xCtxErro$
+					vInErro = <TRUE>
+					vTpRestricaoLog = 3;bloqueado
+;					exit(-1)
+				else
+					;quando valor for preenchido e fora da faixa cadastrada na restrição
+					if (VlValor < VL_INICIO.ADM_RESTUSUSVC | VlValor > VL_FIM.ADM_RESTUSUSVC)		
+						$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Percentual fora da faixa estabelecida. Verifique o cadastro de restrições.%%^Componente: %%vCdComponente  Campo: %%vDsCampo", "")
+						poCdErro  = $xCdErro$
+						poCtxErro = $xCtxErro$
+						;---------------------------------------------------
+						putitem/id voParams, "TP_RESTRICAO" , TP_RESTRICAO.GLB_RESTRICAOSVC 
+						putitem/id voParams, "VL_INICIO"    , VL_INICIO.ADM_RESTUSUSVC
+						putitem/id voParams, "VL_FIM"       , VL_FIM.ADM_RESTUSUSVC
+						putitem/id voParams, "CD_USUARIO"   , vCdUsuario
+						;---------------------------------------------------
+						vTpRestricaoLog = 3;bloqueado
+						vInErro = <TRUE>
+;						exit(-1)
+					else
+						;---------------------------------------------------
+						;quando valor informado atender o que está no cadastro de restrição
+						;retorna valores a ser verificado pelo programa chamador
+						putitem/id voParams, "TP_RESTRICAO" , TP_RESTRICAO.GLB_RESTRICAOSVC 
+						putitem/id voParams, "VL_INICIO"    , VL_INICIO.ADM_RESTUSUSVC
+						putitem/id voParams, "VL_FIM"       , VL_FIM.ADM_RESTUSUSVC
+						putitem/id voParams, "CD_USUARIO"   , vCdUsuario
+						vTpRestricaoLog = 1;sem restricao
+						;---------------------------------------------------
+					endif
+				endif
+			endif
+			;---------------------------------------------------
+		endif ;fim do teste de tipo de restrição
+	else
+		if(vInValidaCadastro != <FALSE>)
+			;caso não exista nenhuma restrição cadastrada para o CAMPO, COMPONENTE, EMPRESA e USUARIO em validação
+			$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Restrição não cadastrada para o usuário %%vCdUsuario%%%.%%^Componente: %%vCdComponente  Campo: %%vDsCampo", "")
+			poCdErro        = $xCdErro$
+			poCtxErro       = $xCtxErro$
+			vInErro         = <TRUE>
+			vTpRestricaoLog = 3;bloqueado
+		else
+			vInErro = <FALSE>
+			vTpRestricaoLog = 1;sem restricao
+		endif
+		;exit(-1)
+		;-------------------------------------------------------------
+		;Marcos Rogerio - Projeto 69 / Tarefa 20 - 30/06/2006 - Fábio
+		;-------------------------------------------------------------
+		;executa programa de validação de usuario e senha (usuario e senha cadastrada no sistema
+		;...e o Atualiza Empresa do GLBFM043 estiver desmarcado.
+		if (IN_EMPRESA.F2_GLB_RESTRISVC = <FALSE> | IN_EMPRESA.F2_GLB_RESTRISVC = "") & (vInValidaSenha = <TRUE>)
+			viParams = ""
+			putitem/id viParams, "IN_USULOGADO"  , <TRUE>         ;(igual     a  <TRUE>) - valida também o usuário Logado
+			putitem/id viParams, "CD_USUARIO"    , 999999         ;(sempre será validado o usuário VIRTUAL
+			putitem/id viParams, "DS_COMPONENTE" , vCdComponente  ;(diferente de null  ) - valida o nível do usuário informado
+			putitem/id viParams, "DS_HINT" , "Componente: %%vCdComponente / Restrição: %%vDsCampo" ; MFGALEGO 12/07/2006
+			activate "ADMFM020".exec(viParams, voParams, $xCdErro$, $xCtxerro$)
+			if ($procerror)       
+				vInErro = <TRUE>
+			endif
+			if ($status < 0)
+				vInErro = <TRUE>	
+			endif
+			vCdUsuarioValidado = $item("CD_USUARIO", voParams)
+			if (vCdUsuarioValidado = "")
+				$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Validação do usuário não concluída.", "")
+				poCdErro        = $xCdErro$
+				poCtxErro       = $xCtxErro$
+				vInErro         = <TRUE>
+				vTpRestricaoLog = 3;bloqueado
+				putitem/id voParams, "TP_RESTRICAO" , TP_RESTRICAO.GLB_RESTRICAOSVC 
+				putitem/id voParams, "VL_INICIO"    , VL_INICIO.ADM_RESTUSUSVC
+				putitem/id voParams, "VL_FIM"       , VL_FIM.ADM_RESTUSUSVC
+				putitem/id voParams, "CD_USUARIO"   , vCdUsuario
+			else
+				vInErro         = <FALSE>	
+				vTpRestricaoLog = 1;sem restricao
+			endif
+		endif
+		;-------------------------------------------------------------
+
+		; MFGALEGO - 06/03/2009 ; SM 22536
+		if (vInRetornoErro = <TRUE>)
+			return(-1)
+		endif
+		;
+	endif ;fim verificação de restrição cadastrada
+
+	;---Elia Proj. 94/593 11/07/08 - Logica descomentada
+	putitem/id viLogParams, "TP_RESTRICAOLOG", vTpRestricaoLog
+	putitem/id viLogParams, "VL_INICIOORIGNAL", vInicioOriginal
+	putitem/id viLogParams, "VL_FIMORIGINAL", vFimOriginal
+	putitem/id viLogParams, "CD_USUARIOLIB", vCdUsuarioValidado
+	;MTF(08/09/2008) - Projeto 078, tarefa 1827.
+	putitem/id viLogParams, "DS_AUX", vDsAux
+	;
+	newinstance "ADMSVCO010","ADMSVCO010","TRANSACTION=TRUE"
+	activate "ADMSVCO010".gravaLogRestricaoCommit(viLogparams, viLogParams, $xCdErro$, $xCtxErro$)
+	if ($procerror)
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext)
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		exit(-1)
+	elseif ($status < 0)
+		$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		exit(-1)
+	endif
+	;
+
+	if(vInErro != <TRUE>)
+		exit(0)
+	else
+		exit(-1)
+	endif
+
+
+;****************************************************************
+;****************************************************************
+;Regra da validação da restrição
+;****************************************************************
+;****************************************************************
+
+;Parâmetros OBRIGATÓRIOS
+;	-DS_COMPONENTE
+;	-DS_CAMPO
+;	-CD_EMPRESA
+;	-CD_USUARIO
+;
+;Parâmetros Opcionais
+;	-VL_VALOR -> No caso de validagão de INTERVALO DE VALORES OU PERCENTUAIS.
+;
+;-Valida Preenchimento do DS_COMPONENTE
+;	-se igual a null
+;		ERRO
+;-Valida Preenchimento do DS_CAMPO
+;	-se igual a null
+;		ERRO
+;-Valida Preenchimento do DS_EMPRESA
+;	-se igual a null
+;		ERRO
+;-Valida Preenchimento do CD_USUARIO
+;	-se igual a null
+;		ERRO
+;
+;-Recupera a restrição por USUARIO/EMPRESA... para um COMPONENTE/CAMPO
+;	-Se restrição ENCONTRADA
+;	|	-Se TP_RESTRIÇÃO igual 3  -> (SIM/NÃO -> PERMITE OU NÃO)
+;	|	|	-Se IN_PEDESENHA igual a VERDADEIRO -> (senha requerida)		
+;	|	|	|	-Solicita entrada de USUÁRIO E SENHA
+;	|	|	|	-Valida existência do USUÁRIO e validade da SENHA.
+;	|	|	|	
+;	|	|	|
+;	|	|	|	-Se USUÁRIO/SENHA válidos
+;	|	|	|	|	-Verifica se USUÁRIO informado está cadastrado nas restrições, para EMPRESA, COMPONENTE e CAMPO
+;	|	|	|	|	-Se USUÁRIO CADASTRADO nas restrições
+;	|	|	|	|	|	-Se IN_SEMRESTRICAO igual a FALSO ou NULL (usuário retrito)
+;	|	|	|	|	|	|	-ERRO
+;	|	|	|	|	|	-Se IN_SEMRESTRICAO igual a VERDADEIRO
+;	|	|	|	|	|	|	-Retorna informações sobre a restrição e DS_RESTRICAO igual a "NÃO"
+;	|	|	|	|	|	-Fim teste IN_SEMRESTRICAO
+;	|	|	|	|	-Se USUÁRIO NÃO CADASTRADO nas restrições
+;	|	|	|	|	|	-ERRO
+;	|	|	|	|	-Fim teste de USUÁRIO cadastrado nas restrições
+;	|	|	|	-Se USUÁRIO/SENHA não válidos,,,ou tela de inserção de USUÁRIO/SENHA cancelada
+;	|	|	|	|	-ERRO
+;	|	|	|	-Fim teste de validade de USUÁRIO/SENHA
+;	|	|	|
+;	|	|	|
+;	|	|	-Se IN_PEDESENHA igual a FALSO ou NULLO ->(senha não requerida)	
+;	|	|	|	-Se IN_SEMRESTRICAO igual a FALSO ou NULL
+;	|	|	|	|	-ERRO
+;	|	|	|	-Se IN_SEMRESTRICAO igual VERDADEIRO
+;	|	|	|	|	-Retorna informações sobre a restrição e DS_RESTRICAO igual a "NÃO"
+;	|	|	|	-Fim teste IN_SEMRESTRICAO
+;	|	|	-Fim teste IN_PEDESENHA
+;	|	|
+;	|	|
+;	|	-Se TP_RESTRICAO DIFERENTE de 3-> (SIM/NÃO -> PERMITE OU NÃO)
+;	|	|
+;	|	|
+;	|	|	-Se TP_RESTRICAO igual 1 ->(VALOR -> valida um valor informado em um intervalo cadastrado nas restrições)
+;	|	|	|	-Se VALOR a ser validado IGUAL  NULL
+;	|	|	|	|	-ERRO
+;	|	|	|	-Se VALOR a ser validado DIFERENTE DE NULL
+;	|	|	|	|	-Se o valor informado FORA do intervalo cadastrado nas restrições
+;	|	|	|	|	|	-ERRO
+;	|	|	|	|	-Se o valor informado DENTRO do intervalo cadastrado nas restries
+;	|	|	|	|	|	-Retorna informações sobre a restrição e DS_RESTRICAO igual a "NÃO"
+;	|	|	|	|	-Fim teste VALOR
+;	|	|	|	-Fim teste de preenchimento do VALOR
+;	|	|	-Fim teste TP_RESTRICAO igual a 1
+;	|	|
+;	|	|
+;	|	|	-Se TP_RESTRICAO igual a 2 ->(PERCENTUAL -> valida um percentual informado em um intervalo cadastrado nas restrições)	|	
+;	|	|	|	-IDEM a TP_RESTRICAO = 1, somente mudando a notação VALOR, para PERCENTUAL
+;	|	|	-Fim teste TP_RESTRICAO IGUAL A 2
+;	|	|
+;	|	|
+;	|	-Fim teste TP_RESTRICAO igual a 3
+;	-Se restrição NÃO ENCONTRADA
+;	|	-ERRO
+;	-Fim teste restrição ENCONTRDA/NÃO ENCONTRADA
+
+
+           
+end   ;VerificaRestricoesend   ;VerificaRestricoes
+
+;========================= ANO Pjt130 Trf622 - 03/08/2009
+;------------------------------------
+public operation verificaUsuarioRestricao
+	;------------------------------------
+	params
+		string  $xlpg$    :IN
+		string  piParams  :IN
+		string  poParams  :OUT
+		numeric poCdErro  :OUT
+		string  poCtxErro :OUT
+	endparams
+
+	Variables
+		string  vCdComponente, vDsCampo, vDsLstUsuario
+		numeric vCdEmpresa, vCdGrupoEmpresa
+	EndVariables
+
+	vCdComponente   = $item("CD_COMPONENTE"  , piParams)
+	vDsCampo        = $item("DS_CAMPO"       , piParams)
+;	vCdEmpresa      = $item("CD_EMPRESA"     , piParams)
+
+	vCdGrupoEmpresa = $item("CD_GRUPOEMPRESA", $xlpg$)
+;	if(vCdEmpresa = 0)
+;		vCdEmpresa = $item("CD_EMPRESA", $xlpg$)
+;	endif
+
+	if (vCdComponente = "")
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Validação de restrição, Componente não informado.", "ADICIONAL=Operação->ADMSVCO009.verificaUsuarioRestricao")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		exit(-1)
+	endif
+
+	if (vDsCampo = "")
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Validação de restrição, Campo não iformado.", "ADICIONAL=Operação->ADMSVCO009.verificaUsuarioRestricao")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		exit(-1)
+	endif
+
+;	if (vCdEmpresa = "")
+;		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Validação de restrição, Empresa não iformada.", "ADICIONAL=Operação->ADMSVCO009.verificaUsuarioRestricao")
+;		poCdErro  = $xCdErro$
+;		poCtxErro = $xCtxErro$
+;		exit(-1)
+;	endif
+
+	clear/e "F2_GLB_RESTRISVC"
+	CD_COMPONENTE.F2_GLB_RESTRISVC/init = vCdComponente
+	DS_CAMPO.F2_GLB_RESTRISVC/init      = vDsCampo
+	retrieve/e "F2_GLB_RESTRISVC"
+	if ($status < 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Restrição %%vDsCampo não cadastrada para o componente %%vCdComponente%%%. Realizar o cadastro em GLBFM043", "ADICIONAL=Operação->ADMSVCO009.verificaUsuarioRestricao")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		exit(-1)
+	endif
+
+	clear/e "GER_EMPRESASVC"
+	CD_GRUPOEMPRESA.GER_EMPRESASVC/init = vCdGrupoEmpresa
+	retrieve/e "GER_EMPRESASVC"
+	if($status < 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Nenhuma empresa encontrada para grupo de empresa informado!.", "ADICIONAL=Operação->ADMSVCO009.verificaUsuarioRestricao")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		exit(-1)
+	endif	
+
+	setocc "GER_EMPRESASVC", 1
+	while($status >= 0)
+		putitem vCdEmpresa, -1, CD_EMPRESA.GER_EMPRESASVC
+		setocc "GER_EMPRESASVC", $curocc("GER_EMPRESASVC")+1
+	endwhile
+
+	vDsLstUsuario = ""
+
+	clear/e "ADM_RESTUSUSVC"
+	CD_COMPONENTE.ADM_RESTUSUSVC/init = vCdComponente
+	DS_CAMPO.ADM_RESTUSUSVC/init      = vDsCampo
+	CD_EMPRESA.ADM_RESTUSUSVC/init    = vCdEmpresa
+	retrieve/e "ADM_RESTUSUSVC"
+	if ($status >= 0)
+		setocc "ADM_RESTUSUSVC", 1
+		while($status >= 0)
+			putitem vDsLstUsuario, -1, CD_USUARIO.ADM_RESTUSUSVC
+			setocc "ADM_RESTUSUSVC", $curocc("ADM_RESTUSUSVC")+1
+		endwhile
+	endif
+
+	poParams = ""
+	putitem/id poParams, "DS_LSTUSUARIO", vDsLstUsuario
+
+	return(0)
+end ;verificaUsuarioRestricao
+;=========================================================

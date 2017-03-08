@@ -1,0 +1,4182 @@
+;---------------------------
+entry formataCampoComDecimal
+;---------------------------
+	params
+		numeric piValorEntra : IN
+		numeric piTamDec     :IN
+		string  poValorSai   :OUT
+	endparams
+
+	variables
+		numeric vParteInt, vParteDec, vTamDec  
+		string  vMontado
+		string  vVirgula		
+	endvariables
+ 
+	vParteInt = piValorEntra[trunc] 
+	length vParteInt 	
+	if ($result < 1)
+		vParteInt = 0
+	endif
+	vVirgula  = "," 
+	
+	vParteDec = piValorEntra[fraction]
+	if (vParteDec != 0)
+		length vParteDec
+		vTamDec   = $result
+		vParteDec = vParteDec[3,vTamDec]
+	endif 
+
+	call preencheZerosDireita(vParteDec,piTamDec,vMontado)
+	poValorSai = "%%vParteInt%%vVirgula%%vMontado"
+
+	return (0)
+end ; formataCampoComDecimal
+
+;-------------------------
+entry preencheZerosDireita
+;-------------------------
+	params
+		string  piDadoEntra : IN
+		numeric piTamFinal  : IN
+		string  poDadoSai   : OUT
+	endparams
+
+	variables
+		numeric vTam
+		string vZero
+	endvariables
+
+	length piDadoEntra
+	vTam = $result
+	if (vTam < piTamFinal)
+		poDadoSai = piDadoEntra
+		vZero = "0"
+		repeat 
+			poDadoSai = "%%poDadoSai%%vZero"
+			vTam = vTam + 1
+		until (vTam = piTamFinal)
+	else
+		poDadoSai = piDadoEntra[1:piTamFinal]	
+	endif
+
+	return(0)
+end; preencheZerosDireita
+
+;------------------------------------------;
+entry listaEmpresaPool                     ;
+; MFGALEGO - 08/11/2006 ; Salles / BRASCOL ;
+;------------------------------------------;
+	variables
+		numeric vCdEmpresa
+	endvariables
+
+	$LstEmpresa$ = ""
+
+	if ($$gCdPoolEmpresa > 0)
+		clear/e "GER_POOLGRUPOSVC"
+		CD_POOLEMPRESA.GER_POOLGRUPOSVC/init = $$gCdPoolEmpresa
+		retrieve/e "GER_POOLGRUPOSVC"
+		if ($status >= 0)
+			setocc "GER_POOLGRUPOSVC", 1
+			while ($status >= 0)
+				
+				clear/e "GER_EMPRESASVC"
+				CD_GRUPOEMPRESA.GER_EMPRESASVC/init = CD_GRUPOEMPRESA.GER_POOLGRUPOSVC
+				retrieve/e "GER_EMPRESASVC"
+				if ($status >= 0)
+					setocc "GER_EMPRESASVC", 1
+					while ($status >= 0)
+
+						vCdEmpresa = CD_EMPRESA.GER_EMPRESASVC
+
+						if ($LstEmpresa$ = "")
+							$LstEmpresa$ = vCdEmpresa
+						else
+							$LstEmpresa$ = "%%$LstEmpresa$·;%%vCdEmpresa"
+						endif
+				
+						setocc "GER_EMPRESASVC", $curocc("GER_EMPRESASVC") + 1
+					endwhile
+				endif		
+
+				setocc "GER_POOLGRUPOSVC", $curocc("GER_POOLGRUPOSVC") + 1
+			endwhile
+		endif		
+	endif	
+
+	return(0)
+end ; listaEmpresa
+
+;---------------------------------------------------;
+entry verificarAlteracao                            ;
+; MFGALEGO - 05/07/2007 ; Alex / KRINDGES ; SM 3658 ;
+;---------------------------------------------------;
+	params
+		string  vDsFaturaI   : IN
+		string  vDsLstComis  : IN
+		boolean vInAlteracao : INOUT	
+	endparams
+
+	variables
+		string vDsComissao
+	endvariables
+	
+	if (!vInAlteracao)
+		return(0)
+	endif
+
+	vInAlteracao = <FALSE>
+
+	clear/e "F_FCR_FATURAISVC"
+	creocc "F_FCR_FATURAISVC", -1
+	CD_EMPRESA.F_FCR_FATURAISVC/init = $item("CD_EMPRESA", vDsFaturaI)
+	CD_CLIENTE.F_FCR_FATURAISVC/init = $item("CD_CLIENTE", vDsFaturaI)
+	NR_FAT.F_FCR_FATURAISVC/init     = $item("NR_FAT",     vDsFaturaI)
+	NR_PARCELA.F_FCR_FATURAISVC/init = $item("NR_PARCELA", vDsFaturaI)
+
+	retrieve/o "F_FCR_FATURAISVC"
+	if ($status = -7)
+		retrieve/x "F_FCR_FATURAISVC"
+		if (DT_EMISSAO.F_FCR_FATURAISVC != $item("DT_EMISSAO",vDsFaturaI)) | %\
+		   (DT_VENCIMENTO.F_FCR_FATURAISVC != $item("DT_VENCIMENTO",vDsFaturaI)) | %\
+		   (NR_PORTADOR.F_FCR_FATURAISVC != $item("NR_PORTADOR",vDsFaturaI)) | %\
+		   (NR_DOCUMENTO.F_FCR_FATURAISVC != $item("NR_DOCUMENTO",vDsFaturaI)) | %\
+		   (CD_EMPLOCAL.F_FCR_FATURAISVC != $item("CD_EMPLOCAL",vDsFaturaI)) | %\
+		   (TP_DOCUMENTO.F_FCR_FATURAISVC != $item("TP_DOCUMENTO",vDsFaturaI)) | %\
+		   (TP_FATURAMENTO.F_FCR_FATURAISVC != $item("TP_FATURAMENTO",vDsFaturaI)) | %\
+		   (TP_COBRANCA.F_FCR_FATURAISVC != $item("TP_COBRANCA",vDsFaturaI)) | %\
+		   (VL_FATURA.F_FCR_FATURAISVC != $item("VL_FATURA",vDsFaturaI)) | %\
+		   (PR_DESCANTECIP1.F_FCR_FATURAISVC != $item("PR_DESCANTECIP1",vDsFaturaI)) | %\
+		   (DT_DESCANTECIP1.F_FCR_FATURAISVC != $item("DT_DESCANTECIP1",vDsFaturaI)) | %\
+		   (PR_DESCPGPRAZO.F_FCR_FATURAISVC != $item("PR_DESCPGPRAZO",vDsFaturaI)) | %\
+		   (PR_JUROMES.F_FCR_FATURAISVC != $item("PR_JUROMES",vDsFaturaI)) | %\
+		   (PR_MULTA.F_FCR_FATURAISVC != $item("PR_MULTA",vDsFaturaI)) | %\
+		   (VL_DESPFIN.F_FCR_FATURAISVC != $item("VL_DESPFIN",vDsFaturaI)) | %\
+		   (NR_NOSSONUMERO.F_FCR_FATURAISVC != $item("NR_NOSSONUMERO",vDsFaturaI)) | %\
+		   (DS_DACNOSSONR.F_FCR_FATURAISVC != $item("DS_DACNOSSONR",vDsFaturaI))
+			vInAlteracao = <TRUE>
+		endif
+		;Projeto 078 - Tarefa 683 - Aloisio Gargantini - 10/07/2007
+		if (vDsLstComis != "")
+			getitem vDsComissao, vDsLstComis, 1
+			clear/e "F_FCR_COMISSASVC"
+			creocc  "F_FCR_COMISSASVC", -1
+			CD_EMPRESA.F_FCR_COMISSASVC/init  = $item("CD_EMPRESA",  vDsFaturaI)
+			CD_CLIENTE.F_FCR_COMISSASVC/init  = $item("CD_CLIENTE",  vDsFaturaI)
+			NR_FATURA.F_FCR_COMISSASVC/init   = $item("NR_FAT",      vDsFaturaI)
+			NR_PARCELA.F_FCR_COMISSASVC/init  = $item("NR_PARCELA",  vDsFaturaI)
+			CD_PESCOMIS.F_FCR_COMISSASVC/init = $item("CD_PESCOMIS", vDsComissao)
+			retrieve/o "F_FCR_COMISSASVC"
+			if ($status = -7)
+				retrieve/x "F_FCR_COMISSASVC"
+			else
+				vInAlteracao = <TRUE>
+			endif
+			if 	(PR_COMISSAOFAT.F_FCR_COMISSASVC != $item("PR_COMISSAOFAT", vDsComissao)) | %\
+				(PR_COMISSAOREC.F_FCR_COMISSASVC != $item("PR_COMISSAOREC", vDsComissao)) 
+				vInAlteracao = <TRUE>
+			endif
+			clear/e "F_FCR_COMISSASVC"
+		endif
+		;
+	endif
+	
+	clear/e "F_FCR_FATURAISVC"
+	return(0)
+end ; verificarAlteracao
+
+
+;------------------------------------
+entry ConverterString
+;------------------------------------
+    params
+        string piString :In
+        string poString :Out
+    endparams
+    variables
+        string viParams,voParams
+    endvariables
+
+    putitem/id viParams, "DS_STRING",      piString
+    putitem/id viParams, "IN_MAIUSCULA",   <True>
+    putitem/id viParams, "IN_NUMERO",      <True>
+    putitem/id viParams, "IN_ESPACO",      <True>
+    putitem/id viParams, "IN_ESPECIAL",    <False>
+    putitem/id viParams, "IN_MANTERPONTO", <True>
+    activate "EDISVCO020".limparCampo($$gParamGlb,viParams,voParams,$xCdErro$,$xCtxErro$)
+    poString = $item("DS_STRING",voParams)
+    return (0)
+end;
+
+#include <LIB_PADRAO>:DEF_TEMPLATE_SVC
+
+;--------------------
+public operation INIT
+;--------------------
+#include <LIB_PADRAO>:PRC_INIT
+end ;INIT
+
+;-----------------------
+public operation CLEANUP
+;-----------------------
+#include <LIB_PADRAO>:PRC_CLEANUP
+end ; CLEANUP
+
+;-------------------
+operation geraFatura
+;-------------------
+; Obs.: Na inclusão a taxa de juros, multas e descontos, quando não informados serão gravados
+;       com os dados constantes nos parâmetros.  Esta regra não é aplicado na seguintes situ-
+;       ções:
+;             1 - Tipo de baixa da fatura diferente de 0;
+;             2 - Quando o IN_NAOGRVJURO = <TRUE>, não grava taxa de juros;
+;             3 - Quando o IN_NAOGRVMULTA = <TRUE>, não grava taxa de multa;
+;             4 - Quando o IN_NAOGRVDESCANT = <TRUE>, não grava descontos antecipação;
+;             5 - Quando o IN_NAOGRVDESC1 = <TRUE>, não grava descontos 1;
+;             6 - Quando o IN_NAOGRVDESC2 = <TRUE>, não grava descontos 2;
+;
+; piParams:
+;	DS_FATURAI       = FCR_FATURAI
+;	DS_CHEQUE        = FCR_CHEQUE
+;	IN_ALTSOFATURAI  = Indica alteração somente da fatura e cheque
+;	IN_SEMCOMISSAO   = Indica fatura sem comissão
+;	IN_SEMIMPOSTO    = Indica fatura sem imposto
+;	IN_NAOGRVJURO    = Indica que na inclusão não é para gravar taxa de juros do parâmetro  
+;	IN_NAOGRVMULTA   = Indica que na inclusão não é para gravar taxa de multa do parâmetro 
+;	IN_NAOGRVDESCANT = Indica que na inclusão não é para gravar o desconto por antecipação do parâmetro
+;	IN_NAOGRVDESC1   = Indica que na inclusão não é para gravar o desconto 1 do parâmetro
+;	IN_NAOGRVDESC2   = Indica que na inclusão não é para gravar o desconto 2 do parâmetro
+
+	params
+		string $xlpg$    :IN
+		string piParams  :IN
+		string poParams  :OUT
+		string poCdErro  :OUT
+		string poCtxErro :OUT
+	endparams
+	variables
+		date    vDtSistema, vVenctoAnt, vDtDescAnt, vDtCorrecaoIndice , vDtTransacao
+		string  viParams, voParams, vCdComponente, vDsLstClassificacao, vDsLstFatura, vDsFaturaI, vDsCheque
+		string  vDsLstComis, vDsLstImposto, vDsConta, vListaEmpresa, vDsRegistro, vDsLstComisAux, vDsComissao, vDsIndice
+		boolean vInAlteracao, vInAltSoFaturaI, vInSemComissao, vInSemImposto, vIncluido, vInOrgaoPublico, vInDescarta
+		boolean vInNaoGrvJuro, vInNaoGrvMulta, vInNaoGrvDescAnt, vInNaoGrvDesc1, vInNaoGrvDesc2, vIndicaEmpresaOK
+		numeric vNrParcela, vPortadorAnt, vVlFaturaAnt, vTpCobrancaAnt, vCdEmpLocalAnt
+		numeric vVlDescPrazo, vVlTotalDesc1, vVlTotalDesc2, vCdIndice, vCdEmpTransacao, vNrTransacao
+		numeric vCdEmp,vCdCli,vNrF, vCdMotivoProrr, vPrComissaoTotal, vPrComissaoFat, vPrComissaoRec
+	endvariables
+
+	vCdComponente = $item("CD_COMPONENTE", piParams)
+	if (vCdComponente = "")
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Não existe nome do componente chamador da rotina de gravação de fatura!", "ADICIONAL=Operação->FCRSVCO001.geraFatura")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+
+	vInAlteracao        = <FALSE>
+	vPortadorAnt        = ""
+	vCdEmpLocalAnt      = ""
+	vVenctoAnt          = ""
+	vVlFaturaAnt        = ""
+	vTpCobrancaAnt      = ""
+	vCdMotivoProrr      = $item("CD_MOTIVOPRORR"     , piParams)
+	vDsFaturaI          = $item("DS_FATURAI"         , piParams)
+	vDsCheque           = $item("DS_CHEQUE"          , piParams)
+	vDsIndice           = $item("DS_INDICE"          , piParams)
+	vInAltSoFaturaI     = $item("IN_ALTSOFATURAI"    , piParams)
+	vInSemComissao      = $item("IN_SEMCOMISSAO"     , piParams)
+	vInSemImposto       = $item("IN_SEMIMPOSTO"      , piParams)
+	vInNaoGrvJuro       = $item("IN_NAOGRVJURO"      , piParams) 
+	vInNaoGrvMulta      = $item("IN_NAOGRVMULTA"     , piParams)
+	vInNaoGrvDescAnt    = $item("IN_NAOGRVDESCANT"   , piParams)
+	vInNaoGrvDesc1      = $item("IN_NAOGRVDESC1"     , piParams)
+	vInNaoGrvDesc2      = <TRUE>
+	;MTF(26/06/2008) - Projeto 078, tarefa 1603.
+	vCdEmpTransacao     = $item("CD_EMPTRANSACAO"    , piParams)
+	vDtTransacao        = $item("DT_TRANSACAO"       , piParams)
+	vNrTransacao        = $item("NR_TRANSACAO"       , piParams)
+	;
+	vDsLstClassificacao = $item("DS_LSTCLASSIFICACAO", piParams) ;Projeto 186 - Tarefa 0010 - Aloisio Gargantini - 02/05/2011
+	
+	clear/e "FCR_FATURACSVC"
+	if (vDsFaturaI != "")
+		vCdEmp = $item("CD_EMPRESA", vDsFaturaI)
+		vCdCli = $item("CD_CLIENTE", vDsFaturaI)
+		vNrF   = $item("NR_FAT"    , vDsFaturaI)
+
+		;VALIDA NUMERO DA EMPRESA
+		if (vCdEmp = 0)
+			$instancehandle->SetStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Empresa não informada!", "ADICIONAL=Operação->FCRSVCO001.geraFatura")
+			poCdErro  = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return(-1)
+		endif    
+
+		;VALIDA CLIENTE DA FATURA
+		if (vCdCli = 0)
+			$instancehandle->SetStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Cliente da fatura não informada!", "ADICIONAL=Operação->FCRSVCO001.geraFatura")
+			poCdErro  = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return(-1)
+		endif    
+
+		; MFGALEGO - 18/09/2006 ; Franklin / FIVEBROS
+		clear/e "PES_CLIENTESVC"
+		CD_CLIENTE.PES_CLIENTESVC/init = vCdCli
+		retrieve/e "PES_CLIENTESVC"
+		if ($status < 0)
+			$instancehandle->SetStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Código da pessoa %%vCdCli informada não está cadastrada como cliente !", "ADICIONAL=Operação->FCRSVCO001.geraFatura")
+			poCdErro  = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return(-1)
+		endif
+		;
+
+		;VALIDA NUMERO DA FATURA
+		if (vNrF = 0)
+			$instancehandle->SetStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Número da fatura não informada!", "ADICIONAL=Operação->FCRSVCO001.geraFatura")
+			poCdErro  = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return(-1)
+		endif    
+
+;		creocc "FCR_FATURACSVC", -1
+		CD_EMPRESA.FCR_FATURACSVC/init = vCdEmp
+		CD_CLIENTE.FCR_FATURACSVC/init = vCdCli
+		NR_FAT.FCR_FATURACSVC/init     = vNrF
+		retrieve/o "FCR_FATURACSVC"
+		if ($status = -7)
+			retrieve/x "FCR_FATURACSVC"
+		endif
+
+		CD_CONDPAGTO.FCR_FATURACSVC = $item("CD_CONDPAGTO", piParams)
+
+		vNrParcela = $item("NR_PARCELA", vDsFaturaI)
+
+		if (vNrParcela = 0)
+			if (vInAltSoFaturaI = <TRUE>)
+				$instancehandle->SetStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Faltou a parcela da fatura alterada!", "ADICIONAL=Operação->FCRSVCO001.geraFatura")
+				poCdErro  = $xCdErro$
+				poCtxErro = $xCtxErro$
+				return(-1)
+			endif
+
+			;------------------------------------
+			clear/e "FCR_FATURAISVC"
+			creocc "FCR_FATURAISVC", -1
+			;------------------------------------
+
+		else
+			clear/e "FCR_FATURAISVC"
+			NR_PARCELA.FCR_FATURAISVC/init = vNrParcela
+			retrieve/e "FCR_FATURAISVC"
+
+			if ($status < 0)
+				if (vInAltSoFaturaI = <TRUE>)
+					$instancehandle->SetStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Fatura não encontrada!", "ADICIONAL=Operação->FCRSVCO001.geraFatura")
+					poCdErro  = $xCdErro$
+					poCtxErro = $xCtxErro$
+					return(-1)
+				endif
+			else
+				if (vInAltSoFaturaI != <TRUE>) & %\ 
+				   (TP_DOCUMENTO.FCR_FATURAISVC = 2) & %\ 
+				   (NR_PARCELAORIGEM.FCR_FATURAISVC = "") & %\ ; MFGALEGO - 05/07/2007 ; Kuzminski / KRINDGES
+					(TP_INCLUSAO.FCR_FATURAISVC != 9) & %\ ;9-Importação ;--Ferreira - [Prj/Tarefa 186/0267] - 13/10/2011
+				   (vDsCheque = "")
+					$instancehandle->SetStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Fatura do tipo cheque, mas sem cheque para gravação!", "ADICIONAL=Operação->FCRSVCO001.geraFatura")
+					poCdErro  = $xCdErro$
+					poCtxErro = $xCtxErro$
+					return(-1)
+				endif
+				vInAlteracao   = <TRUE>
+				vPortadorAnt   = NR_PORTADOR.FCR_FATURAISVC
+				vCdEmpLocalAnt = CD_EMPLOCAL.FCR_FATURAISVC
+				vVenctoAnt     = DT_VENCIMENTO.FCR_FATURAISVC
+				vVlFaturaAnt   = VL_FATURA.FCR_FATURAISVC
+				vTpCobrancaAnt = TP_COBRANCA.FCR_FATURAISVC
+				if (vInAltSoFaturaI != <TRUE>)
+
+					;NÃO MAIS EXCLUI O FCR_FATURAISVC, PASSA A EXCLUIR COMISSÃO E CHEQUE
+					;--------------------------------------------------------------
+					;NOVO - MARCOS ROGERIO KUZMINSKI - 09-05-2006 - Projeto 69 / Tarefa 01
+; MFGALEGO - 10/04/2008 - SM 8036 / Trf 78/1413
+;					if (!$empty(FCR_COMISSAOSVC))
+;						$collhandle("FCR_COMISSAOSVC")->Excluir()
+;						if ($procerror)
+;							$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+;							return(-1)
+;						endif
+;						if ($status < 0)
+;							$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")    
+;							return(-1)
+;						endif
+;					endif
+;					;--------------------------------------------------------------
+;					if (!$empty(FCR_CHEQUESVC))
+;						$collhandle("FCR_CHEQUESVC")->Excluir()
+;						if ($procerror)
+;							$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+;							return(-1)
+;						endif
+;						if ($status < 0)
+;							$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")    
+;							return(-1)
+;						endif
+;					endif
+					;--------------------------------------------------------------
+				;	;--------------------------------------------------------------
+				;	;ANTIGO - MARCOS ROGERIO KUZMINSKI - 09-05-2006 - Projeto 69 / Tarefa 01
+				;	$collhandle("FCR_FATURAISVC")->Excluir()
+				;	if ($procerror)
+				;		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+				;		return(-1)
+				;	endif
+				;	if ($status < 0)
+				;		$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")    
+				;		return(-1)
+				;	endif
+				;	;--------------------------------------------------------------
+
+				endif
+				;--------------------------------------------------------------
+				;NOVO - MARCOS ROGERIO KUZMINSKI - 09-05-2006 - Projeto 69 / Tarefa 01
+				;apaga a chave da lista passada por parametro.
+				delitem/id vDsFaturaI, "CD_EMPRESA"  
+				delitem/id vDsFaturaI, "CD_CLIENTE"
+				delitem/id vDsFaturaI, "NR_FAT"
+				delitem/id vDsFaturaI, "NR_PARCELA"        
+				;--------------------------------------------------------------
+			endif
+		endif
+
+	;	;--------------------------------------------------------------
+	;	;ANTIGO - MARCOS ROGERIO KUZMINSKI - 09-05-2006 - Projeto 69 / Tarefa 01
+	;	if (vInAltSoFaturaI != <TRUE>)
+	;		clear/e "FCR_FATURAISVC"
+	;		creocc "FCR_FATURAISVC", -1
+	;	else
+	;		delitem/id vDsFaturaI, "CD_EMPRESA"  
+	;		delitem/id vDsFaturaI, "CD_CLIENTE"
+	;		delitem/id vDsFaturaI, "NR_FAT"
+	;		delitem/id vDsFaturaI, "NR_PARCELA"        
+	;	endif
+	;	;--------------------------------------------------------------
+
+		getlistitems/occ vDsFaturaI, "FCR_FATURAISVC"
+		if (vInAltSoFaturaI != <TRUE>)
+; MFGALEGO - 10/04/2008 - SM 8036 / Trf 78/1413
+;			clear/e "FCR_COMISSAOSVC"
+			vDsLstComis = $item("DS_FATCOMISSAO", vDsFaturaI)
+			if (vDsLstComis = "")
+				if (vInSemComissao != <TRUE>)
+					$instancehandle->SetStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Faltou a comissão para fatura!", "ADICIONAL=Operação->FCRSVCO001.geraFatura")
+					poCdErro  = $xCdErro$
+					poCtxErro = $xCtxErro$
+					return(-1)
+				endif
+			else
+				if (vInSemComissao = <TRUE>)
+					$instancehandle->SetStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Comissão foi informada com indicador apontando sem comissão!", "ADICIONAL=Operação->FCRSVCO001.geraFatura")
+					poCdErro  = $xCdErro$
+					poCtxErro = $xCtxErro$
+					return(-1)
+				endif
+
+				; MFGALEGO - 10/04/2008 - SM 8036 / Trf 78/1413
+				if (!$empty(FCR_COMISSAOSVC))
+					setocc "FCR_COMISSAOSVC", 1
+					while ($status >= 0)
+						vInDescarta    = <FALSE>
+						vDsLstComisAux = vDsLstComis
+						repeat
+							getitem vDsComissao, vDsLstComisAux, 1
+							if (CD_PESCOMIS.FCR_COMISSAOSVC = $item("CD_PESCOMIS",vDsComissao))
+								vInDescarta = <TRUE>
+							endif
+							delitem vDsLstComisAux, 1
+						until (vDsLstComisAux = "")	
+						if (vInDescarta = <TRUE>)
+							discard "FCR_COMISSAOSVC"
+							if ($status = 0)
+								$status = -1
+							endif
+						else
+							setocc "FCR_COMISSAOSVC", $curocc("FCR_COMISSAOSVC") + 1
+						endif
+					endwhile
+					if (!$empty(FCR_COMISSAOSVC))
+						$collhandle("FCR_COMISSAOSVC")->Excluir()
+						if ($procerror)
+							$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+							return(-1)
+						elseif ($status < 0)
+							$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")    
+							return(-1)
+						endif
+					endif
+				endif
+				;
+
+				repeat
+					getitem vDsComissao, vDsLstComis, 1
+					creocc "FCR_COMISSAOSVC", -1
+					getlistitems/occ vDsComissao, "FCR_COMISSAOSVC"
+					; MFGALEGO - 10/10/2006 ; Franciele / OPPNUS
+					retrieve/o "FCR_COMISSAOSVC"
+					if ($status = -7)
+						retrieve/x "FCR_COMISSAOSVC"
+					endif
+					getlistitems/occ vDsComissao, "FCR_COMISSAOSVC"
+
+					; MFGALEGO - 08/11/2006 ; Edvaldo / FIVEBROS
+					if (PR_FATURA.FCR_COMISSAOSVC = "") | (PR_FATURA.FCR_COMISSAOSVC = 0)
+						PR_FATURA.FCR_COMISSAOSVC = 100
+					endif
+					if (TP_SITUACAO.FCR_COMISSAOSVC = "")
+						TP_SITUACAO.FCR_COMISSAOSVC = 0 ; Normal
+					endif
+					if (IN_FATPAGO.FCR_COMISSAOSVC = "")
+						IN_FATPAGO.FCR_COMISSAOSVC = <FALSE>
+					endif
+					if (IN_RECPAGO.FCR_COMISSAOSVC = "")
+						IN_RECPAGO.FCR_COMISSAOSVC = <FALSE>
+					endif
+					;
+
+					;------------------------------------------------
+					;Hugo em 10/05/07 - Alterando o percentual das comissoes de acordo com o conceito do cliente
+					;Obs. Somente o Percentual, o Valor nao vai ser recalculado pelo fato da logica abaixo ter sido comentando
+					;pelo Miguel em 08/11/2006
+					if (TP_DOCUMENTO.FCR_FATURAISVC   = 1) & %\ ; Fatura
+					   (TP_SITUACAO.FCR_FATURAISVC    = 1) & %\ ; Normal
+					   (TP_FATURAMENTO.FCR_FATURAISVC = 1 | TP_FATURAMENTO.FCR_FATURAISVC = 2) ; Venda a vista / venda a prazo
+						clear/e "V_FCR_CONHISSVC"
+						CD_CLIENTE.V_FCR_CONHISSVC = CD_CLIENTE.FCR_FATURAISVC
+						retrieve/e "V_FCR_CONHISSVC"
+						if ($status >= 0)
+							if (CD_CONCEITONOVO.V_FCR_CONHISSVC != 0)
+								clear/e "FCR_CONFINSVC"
+								CD_CONCEITO.FCR_CONFINSVC = CD_CONCEITONOVO.V_FCR_CONHISSVC
+								retrieve/e "FCR_CONFINSVC"
+								if ($status >= 0)
+									if (PR_COMISSAOFAT.FCR_CONFINSVC > 0)
+										vPrComissaoTotal = PR_COMISSAOFAT.FCR_COMISSAOSVC + PR_COMISSAOREC.FCR_COMISSAOSVC
+									
+										vPrComissaoFat = vPrComissaoTotal * PR_COMISSAOFAT.FCR_CONFINSVC / 100
+										vPrComissaoFat = vPrComissaoFat[round, 2]
+										vPrComissaoRec = vPrComissaoTotal - vPrComissaoFat
+									
+										PR_COMISSAOFAT.FCR_COMISSAOSVC = vPrComissaoFat
+										PR_COMISSAOREC.FCR_COMISSAOSVC = vPrComissaoRec
+										;Projeto 078 - Tarefa 3558 - Aloisio Gargantini - 30/07/2010
+										;VL_COMISSAOFAT.FCR_COMISSAOSVC = VL_FATURA.FCR_FATURAISVC * PR_COMISSAOFAT.FCR_COMISSAOSVC / 100
+										VL_COMISSAOFAT.FCR_COMISSAOSVC = (VL_FATURA.FCR_FATURAISVC - VL_ABATIMENTO.FCR_FATURAISVC) * PR_COMISSAOFAT.FCR_COMISSAOSVC / 100
+										;
+										VL_COMISSAOFAT.FCR_COMISSAOSVC = VL_COMISSAOFAT.FCR_COMISSAOSVC[round, 2]
+										;Projeto 078 - Tarefa 3558 - Aloisio Gargantini - 30/07/2010
+										;VL_COMISSAOREC.FCR_COMISSAOSVC = VL_FATURA.FCR_FATURAISVC * PR_COMISSAOREC.FCR_COMISSAOSVC / 100
+										VL_COMISSAOREC.FCR_COMISSAOSVC = (VL_FATURA.FCR_FATURAISVC - VL_ABATIMENTO.FCR_FATURAISVC) * PR_COMISSAOREC.FCR_COMISSAOSVC / 100
+										;
+										VL_COMISSAOREC.FCR_COMISSAOSVC = VL_COMISSAOREC.FCR_COMISSAOSVC[round, 2]
+									endif
+								endif
+							endif
+						endif
+					endif
+					;----------Fim Hugo em 10/05/07-----------------
+					;Projeto 180 - Tarefa 0080 - Aloisio Gargantini - 14/02/2011 
+					if (PR_COMISSAOFAT.FCR_COMISSAOSVC > 0) | (PR_COMISSAOREC.FCR_COMISSAOSVC > 0)
+						viParams = ""
+						putitem/id viParams, "CD_EMPRESA",   CD_EMPRESA.FCR_COMISSAOSVC
+						putitem/id viParams, "CD_TIPOCOMIS", CD_TIPOCOMIS.FCR_COMISSAOSVC
+						putitem/id viParams, "PR_BASEFAT",   PR_COMISSAOFAT.FCR_COMISSAOSVC
+						putitem/id viParams, "PR_BASEREC",   PR_COMISSAOREC.FCR_COMISSAOSVC
+						activate "COMSVCO001".buscaComissaoAdicional($$gParamGlb, viParams, voParams, $xCdErro$, $xCtxErro$)
+						if ($procerror)
+							$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext)
+							poCdErro = $xCdErro$
+							poCtxErro = $xCtxErro$
+							return(-1)
+						elseif ($status < 0)
+							$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")
+							poCdErro  = $xCdErro$
+							poCtxErro = $xCtxErro$
+							return(-1)
+						endif	
+						if (voParams != "")
+							if ($item("PR_COMISADICFAT", voParams) > 0)
+								PR_COMISADICFAT.FCR_COMISSAOSVC = $item("PR_COMISADICFAT", voParams)
+								VL_COMISADICFAT.FCR_COMISSAOSVC = ((VL_FATURA.FCR_FATURAISVC - VL_ABATIMENTO.FCR_FATURAISVC) * PR_COMISADICFAT.FCR_COMISSAOSVC) / 100
+								VL_COMISADICFAT.FCR_COMISSAOSVC = VL_COMISADICFAT.FCR_COMISSAOSVC[round, 2]
+								IN_ADICFATPAGO.FCR_COMISSAOSVC  = <FALSE>
+							endif
+							if ($item("PR_COMISADICREC", voParams) > 0)
+								PR_COMISADICREC.FCR_COMISSAOSVC = $item("PR_COMISADICREC", voParams)
+								VL_COMISADICREC.FCR_COMISSAOSVC = ((VL_FATURA.FCR_FATURAISVC - VL_ABATIMENTO.FCR_FATURAISVC) * PR_COMISADICREC.FCR_COMISSAOSVC) / 100
+								VL_COMISADICREC.FCR_COMISSAOSVC = VL_COMISADICREC.FCR_COMISSAOSVC[round, 2]
+								IN_ADICRECPAGO.FCR_COMISSAOSVC  = <FALSE>
+							endif
+						endif
+					endif
+					;
+					; MFGALEGO - 08/11/2006 ; Edvaldo / FIVEBROS
+
+					; MFGALEGO - 10/10/2006 ; Franciele / OPPNUS
+					;;----------------------------------------------------
+					;;MARCOS ROGERIO - PROJETO 70 / TAREFA 13 - 08/06/2006
+					;VL_COMISSAOFAT.FCR_COMISSAOSVC = (VL_FATURA.FCR_FATURAISVC * PR_COMISSAOFAT.FCR_COMISSAOSVC / 100)
+					;VL_COMISSAOREC.FCR_COMISSAOSVC = (VL_FATURA.FCR_FATURAISVC * PR_COMISSAOREC.FCR_COMISSAOSVC / 100)
+					;;----------------------------------------------------
+					delitem vDsLstComis, 1
+				until (vDsLstComis = "")    
+			endif
+
+			; Será implementada futuramente
+			vDsLstImposto = $item("DS_FATIMPOSTO", vDsFaturaI)
+			if (vDsLstImposto = "")
+				if (vInSemImposto != <TRUE>)
+					$instancehandle->SetStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Faltou o imposto para fatura!", "ADICIONAL=Operação->FCRSVCO001.geraFatura")
+					poCdErro  = $xCdErro$
+					poCtxErro = $xCtxErro$
+					return(-1)
+				endif
+			endif
+		endif
+	endif
+
+	; MFGALEGO - 08/11/2006 ; Salles / BRASCOL
+	call listaEmpresaPool() 
+
+	setocc "FCR_FATURAISVC", 1
+	setocc "FCR_COMISSAOSVC", 1
+
+	poParams = ""
+	;VALIDA A EXISTENCIA DE PARCELA
+	if ($empty("FCR_FATURAISVC"))
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Não existe parcela da fatura para serem salvas!", "ADICIONAL=Operação->FCRSVCO001.geraFatura")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif    
+
+	;VALIDA DATA DE EMISSAO
+	if (DT_EMISSAO.FCR_FATURAISVC = 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Data emissão não encontrada!", "ADICIONAL=Operação->FCRSVCO001.geraFatura")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif    
+
+	vDtSistema = $item("DT_SISTEMA", $xlpg$)
+	if (DT_EMISSAO.FCR_FATURAISVC > vDtSistema)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Data emissão não pode ser maior que a data do sistema!", "ADICIONAL=Operação->FCRSVCO001.geraFatura")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif    
+
+	;VALIDA DATA DE VENCIMENTO
+	if (DT_VENCIMENTO.FCR_FATURAISVC = 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Data vencimento não encontrada!", "ADICIONAL=Operação->FCRSVCO001.geraFatura")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif    
+
+	;VALIDA A DATA DE EMISSAO COM A DATA DE VENCIMENTO DE CADA PARCELA
+	if (DT_EMISSAO.FCR_FATURAISVC > DT_VENCIMENTO.FCR_FATURAISVC)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Parcela com data emissao maior que data vencimento!", "ADICIONAL=Operação->FCRSVCO001.geraFatura")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif    
+
+	;VALIDA O VALOR DA PARCELA DE CADA PARCELA
+	if (VL_FATURA.FCR_FATURAISVC <= 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Parcela %%NR_PARCELA.FCR_FATURAISVC com valor incorreto!", "ADICIONAL=Operação->FCRSVCO001.geraFatura")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif    
+
+	;VALIDA O PORTADOR DE CADA PARCELA
+	if (NR_PORTADOR.FCR_FATURAISVC = 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Parcela sem portador!", "ADICIONAL=Operação->FCRSVCO001.geraFatura")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif    
+
+	;VALIDA O TIPO DE SITUACAO DE CADA PARCELA
+	if (TP_SITUACAO.FCR_FATURAISVC = "")
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Parcela sem tipo de situação!", "ADICIONAL=Operação->FCRSVCO001.geraFatura")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif    
+
+	;VALIDA O TIPO DE FATURAMENTO DE CADA PARCELA
+	if (TP_FATURAMENTO.FCR_FATURAISVC = "")
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Parcela sem tipo de faturamento!", "ADICIONAL=Operação->FCRSVCO001.geraFatura")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif    
+	
+	;VALIDA O TIPO DE DOCUMENTO DE CADA PARCELA
+	if (TP_DOCUMENTO.FCR_FATURAISVC = 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Parcela sem tipo documento!", "ADICIONAL=Operação->FCRSVCO001.geraFatura")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif   
+
+	; MFGALEGO - 30/01/2007 ; Gonzales / OSMOZE ; SM 1921
+	;VALIDA O TIPO DE DOCUMENTO DE CADA PARCELA IGUAL A CHEQUE GARANTIDO (15)
+	if (TP_DOCUMENTO.FCR_FATURAISVC = 15)
+		TP_DOCUMENTO.FCR_FATURAISVC = 2
+	endif   
+	;
+	;Projeto 078 - Tarefa 1184 - Aloisio Gargantini - 04/02/2008
+	;VALIDA CD_EMPLOCAL (código da empresa local)
+	if (CD_EMPLOCAL.FCR_FATURAISVC != "") & (vCdComponente = "FCRFM001")
+		viparams = ""
+		;putitem/id viParams, "CD_COMPONENTE", $componentname
+		putitem/id viParams, "CD_EMPRESA",      CD_EMPLOCAL.FCR_FATURAISVC
+		putitem/id viParams, "IN_CCUSTO",       <TRUE>
+		putitem/id viParams, "CD_GRUPOEMPRESA", "·>·=01·&·<·=99"
+		activate "FGRSVCO001".validarEmpresa($$gParamGlb, viParams, voParams, $xCdErro$, $xCtxErro$)
+		if ($procerror)
+			$instancehandle->SetStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Empresa local inválida!", "ADICIONAL=Operação->FCRSVCO001.geraFatura")
+			poCdErro  = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return(-1)
+		elseif ($status < 0)
+			$instancehandle->SetStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Empresa local inválida!", "ADICIONAL=Operação->FCRSVCO001.geraFatura")
+			poCdErro  = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return(-1)
+		endif
+		if ($item("LST_EMPRESA", voParams) = "")
+			$instancehandle->SetStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Empresa local inválida!", "ADICIONAL=Operação->FCRSVCO001.geraFatura")
+			poCdErro  = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return(-1)
+		else
+			vIndicaEmpresaOK = <FALSE>
+			vListaEmpresa = $item("LST_EMPRESA", voParams)
+			repeat
+				getitem vDsRegistro, vListaEmpresa, 1	
+
+				if (vDsRegistro = CD_EMPLOCAL.FCR_FATURAISVC)
+					vIndicaEmpresaOK = <TRUE>
+				endif
+
+				delitem vListaEmpresa , 1
+
+			until (vListaEmpresa = "")
+
+			if (vIndicaEmpresaOK = <FALSE>)
+				$instancehandle->SetStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Empresa local inválida!", "ADICIONAL=Operação->FCRSVCO001.geraFatura")
+				poCdErro  = $xCdErro$
+				poCtxErro = $xCtxErro$
+				return(-1)
+			endif
+		endif
+	endif
+	;
+	; MFGALEGO - 03/04/2007 ; Michelin / HEANLU ; SM 2741
+	;GRAVAR O PORTADOR DE PREFERENCIA DO CLIENTE NO FATURAMENTO
+	if (!$dbocc("FCR_FATURAISVC")) & %\ ; Apenas inclusao
+	   (TP_DOCUMENTO.FCR_FATURAISVC = 1) & %\ ; 1-Fatura
+	   (TP_FATURAMENTO.FCR_FATURAISVC = 1 | TP_FATURAMENTO.FCR_FATURAISVC = 2) ; 1-Venda a vista / 2-Venda a prazo
+		clear/e "PES_CLIPORTADSVC"
+		creocc "PES_CLIPORTADSVC", -1
+		CD_CLIENTE.PES_CLIPORTADSVC/init = CD_CLIENTE.FCR_FATURAISVC
+		retrieve/o "PES_CLIPORTADSVC"
+		if ($status = -7)
+			retrieve/x "PES_CLIPORTADSVC"
+			if (NR_PORTADOR.PES_CLIPORTADSVC > 0)
+				NR_PORTADOR.FCR_FATURAISVC/init = NR_PORTADOR.PES_CLIPORTADSVC
+			endif
+		endif		
+		clear/e "PES_CLIPORTADSVC"
+	endif   
+	;
+	
+	;MTF(03/07/2006) - Projeto 074, tarefa 001.
+	if (tp_documento.fcr_faturaisvc = 4) | (tp_documento.fcr_faturaisvc = 5)
+		if (tp_documento.fcr_faturaisvc = 4) & (nr_histrelsub.fcr_faturaisvc = "") ;Cartao de credito.
+			$instancehandle->setStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Parcela de cartão de crédito sem informação de NR_HISTRELSUB.", "ADICIONAL=Operação->FCRSVCO001.geraFatura")
+			poCdErro  = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return(-1)
+		endif
+		if (tp_documento.fcr_faturaisvc = 5) & (nr_histrelsub.fcr_faturaisvc = "") ;Cartao de debito.
+			$instancehandle->setStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Parcela de cartão de débito sem informação de NR_HISTRELSUB.", "ADICIONAL=Operação->FCRSVCO001.geraFatura")
+			poCdErro  = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return(-1)
+		endif
+		clear/e "FCX_HISTRELSUSVC"
+		tp_documento.fcx_histrelsusvc/init     = tp_documento.fcr_faturaisvc
+		nr_seqhistrelsub.fcx_histrelsusvc/init = nr_histrelsub.fcr_faturaisvc
+		retrieve/e "FCX_HISTRELSUSVC"
+		if ($status >= 0)
+			nr_parcelas.fcr_faturaisvc = nr_parcelas.fcx_histrelsusvc
+		endif
+	else
+		nr_histrelsub.fcr_faturaisvc = 1
+		nr_parcelas.fcr_faturaisvc   = 1
+	endif
+	;
+	
+	;VALIDA O TIPO DE INCLUSAO DE CADA PARCELA
+	if (TP_INCLUSAO.FCR_FATURAISVC = 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Parcela sem tipo de inclusão!", "ADICIONAL=Operação->FCRSVCO001.geraFatura")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif    
+
+	$instancehandle->buscaParametro()
+	if ($procerror)
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	
+	; MFGALEGO - 25/06/2007 ; Alex / LOJA GAUCHA ; SM 3750
+	;if (!vInAlteracao) & (TP_BAIXA.FCR_FATURAISVC = 0)
+	if (!vInAlteracao) & (TP_BAIXA.FCR_FATURAISVC = 0) & (TP_DOCUMENTO.FCR_FATURAISVC = 1)
+	;	
+		if (vInNaoGrvJuro != <TRUE>) & (PR_JUROMES.FCR_FATURAISVC = 0)
+			NR_CARENCIAATRASO.FCR_FATURAISVC = $nrDiasCarenciaAtraso$
+			PR_JUROMES.FCR_FATURAISVC        = $prJuros$	
+		endif
+		if (vInNaoGrvMulta != <TRUE>) & (PR_MULTA.FCR_FATURAISVC = 0)
+			NR_CARENCIAMULTA.FCR_FATURAISVC = $nrDiasCarenciaMulta$
+			PR_MULTA.FCR_FATURAISVC         = $prMulta$ 
+		endif
+;(14/06/2005)if (vInNaoGrvDescAnt != <TRUE>) & (PR_DESCPGPRAZO.FCR_FATURAISVC = 0) & ($prDescPont$ != 0)
+		if (vInNaoGrvDescAnt != <TRUE>) & ($nrTipoCalcDesconto$ = 1) & (PR_DESCPGPRAZO.FCR_FATURAISVC = 0) & ($prDescPont$ != 0)			
+			vDtDescAnt = DT_VENCIMENTO.FCR_FATURAISVC - $nrDiasDescPont$
+			if (vDtDescAnt >= DT_EMISSAO.FCR_FATURAISVC)
+				NR_DESCPONT.FCR_FATURAISVC    = $nrDiasDescPont$
+				PR_DESCPGPRAZO.FCR_FATURAISVC = $prDescPont$
+			endif
+		elseif (PR_DESCPGPRAZO.FCR_FATURAISVC > 0)
+			NR_DESCPONT.FCR_FATURAISVC	 = $nrDiasDescPont$
+		endif
+;(14/06/2005)if (vInNaoGrvDesc1 != <TRUE>) & (PR_DESCANTECIP1.FCR_FATURAISVC = 0) & ($prDesc1$ != 0)
+		if (vInNaoGrvDesc1 != <TRUE>) & ($nrTipoCalcDesconto$ != 1) & (PR_DESCANTECIP1.FCR_FATURAISVC = 0) & ($prDesc1$ != 0) 
+			vDtDescAnt = DT_VENCIMENTO.FCR_FATURAISVC - $nrDiasDesc1$
+			if (vDtDescAnt >= DT_EMISSAO.FCR_FATURAISVC)
+				PR_DESCANTECIP1.FCR_FATURAISVC = $prDesc1$ 
+				DT_DESCANTECIP1.FCR_FATURAISVC = vDtDescAnt
+			endif
+		endif
+	endif
+
+	;VALIDA TOTAL DO DESCONTO
+;	vVlDescPrazo = VL_ABATIMENTO.FCR_FATURAISVC + VL_OUTDESC.FCR_FATURAISVC
+;	if (PR_DESCPGPRAZO.FCR_FATURAISVC > 0)
+;		vVlDescPrazo = vVlDescPrazo + ((VL_FATURA.FCR_FATURAISVC - VL_ABATIMENTO.FCR_FATURAISVC) * PR_DESCPGPRAZO.FCR_FATURAISVC / 100)
+;	endif		
+;
+;	if (PR_DESCANTECIP1.FCR_FATURAISVC > 0)
+;		vVlTotalDesc1 = vVlDescPrazo + ((VL_FATURA.FCR_FATURAISVC - VL_ABATIMENTO.FCR_FATURAISVC) * PR_DESCANTECIP1.FCR_FATURAISVC / 100)
+;	else
+;		vVlTotalDesc1 = 0
+;	endif
+;
+;	if (PR_DESCANTECIP2.FCR_FATURAISVC > 0)
+;		vVlTotalDesc2 = vVlDescPrazo + ((VL_FATURA.FCR_FATURAISVC - VL_ABATIMENTO.FCR_FATURAISVC) * PR_DESCANTECIP2.FCR_FATURAISVC / 100)
+;	else
+;		vVlTotalDesc2 = 0
+;	endif
+;
+;	if (vVlDescPrazo > VL_FATURA.FCR_FATURAISVC) | %\
+;	   (vVlTotalDesc1 > VL_FATURA.FCR_FATURAISVC) | %\
+;	   (vVlTotalDesc2 > VL_FATURA.FCR_FATURAISVC)  	
+;		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Valor total do desconto não pode ser maior que o valor da fatura!", "ADICIONAL=Operação->FCRSVCO001.geraFatura")
+;		poCdErro = $xCdErro$
+;		poCtxErro = $xCtxErro$
+;		return(-1)
+;	endif
+
+	; Substituiu a consistência acima (14/06/2004)
+	if (PR_DESCPGPRAZO.FCR_FATURAISVC > 0) & (PR_DESCANTECIP1.FCR_FATURAISVC > 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Não é permitido desconto no prazo e desconto por dia de antecipação na mesma fatura!", "ADICIONAL=Operação->FCRSVCO001.geraFatura")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	if (PR_DESCPGPRAZO.FCR_FATURAISVC >= 100)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Percentual de desconto no prazo nao pode ser igual ou maior que o valor da fatura!", "ADICIONAL=Operação->FCRSVCO001.geraFatura")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	if (PR_DESCANTECIP1.FCR_FATURAISVC >= 100)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Percentual de desconto por dia de antecipação não pode ser maior que 100 porcento!", "ADICIONAL=Operação->FCRSVCO001.geraFatura")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+
+	;VALIDA PERCENTUAL DESCONTO POR ANTECIPACAO 1
+;	if (DT_DESCANTECIP1.FCR_FATURAISVC != 0) & (PR_DESCANTECIP1.FCR_FATURAISVC = 0)
+;		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Ao informar data limite do desconto por antecipação 1, informar também o percentual 1!", "ADICIONAL=Operação->FCRSVCO001.geraFatura")
+;		poCdErro = $xCdErro$
+;		poCtxErro = $xCtxErro$
+;		return(-1)
+;	endif
+
+	; Substituiu a consistência acima (14/06/2004)
+	if (DT_DESCANTECIP1.FCR_FATURAISVC != 0)
+		if (PR_DESCPGPRAZO.FCR_FATURAISVC > 0)
+			$instancehandle->SetStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Data limite do desconto por dia de antecipação informada indevidamente!", "ADICIONAL=Operação->FCRSVCO001.geraFatura")
+			poCdErro  = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return(-1)
+		elseif (PR_DESCANTECIP1.FCR_FATURAISVC = 0)
+			$instancehandle->SetStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Ao informar data limite do desconto por dia antecipação, informar também o percentual para desconto por dia de antecipação!", "ADICIONAL=Operação->FCRSVCO001.geraFatura")
+			poCdErro  = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return(-1)
+		endif
+	endif
+
+	;VALIDA DATA DESCONTO POR ANTECIPACAO 1
+	if (PR_DESCANTECIP1.FCR_FATURAISVC != 0) 
+		if (DT_DESCANTECIP1.FCR_FATURAISVC = 0)
+			$instancehandle->SetStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Informe a data limite do desconto por dia de antecipação!", "ADICIONAL=Operação->FCRSVCO001.geraFatura")
+			poCdErro  = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return(-1)
+		elseif (DT_DESCANTECIP1.FCR_FATURAISVC > DT_VENCIMENTO.FCR_FATURAISVC)
+			$instancehandle->SetStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Data limite do desconto por antecipação 1 não pode ser maior que data de vencimento!", "ADICIONAL=Operação->FCRSVCO001.geraFatura")
+			poCdErro  = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return(-1)
+		endif
+	endif
+	
+	DT_DESCANTECIP2.FCR_FATURAISVC = "" ; Desconto 2 foi desativado (14/06/2004)
+	PR_DESCANTECIP2.FCR_FATURAISVC = "" ; Desconto 2 foi desativado (14/06/2004)
+
+	;VALIDA VALOR DE OUTRO DESCONTO
+	if (VL_OUTDESC.FCR_FATURAISVC > VL_FATURA.FCR_FATURAISVC)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Valor de outro desconto não pode ser maior que o valor da fatura!", "ADICIONAL=Operação->FCRSVCO001.geraFatura")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+
+	;VALIDA VALOR DO ABATIMENTO
+	if (VL_ABATIMENTO.FCR_FATURAISVC > VL_FATURA.FCR_FATURAISVC)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Valor do abatimento não pode ser maior que o valor da fatura!", "ADICIONAL=Operação->FCRSVCO001.geraFatura")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+     if (vInAltSoFaturaI != <TRUE>)
+		if ($empty("FCR_COMISSAOSVC") = 0)
+			setocc "FCR_COMISSAOSVC", 1
+			while ($status >= 0) 
+				CD_OPERADOR.FCR_COMISSAOSVC = $item("CD_USUARIO", $xlpg$)
+				DT_CADASTRO.FCR_COMISSAOSVC = $datim
+
+				;VALIDA O TIPO DE COMISSIONADO
+				if (CD_TIPOCOMIS.FCR_COMISSAOSVC = 0)
+					$instancehandle->SetStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Tipo de comissionado não informado!", "ADICIONAL=Operação->FCRSVCO001.geraFatura")
+					poCdErro  = $xCdErro$
+					poCtxErro = $xCtxErro$
+					return(-1)
+				endif    
+
+				setocc "FCR_COMISSAOSVC", $curocc("FCR_COMISSAOSVC") + 1
+			endwhile
+		endif
+	endif
+
+	if (DT_VENCTOORIGEM.FCR_FATURAISVC = "")
+		DT_VENCTOORIGEM.FCR_FATURAISVC = DT_VENCIMENTO.FCR_FATURAISVC
+	endif
+	
+	if (VL_ORIGINAL.FCR_FATURAISVC = "")
+		VL_ORIGINAL.FCR_FATURAISVC = VL_FATURA.FCR_FATURAISVC
+	endif
+
+	if (TP_COBRANCA.FCR_FATURAISVC = "")
+		TP_COBRANCA.FCR_FATURAISVC = 0
+	endif
+
+	if (TP_BAIXA.FCR_FATURAISVC = "")
+		TP_BAIXA.FCR_FATURAISVC = 0 
+	endif
+
+	if (VL_PAGO.FCR_FATURAISVC = "")
+		VL_PAGO.FCR_FATURAISVC = 0
+	endif
+	;MTF(09/11/2007) - Projeto 078, tarefa 909.
+	;if (CD_COMPONENTE.FCR_FATURAISVC = "")
+		CD_COMPONENTE.FCR_FATURAISVC = vCdComponente 
+	;endif
+	;
+	if (CD_MOEDA.FCR_FATURAISVC = 0)
+		CD_MOEDA.FCR_FATURAISVC = $item("CD_MOEDA", $xlpg$)
+	endif
+
+	CD_OPERADOR.FCR_FATURAISVC = $item("CD_USUARIO", $xlpg$)
+	DT_CADASTRO.FCR_FATURAISVC = $datim
+
+	if (IN_ACEITE.FCR_FATURAISVC = "")
+		IN_ACEITE.FCR_FATURAISVC = <FALSE>
+	endif
+
+	if (CD_OPERCAD.FCR_FATURAISVC = "")
+		CD_OPERCAD.FCR_FATURAISVC = $item("CD_USUARIO", $xlpg$)
+		DT_OPERCAD.FCR_FATURAISVC = $datim
+		HR_OPERCAD.FCR_FATURAISVC = $clock
+	endif
+
+	; MFGALEGO - 05/07/2007 ; Alex / KRINDGES ; SM 3658
+	; Somente quando alterado pela manutencao de FATURA - FCRFM001
+	if ($item("IN_MANUTENCAO",piParams) = <TRUE>)
+		viParams = vDsFaturaI
+		putitem/id viParams, "CD_EMPRESA", CD_EMPRESA.FCR_FATURAISVC
+		putitem/id viParams, "CD_CLIENTE", CD_CLIENTE.FCR_FATURAISVC
+		putitem/id viParams, "NR_FAT",     NR_FAT.FCR_FATURAISVC
+		putitem/id viParams, "NR_PARCELA", NR_PARCELA.FCR_FATURAISVC
+		;Projeto 078 - Tarefa 683 - Aloisio Gargantini - 10/07/2007
+		vDsLstComis = $item("DS_FATCOMISSAO", vDsFaturaI)
+		;
+		call verificarAlteracao(viParams, vDsLstComis, vInAlteracao)
+	endif
+	;
+
+	if (vInAlteracao)
+		CD_OPERALTERACAO.FCR_FATURAISVC = $item("CD_USUARIO", $xlpg$)
+		DT_ALTERACAO.FCR_FATURAISVC     = $datim
+	endif
+
+	if (CD_EMPLOCAL.FCR_FATURAISVC = "")
+		CD_EMPLOCAL.FCR_FATURAISVC = CD_EMPRESA.FCR_FATURAISVC
+
+		if ($inUtilizaCxFilial$ = <FALSE>) & ($cdEmpresaMatriz$ > 0)
+			CD_EMPLOCAL.FCR_FATURAISVC = $cdEmpresaMatriz$
+		endif
+	endif
+
+	if(	vCdMotivoProrr > 0)
+		CD_MOTIVOPRORR.FCR_FATURAISVC = 	vCdMotivoProrr
+	endif
+
+	if (NR_PARCELA.FCR_FATURAISVC = 0)
+
+		;------------------------------------------
+		;SELECT ANTIGO - 31/03/2006 - MARCOS ROGERIO KUZMINSKI - FABIO - PROJETO=56, TAREFA=10
+		;selectdb max(NR_PARCELA) %\
+		;from "FCR_FATURAISVC" %\
+		;u_where (CD_EMPRESA.FCR_FATURAISVC = CD_EMPRESA.FCR_FATURACSVC & %\
+		;         CD_CLIENTE.FCR_FATURAISVC = CD_CLIENTE.FCR_FATURACSVC & %\
+		;         NR_FAT.FCR_FATURAISVC     = NR_FAT.FCR_FATURACSVC       %\
+		;to vNrParcela
+		;------------------------------------------
+
+		;------------------------------------------
+		;esta condição foi inserida para garantir que parcelas novas sejam geras com numeração abaixo de 200 
+		;...--> NR_PARCELA.FCR_FATURAISVC < 200
+		;selectdb max(NR_PARCELA) %\
+		;MARCOS ROGERIO KUZMINSKI - FABIO - PROJETO=56, TAREFA=10	
+		;------------------------------------------
+		vNrParcela = ""
+		selectdb max(NR_PARCELA) %\
+		from "FCR_FATURAISVC" %\
+		u_where (CD_EMPRESA.FCR_FATURAISVC = CD_EMPRESA.FCR_FATURACSVC & %\
+		         CD_CLIENTE.FCR_FATURAISVC = CD_CLIENTE.FCR_FATURACSVC & %\
+		         NR_FAT.FCR_FATURAISVC     = NR_FAT.FCR_FATURACSVC     & %\
+                 NR_PARCELA.FCR_FATURAISVC < 200)                        %\
+		to vNrParcela
+		if ($status < 0)
+			$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+			poCdErro = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return (-1)
+		else
+			if (vNrParcela = 0)
+				;------------------------------------------
+				;se ainda retornar zero, significa que ,,, ou não existe nenhuma parcela, ou que nr parcela passou de 200
+				selectdb max(NR_PARCELA) %\
+				from "FCR_FATURAISVC"    %\
+				u_where (CD_EMPRESA.FCR_FATURAISVC = CD_EMPRESA.FCR_FATURACSVC & %\
+				         CD_CLIENTE.FCR_FATURAISVC = CD_CLIENTE.FCR_FATURACSVC & %\
+				         NR_FAT.FCR_FATURAISVC     = NR_FAT.FCR_FATURACSVC)      %\
+				to vNrParcela
+				;------------------------------------------
+			endif
+
+			vNrParcela = vNrParcela + 1
+
+			;teste desnecessário, 
+			;if (vNrParcela > 0)
+			;	vNrParcela = vNrParcela + 1
+			;else
+			;	vNrParcela = 1
+			;endif
+
+		endif
+		NR_PARCELA.FCR_FATURAISVC = vNrParcela
+	endif
+	
+	if (vDsCheque != "")
+		if (TP_DOCUMENTO.FCR_FATURAISVC != 2)
+			$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Informação de cheque para fatura diferente de cheque!", "ADICIONAL=Operação->FCRSVCO001.geraFatura")
+			poCdErro = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return(-1)
+		endif
+		clear/e "FCR_CHEQUESVC"
+		CD_EMPRESA.FCR_CHEQUESVC/init = CD_EMPRESA.FCR_FATURAISVC
+		CD_CLIENTE.FCR_CHEQUESVC/init = CD_CLIENTE.FCR_FATURAISVC
+		NR_FAT.FCR_CHEQUESVC/init     = NR_FAT.FCR_FATURAISVC
+		NR_PARCELA.FCR_CHEQUESVC/init = NR_PARCELA.FCR_FATURAISVC
+		retrieve/e "FCR_CHEQUESVC"
+		if ($status < 0)
+			clear/e "FCR_CHEQUESVC"
+			creocc "FCR_CHEQUESVC", -1
+ 			getlistitems/occ vDsCheque, "FCR_CHEQUESVC"
+		else
+			delitem/id vDsCheque, "CD_EMPRESA"  
+			delitem/id vDsCheque, "CD_CLIENTE"
+			delitem/id vDsCheque, "NR_FAT"
+			delitem/id vDsCheque, "NR_PARCELA"
+			getlistitems/occ vDsCheque, "FCR_CHEQUESVC"
+		endif
+
+		vDsConta = $item("NR_CONTA", vDsCheque)
+		if (DS_CONTA.FCR_CHEQUESVC = "") & (vDsConta != "")
+			DS_CONTA.FCR_CHEQUESVC = vDsConta
+		endif
+		;MTF(30/08/2006) - Projeto 078, tarefa 028.
+		in_terceiro.fcr_chequesvc = $item("IN_TERCEIRO", vDsCheque)
+		;
+		if (DS_BANDA.FCR_CHEQUESVC != "")
+			clear/e "F_FCR_CHEQUESVC"
+			DS_BANDA.F_FCR_CHEQUESVC/init = DS_BANDA.FCR_CHEQUESVC[1:30]
+			if ($LstEmpresa$ != "") ; MFGALEGO - 08/11/2006 ; Salles / BRASCOL
+				CD_EMPRESA.F_FCR_CHEQUESVC/init = $LstEmpresa$
+			endif
+			retrieve/e "F_FCR_CHEQUESVC"
+			if ($status >= 0) & %\
+			   ((CD_EMPRESA.F_FCR_CHEQUESVC <> CD_EMPRESA.FCR_CHEQUESVC) | %\
+			    (CD_CLIENTE.F_FCR_CHEQUESVC <> CD_CLIENTE.FCR_CHEQUESVC) | %\
+			    (NR_FAT.F_FCR_CHEQUESVC <> NR_FAT.FCR_CHEQUESVC) | %\
+			    (NR_PARCELA.F_FCR_CHEQUESVC <> NR_PARCELA.FCR_CHEQUESVC))
+				$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Banda magnética do cheque já foi informada para outro cheque!%%^(Empresa=%%CD_EMPRESA.F_FCR_CHEQUESVC Cliente=%%CD_CLIENTE.F_FCR_CHEQUESVC Fatura=%%NR_FAT.F_FCR_CHEQUESVC Parcela=%%NR_PARCELA.F_FCR_CHEQUESVC)", "ADICIONAL=Operação->FCRSVCO001.geraFatura")
+				poCdErro = $xCdErro$
+				poCtxErro = $xCtxErro$
+				return(-1)
+			endif
+		;Projeto 078 - Tarefa 680 - Aloisio Gargantini - 10/07/2007
+		else
+			if (NR_BANCO.FCR_CHEQUESVC != "" ) | %\
+			   (NR_AGENCIA.FCR_CHEQUESVC != "") | %\
+	           (DS_CONTA.FCR_CHEQUESVC != "") | %\
+			   (NR_CHEQUE.FCR_CHEQUESVC != "")
+				vIncluido = <FALSE>
+				clear/e "F_FCR_CHEQUESVC"
+				NR_BANCO.F_FCR_CHEQUESVC/init   = NR_BANCO.FCR_CHEQUESVC
+				NR_AGENCIA.F_FCR_CHEQUESVC/init = NR_AGENCIA.FCR_CHEQUESVC
+				DS_CONTA.F_FCR_CHEQUESVC/init   = DS_CONTA.FCR_CHEQUESVC
+				NR_CHEQUE.F_FCR_CHEQUESVC/init  = NR_CHEQUE.FCR_CHEQUESVC
+				retrieve/e "F_FCR_CHEQUESVC"
+				if ($status >= 0)
+					;Projeto 079 - Tarefa 097 - Aloisio Gargantini - 25/07/2007
+					setocc "F_FCR_CHEQUESVC", 1
+					while ($status >= 0)
+						if (CD_EMPRESA.F_FCR_CHEQUESVC != CD_EMPRESA.FCR_CHEQUESVC) | %\
+		    	           (CD_CLIENTE.F_FCR_CHEQUESVC != CD_CLIENTE.FCR_CHEQUESVC) | %\	
+					       (NR_FAT.F_FCR_CHEQUESVC != NR_FAT.FCR_CHEQUESVC) | %\
+						   (NR_PARCELA.F_FCR_CHEQUESVC != NR_PARCELA.FCR_CHEQUESVC)
+
+							clear/e "F_FCR_FATURAISVC"
+							CD_EMPRESA.F_FCR_FATURAISVC/init = CD_EMPRESA.F_FCR_CHEQUESVC
+							CD_CLIENTE.F_FCR_FATURAISVC/init = CD_CLIENTE.F_FCR_CHEQUESVC
+							NR_FAT.F_FCR_FATURAISVC/init     = NR_FAT.F_FCR_CHEQUESVC 
+							NR_PARCELA.F_FCR_FATURAISVC/init = NR_PARCELA.F_FCR_CHEQUESVC
+							retrieve/e "F_FCR_FATURAISVC"
+							if ($status >= 0)
+								if (TP_SITUACAO.F_FCR_FATURAISVC = 1) ; Normal
+									vIncluido = <TRUE>
+								endif
+							endif						
+						endif
+						setocc "F_FCR_CHEQUESVC", $curocc("F_FCR_CHEQUESVC") + 1
+					endwhile
+				endif
+
+				if (vIncluido = <TRUE>)
+					$instancehandle->SetStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Cheque já incluido no sistema!", "")
+					poCdErro  = $xCdErro$
+					poCtxErro = $xCtxErro$
+					return(-1)
+				endif	
+			endif
+	;
+		endif
+		CD_OPERADOR.FCR_CHEQUESVC = $item("CD_USUARIO", $xlpg$)
+		DT_CADASTRO.FCR_CHEQUESVC = $datim	
+	else
+		if (vInAltSoFaturaI != <TRUE>) & %\
+		   (NR_PARCELAORIGEM.FCR_FATURAISVC = "") & %\ ; MFGALEGO - 05/07/2007 ; Kuzminski / KRINDGES
+		   (TP_DOCUMENTO.FCR_FATURAISVC = 2)      & %\
+		   (TP_INCLUSAO.FCR_FATURAISVC = "·!·=9") ;9-Importação  ;--Ferreira - [Prj/Tar 186/0267] - 10/10/2011
+			$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Fatura do tipo cheque, mas sem cheque para gravação!", "ADICIONAL=Operação->FCRSVCO001.geraFatura")
+			poCdErro  = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return(-1)
+		endif
+	endif
+
+	if (vDsIndice != "")
+		vCdIndice = $item("CD_INDICE", vDsIndice)
+		if (vCdIndice = 0)
+			$instancehandle->SetStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Código do índice não informado!", "ADICIONAL=Operação->FCRSVCO001.geraFatura")
+			poCdErro  = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return(-1)
+		endif
+		vDtCorrecaoIndice = $item("DT_CORRECAO", vDsIndice)
+		if (vDtCorrecaoIndice = "")
+			$instancehandle->SetStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Data de correção do índice não informada!", "ADICIONAL=Operação->FCRSVCO001.geraFatura")
+			poCdErro  = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return(-1)
+		endif
+		creocc "FCR_INDICEFATSVC", -1
+		CD_INDICE.FCR_INDICEFATSVC = vCdIndice 
+		retrieve/o "FCR_INDICEFATSVC"
+		if ($status = -7)
+			retrieve/x "FCR_INDICEFATSVC"
+		endif
+		DT_BASECORRECAO.FCR_INDICEFATSVC = vDtCorrecaoIndice
+		CD_OPERADOR.FCR_INDICEFATSVC     = $item("CD_USUARIO", $xlpg$)
+		DT_CADASTRO.FCR_INDICEFATSVC     = $datim		
+	endif	
+
+	;GRAVAR LOG DE TROCA DE PORTADOR
+	if (NR_PORTADOR.FCR_FATURAISVC != vPortadorAnt) & (vPortadorAnt != "")
+		viParams = ""
+		putitem/id viParams, "CD_EMPRESA"   , CD_EMPRESA.FCR_FATURAISVC
+		putitem/id viParams, "CD_CLIENTE"   , CD_CLIENTE.FCR_FATURAISVC
+		putitem/id viParams, "NR_FAT"       , NR_FAT.FCR_FATURAISVC
+		putitem/id viParams, "NR_PARCELA"   , NR_PARCELA.FCR_FATURAISVC
+		putitem/id viParams, "TP_LOGFAT"    , 1
+		putitem/id viParams, "NR_ORIGEM"    , vPortadorAnt
+		putitem/id viParams, "NR_DESTINO"   , NR_PORTADOR.FCR_FATURAISVC
+		putitem/id viParams, "DS_COMPONENTE", vCdComponente
+		$instancehandle->gravaLogFatura($xlpg$,viParams,voParams,$xCdErro$,$xCtxerro$)
+		if ($procerror)
+			$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+			poCdErro  = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return (-1)
+		endif
+		if ($status < 0)
+			$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+			poCdErro  = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return (-1)
+		endif
+	endif
+
+	;GRAVAR LOG DE TROCA DE EMP. LOCAL
+	if (CD_EMPLOCAL.FCR_FATURAISVC != vCdEmpLocalAnt) & (vCdEmpLocalAnt != "")
+		viParams = ""
+		putitem/id viParams, "CD_EMPRESA"   , CD_EMPRESA.FCR_FATURAISVC
+		putitem/id viParams, "CD_CLIENTE"   , CD_CLIENTE.FCR_FATURAISVC
+		putitem/id viParams, "NR_FAT"       , NR_FAT.FCR_FATURAISVC
+		putitem/id viParams, "NR_PARCELA"   , NR_PARCELA.FCR_FATURAISVC
+		putitem/id viParams, "TP_LOGFAT"    , 14
+		putitem/id viParams, "NR_ORIGEM"    , vCdEmpLocalAnt
+		putitem/id viParams, "NR_DESTINO"   , CD_EMPLOCAL.FCR_FATURAISVC
+		putitem/id viParams, "DS_COMPONENTE", vCdComponente
+		putitem/id viParams, "DS_OBS"       , "TROCA EMP. LOCAL"
+		$instancehandle->gravaLogFatura($xlpg$,viParams,voParams,$xCdErro$,$xCtxerro$)
+		if ($procerror)
+			$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+			poCdErro  = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return (-1)
+		endif
+		if ($status < 0)
+			$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+			poCdErro  = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return (-1)
+		endif
+	endif
+
+	;GRAVAR LOG DE TROCA DE VENCIMENTO
+	if (DT_VENCIMENTO.FCR_FATURAISVC != vVenctoAnt) & (vVenctoAnt != "")
+		viParams = ""
+		putitem/id viParams, "CD_EMPRESA"   , CD_EMPRESA.FCR_FATURAISVC
+		putitem/id viParams, "CD_CLIENTE"   , CD_CLIENTE.FCR_FATURAISVC
+		putitem/id viParams, "NR_FAT"       , NR_FAT.FCR_FATURAISVC
+		putitem/id viParams, "NR_PARCELA"   , NR_PARCELA.FCR_FATURAISVC
+		putitem/id viParams, "TP_LOGFAT"    , 2
+		putitem/id viParams, "DT_ORIGEM"    , vVenctoAnt
+		putitem/id viParams, "DT_DESTINO"   , DT_VENCIMENTO.FCR_FATURAISVC
+		putitem/id viParams, "DS_COMPONENTE", vCdComponente
+		$instancehandle->gravaLogFatura($xlpg$,viParams,voParams,$xCdErro$,$xCtxerro$)
+		if ($procerror)
+			$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+			poCdErro  = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return (-1)
+		endif
+		if ($status < 0)
+			$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+			poCdErro  = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return (-1)
+		endif
+	endif
+
+	;GRAVAR LOG DE TROCA DE VALOR
+	if (VL_FATURA.FCR_FATURAISVC != vVlFaturaAnt) & (vVlFaturaAnt != "")
+		viParams = ""
+		putitem/id viParams, "CD_EMPRESA"   , CD_EMPRESA.FCR_FATURAISVC
+		putitem/id viParams, "CD_CLIENTE"   , CD_CLIENTE.FCR_FATURAISVC
+		putitem/id viParams, "NR_FAT"       , NR_FAT.FCR_FATURAISVC
+		putitem/id viParams, "NR_PARCELA"   , NR_PARCELA.FCR_FATURAISVC
+		putitem/id viParams, "TP_LOGFAT"    , 3
+		putitem/id viParams, "VL_ORIGEM"    , vVlFaturaAnt
+		putitem/id viParams, "VL_DESTINO"   , VL_FATURA.FCR_FATURAISVC
+		putitem/id viParams, "DS_COMPONENTE", vCdComponente
+		$instancehandle->gravaLogFatura($xlpg$,viParams,voParams,$xCdErro$,$xCtxerro$)
+		if ($procerror)
+			$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+			poCdErro  = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return (-1)
+		endif
+		if ($status < 0)
+			$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+			poCdErro  = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return (-1)
+		endif
+	endif
+
+	;GRAVAR LOG DO TIPO DE COBRANCA
+	if (TP_COBRANCA.FCR_FATURAISVC != vTpCobrancaAnt) & (vTpCobrancaAnt != "")
+		viParams = ""
+		putitem/id viParams, "CD_EMPRESA"   , CD_EMPRESA.FCR_FATURAISVC
+		putitem/id viParams, "CD_CLIENTE"   , CD_CLIENTE.FCR_FATURAISVC
+		putitem/id viParams, "NR_FAT"       , NR_FAT.FCR_FATURAISVC
+		putitem/id viParams, "NR_PARCELA"   , NR_PARCELA.FCR_FATURAISVC
+		putitem/id viParams, "TP_LOGFAT"    , 8
+		putitem/id viParams, "NR_ORIGEM"    , vTpCobrancaAnt
+		putitem/id viParams, "NR_DESTINO"   , TP_COBRANCA.FCR_FATURAISVC
+		putitem/id viParams, "DS_COMPONENTE", vCdComponente
+		$instancehandle->gravaLogFatura($xlpg$,viParams,voParams,$xCdErro$,$xCtxerro$)
+		if ($procerror)
+			$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+			poCdErro  = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return (-1)
+		endif
+		if ($status < 0)
+			$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+			poCdErro  = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return (-1)
+		endif
+	endif
+
+	CD_OPERADOR.FCR_FATURACSVC = $item("CD_USUARIO", $xlpg$)
+	DT_CADASTRO.FCR_FATURACSVC = $datim
+
+	if (TP_DOCUMENTO.FCR_FATURAISVC = 3)
+		if (DT_LIQ.FCR_FATURAISVC= "")
+			$instancehandle->SetStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Tipo de documento dinheiro sem liquidação!", "ADICIONAL=Operação->FCRSVCO001.geraFatura")
+			poCdErro  = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return(-1)
+		endif
+
+		; Fshimakawa 01-11-05 Foi retirado estas linhas abaixo porque estava fazendo com que o dinheiro perdesse 
+		;                     as informacoes de liquidacao, perdendo a ligacao com fgr_liq. a liquidacao ficava com
+        ;                     uma data e o registro da fatura 
+        ;
+		;CD_OPERBAIXA.FCR_FATURAISVC = $item("CD_USUARIO", $xlpg$)
+		;DT_LIQ.FCR_FATURAISVC = $datim
+		;VL_PAGO.FCR_FATURAISVC = VL_FATURA.FCR_FATURAISVC
+		;TP_BAIXA.FCR_FATURAISVC = 1 ;1=baixado  0=não baixado
+
+		if (CD_OPERBAIXA.FCR_FATURAISVC="")
+			CD_OPERBAIXA.FCR_FATURAISVC = $item("CD_USUARIO", $xlpg$)
+		endif
+		if (VL_PAGO.FCR_FATURAISVC="")
+			VL_PAGO.FCR_FATURAISVC = VL_FATURA.FCR_FATURAISVC
+		endif
+		;Projeto 078 - Tarefa 3640 - Aloisio Gargantini - 17/08/2010
+		;TP_BAIXA.FCR_FATURAISVC = 1 ;1=baixado  0=não baixado
+		if (TP_BAIXA.FCR_FATURAISVC < 1)
+			TP_BAIXA.FCR_FATURAISVC = 1
+		endif
+		if (DT_BAIXA.FCR_FATURAISVC = "")
+			DT_BAIXA.FCR_FATURAISVC = DT_LIQ.FCR_FATURAISVC
+		endif
+		;
+	endif
+;	retrieve/e "FCR_FATURACSVC"      13-12-05 fshimakawa jyabe nao esta fazendo certo e esta causando lentidao 
+;	VL_TOTAL.FCR_FATURACSVC = 0
+;	VL_SALDO.FCR_FATURACSVC = 0
+;	setocc "FCR_FATURAISVC", 1
+;	while ($status >= 0)    
+;		VL_TOTAL.FCR_FATURACSVC = VL_TOTAL.FCR_FATURACSVC + VL_FATURA.FCR_FATURAISVC
+;		if (DT_LIQ.FCR_FATURAISVC = "")
+;			VL_SALDO.FCR_FATURACSVC = VL_SALDO.FCR_FATURACSVC + VL_FATURA.FCR_FATURAISVC
+;		endif
+;		setocc "FCR_FATURAISVC", $curocc("FCR_FATURAISVC") + 1
+;	endwhile
+
+	CD_OPERADOR.FCR_FATURACSVC = $item("CD_USUARIO", $xlpg$)
+	DT_CADASTRO.FCR_FATURACSVC = $datim
+	$collhandle("FCR_FATURACSVC")->Salvar()
+	if ($procerror)
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return (-1)
+	elseif ($status < 0)
+		$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")    
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return (-1)
+	endif
+	
+	if (TP_DOCUMENTO.FCR_FATURAISVC = 1)
+		viParams = ""
+		putitem/id viParams, "CD_PESSOA", CD_CLIENTE.FCR_FATURAISVC
+		activate "FCRSVCO057".validaPessoaOrgaoPublico($xlpg$, viParams, voParams, $xCdErro$, $xCtxErro$)
+		if ($procerror)       
+			$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+			poCdErro  = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return(-1)
+		endif
+		if ($status < 0)
+			$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")
+			poCdErro  = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return(-1)
+		endif
+		
+		vInOrgaoPublico = $item("IN_ORGAOPUBLICO", voParams)
+		
+		if (vInOrgaoPublico = <TRUE>)
+			viParams = ""
+			putitem/id viParams, "CD_EMPRESA", CD_EMPRESA.FCR_FATURAISVC
+			putitem/id viParams, "CD_CLIENTE", CD_CLIENTE.FCR_FATURAISVC
+			putitem/id viParams, "NR_FAT",     NR_FAT.FCR_FATURAISVC
+			putitem/id viParams, "NR_PARCELA", NR_PARCELA.FCR_FATURAISVC
+			activate "FCRSVCO057".gravaImpostoFatura($xlpg$, viParams, voParams, $xCdErro$, $xCtxErro$)
+			if ($procerror)       
+				$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+				poCdErro  = $xCdErro$
+				poCtxErro = $xCtxErro$
+				return(-1)
+			endif
+			if ($status < 0)
+				$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")
+				poCdErro  = $xCdErro$
+				poCtxErro = $xCtxErro$
+				return(-1)
+			endif
+		endif
+	endif
+	
+	;MTF(26/02/2009) - Projeto 147, tarefa 0001.
+	;if (vInAlteracao != <TRUE>) & ($cdTipoClasCliFat$ > 0)
+	;	viParams = ""
+	;	putitem/id viParams, "CD_EMPRESA", CD_EMPRESA.FCR_FATURAISVC
+	;	putitem/id viParams, "CD_CLIENTE", CD_CLIENTE.FCR_FATURAISVC
+	;	putitem/id viParams, "NR_FAT", NR_FAT.FCR_FATURAISVC
+	;	putitem/id viParams, "NR_PARCELA", NR_PARCELA.FCR_FATURAISVC
+	;	$instancehandle->gravaClassificacaoCliFat($xlpg$,viParams,voParams,$xCdErro$,$xCtxerro$)
+	;	if ($procerror)
+	;		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+	;		poCdErro = $xCdErro$
+	;		poCtxErro = $xCtxErro$
+	;		return (-1)
+	;	endif
+	;	if ($status < 0)
+	;		$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")
+	;		poCdErro = $xCdErro$
+	;		poCtxErro = $xCtxErro$
+	;		return (-1)
+	;	endif
+	;endif
+	;
+	;MTF(26/06/2008) - Projeto 078, tarefa 1603.
+	;if (vInAlteracao != <TRUE>) & ($cdTipoClassPrdFcr$ != "")
+	;	viParams = ""
+	;	putitem/id viParams, "CD_EMPRESA",      cd_empresa.fcr_faturaisvc
+	;	putitem/id viParams, "CD_CLIENTE",      cd_cliente.fcr_faturaisvc
+	;	putitem/id viParams, "NR_FAT",          nr_fat.fcr_faturaisvc
+	;	putitem/id viParams, "NR_PARCELA",      nr_parcela.fcr_faturaisvc
+	;	putitem/id viParams, "LST_TRANSACAO",   $item("LST_TRANSACAO", piParams)
+	;	$instancehandle->gravarClassificacaoPrdFatura($xlpg$, viParams, voParams, $xCdErro$, $xCtxErro$)
+	;	if ($procerror)
+	;		$instancehandle->setStatus(<STS_ERRO>, $procerror, $procerrorcontext, "ADICIONAL=  /  FCRSVCO001.geraFatura() chamando FCRSVCO001.gravarClassificaoPrdFatura()")
+	;		poCdErro  = $xCdErro$
+	;		poCtxErro = $xCtxErro$
+	;		return (-1)
+	;	elseif ($status < 0)
+	;		$instancehandle->setStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "ADICIONAL=  /  FCRSVCO001.geraFatura() chamando FCRSVCO001.gravarClassificaoPrdFatura()")
+	;		poCdErro  = $xCdErro$
+	;		poCtxErro = $xCtxErro$
+	;		return (-1)
+	;	endif
+	;endif
+	
+	if (vInAlteracao != <TRUE>)
+		;Projeto 186 - Tarefa 0010 - Aloisio Gargantini - 02/05/2011
+		if (vDsLstClassificacao != "")
+			vDsLstFatura = ""
+			vDsRegistro = ""
+			putitem/id vDsRegistro,  "CD_EMPRESA",      CD_EMPRESA.FCR_FATURAISVC
+			putitem/id vDsRegistro,  "CD_CLIENTE",      CD_CLIENTE.FCR_FATURAISVC
+			putitem/id vDsRegistro,  "NR_FAT",          NR_FAT.FCR_FATURAISVC
+			putitem/id vDsRegistro,  "NR_PARCELA",      NR_PARCELA.FCR_FATURAISVC
+			putitem    vDsLstFatura, -1,                vDsRegistro
+			viParams = ""
+			putitem/id viParams, "DS_LSTFATURA",        vDsLstFatura
+			putitem/id viParams, "DS_LSTCLASSIFICACAO", vDsLstClassificacao
+			putitem/id viParams, "IN_NOVAFATURA",       <TRUE>
+			$instancehandle->gravaClassificacao($xlpg$, viParams, voParams, $xCdErro$, $xCtxerro$)
+			if ($procerror)
+				$instancehandle->setStatus(<STS_ERRO>, $procerror, $procerrorcontext, "ADICIONAL=  FCRSVCO001.geraFatura() chamando FCRSVCO001.gravaClassificacao()")
+				poCdErro  = $xCdErro$
+				poCtxErro = $xCtxErro$
+				return (-1)
+			elseif ($status < 0)
+				$instancehandle->setStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "ADICIONAL=  FCRSVCO001.geraFatura() chamando FCRSVCO001.gravaClassificacao()")
+				poCdErro  = $xCdErro$
+				poCtxErro = $xCtxErro$
+				return (-1)
+			endif
+			$cdTipoClasCliFat$ = ""
+			$cdTipoClasPedFat$ = ""
+			$cdTipoClasPrdFat$ = ""
+		endif
+		;	
+		if ($cdTipoClasCliFat$ != "")
+			viParams = ""
+			putitem/id viParams, "CD_EMPRESA",    cd_empresa.fcr_faturaisvc
+			putitem/id viParams, "CD_CLIENTE",    cd_cliente.fcr_faturaisvc
+			putitem/id viParams, "NR_FAT",        nr_fat.fcr_faturaisvc
+			putitem/id viParams, "NR_PARCELA",    nr_parcela.fcr_faturaisvc
+			putitem/id viParams, "LST_TPCLAS",    $cdTipoClasCliFat$
+			putitem/id viParams, "IN_NOVAFATURA", <TRUE>
+			activate "FCRSVCO090".gravarClassificacaoCliFatura($xlpg$, viParams, voParams, $xCdErro$, $xCtxErro$)
+			if ($procerror)
+				$instancehandle->setStatus(<STS_ERRO>, $procerror, $procerrorcontext, "ADICIONAL=  FCRSVCO001.geraFatura() chamando FCRSVCO090.gravarClassificacaoCliFatura()")
+				poCdErro  = $xCdErro$
+				poCtxErro = $xCtxErro$
+				return (-1)
+			elseif ($status < 0)
+				$instancehandle->setStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "ADICIONAL=  FCRSVCO001.geraFatura() chamando FCRSVCO090.gravarClassificacaoCliFatura()")
+				poCdErro  = $xCdErro$
+				poCtxErro = $xCtxErro$
+				return (-1)
+			endif
+		endif
+		if ($cdTipoClasPedFat$ != "")
+			viParams = ""
+			putitem/id viParams, "CD_EMPRESA",    cd_empresa.fcr_faturaisvc
+			putitem/id viParams, "CD_CLIENTE",    cd_cliente.fcr_faturaisvc
+			putitem/id viParams, "NR_FAT",        nr_fat.fcr_faturaisvc
+			putitem/id viParams, "NR_PARCELA",    nr_parcela.fcr_faturaisvc
+			putitem/id viParams, "LST_TPCLAS",    $cdTipoClasPedFat$
+			putitem/id viParams, "LST_TRANSACAO", $item("LST_TRANSACAO", piParams)
+			putitem/id viParams, "IN_NOVAFATURA", <TRUE>
+			activate "FCRSVCO090".gravarClassificacaoPedFatura($xlpg$, viParams, voParams, $xCdErro$, $xCtxErro$)
+			if ($procerror)
+				$instancehandle->setStatus(<STS_ERRO>, $procerror, $procerrorcontext, "ADICIONAL=  FCRSVCO001.geraFatura() chamando FCRSVCO090.gravarClassificacaoPedFatura()")
+				poCdErro  = $xCdErro$
+				poCtxErro = $xCtxErro$
+				return (-1)
+			elseif ($status < 0)
+				$instancehandle->setStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "ADICIONAL=  FCRSVCO001.geraFatura() chamando FCRSVCO090.gravarClassificacaoPedFatura()")
+				poCdErro  = $xCdErro$
+				poCtxErro = $xCtxErro$
+				return (-1)
+			endif
+		endif
+		if ($cdTipoClasPrdFat$ != "")
+			viParams = ""
+			putitem/id viParams, "CD_EMPRESA",    cd_empresa.fcr_faturaisvc
+			putitem/id viParams, "CD_CLIENTE",    cd_cliente.fcr_faturaisvc
+			putitem/id viParams, "NR_FAT",        nr_fat.fcr_faturaisvc
+			putitem/id viParams, "NR_PARCELA",    nr_parcela.fcr_faturaisvc
+			putitem/id viParams, "LST_TPCLAS",    $cdTipoClasPrdFat$
+			putitem/id viParams, "LST_TRANSACAO", $item("LST_TRANSACAO", piParams)
+			putitem/id viParams, "IN_NOVAFATURA", <TRUE>
+			activate "FCRSVCO090".gravarClassificacaoPrdFatura($xlpg$, viParams, voParams, $xCdErro$, $xCtxErro$)
+			if ($procerror)
+				$instancehandle->setStatus(<STS_ERRO>, $procerror, $procerrorcontext, "ADICIONAL=  FCRSVCO001.geraFatura() chamando FCRSVCO090.gravarClassificacaoPrdFatura()")
+				poCdErro  = $xCdErro$
+				poCtxErro = $xCtxErro$
+				return (-1)
+			elseif ($status < 0)
+				$instancehandle->setStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "ADICIONAL=  FCRSVCO001.geraFatura() chamando FCRSVCO090.gravarClassificacaoPrdFatura()")
+				poCdErro  = $xCdErro$
+				poCtxErro = $xCtxErro$
+				return (-1)
+			endif
+		endif
+	endif
+	;
+	
+	;MTF(21/01/2009) - Projeto 118, tarefa 0205.
+	if (vInAlteracao != <TRUE>) & ($inVariacaoCambial$ = <TRUE>)
+		viParams = ""
+		putitem/id viParams, "CD_EMPFAT"    , cd_empresa.fcr_faturaisvc
+		putitem/id viParams, "CD_CLIENTE"   , cd_cliente.fcr_faturaisvc
+		putitem/id viParams, "NR_FAT"       , nr_fat.fcr_faturaisvc
+		putitem/id viParams, "NR_PARCELA"   , nr_parcela.fcr_faturaisvc
+		putitem/id viParams, "LST_TRANSACAO", $item("LST_TRANSACAO", piParams)
+		activate "FCRSVCO087".gravaFatVariacaoVenda(viParams, voParams, $xCdErro$, $xCtxErro$)
+		if ($procerror)
+			$instancehandle->setStatus(<STS_ERRO>, $procerror, $procerrorcontext, "ADICIONAL=  /  FCRSVCO001.geraFatura() chamando FCRSVCO087.gravaFatVariacaoVenda()")
+			poCdErro  = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return (-1)
+		elseif ($status < 0)
+			$instancehandle->setStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "ADICIONAL=  /  FCRSVCO001.geraFatura() chamando FCRSVCO087.gravaFatVariacaoVenda")
+			poCdErro  = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return (-1)
+		endif
+	endif
+	
+	
+	poParams = ""
+	putitem/id poParams, "CD_EMPRESA",   CD_EMPRESA.FCR_FATURAISVC
+	putitem/id poParams, "CD_CLIENTE",   CD_CLIENTE.FCR_FATURAISVC
+	putitem/id poParams, "NR_FAT",       NR_FAT.FCR_FATURAISVC
+	putitem/id poParams, "NR_PARCELA",   nr_parcela.fcr_faturaisvc
+	putitem/id poParams, "VL_FATURA",    vl_fatura.fcr_faturaisvc
+	putitem/id poParams, "TP_DOCUMENTO", tp_documento.fcr_faturaisvc
+
+	return (0)
+end ; geraFatura
+
+;-----------------------
+operation gravaLogFatura
+;-----------------------
+	params
+		string $xlpg$    :IN
+		string piParams  :IN
+		string poParams  :OUT
+		string poCdErro  :OUT
+		string poCtxErro :OUT
+	endparams
+
+	variables
+		numeric vCdEmpresa, vCdCliente, vNrFat, vNrParcela, vTpLogFat, vNrOrigem, vNrDestino, vSeqLogFat
+		numeric vVlOrigem, vVlDestino
+		string  viParams, voParams, vDtOrigem, vDtDestino, vDsComponente, vDsObs, vDsOrigem, vDsDestino
+		string  vDsVlFaturaO, vDsVlFaturaD
+	endvariables
+
+	vCdEmpresa    = $item("CD_EMPRESA",    piParams)
+	vCdCliente    = $item("CD_CLIENTE",    piParams)
+	vNrFat        = $item("NR_FAT",        piParams)
+	vNrParcela    = $item("NR_PARCELA",    piParams)
+	vTpLogFat     = $item("TP_LOGFAT",     piParams)
+	vNrOrigem     = $item("NR_ORIGEM",     piParams)
+	vNrDestino    = $item("NR_DESTINO",    piParams)
+	vDtOrigem     = $item("DT_ORIGEM",     piParams)
+	vDtDestino    = $item("DT_DESTINO",    piParams)
+	vVlOrigem     = $item("VL_ORIGEM",     piParams)
+	vVlDestino    = $item("VL_DESTINO",    piParams)
+	vDsOrigem     = $item("DS_ORIGEM",     piParams)
+	vDsDestino    = $item("DS_DESTINO",    piParams)
+	vDsComponente = $item("DS_COMPONENTE", piParams)
+	vDsObs        = $item("DS_OBS",        piParams)
+
+	viParams = ""
+	putitem/id viParams, "CD_EMPRESA", vCdEmpresa
+	putitem/id viParams, "CD_CLIENTE", vCdCliente
+	putitem/id viParams, "NR_FAT",     vNrFat
+	putitem/id viParams, "NR_PARCELA", vNrParcela
+	$instancehandle->seqLogFatura(viParams,voParams)
+	if ($procerror)
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return (-1)
+	elseif ($status < 0)
+		$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")    
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return (-1)
+	endif
+	vSeqLogFat = $item("NR_LOGFAT", voParams)
+	if (vSeqLogFat = 0)
+		vSeqLogFat = 1
+	endif
+
+	if (vTpLogFat = 1)
+ 		if (vNrOrigem = 0) | (vNrDestino = 0)
+ 			$instancehandle->SetStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Portador informado incorreto!", "ADICIONAL=Operação->FCRSVCO001.gravaLogFatura")
+ 			poCdErro  = $xCdErro$
+ 			poCtxErro = $xCtxErro$
+ 			return(-1)
+ 		endif
+		if (vNrOrigem = vNrDestino)
+			$instancehandle->SetStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Não foi trocado o portador!", "ADICIONAL=Operação->FCRSVCO001.gravaLogFatura")
+			poCdErro  = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return(-1)
+		endif
+		if (vDsObs != "")
+			vDsObs = "TROCA DE PORTADOR - %%vDsObs"
+		else
+			vDsObs = "TROCA DE PORTADOR"
+		endif
+	endif
+
+	if (vTpLogFat = 2)
+		if (vDtOrigem = "") | (vDtDestino = "")
+			$instancehandle->SetStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Data de vencimento informado incorreto!", "ADICIONAL=Operação->FCRSVCO001.gravaLogFatura")
+			poCdErro  = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return(-1)
+		endif
+		if (vDtOrigem = vDtDestino )
+			$instancehandle->SetStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Não foi trocada a data de vencimento!", "ADICIONAL=Operação->FCRSVCO001.gravaLogFatura")
+			poCdErro  = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return(-1)
+		endif
+		if (vDsObs != "")
+			vDsObs = "TROCA DA DATA DE VENCIMENTO - %%vDsObs"
+		else
+			vDsObs = "TROCA DA DATA DE VENCIMENTO"
+		endif
+	endif
+
+	if (vTpLogFat = 3)
+		if (vVlOrigem = "") | (vVlDestino = "")
+			$instancehandle->SetStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Valor da fatura informado incorreto!", "ADICIONAL=Operação->FCRSVCO001.gravaLogFatura")
+			poCdErro  = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return(-1)
+		endif
+		if (vVlOrigem = vVlDestino)
+			$instancehandle->SetStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Não foi trocado o valor da fatura!", "ADICIONAL=Operaçco->FCRSVCO001.gravaLogFatura")
+			poCdErro  = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return(-1)
+		endif
+;		call formataCampoComDecimal(vVlFaturaO,2,vDsVlFaturaO)
+;		call formataCampoComDecimal(vVlFaturaD,2,vDsVlFaturaD)
+		if (vDsObs != "")
+			vDsObs = "TROCA DO VALOR DA FATURA - %%vDsObs"
+		else
+			vDsObs = "TROCA DO VALOR DA FATURA"
+		endif
+	endif
+
+	if (vTpLogFat = 8)
+ 		if (vNrOrigem = "") | (vNrDestino = "")
+			$instancehandle->SetStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Tipo de Cobrança informado incorreto!", "ADICIONAL=Operação->FCRSVCO001.gravaLogFatura")
+ 			poCdErro  = $xCdErro$
+ 			poCtxErro = $xCtxErro$
+ 			return(-1)
+ 		endif
+		if (vNrOrigem = vNrDestino)
+			$instancehandle->SetStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Não foi trocado o tipo de cobrança!", "ADICIONAL=Operação->FCRSVCO001.gravaLogFatura")
+			poCdErro  = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return(-1)
+		endif
+		if (vDsObs != "")
+			vDsObs = "TROCA DO TIPO DE COBRANCA - %%vDsObs"
+		else
+			vDsObs = "TROCA DO TIPO DE COBRANCA"
+		endif
+	endif
+
+	;-----------------------------------------------------------------------------
+	;MARCOS ROGERIO / EVALDO - 28/07/2008
+	;limpa caracteres especiais de uma string e mantem pontuação - "/"   ","    ":"
+	;-----------------------------------------------------------------------------
+	Call ConverterString(vDsObs,vDsObs)
+	if ($procerror)
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+		return (-1)
+	endif
+	;-----------------------------------------------------------------------------
+
+	clear/e "FCR_LOGFATSVC"
+	CD_EMPRESA.FCR_LOGFATSVC    = vCdEmpresa
+	CD_CLIENTE.FCR_LOGFATSVC    = vCdCliente
+	NR_FAT.FCR_LOGFATSVC        = vNrFat
+	NR_PARCELA.FCR_LOGFATSVC    = vNrParcela
+	NR_LOGFAT.FCR_LOGFATSVC     = vSeqLogFat
+	CD_OPERADOR.FCR_LOGFATSVC   = $item("CD_USUARIO", $xlpg$)
+	DT_CADASTRO.FCR_LOGFATSVC   = $datim
+	TP_LOGFAT.FCR_LOGFATSVC     = vTpLogFat
+	DT_OPERACAO.FCR_LOGFATSVC   = $item("DT_SISTEMA", $xlpg$)
+	NR_ORIGEM.FCR_LOGFATSVC     = vNrOrigem
+	NR_DESTINO.FCR_LOGFATSVC    = vNrDestino
+	DT_ORIGEM.FCR_LOGFATSVC     = vDtOrigem
+	DT_DESTINO.FCR_LOGFATSVC    = vDtDestino
+	VL_ORIGEM.FCR_LOGFATSVC     = vVlOrigem
+	VL_DESTINO.FCR_LOGFATSVC    = vVlDestino
+	DS_ORIGEM.FCR_LOGFATSVC     = vDsOrigem
+	DS_DESTINO.FCR_LOGFATSVC    = vDsDestino
+	DS_COMPONENTE.FCR_LOGFATSVC = vDsComponente
+	DS_OBS.FCR_LOGFATSVC        = vDsObs[1:100]
+
+	$collhandle("FCR_LOGFATSVC")->Salvar()
+	if ($procerror)
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return (-1)
+	elseif ($status < 0)
+		$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")    
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return (-1)
+	endif
+
+end ; gravaLogFatura
+
+;-----------------------------
+partner operation seqLogFatura
+;-----------------------------
+	params
+		string piParams : IN
+		string poParams : OUT
+	endparams
+	
+	variables
+		numeric vCdEmpresa, vCdCliente, vNrFat, vNrParcela, vSeqLogFat
+	endvariables
+
+	vSeqLogFat = 0
+	vCdEmpresa = $item("CD_EMPRESA", piParams)
+	vCdCliente = $item("CD_CLIENTE", piParams)
+	vNrFat      = $item("NR_FAT",    piParams)
+	vNrParcela = $item("NR_PARCELA", piParams)
+	selectdb max(NR_LOGFAT) %\
+		from "FCR_LOGFATSVC" %\
+		u_where (CD_EMPRESA.FCR_LOGFATSVC = vCdEmpresa & %\
+		CD_CLIENTE.FCR_LOGFATSVC = vCdCliente & %\
+		NR_FAT.FCR_LOGFATSVC = vNrFat & %\
+		NR_PARCELA.FCR_LOGFATSVC = vNrParcela) %\
+		to vSeqLogFat 
+
+	vSeqLogFat = vSeqLogFat + 1
+	poParams = ""
+	putitem/id poParams, "NR_LOGFAT", vSeqLogFat
+
+	return (0)
+end ; seqLogFatura
+
+;-------------------------------
+partner operation buscaParametro
+;-------------------------------
+	$xlpi$ = ""
+	putitem $xlpi$, -1, "IN_CALCULO_JUROS_POR_PAR"
+	putitem $xlpi$, -1, "NR_TIPO_CALC_DESCONTO"
+	putitem $xLpi$, -1, "IN_VARIACAO_CAMBIAL" ;MTF(21/01/2009) - Projeto 118, tarefa 0205.
+	activate "ADMSVCO001".GetLstParametro($xlpi$,$xlpo$,$xCdErro$,$xCtxErro$)
+	if ($procerror)
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+		return(-1)
+	elseif ($status < 0)
+		$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")
+		return(-1)
+	endif
+	$inCalculoJurosPorPar$ = $item("IN_CALCULO_JUROS_POR_PAR", $xlpo$)
+	$nrTipoCalcDesconto$   = $item("NR_TIPO_CALC_DESCONTO",    $xlpo$) ; 0 - Diário (default)   1 - Fixo
+	$inVariacaoCambial$    = $item("IN_VARIACAO_CAMBIAL",      $xLpo$) ;MTF(21/01/2009) - Projeto 118, tarefa 0205.
+	
+	$xlplemp$ = ""
+	putitem $xlplemp$, -1, "NR_DIAS_CARENCIA_ATRASO"
+	putitem $xlplemp$, -1, "NR_DIAS_CARENCIA_MULTA"
+	putitem $xlplemp$, -1, "PR_JUROS_MENSAL_ATRASO"
+	putitem $xlplemp$, -1, "PR_MULTA"
+	putitem $xlplemp$, -1, "NR_DIAS_DESC_PONT"
+	putitem $xlplemp$, -1, "PR_DESC_PONT"
+	putitem $xlplemp$, -1, "NR_DIAS_DESC_ANTECIP1"
+	putitem $xlplemp$, -1, "PR_DESC_ANTECIP1"
+	putitem $xlplemp$, -1, "NR_DIAS_DESC_ANTECIP2"
+	putitem $xlplemp$, -1, "PR_DESC_ANTECIP2"
+	putitem $xlplemp$, -1, "IN_UTILIZA_CXFILIAL"
+	putitem $xlplemp$, -1, "CD_TIPOCLAS_CLI_FAT"
+	putitem $xLplEmp$, -1, "CD_TIPOCLASS_PRD_FCR"
+	putitem $xLplEmp$, -1, "CD_TIPOCLAS_PED_FAT"
+	putitem $xLplEmp$, -1, "CD_TIPOCLAS_PRD_FAT"
+	activate "ADMSVCO001".GetParamEmpresa($item("CD_EMPRESA", $xlpg$), $xlplemp$, $xlplemp$, $xcderro$, $xctxerro$)
+	if ($procerror)
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+		return(-1)
+	elseif ($status < 0)
+		$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")
+		return(-1)
+	endif
+
+	$nrDiasCarenciaAtraso$ = $item("NR_DIAS_CARENCIA_ATRASO", $xlplemp$)
+	$nrDiasCarenciaMulta$  = $item("NR_DIAS_CARENCIA_MULTA",  $xlplemp$)
+	$prJuros$              = $item("PR_JUROS_MENSAL_ATRASO",  $xlplemp$)
+	$prMulta$              = $item("PR_MULTA",                $xlplemp$)
+	$nrDiasDescPont$       = $item("NR_DIAS_DESC_PONT",       $xlplemp$)
+	$prDescPont$           = $item("PR_DESC_PONT",            $xlplemp$)
+	$nrDiasDesc1$          = $item("NR_DIAS_DESC_ANTECIP1",   $xlplemp$)
+	$prDesc1$              = $item("PR_DESC_ANTECIP1",        $xlplemp$)
+	$nrDiasDesc2$          = $item("NR_DIAS_DESC_ANTECIP2",   $xlplemp$)
+	$prDesc2$              = $item("PR_DESC_ANTECIP2",        $xlplemp$)
+	$inUtilizaCxFilial$    = $item("IN_UTILIZA_CXFILIAL",     $xlplemp$)
+	$cdEmpresaMatriz$      = $item("CD_EMPRESA_MATRIZ",       $xlplemp$)
+	$cdTipoClasCliFat$     = $item("CD_TIPOCLAS_CLI_FAT",     $xlplemp$)
+	$cdTipoClassPrdFcr$    = $item("CD_TIPOCLASS_PRD_FCR",    $xLplEmp$)
+	$cdTipoClasPedFat$     = $item("CD_TIPOCLAS_PED_FAT",     $xLplEmp$)
+	$cdTipoClasPrdFat$     = $item("CD_TIPOCLAS_PRD_FAT",     $xLplEmp$)
+	
+	return (0)
+end ; operation buscaParametro
+
+;------------------------------
+operation gravaLiquidacaoFatura
+;------------------------------
+	params
+		string $xlpg$    :IN
+		string piParams  :IN
+		string poParams  :OUT
+		string poCdErro  :OUT
+		string poCtxErro :OUT
+	endparams
+
+	variables
+		numeric vCdEmpresa, vCdCliente, vNrFat, vNrParcela, vCdEmpLiq, vNrSeqLiq, vTpBaixa
+		date    vDtLiq
+	endvariables
+
+	vCdEmpresa = $item("CD_EMPRESA", piParams)
+	vCdCliente = $item("CD_CLIENTE", piParams)
+	vNrFat     = $item("NR_FAT",     piParams)
+	vNrParcela = $item("NR_PARCELA", piParams)
+	vCdEmpLiq  = $item("CD_EMPLIQ",  piParams)
+	vNrSeqLiq  = $item("NR_SEQLIQ",  piParams)
+	vTpBaixa   = $item("TP_BAIXA",   piParams)
+
+	clear/e "FCR_FATURACSVC"
+	CD_EMPRESA.FCR_FATURACSVC/init = vCdEmpresa
+	CD_CLIENTE.FCR_FATURACSVC/init = vCdCliente
+	NR_FAT.FCR_FATURACSVC/init     = vNrFat
+	retrieve/e "FCR_FATURACSVC"
+	if ($status < 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Fatura %%vCdCliente / %%vNrFat não cadastada!", "ADICIONAL=Operação->FCRSVCO001.gravaLiquidacaoFatura")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif		
+
+	clear/e "FCR_FATURAISVC"
+	NR_PARCELA.FCR_FATURAISVC/init = vNrParcela
+	retrieve/e "FCR_FATURAISVC"
+	if ($status < 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Parcela %%vNrParcela da fatura %%vCdCliente / %%vNrFat não cadastada!", "ADICIONAL=Operação->FCRSVCO001.gravaLiquidacaoFatura")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif		
+
+	CD_EMPLIQ.FCR_FATURAISVC    = vCdEmpLiq
+	DT_LIQ.FCR_FATURAISVC       = vDtLiq
+	NR_SEQLIQ.FCR_FATURAISVC    = vNrSeqLiq
+	VL_PAGO.FCR_FATURAISVC      = VL_FATURA.FCR_FATURAISVC
+	TP_BAIXA.FCR_FATURAISVC     = 1
+	CD_OPERBAIXA.FCR_FATURAISVC = $item("CD_USUARIO", $xlpg$)
+
+	$collhandle("FCR_FATURAISVC")->Salvar()
+	if ($procerror)
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return (-1)
+	elseif ($status < 0)
+		$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")    
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return (-1)
+	endif	
+
+	return(0)
+end
+
+
+;------------------------------------------------;
+public operation gravaObsFatura                  ;
+;------------------------------------------------;
+; MTF    : 17/11/2006    Projeto 078, tarefa 075 ;
+; Funcao : Grava observacao de fatura.           ;
+; Chamada: FCRFP047 - cancelarFatura()           ;
+;------------------------------------------------;
+;
+	params
+		string  piGlobal  :IN
+		string  piParams  :IN
+		string  poParams  :OUT
+		numeric poCdErro  :OUT
+		string  poCtxErro :OUT
+	endparams
+	variables
+		string  vDsObs, vCdComponente
+		numeric vCdEmpFat, vCdCliente, vNrFat, vNrParcela, vNrLinhaObs
+	endvariables
+	
+	vCdEmpFat     = $item("CD_EMPRESA", piParams)
+	if (vCdEmpFat = 0) | (vCdEmpFat = "")
+		$instancehandle->setStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Favor informar a empresa da fatura para gravar observação.", "")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	vCdCliente    = $item("CD_CLIENTE", piParams)
+	if (vCdCliente = 0) | (vCdCliente = "")
+		$instancehandle->setStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Favor informar o cliente da fatura para gravar observação.", "")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	vNrFat        = $item("NR_FAT", piParams)
+	if (vNrFat = 0) | (vNrFat = "")
+		$instancehandle->setStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Favor informar o número da fatura para gravar observação.", "")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	vNrParcela    = $item("NR_PARCELA", piParams)
+	if (vNrParcela = 0) | (vNrParcela = "")
+		$instancehandle->setStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Favor informar número da parcela da fatura para gravar observação.", "")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	vDsObs        = $item("DS_OBSERVACAO", piParams)
+	vCdComponente = $item("CD_COMPONENTE", piParams)
+	
+	selectdb max(nr_linha) from "OBS_FATISVC" u_where  (cd_empresa.obs_fatisvc = vCdEmpFat   & %\
+													cd_cliente.obs_fatisvc = vCdCliente  & %\
+													nr_fat.obs_fatisvc     = vNrFat      & %\
+													nr_parcela.obs_fatisvc = vNrParcela) to vNrLinhaObs
+	if ($status < 0)
+		$instancehandle->setStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	else
+		if (vNrLinhaObs > 0)
+			vNrLinhaObs = vNrLinhaObs + 1
+		else
+			vNrLinhaObs = 1
+		endif
+	endif
+
+	;-----------------------------------------------------------------------------
+	;MARCOS ROGERIO / EVALDO - 28/07/2008
+	;limpa caracteres especiais de uma string e mantem pontuação - "/"   ","    ":"
+	;-----------------------------------------------------------------------------
+	Call ConverterString(vDsObs,vDsObs)
+	if ($procerror)
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+		return (-1)
+	endif
+	;-----------------------------------------------------------------------------
+	
+	clear/e "OBS_FATISVC"
+	creocc "OBS_FATISVC", -1
+	cd_empresa.obs_fatisvc    = vCdEmpFat
+	cd_cliente.obs_fatisvc    = vCdCliente
+	nr_fat.obs_fatisvc        = vNrFat
+	nr_parcela.obs_fatisvc    = vNrParcela
+	nr_linha.obs_fatisvc      = vNrLinhaObs
+	cd_componente.obs_fatisvc = vCdComponente
+	ds_observacao.obs_fatisvc = vDsObs[1:80]
+	cd_operador.obs_fatisvc   = $item("CD_USUARIO", piGlobal)
+	dt_cadastro.obs_fatisvc   = $datim
+	$collhandle("OBS_FATISVC")->salvar()
+	if ($procerror)
+		$instancehandle->setStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	elseif ($status < 0)
+		$instancehandle->setStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	
+	return(0)
+End ;operation gravaObsFatura.
+
+;-------------------------------
+public operation gravaInfCheque
+;-------------------------------
+;Projeto 078 - Tarefa 236 - Aloisio Gargantini - 10/03/2007
+	params
+		string  piGlobal  :IN
+		string  piParams  :IN
+		string  poParams  :OUT
+		numeric poCdErro  :OUT
+		string  poCtxErro :OUT
+	endparams
+	variables
+		numeric vCdEmpresa, vCdCliente, vNrFatura, vNrParcela
+		string  vDsBanda, viParams, voParams
+	endvariables
+	
+	vCdEmpresa = $item("CD_EMPRESA", piParams)
+	vCdCliente = $item("CD_CLIENTE", piParams)
+	vNrFatura  = $item("NR_FAT",     piParams)
+	vNrParcela = $item("NR_PARCELA", piParams)
+	vDsBanda   = $item("DS_BANDA",   piParams)
+
+	if (vCdEmpresa = "")
+		$instancehandle->setStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Código da empresa não informado.", "ADICIONAL=Operação->FCRSVCO001.gravaInfCheque")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	if (vCdCliente = "")
+		$instancehandle->setStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Código do cliente não informado.", "ADICIONAL=Operação->FCRSVCO001.gravaInfCheque")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	if (vNrFatura = "")
+		$instancehandle->setStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Número da fatura não informado.", "ADICIONAL=Operação->FCRSVCO001.gravaInfCheque")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	if (vNrParcela = "")
+		$instancehandle->setStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Número da parcela não informado.", "ADICIONAL=Operação->FCRSVCO001.gravaInfCheque")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+
+	;Projeto 078 - Tarefa 2681 - Aloisio Gargantini - 10/09/2009
+	clear/e "F_FCR_CHEQUESVC"
+	ds_banda.f_fcr_chequesvc/init = vDsBanda
+	retrieve/e "F_FCR_CHEQUESVC"
+	if ($status >= 0)
+		setocc "F_FCR_CHEQUESVC", 1
+		while ($status >= 0)
+			
+			if 	(cd_empresa.f_fcr_chequesvc != vCdEmpresa) | %\
+				(cd_cliente.f_fcr_chequesvc != vCdCliente) | %\
+				(nr_fat.f_fcr_chequesvc     != vNrFatura)  | %\
+				(nr_parcela.f_fcr_chequesvc != vNrParcela)
+				$instancehandle->setStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Banda magnética já lançada em outro cheque.%%^Emp. %%cd_empresa.f_fcr_chequesvc  Cliente %%cd_cliente.f_fcr_chequesvc  Título %%nr_fat.f_fcr_chequesvc  Parcela %%nr_parcela.f_fcr_chequesvc.", "ADICIONAL=Operação->FCRSVCO001.gravaInfCheque")
+				poCdErro  = $xCdErro$
+				poCtxErro = $xCtxErro$
+				return(-1)
+			endif
+			
+			setocc "F_FCR_CHEQUESVC", $curocc(F_FCR_CHEQUESVC) + 1
+		endwhile
+	endif
+	;
+	viParams = ""
+	putitem/id viParams, "NR_BANDA", vDsBanda
+	activate "FGRSVCO002".validaBandaCheque(piGlobal, viParams, voParams, $xCdErro$, $xCtxErro$)
+	if ($procerror)       
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	if ($status < 0)
+		$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+
+	clear/e "F_FCR_CHEQUESVC"
+	CD_EMPRESA.F_FCR_CHEQUESVC/init = vCdEmpresa      
+	CD_CLIENTE.F_FCR_CHEQUESVC/init = vCdCliente     
+	NR_FAT.F_FCR_CHEQUESVC/init     = vNrFatura         
+	NR_PARCELA.F_FCR_CHEQUESVC/init = vNrParcela     
+	retrieve/e "F_FCR_CHEQUESVC"
+	if ($status >= 0)
+		DS_BANDA.F_FCR_CHEQUESVC   = vDsBanda[1:30]
+		NR_BANCO.F_FCR_CHEQUESVC   = $item("NR_BANCO",   voParams)
+		NR_AGENCIA.F_FCR_CHEQUESVC = $item("NR_AGENCIA", voParams)
+		NR_CHEQUE.F_FCR_CHEQUESVC  = $item("NR_CHEQUE",  voParams)
+		DS_CONTA.F_FCR_CHEQUESVC   = $item("NR_CONTA",   voParams)
+		DS_CONTA.F_FCR_CHEQUESVC   = DS_CONTA.F_FCR_CHEQUESVC[1:20]
+		$collhandle("F_FCR_CHEQUESVC")->Salvar()
+		if ($procerror)
+			$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+			poCdErro  = $xCdErro$
+			poCtxErro = $xCtxErro$
+			exit (-1)
+		elseif ($status < 0)
+			$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")    
+			poCdErro  = $xCdErro$
+			poCtxErro = $xCtxErro$
+			exit (-1)
+		endif
+	else
+		$instancehandle->setStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Chave não encontrada.", "ADICIONAL=Operação->FCRSVCO001.gravaInfCheque")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	return (0)
+end ; operation gravaInfCheque
+
+
+;--------------------
+public operation gravaParcelaFatura
+;--------------------
+	params
+		string piGlobal  :IN
+		string piParams  :IN
+		string poParams  :OUT
+		string poCdErro  :OUT
+		string poCtxErro :OUT
+	endparams
+
+	; Efetuar a gravacao FCR_FATURAI
+
+	return(0)
+end ; gravaParcelaFatura
+
+;--------------------
+public operation gravaComissaoFatura
+;--------------------
+	params
+		string piGlobal  :IN
+		string piParams  :IN
+		string poParams  :OUT
+		string poCdErro  :OUT
+		string poCtxErro :OUT
+	endparams
+
+	variables
+		numeric vCdEmpresa, vCdCliente, vNrFatura, vNrParcela, vCdPesComis
+		string  viParams, voParams
+	endvariables
+	
+	; Efetuar a gravacao FCR_COMISSAO
+
+	vCdEmpresa  = $item("CD_EMPRESA" , piParams)
+	vCdCliente  = $item("CD_CLIENTE" , piParams)
+	vNrFatura   = $item("NR_FATURA"  , piParams)
+	vNrParcela  = $item("NR_PARCELA" , piParams)
+	vCdPesComis = $item("CD_PESCOMIS", piParams)
+
+	if (vCdEmpresa = "")
+		$instancehandle->setStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Código da empresa não informado.", "ADICIONAL=Operação->FCRSVCO001.gravaComissaoFatura")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	if (vCdCliente = "")
+		$instancehandle->setStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Código do cliente não informado.", "ADICIONAL=Operação->FCRSVCO001.gravaComissaoFatura")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	if (vNrFatura = "")
+		$instancehandle->setStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Número da fatura não informado.", "ADICIONAL=Operação->FCRSVCO001.gravaComissaoFatura")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	if (vNrParcela = "")
+		$instancehandle->setStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Número da parcela não informado.", "ADICIONAL=Operação->FCRSVCO001.gravaComissaoFatura")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	if (vCdPesComis = "")
+		$instancehandle->setStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Código do Comissionado não informado.", "ADICIONAL=Operação->FCRSVCO001.gravaComissaoFatura")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+
+	clear/e "F_FCR_COMISSASVC"
+	creocc "F_FCR_COMISSASVC", -1
+	CD_EMPRESA.F_FCR_COMISSASVC/init  = vCdEmpresa
+	CD_CLIENTE.F_FCR_COMISSASVC/init  = vCdCliente
+	NR_FATURA.F_FCR_COMISSASVC/init   = vNrFatura
+	NR_PARCELA.F_FCR_COMISSASVC/init  = vNrParcela
+	CD_PESCOMIS.F_FCR_COMISSASVC/init = vCdPesComis
+	retrieve/o "F_FCR_COMISSASVC"
+	if ($status = -7)
+		retrieve/x "F_FCR_COMISSASVC"
+	endif
+	
+	clear/e "F_FCR_FATURAISVC"
+	creocc "F_FCR_FATURAISVC", -1
+	CD_EMPRESA.F_FCR_FATURAISVC/init = vCdEmpresa
+	CD_CLIENTE.F_FCR_FATURAISVC/init = vCdCliente
+	NR_FAT.F_FCR_FATURAISVC/init     = vNrFatura
+	NR_PARCELA.F_FCR_FATURAISVC/init = vNrParcela
+	retrieve/o "F_FCR_FATURAISVC"
+	if ($status = -7)
+		retrieve/x "F_FCR_FATURAISVC"
+	endif
+	
+	getlistitems/occ piParams, "F_FCR_COMISSASVC"
+
+	if (PR_COMISSAOFAT.F_FCR_COMISSASVC > 0)
+		VL_COMISSAOFAT.F_FCR_COMISSASVC = (VL_FATURA.F_FCR_FATURAISVC - VL_ABATIMENTO.F_FCR_FATURAISVC) * PR_COMISSAOFAT.F_FCR_COMISSASVC / 100
+	else
+		PR_COMISSAOFAT.F_FCR_COMISSASVC = ""
+		VL_COMISSAOFAT.F_FCR_COMISSASVC = ""
+	endif
+
+	if (PR_COMISSAOREC.F_FCR_COMISSASVC > 0)
+		;MTF(01/08/2007) - Projeto 078, tarefa 688.
+		;VL_COMISSAOREC.F_FCR_COMISSASVC = (VL_FATURA.F_FCR_FATURAISVC - VL_ABATIMENTO.F_FCR_FATURAISVC + VL_ACRESCIMO.F_FCR_FATURAISVC) * PR_COMISSAOREC.F_FCR_COMISSASVC / 100
+		VL_COMISSAOREC.F_FCR_COMISSASVC = (VL_FATURA.F_FCR_FATURAISVC - VL_ABATIMENTO.F_FCR_FATURAISVC) * PR_COMISSAOREC.F_FCR_COMISSASVC / 100
+		;
+	else
+		PR_COMISSAOREC.F_FCR_COMISSASVC = ""
+		VL_COMISSAOREC.F_FCR_COMISSASVC = ""
+	endif
+
+	if (TP_SITUACAO.F_FCR_COMISSASVC = "")
+		TP_SITUACAO.F_FCR_COMISSASVC = 0 ; Normal
+	endif
+
+	if (PR_FATURA.F_FCR_COMISSASVC = "")
+		PR_FATURA.F_FCR_COMISSASVC = 100
+	endif
+
+	if (IN_FATPAGO.F_FCR_COMISSASVC = "")
+		IN_FATPAGO.F_FCR_COMISSASVC = <FALSE>
+	endif
+
+	if (IN_RECPAGO.F_FCR_COMISSASVC = "")
+		IN_RECPAGO.F_FCR_COMISSASVC = <FALSE>
+	endif
+
+	CD_OPERADOR.F_FCR_COMISSASVC = $$gCdUsuario
+	DT_CADASTRO.F_FCR_COMISSASVC = $datim	
+
+	$collhandle("F_FCR_COMISSASVC")->Salvar()
+	if ($procerror)
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "ADICIONAL=Operação->FCRSVCO001.gravaComissaoFatura")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		exit (-1)
+	elseif ($status < 0)
+		$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")    
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		exit (-1)
+	endif
+	clear/e "F_FCR_FATURAISVC"
+	clear/e "F_FCR_COMISSASVC"
+
+	return(0)
+end ; gravaComissaoFatura
+
+;--------------------
+public operation gravaChequeFatura
+;--------------------
+	params
+		string piGlobal  :IN
+		string piParams  :IN
+		string poParams  :OUT
+		string poCdErro  :OUT
+		string poCtxErro :OUT
+	endparams
+
+	variables
+		numeric vCdEmpresa, vCdCliente, vNrFatura, vNrParcela
+		string  viParams, voParams
+	endvariables
+	
+	; Efetuar a gravacao FCR_CHEQUE
+
+	vCdEmpresa = $item("CD_EMPRESA",  piParams)
+	vCdCliente = $item("CD_CLIENTE", piParams)
+	vNrFatura  = $item("NR_FAT",     piParams)
+	vNrParcela = $item("NR_PARCELA", piParams)
+
+	if (vCdEmpresa = "")
+		$instancehandle->setStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Código da empresa não informado.", "ADICIONAL=Operação->FCRSVCO001.gravaChequeFatura")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	if (vCdCliente = "")
+		$instancehandle->setStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Código do cliente não informado.", "ADICIONAL=Operação->FCRSVCO001.gravaChequeFatura")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	if (vNrFatura = "")
+		$instancehandle->setStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Número da fatura não informado.", "ADICIONAL=Operação->FCRSVCO001.gravaChequeFatura")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	if (vNrParcela = "")
+		$instancehandle->setStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Número da parcela não informado.", "ADICIONAL=Operação->FCRSVCO001.gravaChequeFatura")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+
+	clear/e "F_FCR_CHEQUESVC"
+	creocc "F_FCR_CHEQUESVC", -1
+	CD_EMPRESA.F_FCR_CHEQUESVC/init = vCdEmpresa
+	CD_CLIENTE.F_FCR_CHEQUESVC/init = vCdCliente
+	NR_FAT.F_FCR_CHEQUESVC/init     = vNrFatura
+	NR_PARCELA.F_FCR_CHEQUESVC/init = vNrParcela
+	retrieve/o "F_FCR_CHEQUESVC"
+	if ($status = -7)
+		retrieve/x "F_FCR_CHEQUESVC"
+	endif
+	
+	getlistitems/occ piParams, "F_FCR_CHEQUESVC"
+
+	CD_OPERADOR.F_FCR_CHEQUESVC/init = $$gCdUsuario
+	DT_CADASTRO.F_FCR_CHEQUESVC/init = $datim	
+
+	$collhandle("F_FCR_CHEQUESVC")->Salvar()
+	if ($procerror)
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "ADICIONAL=Operação->FCRSVCO001.gravaChequeFatura")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		exit (-1)
+	elseif ($status < 0)
+		$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")    
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		exit (-1)
+	endif
+	clear/e "F_FCR_CHEQUESVC"
+
+	return(0)
+end ; gravaChequeFatura
+
+;----------------------------------------
+public operation gravaDesctoAntecipFatura
+;----------------------------------------
+;Projeto 078 - Tarefa 634 - Aloisio Gargantini - 28/06/2007
+	params
+		string piGlobal  :IN
+		string piParams  :IN
+		string poParams  :OUT
+		string poCdErro  :OUT
+		string poCtxErro :OUT
+	endparams
+
+	variables
+		numeric vCdEmpresa, vCdCliente, vNrFatura, vNrParcela, vPrDescAntecip1
+		string  viParams, voParams
+		date    vDtDescAntecip1
+	endvariables
+	
+	vCdEmpresa      = $item("CD_EMPRESA" ,     piParams)
+	vCdCliente      = $item("CD_CLIENTE" ,     piParams)
+	vNrFatura       = $item("NR_FAT"     ,     piParams)
+	vNrParcela      = $item("NR_PARCELA" ,     piParams)
+	vPrDescAntecip1 = $item("PR_DESCANTECIP1", piParams)
+	vDtDescAntecip1 = $item("DT_DESCANTECIP1", piParams)
+	if (vCdEmpresa = "")
+		$instancehandle->setStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Código da empresa não informado.", "ADICIONAL=Operação->FCRSVCO001.gravaDesctoAntecipFatura")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	if (vCdCliente = "")
+		$instancehandle->setStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Código do cliente não informado.", "ADICIONAL=Operação->FCRSVCO001.gravaDesctoAntecipFatura")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	if (vNrFatura = "")
+		$instancehandle->setStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Número da fatura não informado.", "ADICIONAL=Operação->FCRSVCO001.gravaDesctoAntecipFatura")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	if (vNrParcela = "")
+		$instancehandle->setStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Número da parcela não informado.", "ADICIONAL=Operação->FCRSVCO001.gravaDesctoAntecipFatura")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+
+	clear/e "F_FCR_FATURAISVC"
+	creocc "F_FCR_FATURAISVC", -1
+	CD_EMPRESA.F_FCR_FATURAISVC/init = vCdEmpresa
+	CD_CLIENTE.F_FCR_FATURAISVC/init = vCdCliente
+	NR_FAT.F_FCR_FATURAISVC/init     = vNrFatura
+	NR_PARCELA.F_FCR_FATURAISVC/init = vNrParcela
+	retrieve/o "F_FCR_FATURAISVC"
+	if ($status = -7)
+		retrieve/x "F_FCR_FATURAISVC"
+	endif
+
+	DT_DESCANTECIP1.F_FCR_FATURAISVC = vDtDescAntecip1
+	PR_DESCANTECIP1.F_FCR_FATURAISVC = vPrDescAntecip1
+
+	CD_OPERADOR.F_FCR_FATURAISVC = $$gCdUsuario
+	DT_CADASTRO.F_FCR_FATURAISVC = $datim	
+	$collhandle("F_FCR_FATURAISVC")->Salvar()
+	if ($procerror)
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "ADICIONAL=Operação->FCRSVCO001.gravaDesctoAntecipFatura")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		exit (-1)
+	elseif ($status < 0)
+		$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")    
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		exit (-1)
+	endif
+	clear/e "F_FCR_FATURAISVC"
+
+	return(0)
+end ; gravaDesctoAntecipFatura
+
+
+;----------------------------------------
+public operation gravaAbatimentoFatura
+;----------------------------------------
+	params
+		string piGlobal  :IN
+		string piParams  :IN
+		string poParams  :OUT
+		string poCdErro  :OUT
+		string poCtxErro :OUT
+	endparams
+
+	variables
+		numeric vCdEmpresa, vCdCliente, vNrFatura, vNrParcela, vVlAbatimento
+		string  viParams, voParams
+	endvariables
+	
+	vCdEmpresa    = $item("CD_EMPRESA"   , piParams)
+	vCdCliente    = $item("CD_CLIENTE"   , piParams)
+	vNrFatura     = $item("NR_FAT"       , piParams)
+	vNrParcela    = $item("NR_PARCELA"   , piParams)
+	vVlAbatimento = $item("VL_ABATIMENTO", piParams)
+
+	if (vCdEmpresa = "")
+		$instancehandle->setStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Código da empresa não informado.", "ADICIONAL=Operação->FCRSVCO001.gravaAbatimentoFatura")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	if (vCdCliente = "")
+		$instancehandle->setStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Código do cliente não informado.", "ADICIONAL=Operação->FCRSVCO001.gravaAbatimentoFatura")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	if (vNrFatura = "")
+		$instancehandle->setStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Número da fatura não informado.", "ADICIONAL=Operação->FCRSVCO001.gravaAbatimentoFatura")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	if (vNrParcela = "")
+		$instancehandle->setStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Número da parcela não informado.", "ADICIONAL=Operação->FCRSVCO001.gravaAbatimentoFatura")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+
+	clear/e "F_FCR_FATURAISVC"
+	creocc "F_FCR_FATURAISVC", -1
+	CD_EMPRESA.F_FCR_FATURAISVC/init = vCdEmpresa
+	CD_CLIENTE.F_FCR_FATURAISVC/init = vCdCliente
+	NR_FAT.F_FCR_FATURAISVC/init     = vNrFatura
+	NR_PARCELA.F_FCR_FATURAISVC/init = vNrParcela
+	retrieve/o "F_FCR_FATURAISVC"
+	if ($status = -7)
+		retrieve/x "F_FCR_FATURAISVC"
+	endif
+	VL_ABATIMENTO.F_FCR_FATURAISVC = vVlAbatimento
+	CD_OPERADOR.F_FCR_FATURAISVC   = $$gCdUsuario
+	DT_CADASTRO.F_FCR_FATURAISVC   = $datim	
+	$collhandle("F_FCR_FATURAISVC")->Salvar()
+	if ($procerror)
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "ADICIONAL=Operação->FCRSVCO001.gravaDesctoAntecipFatura")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		exit (-1)
+	elseif ($status < 0)
+		$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")    
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		exit (-1)
+	endif
+	clear/e "F_FCR_FATURAISVC"
+
+	return(0)
+end ; gravaAbatimentoFatura
+
+;----------------------------------------
+public operation gravaPortadorFatura
+;----------------------------------------
+	params
+		string piGlobal  :IN
+		string piParams  :IN
+		string poParams  :OUT
+		string poCdErro  :OUT
+		string poCtxErro :OUT
+	endparams
+
+	variables
+		numeric vCdEmpresa, vCdCliente, vNrFatura, vNrParcela, vNrPortador
+		string  viParams, voParams
+	endvariables
+	
+	vCdEmpresa  = $item("CD_EMPRESA" , piParams)
+	vCdCliente  = $item("CD_CLIENTE" , piParams)
+	vNrFatura   = $item("NR_FAT"     , piParams)
+	vNrParcela  = $item("NR_PARCELA" , piParams)
+	vNrPortador = $item("NR_PORTADOR", piParams)
+
+	if (vCdEmpresa = "")
+		$instancehandle->setStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Código da empresa não informado.", "ADICIONAL=Operação->FCRSVCO001.gravaPortadorFatura")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	if (vCdCliente = "")
+		$instancehandle->setStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Código do cliente não informado.", "ADICIONAL=Operação->FCRSVCO001.gravaPortadorFatura")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	if (vNrFatura = "")
+		$instancehandle->setStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Número da fatura não informado.", "ADICIONAL=Operação->FCRSVCO001.gravaPortadorFatura")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	if (vNrParcela = "")
+		$instancehandle->setStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Número da parcela não informado.", "ADICIONAL=Operação->FCRSVCO001.gravaPortadorFatura")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	if (vNrPortador = "")
+		$instancehandle->setStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Número do portador não informado.", "ADICIONAL=Operação->FCRSVCO001.gravaPortadorFatura")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+
+	clear/e "F_FCR_FATURAISVC"
+	creocc "F_FCR_FATURAISVC", -1
+	CD_EMPRESA.F_FCR_FATURAISVC/init = vCdEmpresa
+	CD_CLIENTE.F_FCR_FATURAISVC/init = vCdCliente
+	NR_FAT.F_FCR_FATURAISVC/init     = vNrFatura
+	NR_PARCELA.F_FCR_FATURAISVC/init = vNrParcela
+	retrieve/o "F_FCR_FATURAISVC"
+	if ($status = -7)
+		retrieve/x "F_FCR_FATURAISVC"
+	endif
+	NR_PORTADOR.F_FCR_FATURAISVC = vNrPortador
+	CD_OPERADOR.F_FCR_FATURAISVC = $$gCdUsuario
+	DT_CADASTRO.F_FCR_FATURAISVC = $datim	
+	$collhandle("F_FCR_FATURAISVC")->Salvar()
+	if ($procerror)
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "ADICIONAL=Operação->FCRSVCO001.gravaDesctoAntecipFatura")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		exit (-1)
+	elseif ($status < 0)
+		$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")    
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		exit (-1)
+	endif
+	clear/e "F_FCR_FATURAISVC"
+
+	return(0)
+end ; gravaPortadorFatura
+
+;----------------------------------------
+public operation gravaCobrancaFatura
+;----------------------------------------
+	params
+		string piGlobal  :IN
+		string piParams  :IN
+		string poParams  :OUT
+		string poCdErro  :OUT
+		string poCtxErro :OUT
+	endparams
+
+	variables
+		numeric vCdEmpresa, vCdCliente, vNrFatura, vNrParcela, vTpCobranca
+		string  viParams, voParams
+	endvariables
+	
+	vCdEmpresa  = $item("CD_EMPRESA" , piParams)
+	vCdCliente  = $item("CD_CLIENTE" , piParams)
+	vNrFatura   = $item("NR_FAT"     , piParams)
+	vNrParcela  = $item("NR_PARCELA" , piParams)
+	vTpCobranca = $item("TP_COBRANCA", piParams)
+
+	if (vCdEmpresa = "")
+		$instancehandle->setStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Código da empresa não informado.", "ADICIONAL=Operação->FCRSVCO001.gravaCobrancaFatura")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	if (vCdCliente = "")
+		$instancehandle->setStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Código do cliente não informado.", "ADICIONAL=Operação->FCRSVCO001.gravaCobrancaFatura")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	if (vNrFatura = "")
+		$instancehandle->setStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Número da fatura não informado.", "ADICIONAL=Operação->FCRSVCO001.gravaCobrancaFatura")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	if (vNrParcela = "")
+		$instancehandle->setStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Número da parcela não informado.", "ADICIONAL=Operação->FCRSVCO001.gravaCobrancaFatura")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	if (vTpCobranca = "")
+		$instancehandle->setStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Número do tipo de cobranca não informado.", "ADICIONAL=Operação->FCRSVCO001.gravaCobrancaFatura")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+
+	clear/e "F_FCR_FATURAISVC"
+	creocc "F_FCR_FATURAISVC", -1
+	CD_EMPRESA.F_FCR_FATURAISVC/init = vCdEmpresa
+	CD_CLIENTE.F_FCR_FATURAISVC/init = vCdCliente
+	NR_FAT.F_FCR_FATURAISVC/init     = vNrFatura
+	NR_PARCELA.F_FCR_FATURAISVC/init = vNrParcela
+	retrieve/o "F_FCR_FATURAISVC"
+	if ($status = -7)
+		retrieve/x "F_FCR_FATURAISVC"
+	endif
+	TP_COBRANCA.F_FCR_FATURAISVC = vTpCobranca
+	CD_OPERADOR.F_FCR_FATURAISVC = $$gCdUsuario
+	DT_CADASTRO.F_FCR_FATURAISVC = $datim	
+	$collhandle("F_FCR_FATURAISVC")->Salvar()
+	if ($procerror)
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "ADICIONAL=Operação->FCRSVCO001.gravaDesctoAntecipFatura")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		exit (-1)
+	elseif ($status < 0)
+		$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")    
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		exit (-1)
+	endif
+	clear/e "F_FCR_FATURAISVC"
+
+	return(0)
+end ; gravaAbatimentoFatura
+
+;-------------------
+operation regravaIndiceFatura
+;-------------------
+	params
+		string $xlpg$    :IN
+		string piParams  :IN
+		string poParams  :OUT
+		string poCdErro  :OUT
+		string poCtxErro :OUT
+	endparams
+	variables
+		date    vDtCorrecaoIndice, vDtGerouCorrecao
+		string  vDsLstFatura, vDsRegistro, vCdComponente, viParams, voParams
+		numeric vCdEmpresa, vNrFatura, vNrParcela, vCdCliente, vCdIndice, vCdIndiceAnt, vCdOperCorrecao
+	endvariables
+
+	vDsLstFatura  = $item("DS_LSTFATURA" , piParams)
+	vCdComponente = $item("CD_COMPONENTE", piParams)
+
+	if (vDsLstFatura = "")
+		$instancehandle->setStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Lista de fatura não informada!", "ADICIONAL=Operação->FCRSVCO001.regravaIndiceFatura")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	if (vCdComponente = "")
+		$instancehandle->setStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Componente não informado!", "ADICIONAL=Operação->FCRSVCO001.regravaIndiceFatura")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+
+	repeat
+		getitem vDsRegistro, vDsLstFatura, 1
+
+		vCdEmpresa = $item("CD_EMPRESA", vDsRegistro)
+		if (vCdEmpresa = 0)
+			$instancehandle->setStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Código da empresa da fatura não informado.", "ADICIONAL=Operação->FCRSVCO001.regravaIndiceFatura")
+			poCdErro  = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return(-1)
+		endif		
+		vNrFatura = $item("NR_FAT", vDsRegistro)
+		if (vNrFatura = 0)
+			$instancehandle->setStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Número da fatura não informado!", "ADICIONAL=Operação->FCRSVCO001.regravaIndiceFatura")
+			poCdErro  = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return(-1)
+		endif	
+		vNrParcela = $item("NR_PARCELA", vDsRegistro)
+		if (vNrParcela = 0)
+			$instancehandle->setStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Parcela da fatura não informada!", "ADICIONAL=Operação->FCRSVCO001.regravaIndiceFatura")
+			poCdErro  = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return(-1)
+		endif
+		vCdCliente = $item("CD_CLIENTE", vDsRegistro)
+		if (vCdCliente = 0)
+			$instancehandle->setStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Cliente da fatura não informado!", "ADICIONAL=Operação->FCRSVCO001.regravaIndiceFatura")
+			poCdErro  = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return(-1)
+		endif
+		vCdIndice = $item("CD_INDICE", vDsRegistro)
+		if (vCdIndice = 0)
+			$instancehandle->setStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Índice da fatura não informado!", "ADICIONAL=Operação->FCRSVCO001.regravaIndiceFatura")
+			poCdErro  = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return(-1)
+		endif
+		vCdOperCorrecao  = $item("CD_OPERCORRECAO",  vDsRegistro)
+		vDtGerouCorrecao = $item("DT_GEROUCORRECAO", vDsRegistro)
+
+		creocc "FCR_FATURACSVC", -1
+		CD_EMPRESA.FCR_FATURACSVC = vCdEmpresa
+		CD_CLIENTE.FCR_FATURACSVC = vCdCliente
+		NR_FAT.FCR_FATURACSVC     = vNrFatura
+		retrieve/o "FCR_FATURACSVC"
+		if ($status = -7)
+			retrieve/x "FCR_FATURACSVC"
+		endif
+
+		creocc "FCR_FATURAISVC", -1
+		NR_PARCELA.FCR_FATURAISVC = vNrParcela
+		retrieve/o "FCR_FATURAISVC"
+		if ($status = -7)
+			retrieve/x "FCR_FATURAISVC"
+		endif
+
+		if ($empty("FCR_INDICEFATSVC") = 0)
+			vCdIndiceAnt      = CD_INDICE.FCR_INDICEFATSVC
+			vDtCorrecaoIndice = DT_BASECORRECAO.FCR_INDICEFATSVC
+			if (CD_INDICE.FCR_INDICEFATSVC != vCdIndice)
+				$collhandle("FCR_INDICEFATSVC")->Excluir()
+				if ($procerror)
+					$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+					poCdErro  = $xCdErro$
+					poCtxErro = $xCtxErro$
+					return(-1)
+				endif
+				if ($status < 0)
+					$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")    
+					poCdErro  = $xCdErro$
+					poCtxErro = $xCtxErro$
+					return(-1)
+				endif
+			elseif (vCdOperCorrecao > 0) & (vDtGerouCorrecao != "")
+				creocc "FCR_INDICEFATSVC", -1
+				CD_INDICE.FCR_INDICEFATSVC = vCdIndice 
+				retrieve/o "FCR_INDICEFATSVC"
+				if ($status = -7)
+					retrieve/x "FCR_INDICEFATSVC"
+				endif		
+				CD_OPERCORRECAO.FCR_INDICEFATSVC  = vCdOperCorrecao
+				DT_GEROUCORRECAO.FCR_INDICEFATSVC = vDtGerouCorrecao
+
+				viParams = ""
+				voParams = ""
+				putitem/id viParams, "CD_EMPRESA",    vCdEmpresa	
+				putitem/id viParams, "CD_CLIENTE",    vCdCliente
+				putitem/id viParams, "NR_FAT",        vNrFatura
+				putitem/id viParams, "NR_PARCELA",    vNrParcela
+				putitem/id viParams, "DS_OBSERVACAO", "Correcao de indice de fatura"
+				putitem/id viParams, "CD_COMPONENTE", vCdComponente
+				$instancehandle->gravaObsFatura($xlpg$,viParams,voParams,poCdErro,poCtxErro)
+				if ($procerror)
+					$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+					poCdErro  = $xCdErro$
+					poCtxErro = $xCtxErro$
+					return(-1)
+				elseif($status < 0)
+					poCdErro  = $xCdErro$
+					poCtxErro = $xCtxErro$
+					return(-1)
+				endif
+			endif
+			if (vCdIndice != vCdIndiceAnt)
+				creocc "FCR_INDICEFATSVC", -1
+				CD_INDICE.FCR_INDICEFATSVC = vCdIndice 
+				retrieve/o "FCR_INDICEFATSVC"
+				if ($status = -7)
+					retrieve/x "FCR_INDICEFATSVC"
+				endif
+				DT_BASECORRECAO.FCR_INDICEFATSVC = vDtCorrecaoIndice
+				CD_OPERADOR.FCR_INDICEFATSVC     = $item("CD_USUARIO", $xlpg$)
+				DT_CADASTRO.FCR_INDICEFATSVC     = $datim
+	
+				viParams = ""
+				voParams = ""
+				putitem/id viParams, "CD_EMPRESA",    vCdEmpresa	
+				putitem/id viParams, "CD_CLIENTE",    vCdCliente
+				putitem/id viParams, "NR_FAT",        vNrFatura
+				putitem/id viParams, "NR_PARCELA",    vNrParcela
+				putitem/id viParams, "DS_OBSERVACAO", "Indice alterado de %%vCdIndiceAnt para %%vCdIndice"
+				putitem/id viParams, "CD_COMPONENTE", vCdComponente
+				$instancehandle->gravaObsFatura($xlpg$,viParams,voParams,poCdErro,poCtxErro)
+				if ($procerror)
+					$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+					poCdErro  = $xCdErro$
+					poCtxErro = $xCtxErro$
+					return(-1)
+				elseif($status < 0)
+					poCdErro  = $xCdErro$
+					poCtxErro = $xCtxErro$
+					return(-1)
+				endif
+			endif
+		else
+			creocc "FCR_INDICEFATSVC", -1
+			CD_INDICE.FCR_INDICEFATSVC = vCdIndice 
+			retrieve/o "FCR_INDICEFATSVC"
+			if ($status = -7)
+				retrieve/x "FCR_INDICEFATSVC"
+			endif		
+			CD_OPERADOR.FCR_INDICEFATSVC = $item("CD_USUARIO", $xlpg$)
+			DT_CADASTRO.FCR_INDICEFATSVC = $datim
+
+			clear/e "FGR_INDICESVC"
+			CD_INDICE.FGR_INDICESVC/init = vCdIndice
+			retrieve/e "FGR_INDICESVC"
+			if ($status >= 0)
+				if (TP_VARIACAO.FGR_INDICESVC = 8)
+					addmonths -12, DT_VENCIMENTO.FCR_FATURAISVC
+					DT_BASECORRECAO.FCR_INDICEFATSVC = $result
+				endif		
+			endif
+			viParams = ""
+			voParams = ""
+			putitem/id viParams, "CD_EMPRESA",    vCdEmpresa	
+			putitem/id viParams, "CD_CLIENTE",    vCdCliente
+			putitem/id viParams, "NR_FAT",        vNrFatura
+			putitem/id viParams, "NR_PARCELA",    vNrParcela
+			putitem/id viParams, "DS_OBSERVACAO", "Correcao de indice de fatura"
+			putitem/id viParams, "CD_COMPONENTE", vCdComponente
+			$instancehandle->gravaObsFatura($xlpg$,viParams,voParams,poCdErro,poCtxErro)
+			if ($procerror)
+				$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+				poCdErro  = $xCdErro$
+				poCtxErro = $xCtxErro$
+				return(-1)
+			elseif($status < 0)
+				poCdErro  = $xCdErro$
+				poCtxErro = $xCtxErro$
+				return(-1)
+			endif			
+		endif
+
+		delitem vDsLstFatura, 1
+	until (vDsLstFatura = "")
+
+	$collhandle("FCR_FATURACSVC")->Salvar()
+	if ($procerror)
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	if ($status < 0)
+		$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")    
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+
+	return(0)
+end; regravaIndiceFatura
+
+;--------------------------------
+public operation inativaCliente
+;RAH - 07/08/2007 (Prj078/Trf686)
+	;----------------------------
+	params
+		string piGlobal  :IN
+		string piParams  :IN
+		string poParams  :OUT
+		string poCdErro  :OUT
+		string poCtxErro :OUT
+	endparams
+
+	variables
+		numeric vCdCliente
+		string  viParams, voParams
+	endvariables
+	
+	vCdCliente = $item("CD_CLIENTE", piParams)
+	if (vCdCliente = "")
+		$instancehandle->setStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Código do cliente não informado.", "ADICIONAL=Operação->FCRSVCO001.inativaCliente")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+
+	clear/e "PES_CLIENTESVC"
+	creocc "PES_CLIENTESVC", -1
+	CD_CLIENTE.PES_CLIENTESVC/init = vCdCliente
+	retrieve/o "PES_CLIENTESVC"
+	if ($status = -7)
+		retrieve/x "PES_CLIENTESVC"
+	endif
+	IN_BLOQUEADO.PES_CLIENTESVC = <TRUE>
+	CD_OPERADOR.PES_CLIENTESVC  = $$gCdUsuario
+	DT_CADASTRO.PES_CLIENTESVC  = $datim	
+	$collhandle("PES_CLIENTESVC")->Salvar()
+	if ($procerror)
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "ADICIONAL=Operação->FCRSVCO001.inativaCliente")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		exit (-1)
+	elseif ($status < 0)
+		$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")    
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		exit (-1)
+	endif
+	
+	return(0)
+end ; inativaCliente
+
+;----------------------------------
+public operation gravaClassificacao
+;----------------------------------
+	params
+		string piGlobal  :IN
+		string piParams  :IN
+		string poParams  :OUT
+		string poCdErro  :OUT
+		string poCtxErro :OUT
+	endparams
+	
+	variables
+		numeric vCdEmpresa, vCdCliente, vNrFat, vNrParcela, vCdTipoClas
+		string  vDsLstFatura, vDsLstClassificacao, vLstClassificacao, vDsRegistro, vCdClassificacao
+	endvariables
+	
+	vDsLstFatura        = $item("DS_LSTFATURA",        piParams)
+	vDsLstClassificacao = $item("DS_LSTCLASSIFICACAO", piParams)
+	
+	if (vDsLstFatura = "")
+		$instancehandle->setStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Lista de fatura não informada!", "ADICIONAL=Operação->FCRSVCO001.gravaClassificacao")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	
+	repeat
+		getitem vDsRegistro, vDsLstFatura, 1
+		
+		vCdEmpresa = $item("CD_EMPRESA", vDsRegistro)
+		vCdCliente = $item("CD_CLIENTE", vDsRegistro)
+		vNrFat     = $item("NR_FAT",     vDsRegistro)
+		vNrParcela = $item("NR_PARCELA", vDsRegistro)
+
+		if (vCdEmpresa = 0)
+			$instancehandle->setStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Empresa da fatura não informada!", "ADICIONAL=Operação->FCRSVCO001.gravaClassificacao")
+			poCdErro  = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return(-1)
+		endif
+		
+		if (vCdCliente = 0)
+			$instancehandle->setStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Cliente da fatura não informada!", "ADICIONAL=Operação->FCRSVCO001.gravaClassificacao")
+			poCdErro  = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return(-1)
+		endif
+		
+		if (vNrFat = 0)
+			$instancehandle->setStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Número da fatura não informada!", "ADICIONAL=Operação->FCRSVCO001.gravaClassificacao")
+			poCdErro  = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return(-1)
+		endif
+		
+		if (vNrParcela = 0)
+			$instancehandle->setStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Parcela da fatura não informada!", "ADICIONAL=Operação->FCRSVCO001.gravaClassificacao")
+			poCdErro  = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return(-1)
+		endif
+		
+		if (vDsLstClassificacao = "")
+			vLstClassificacao = $item("DS_LSTCLASSIFICACAO", vDsRegistro)
+		else
+			vLstClassificacao = vDsLstClassificacao
+		endif
+		
+		if ($item("IN_NOVAFATURA", piParams) != <TRUE>)
+			clear/e "FCR_FATCLASSVC"
+			CD_EMPRESA.FCR_FATCLASSVC/init = vCdEmpresa
+			CD_CLIENTE.FCR_FATCLASSVC/init = vCdCliente
+			NR_FAT.FCR_FATCLASSVC/init     = vNrFat
+			NR_PARCELA.FCR_FATCLASSVC/init = vNrParcela
+			retrieve/e "FCR_FATCLASSVC"
+			if ($status >= 0)
+				$collhandle("FCR_FATCLASSVC")->Excluir()
+				if ($procerror)
+					$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+					poCdErro  = $xCdErro$
+					poCtxErro = $xCtxErro$
+					return(-1)
+				endif
+				if ($status < 0)
+					$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")    
+					poCdErro  = $xCdErro$
+					poCtxErro = $xCtxErro$
+					return(-1)
+				endif
+			endif
+		endif
+		if (vLstClassificacao != "")
+			clear/e "FCR_FATCLASSVC"
+			
+			repeat
+				getitem vDsRegistro, vLstClassificacao, 1
+				
+				vCdTipoClas      = $item("CD_TIPOCLAS",      vDsRegistro)
+				vCdClassificacao = $item("CD_CLASSIFICACAO", vDsRegistro)
+				clear/e "FCR_FATCLASSVC"
+				creocc  "FCR_FATCLASSVC", -1
+				CD_EMPRESA.FCR_FATCLASSVC       = vCdEmpresa
+				CD_CLIENTE.FCR_FATCLASSVC       = vCdCliente
+				NR_FAT.FCR_FATCLASSVC           = vNrFat
+				NR_PARCELA.FCR_FATCLASSVC       = vNrParcela
+				CD_TIPOCLAS.FCR_FATCLASSVC      = vCdTipoClas
+				CD_CLASSIFICACAO.FCR_FATCLASSVC = vCdClassificacao
+				retrieve/o "FCR_FATCLASSVC"
+				if ($status = -7)
+					retrieve/x "FCR_FATCLASSVC"
+				endif
+				
+				CD_OPERADOR.FCR_FATCLASSVC = $item("CD_USUARIO", piGlobal)
+				DT_CADASTRO.FCR_FATCLASSVC = $datim
+				$collhandle("FCR_FATCLASSVC")->Salvar()
+				if ($procerror)
+					$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+					poCdErro  = $xCdErro$
+					poCtxErro = $xCtxErro$
+					return(-1)
+				elseif ($status < 0)
+					$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")    
+					poCdErro  = $xCdErro$
+					poCtxErro = $xCtxErro$
+					return(-1)
+				endif
+				
+				delitem vLstClassificacao, 1
+			until (vLstClassificacao = "")
+		endif
+		
+		delitem vDsLstFatura, 1
+	until (vDsLstFatura = "")
+	
+	return(0)
+end
+
+;-----------------------------------
+public operation validaClassificacao
+;-----------------------------------
+	params
+		string piGlobal  :IN
+		string piParams  :IN
+		string poParams  :OUT
+		string poCdErro  :OUT
+		string poCtxErro :OUT
+	endparams
+	
+	variables
+		numeric vCdEmpresa, vCdCliente, vNrFat, vNrParcela, vCdTipoClas
+		string  vDsLstClassificacao, vDsRegistro, vCdClassificacao
+		boolean vInNaoAchou
+	endvariables
+	
+	vCdEmpresa          = $item("CD_EMPRESA",          piParams)
+	vCdCliente          = $item("CD_CLIENTE",          piParams)
+	vNrFat              = $item("NR_FAT",              piParams)
+	vNrParcela          = $item("NR_PARCELA",          piParams)
+	vDsLstClassificacao = $item("DS_LSTCLASSIFICACAO", piParams)
+	
+	if (vCdEmpresa = 0)
+		$instancehandle->setStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Empresa da fatura não informada!", "ADICIONAL=Operação->FCRSVCO001.validaClassificacao")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	
+	if (vCdCliente = 0)
+		$instancehandle->setStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Cliente da fatura não informado!", "ADICIONAL=Operação->FCRSVCO001.validaClassificacao")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	
+	if (vNrFat = 0)
+		$instancehandle->setStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Número da fatura não informado!", "ADICIONAL=Operação->FCRSVCO001.validaClassificacao")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	
+	if (vNrParcela = 0)
+		$instancehandle->setStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Parcela da fatura não informada!", "ADICIONAL=Operação->FCRSVCO001.validaClassificacao")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	
+	if (vDsLstClassificacao = "")
+		$instancehandle->setStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Lista de classificação da fatura não informada!", "ADICIONAL=Operação->FCRSVCO001.validaClassificacao")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	
+	vInNaoAchou = <FALSE>
+	
+	if (vDsLstClassificacao != "")
+		repeat
+			getitem vDsRegistro, vDsLstClassificacao, 1
+			
+			vCdTipoClas      = $item("CD_TIPOCLAS",      vDsRegistro)
+			vCdClassificacao = $item("CD_CLASSIFICACAO", vDsRegistro)
+			
+			clear/e "FCR_FATCLASSVC"
+			CD_EMPRESA.FCR_FATCLASSVC       = vCdEmpresa
+			CD_CLIENTE.FCR_FATCLASSVC       = vCdCliente
+			NR_FAT.FCR_FATCLASSVC           = vNrFat
+			NR_PARCELA.FCR_FATCLASSVC       = vNrParcela
+			CD_TIPOCLAS.FCR_FATCLASSVC      = vCdTipoClas
+			CD_CLASSIFICACAO.FCR_FATCLASSVC = vCdClassificacao
+			retrieve/e "FCR_FATCLASSVC"
+			if ($status < 0)
+				vInNaoAchou = <TRUE>
+			endif
+			
+			delitem vDsLstClassificacao, 1
+		until (vDsLstClassificacao = "") | (vInNaoAchou = <TRUE>)
+	endif
+	
+	poParams = ""
+	putitem/id poParams, "IN_DESCARTA", vInNaoAchou
+	
+	return(0)
+end
+
+
+;------------------------------------------------------------;
+public operation validaClassificacaoTotal                    ;
+;------------------------------------------------------------;
+;Projeto 186 - Tarefa 0010 - Aloisio Gargantini - 02/05/2011 ;
+;Função:  compara uma lista de classificação de entrada com a;
+;         lista de classificação  da  fatura informada, sendo;
+;         que todas as classificações devem estar contidas na;
+;         fatura.                                            ;
+;Chamada: FCRFL042                                           ;
+;------------------------------------------------------------;
+
+	params
+		string piGlobal  :IN
+		string piParams  :IN
+		string poParams  :OUT
+		string poCdErro  :OUT
+		string poCtxErro :OUT
+	endparams
+	
+	variables
+		numeric vCdEmpresa, vCdCliente, vNrFat, vNrParcela, vCdTipoClas
+		string  vDsLstClassificacao, vDsRegistro, vCdClassificacao
+		boolean vInNaoAchou
+	endvariables
+	
+	vCdEmpresa          = $item("CD_EMPRESA",          piParams)
+	vCdCliente          = $item("CD_CLIENTE",          piParams)
+	vNrFat              = $item("NR_FAT",              piParams)
+	vNrParcela          = $item("NR_PARCELA",          piParams)
+	vDsLstClassificacao = $item("DS_LSTCLASSIFICACAO", piParams)
+	
+	if (vCdEmpresa = 0)
+		$instancehandle->setStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Empresa da fatura não informada!", "ADICIONAL=Operação->FCRSVCO001.validaClassificacaoTotal")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	
+	if (vCdCliente = 0)
+		$instancehandle->setStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Cliente da fatura não informado!", "ADICIONAL=Operação->FCRSVCO001.validaClassificacaoTotal")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	
+	if (vNrFat = 0)
+		$instancehandle->setStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Número da fatura não informado!", "ADICIONAL=Operação->FCRSVCO001.validaClassificacaoTotal")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	
+	if (vNrParcela = 0)
+		$instancehandle->setStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Parcela da fatura não informada!", "ADICIONAL=Operação->FCRSVCO001.validaClassificacaoTotal")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	
+	if (vDsLstClassificacao = "")
+		$instancehandle->setStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Lista de classificação da fatura não informada!", "ADICIONAL=Operação->FCRSVCO001.validaClassificacaoTotal")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	
+	vInNaoAchou = <FALSE>
+	
+	if (vDsLstClassificacao != "")
+		repeat
+			getitem vDsRegistro, vDsLstClassificacao, 1
+			
+			vCdTipoClas      = $item("CD_TIPOCLAS",      vDsRegistro)
+			vCdClassificacao = $item("CD_CLASSIFICACAO", vDsRegistro)
+			
+			clear/e "FCR_FATCLASSVC"
+			CD_EMPRESA.FCR_FATCLASSVC/init       = vCdEmpresa
+			CD_CLIENTE.FCR_FATCLASSVC/init       = vCdCliente
+			NR_FAT.FCR_FATCLASSVC/init           = vNrFat
+			NR_PARCELA.FCR_FATCLASSVC/init       = vNrParcela
+			CD_TIPOCLAS.FCR_FATCLASSVC/init      = vCdTipoClas
+			CD_CLASSIFICACAO.FCR_FATCLASSVC/init = vCdClassificacao
+			retrieve/e "FCR_FATCLASSVC"
+			if ($status < 0)
+				vInNaoAchou = <TRUE>
+			endif
+			
+			delitem vDsLstClassificacao, 1
+		until (vDsLstClassificacao = "") | (vInNaoAchou = <TRUE>)
+	endif
+	
+	poParams = ""
+	putitem/id poParams, "IN_DESCARTA", vInNaoAchou
+	
+	return(0)
+end
+
+
+;MTF(26/02/2009) - Projeto 147, tarefa 0001.
+;Esta rotina foi passada para o componente FCRSVCO090.
+;;----------------------------------------
+;public operation gravaClassificacaoCliFat
+;;----------------------------------------
+;	params
+;		string piGlobal :IN
+;		string piParams :IN
+;		string poParams :OUT
+;		string poCdErro :OUT
+;		string poCtxErro :OUT
+;	endparams
+;	
+;	variables
+;		string viParams, voParams, vDsLstClas, vDsLstFatura, vDsRegistro
+;		numeric vCdEmpresa, vCdCliente, vNrFat, vNrParcela
+;	endvariables
+;	
+;	vCdEmpresa = $item("CD_EMPRESA", piParams)
+;	vCdCliente = $item("CD_CLIENTE", piParams)
+;	vNrFat = $item("NR_FAT", piParams)
+;	vNrParcela = $item("NR_PARCELA", piParams)
+;	
+;	clear/e "PES_PESSOACLASVC"
+;	CD_PESSOA.PES_PESSOACLASVC/init = vCdCliente
+;	CD_TIPOCLAS.PES_PESSOACLASVC/init = $cdTipoClasCliFat$
+;	retrieve/e "PES_PESSOACLASVC"
+;	if ($status >= 0)
+;		;MTF(03/10/2008) - Projeto 118, tarefa 0093.
+;		setocc "PES_PESSOACLASVC", 1
+;		while ($status >= 0)
+;		;
+;			clear/e "FCR_TIPOCLASSVC"
+;			creocc "FCR_TIPOCLASSVC", -1
+;			CD_TIPOCLAS.FCR_TIPOCLASSVC/init = CD_TIPOCLAS.PES_PESSOACLASVC
+;			retrieve/o "FCR_TIPOCLASSVC"
+;			if ($status = -7)
+;				retrieve/x "FCR_TIPOCLASSVC"
+;			else
+;				clear/e "PES_TIPOCLASSVC"
+;				CD_TIPOCLAS.PES_TIPOCLASSVC = CD_TIPOCLAS.PES_PESSOACLASVC
+;				retrieve/e "PES_TIPOCLASSVC"
+;				if ($status >= 0)
+;					DS_TIPOCLAS.FCR_TIPOCLASSVC = DS_TIPOCLAS.PES_TIPOCLASSVC
+;				endif
+;				
+;				CD_OPERADOR.FCR_TIPOCLASSVC = $item("CD_USUARIO", piGlobal)
+;				DT_CADASTRO.FCR_TIPOCLASSVC = $datim
+;				
+;				$collhandle("FCR_TIPOCLASSVC")->Salvar()
+;				if ($procerror)
+;					$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+;					poCdErro = $xCdErro$
+;					poCtxErro = $xCtxErro$
+;					return (-1)
+;				elseif ($status < 0)
+;					$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")    
+;					poCdErro = $xCdErro$
+;					poCtxErro = $xCtxErro$
+;					return (-1)
+;				endif
+;			endif
+;			
+;			clear/e "FCR_CLASSVC"
+;			creocc "FCR_CLASSVC", -1
+;			CD_TIPOCLAS.FCR_CLASSVC/init = CD_TIPOCLAS.PES_PESSOACLASVC
+;			CD_CLASSIFICACAO.FCR_CLASSVC/init = CD_CLASSIFICACAO.PES_PESSOACLASVC
+;			retrieve/o "FCR_CLASSVC"
+;			if ($status = -7)
+;				retrieve/x "FCR_CLASSVC"
+;			else
+;				clear/e "PES_CLASSIFICSVC"
+;				CD_TIPOCLAS.PES_CLASSIFICSVC = CD_TIPOCLAS.PES_PESSOACLASVC
+;				CD_CLASSIFICACAO.PES_CLASSIFICSVC = CD_CLASSIFICACAO.PES_PESSOACLASVC
+;				retrieve/e "PES_CLASSIFICSVC"
+;				if ($status >= 0)
+;					DS_CLASSIFICACAO.FCR_CLASSVC = DS_CLASSIFICACAO.PES_CLASSIFICSVC
+;				endif
+;				
+;				CD_OPERADOR.FCR_CLASSVC = $item("CD_USUARIO", piGlobal)
+;				DT_CADASTRO.FCR_CLASSVC = $datim
+;				
+;				$collhandle("FCR_CLASSVC")->Salvar()
+;				if ($procerror)
+;					$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+;					poCdErro = $xCdErro$
+;					poCtxErro = $xCtxErro$
+;					return (-1)
+;				elseif ($status < 0)
+;					$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")    
+;					poCdErro = $xCdErro$
+;					poCtxErro = $xCtxErro$
+;					return (-1)
+;				endif
+;			endif
+;			
+;			vDsRegistro = ""
+;			putitem/id vDsRegistro, "CD_TIPOCLAS", CD_TIPOCLAS.PES_PESSOACLASVC
+;			putitem/id vDsRegistro, "CD_CLASSIFICACAO", CD_CLASSIFICACAO.PES_PESSOACLASVC
+;			putitem vDsLstClas, -1, vDsRegistro
+;			
+;			;MTF(03/10/2008) - Projeto 118, tarefa 0093.
+;			setocc "PES_PESSOACLASVC", $curocc(PES_PESSOACLASVC) + 1
+;		endwhile
+;		;
+;		
+;		vDsLstFatura = ""
+;		vDsRegistro = ""
+;		putitem/id vDsRegistro, "CD_EMPRESA", vCdEmpresa
+;		putitem/id vDsRegistro, "CD_CLIENTE", vCdCliente
+;		putitem/id vDsRegistro, "NR_FAT", vNrFat
+;		putitem/id vDsRegistro, "NR_PARCELA", vNrParcela
+;		putitem vDsLstFatura, -1, vDsRegistro
+;		
+;		clear/e "FCR_FATCLASSVC"
+;		CD_EMPRESA.FCR_FATCLASSVC/init = vCdEmpresa
+;		CD_CLIENTE.FCR_FATCLASSVC/init = vCdCliente
+;		NR_FAT.FCR_FATCLASSVC/init = vNrFat
+;		NR_PARCELA.FCR_FATCLASSVC/init = vNrParcela
+;		retrieve/e "FCR_FATCLASSVC"
+;		if ($status >= 0)
+;			setocc "FCR_FATCLASSVC", 1
+;			while ($status >= 0)
+;				vDsRegistro = ""
+;				putitem/id vDsRegistro, "CD_TIPOCLAS", CD_TIPOCLAS.FCR_FATCLASSVC
+;				putitem/id vDsRegistro, "CD_CLASSIFICACAO", CD_CLASSIFICACAO.FCR_FATCLASSVC
+;				putitem vDsLstClas, -1, vDsRegistro
+;				
+;				setocc "FCR_FATCLASSVC", $curocc("FCR_FATCLASSVC") + 1
+;			endwhile
+;		endif
+;		
+;		viParams = ""
+;		putitem/id viParams, "DS_LSTFATURA", vDsLstFatura
+;		putitem/id viParams, "DS_LSTCLASSIFICACAO", vDsLstClas
+;		$instancehandle->gravaClassificacao(piGlobal, viParams, voParams, $xCdErro$, $xCtxerro$)
+;		if ($procerror)
+;			$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+;			poCdErro = $xCdErro$
+;			poCtxErro = $xCtxErro$
+;			return (-1)
+;		endif
+;		if ($status < 0)
+;			$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")
+;			poCdErro = $xCdErro$
+;			poCtxErro = $xCtxErro$
+;			return (-1)
+;		endif
+;	endif
+;	
+;	return(0)
+;end
+;
+
+;MTF(26/02/2009) - Projeto 147, tarefa 0001.
+;Esta rotina foi passada para o componente FCRSVCO090.
+;;------------------------------------------------------;
+;public operation gravarClassificacaoPrdFatura          ;
+;;------------------------------------------------------;
+;; MTF    : 26/06/2008         Projeto 078, tarefa 1603 ;
+;; Funcao : Gravar classificacao de produto na fatura a ;
+;;          partir da transacao que originou a fatura.  ;
+;; Chamada: operation - geraFatura()                    ;
+;;------------------------------------------------------;
+;;
+;	params
+;		string  piGlobal  :IN
+;		string  piParams  :IN
+;		string  poParams  :OUT
+;		numeric poCdErro  :OUT
+;		string  poCtxErro :OUT
+;	endparams
+;	variables
+;		string  vpiParams, vpoParams, vLstClas, vLstFatura, vDsRegistro, vLstTransacao
+;		numeric vCdEmpresa, vCdCliente, vNrFat, vNrParcela, vCdEmpTransacao, vNrTransacao
+;		date    vDtTransacao
+;	endvariables
+;	
+;	vCdEmpresa = $item("CD_EMPRESA", piParams)
+;	if ($item("CD_EMPRESA", piParams) = "")
+;		$instancehandle->setStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Empresa da fatura não informada para gravar classificação.", "")
+;		poCdErro  = $xCdErro$
+;		poCtxErro = $xCtxErro$
+;		return(-1)
+;	endif
+;	
+;	vCdCliente = $item("CD_CLIENTE", piParams)
+;	if ($item("CD_CLIENTE", piParams) = "")
+;		$instancehandle->setStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Cliente da fatura não informado para gravar classificação.", "")
+;		poCdErro  = $xCdErro$
+;		poCtxErro = $xCtxErro$
+;		return(-1)
+;	endif
+;	
+;	vNrFat = $item("NR_FAT", piParams)
+;	if ($item("NR_FAT", piParams) = "")
+;		$instancehandle->setStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Número da fatura não informado para gravar classificação.", "")
+;		poCdErro  = $xCdErro$
+;		poCtxErro = $xCtxErro$
+;		return(-1)
+;	endif
+;	
+;	vNrParcela = $item("NR_PARCELA", piParams)
+;	if ($item("NR_PARCELA", piParams) = "")
+;		$instancehandle->setStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Parcela da fatura não informada para gravar classificação.", "")
+;		poCdErro  = $xCdErro$
+;		poCtxErro = $xCtxErro$
+;		return(-1)
+;	endif
+;	
+;	vLstTransacao = $item("LST_TRANSACAO", piParams)
+;	if (vLstTransacao != "")
+;		getitem vDsRegistro, vLstTransacao, 1
+;		vCdEmpTransacao = $item("CD_EMPTRANSACAO", vDsRegistro)
+;		vDtTransacao    = $item("DT_TRANSACAO", vDsRegistro)
+;		vNrTransacao    = $item("NR_TRANSACAO", vDsRegistro)
+;	endif
+;	
+;	;Buscar transacao origem da fatura.
+;	if (vNrTransacao = "") | (vNrTransacao = 0)
+;		
+;		vpiParams = ""
+;		putitem/id vpiParams, "CD_EMPRESA", vCdEmpresa
+;		putitem/id vpiParams, "CD_CLIENTE", vCdCliente
+;		putitem/id vpiParams, "NR_FATURA",  vNrFat
+;		putitem/id vpiParams, "NR_PARCELA", vNrParcela
+;		
+;		activate "FCRSVCO044".buscaTransacaoFatura(piGlobal, vpiParams, vpoParams, $xCdErro$, $xCtxErro$)
+;		if ($procerror)
+;			$instancehandle->setStatus(<STS_ERRO>, $procerror, $procerrorcontext, "ADICIONAL=  /  FCRSVCO001.gravarClassificacaoPrdFcr() chamando FCRSVCO044.buscaTransacaoFatura()")
+;			poCdErro  = $xCdErro$
+;			poCtxErro = $xCtxErro$
+;			return(-1)
+;		elseif ($status < 0)
+;			$instancehandle->setStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "ADICIONAL=  /  FCRSVCO001.gravarClassificacaoPrdFcr() chamando FCRSVCO044.buscaTransacaoFatura()")
+;			poCdErro  = $xCdErro$
+;			poCtxErro = $xCtxErro$
+;			return(-1)
+;		elseif ($item("NR_TRANSACAO", vpoParams) != "")
+;			vCdEmpTransacao = $item("CD_EMPTRANSACAO", vpoParams)
+;			vDtTransacao    = $item("DT_TRANSACAO", vpoParams)
+;			vNrTransacao    = $item("NR_TRANSACAO", vpoParams)
+;		endif
+;	endif
+;	
+;	if (vNrTransacao > 0)	
+;		clear/e "TRA_TRANSITEMSVC"
+;		cd_empresa.tra_transitemsvc/init   = vCdEmpTransacao
+;		nr_transacao.tra_transitemsvc/init = vNrTransacao
+;		dt_transacao.tra_transitemsvc/init = vDtTransacao
+;		retrieve/e "TRA_TRANSITEMSVC"
+;		if ($status >= 0)
+;			sort/e "TRA_TRANSITEMSVC", "nr_item.tra_transitemsvc"
+;			setocc "TRA_TRANSITEMSVC", 1
+;			
+;			if (cd_produto.tra_transitemsvc != "")
+;				clear/e "PRD_PRODUTOCLSVC"
+;				cd_produto.prd_produtoclsvc/init = cd_produto.tra_transitemsvc
+;				retrieve/e "PRD_PRODUTOCLSVC"
+;				if ($status >= 0)
+;					
+;					vDsRegistro = ""
+;					vLstFatura  = ""
+;					vLstClas    = ""
+;					putitem/id vDsRegistro, "CD_EMPRESA", vCdEmpresa
+;					putitem/id vDsRegistro, "CD_CLIENTE", vCdCliente
+;					putitem/id vDsRegistro, "NR_FAT",     vNrFat
+;					putitem/id vDsRegistro, "NR_PARCELA", vNrParcela
+;					putitem    vLstFatura,  -1,           vDsRegistro
+;					
+;					setocc "PRD_PRODUTOCLSVC", 1
+;					while ($status >= 0)
+;						
+;						vDsRegistro = ""
+;						putitem/id vDsRegistro, "CD_TIPOCLAS",      cd_tipoclas.prd_produtoclsvc
+;						putitem/id vDsRegistro, "CD_CLASSIFICACAO", cd_classificacao.prd_produtoclsvc
+;						putitem    vLstClas,    -1,                 vDsRegistro
+;						
+;						;Verificar se tipo e classificacao ja estao lancado na entidade FCR_TIPOCLAS e FCR_CLASSIFICACAO para nao dar erro de constraint.
+;						clear/e "FCR_CLASSVC"
+;						creocc "FCR_CLASSVC", -1
+;						cd_tipoclas.fcr_classvc      = cd_tipoclas.prd_produtoclsvc
+;						cd_classificacao.fcr_classvc = cd_classificacao.prd_produtoclsvc
+;						retrieve/o "FCR_CLASSVC"
+;						if ($status = 0)
+;							
+;							clear/e "PRD_TIPOCLASSVC"
+;							cd_tipoclas.prd_tipoclassvc/init = cd_tipoclas.prd_produtoclsvc
+;							retrieve/e "PRD_TIPOCLASSVC"
+;							
+;							clear/e "FCR_TIPOCLASSVC"
+;							creocc "FCR_TIPOCLASSVC", 1
+;							cd_tipoclas.fcr_tipoclassvc = cd_tipoclas.prd_produtoclsvc
+;							retrieve/o "FCR_TIPOCLASSVC"
+;							if ($status = 0)
+;								
+;								ds_tipoclas.fcr_tipoclassvc = ds_tipoclas.prd_tipoclassvc
+;								cd_operador.fcr_tipoclassvc = $item("CD_USUARIO", piGlobal)
+;								dt_cadastro.fcr_tipoclassvc = $datim
+;								
+;								$collhandle("FCR_TIPOCLASSVC")->Salvar()
+;								if ($procerror)
+;									$instancehandle->setStatus(<STS_ERRO>, $procerror, $procerrorcontext, "ADICIONAL=  /  FCRSVCO001.gravarClassificacaoPrdFatura()")
+;									poCdErro  = $xCdErro$
+;									poCtxErro = $xCtxErro$
+;									return (-1)
+;								elseif ($status < 0)
+;									$instancehandle->setStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "ADICIONAL=  /  FCRSVCO001.gravarClassificacaoPrdFatura")
+;									poCdErro  = $xCdErro$
+;									poCtxErro = $xCtxErro$
+;									return (-1)
+;								endif
+;							else
+;								clear/e "FCR_TIPOCLASSVC"
+;							endif
+;							
+;							ds_classificacao.fcr_classvc = ds_classificacao.prd_classificsvc
+;							cd_operador.fcr_classvc      = $item("CD_USUARIO", piGlobal)
+;							dt_cadastro.fcr_classvc      = $datim
+;							
+;							$collhandle("FCR_CLASSVC")->Salvar()
+;							if ($procerror)
+;								$instancehandle->setStatus(<STS_ERRO>, $procerror, $procerrorcontext, "ADICIONAL=  /  FCRSVCO001.gravarClassificacaoPrdFatura()")
+;								poCdErro  = $xCdErro$
+;								poCtxErro = $xCtxErro$
+;								return (-1)
+;							elseif ($status < 0)
+;								$instancehandle->setStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "ADICIONAL=  /  FCRSVCO001.gravarClassificacaoPrdFatura")
+;								poCdErro  = $xCdErro$
+;								poCtxErro = $xCtxErro$
+;								return (-1)
+;							endif
+;						else
+;							clear/e "FCR_CLASSVC"
+;						endif
+;						
+;						setocc "PRD_PRODUTOCLSVC", $curocc(PRD_PRODUTOCLSVC) + 1
+;					endwhile
+;					
+;					vpiParams = ""
+;					putitem/id vpiParams, "DS_LSTFATURA",        vLstFatura
+;					putitem/id vpiParams, "DS_LSTCLASSIFICACAO", vLstClas
+;					$instancehandle->gravaClassificacao(piGlobal, vpiParams, vpoParams, $xCdErro$, $xCtxerro$)
+;					if ($procerror)
+;						$instancehandle->setStatus(<STS_ERRO>, $procerror, $procerrorcontext, "ADICIONAL=  /  FCRSVCO001.gravarClassificacaoPrdFatura() chamando FCRSVCO001.gravaClassificacao()")
+;						poCdErro  = $xCdErro$
+;						poCtxErro = $xCtxErro$
+;						return (-1)
+;					elseif ($status < 0)
+;						$instancehandle->setStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "ADICIONAL=  /  FCRSVCO001.gravarClassificacaoPrdFatura() chamando FCRSVCO001.gravaClassificacao()")
+;						poCdErro  = $xCdErro$
+;						poCtxErro = $xCtxErro$
+;						return (-1)
+;					endif
+;				endif
+;			endif
+;			clear/e "TRA_TRANSITEMSVC"
+;			clear/e "PRD_PRODUTOCLSVC"
+;		endif
+;	endif
+;	
+;	return(0)
+;End ;operation gravarClassificacaoPrdFatura.
+
+;--------------------------------------------------------------;
+public operation verLanctoCtbFatura                            ;
+;--------------------------------------------------------------;
+; Aloisio: 23/07/2008                 Projeto 074, tarefa 1643 ;
+; Funcao : verificar se a fatura está lançada na Contabilidade ;
+; Chamada: FCRFM001 - entidade FCR_FATURAI (PrcOGF)            ;
+;--------------------------------------------------------------;
+;
+	params
+		string  piGlobal  :IN
+		string  piParams  :IN
+		string  poParams  :OUT
+		numeric poCdErro  :OUT
+		string  poCtxErro :OUT
+	endparams
+	variables
+		numeric vCdEmpresa, vCdCliente, vNrFat, vNrParcela
+	endvariables
+	
+	vCdEmpresa = $item("CD_EMPRESA", piParams)
+	if (vCdEmpresa = "")
+		$instancehandle->setStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Favor informar a empresa da fatura para efetuar a consulta de contabilização.", "")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	vCdCliente = $item("CD_CLIENTE", piParams)
+	if (vCdCliente = "")
+		$instancehandle->setStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Favor informar o cliente da fatura para efetuar a consulta de contabilização.", "")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	vNrFat = $item("NR_FAT", piParams)
+	if (vNrFat = "")
+		$instancehandle->setStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Favor informar o número da fatura para efetuar a consulta de contabilização.", "")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	vNrParcela = $item("NR_PARCELA", piParams)
+	if (vNrParcela = "")
+		$instancehandle->setStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Favor informar o número da parcela da fatura para efetuar a consulta de contabilização.", "")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	
+	clear/e "CTB_MOVTODSVC"
+	cd_empresa.ctb_movtodsvc/init = vCdEmpresa
+	cd_pessoa.ctb_movtodsvc/init  = vCdCliente
+	nr_fat.ctb_movtodsvc/init     = vNrFat
+	nr_parcela.ctb_movtodsvc/init = vNrParcela
+	retrieve/e "CTB_MOVTODSVC"
+	if ($status < 0)
+		putitem/id poParams, "IN_CONTABILIZADO", <FALSE>
+		return(0)
+	endif
+	
+	putitem/id poParams, "IN_CONTABILIZADO", <TRUE>
+	putitem/id poParams, "CD_POOLEMPRESA"  , cd_poolempresa.ctb_movtodsvc
+	putitem/id poParams, "DT_EXERCONTABIL" , dt_exercontabil.ctb_movtodsvc
+	putitem/id poParams, "NR_LOTE"         , nr_lote.ctb_movtodsvc
+	putitem/id poParams, "NR_ORDEM"        , nr_ordem.ctb_movtodsvc
+
+	return(0)
+
+end ;operation verLanctoCtbDuplicata.
+
+;----------------------------------------
+public operation gravaDadosBoleto
+;----------------------------------------
+;Projeto 078 - Tarefa 1894 - Aloisio Gargantini - 30/10/2008
+;Componente chamada: FCRFP098
+	params
+		string piGlobal  :IN
+		string piParams  :IN
+		string poParams  :OUT
+		string poCdErro  :OUT
+		string poCtxErro :OUT
+	endparams
+
+	variables
+		numeric vCdEmpresa, vCdCliente, vNrFatura, vNrParcela
+		string  viParams, voParams, vNrNossoNumero, vDsDacNossoNr
+	endvariables
+	
+	vCdEmpresa     = $item("CD_EMPRESA"    , piParams)
+	vCdCliente     = $item("CD_CLIENTE"    , piParams)
+	vNrFatura      = $item("NR_FAT"        , piParams)
+	vNrParcela     = $item("NR_PARCELA"    , piParams)
+	vNrNossoNumero = $item("NR_NOSSONUMERO", piParams)
+	vDsDacNossoNr  = $item("DS_DACNOSSONR" , piParams)
+
+	if (vCdEmpresa = "")
+		$instancehandle->setStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Código da empresa não informado.", "ADICIONAL=Operação->FCRSVCO001.gravaDadosBoleto")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	if (vCdCliente = "")
+		$instancehandle->setStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Código do cliente não informado.", "ADICIONAL=Operação->FCRSVCO001.gravaDadosBoleto")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	if (vNrFatura = "")
+		$instancehandle->setStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Número da fatura não informado.", "ADICIONAL=Operação->FCRSVCO001.gravaDadosBoleto")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	if (vNrParcela = "")
+		$instancehandle->setStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Número da parcela não informado.", "ADICIONAL=Operação->FCRSVCO001.gravaDadosBoleto")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+
+	clear/e "F_FCR_FATURAISVC"
+	creocc "F_FCR_FATURAISVC", -1
+	CD_EMPRESA.F_FCR_FATURAISVC/init = vCdEmpresa
+	CD_CLIENTE.F_FCR_FATURAISVC/init = vCdCliente
+	NR_FAT.F_FCR_FATURAISVC/init     = vNrFatura
+	NR_PARCELA.F_FCR_FATURAISVC/init = vNrParcela
+	retrieve/o "F_FCR_FATURAISVC"
+	if ($status = -7)
+		retrieve/x "F_FCR_FATURAISVC"
+	endif
+	NR_NOSSONUMERO.F_FCR_FATURAISVC = vNrNossoNumero
+	DS_DACNOSSONR.F_FCR_FATURAISVC  = vDsDacNossoNr
+	CD_OPERIMPFAT.F_FCR_FATURAISVC  = $$gCdUsuario
+	DT_IMPFAT.F_FCR_FATURAISVC      = $datim	
+	$collhandle("F_FCR_FATURAISVC")->Salvar()
+	if ($procerror)
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "ADICIONAL=Operação->FCRSVCO001.gravaDadosBoleto")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		exit (-1)
+	elseif ($status < 0)
+		$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")    
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		exit (-1)
+	endif
+	clear/e "F_FCR_FATURAISVC"
+
+	return(0)
+end ; gravaDadosBoleto
+
+
+;--------------------
+public operation gravaFundoPerdido
+;Diogenes - 19/02/2009 - Projeto 118 - Tarefa 250
+;--------------------
+	params
+		string piGlobal  :IN
+		string piParams  :IN
+		string poParams  :OUT
+		string poCdErro  :OUT
+		string poCtxErro :OUT
+	endparams
+
+	variables
+		numeric vCdEmpresa, vCdCliente, vNrFatura, vNrParcela, vNrSequencia, vNrPDD, vNrDiasAtraso, vVlTotalNota
+		string  viParams, voParams
+	endvariables
+		
+	vCdEmpresa    = $item("CD_EMPRESA",    piParams)
+	vCdCliente    = $item("CD_CLIENTE",    piParams)
+	vNrFatura     = $item("NR_FAT",        piParams)
+	vNrParcela    = $item("NR_PARCELA",    piParams)
+	vNrSequencia  = $item("NR_SEQUENCIA",  piParams)
+	vNrPDD		    = $item("NR_PDD",        piParams)
+	vNrDiasAtraso = $item("NR_DIASATRASO", piParams)
+	vVlTotalNota  = $item("VL_TOTALNOTA",  piParams)
+
+	if (vCdEmpresa = "")
+		$instancehandle->setStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Código da empresa não informado.", "ADICIONAL=Operação->FCRSVCO001.gravaFundoPerdido")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	if (vCdCliente = "")
+		$instancehandle->setStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Código do cliente não informado.", "ADICIONAL=Operação->FCRSVCO001.gravaFundoPerdido")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	if (vNrFatura = "")
+		$instancehandle->setStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Número da fatura não informado.", "ADICIONAL=Operação->FCRSVCO001.gravaFundoPerdido")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	if (vNrParcela = "")
+		$instancehandle->setStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Número da parcela não informado.", "ADICIONAL=Operação->FCRSVCO001.gravaFundoPerdido")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	if (vNrSequencia = "")
+		$instancehandle->setStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Número de sequência não informado.", "ADICIONAL=Operação->FCRSVCO001.gravaFundoPerdido")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	if (vNrPDD = "")
+		$instancehandle->setStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Número de PDD não informado.", "ADICIONAL=Operação->FCRSVCO001.gravaFundoPerdido")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	if (vNrDiasAtraso = "")
+		$instancehandle->setStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Número de dias atraso não informado.", "ADICIONAL=Operação->FCRSVCO001.gravaFundoPerdido")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	if (vVlTotalNota = "")
+		$instancehandle->setStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Valor total da nota não informado.", "ADICIONAL=Operação->FCRSVCO001.gravaFundoPerdido")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+
+	clear/e "F_FCR_FATURAISVC"
+	CD_EMPRESA.F_FCR_FATURAISVC/init = vCdEmpresa
+	CD_CLIENTE.F_FCR_FATURAISVC/init = vCdCliente
+	NR_FAT.F_FCR_FATURAISVC/init     = vNrFatura
+	NR_PARCELA.F_FCR_FATURAISVC/init = vNrParcela
+	retrieve/e "F_FCR_FATURAISVC"
+	if ($status < 0)
+		$instancehandle->setStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Título Cli:%%vCdCliente%%%/ Fat:%%vNrFatura%%%/ Par:%%vNrParcela não encontrado.", "ADICIONAL=Operação->FCRSVCO001.gravaFundoPerdido")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	;Altera cobranca do titulo
+	TP_COBRANCA.F_FCR_FATURAISVC = 99 ;Fundo Perdido
+	CD_OPERADOR.F_FCR_FATURAISVC = $item("CD_USUARIO", piGlobal)
+	DT_CADASTRO.F_FCR_FATURAISVC = $datim
+	$collhandle("F_FCR_FATURAISVC")->Salvar()
+	if ($procerror)
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "ADICIONAL=Operação->FCRSVCO001.gravaChequeFatura")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		exit (-1)
+	elseif ($status < 0)
+		$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")    
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		exit (-1)
+	endif
+
+	creocc "FCR_FATPDDSVC", -1			
+	CD_EMPPDD.FCR_FATPDDSVC     = $item("CD_EMPRESA", piGlobal)
+	DT_PDD.FCR_FATPDDSVC        = $item("DT_SISTEMA", piGlobal)
+	NR_PDD.FCR_FATPDDSVC        = vNrPDD        
+	NR_SEQ.FCR_FATPDDSVC        = vNrSequencia     
+	CD_OPERADOR.FCR_FATPDDSVC   = $item("CD_USUARIO", piGlobal)
+	DT_CADASTRO.FCR_FATPDDSVC   = $datim   
+	CD_EMPFAT.FCR_FATPDDSVC     = CD_EMPRESA.F_FCR_FATURAISVC 
+	CD_CLIENTE.FCR_FATPDDSVC    = CD_CLIENTE.F_FCR_FATURAISVC   
+	NR_FAT.FCR_FATPDDSVC        = NR_FAT.F_FCR_FATURAISVC        
+	NR_PARCELA.FCR_FATPDDSVC    = NR_PARCELA.F_FCR_FATURAISVC
+	DT_EMISSAO.FCR_FATPDDSVC    = DT_EMISSAO.F_FCR_FATURAISVC
+	DT_VENCIMENTO.FCR_FATPDDSVC = DT_VENCIMENTO.F_FCR_FATURAISVC
+	NR_PORTANT.FCR_FATPDDSVC    = NR_PORTADOR.F_FCR_FATURAISVC     
+	TP_COBANT.FCR_FATPDDSVC     = TP_COBRANCA.F_FCR_FATURAISVC     
+	VL_FATURA.FCR_FATPDDSVC     = VL_FATURA.F_FCR_FATURAISVC
+	VL_ABATIMENTO.FCR_FATPDDSVC = VL_ABATIMENTO.F_FCR_FATURAISVC
+	VL_NF.FCR_FATPDDSVC         = vVlTotalNota       
+	NR_ATRASO.FCR_FATPDDSVC     = vNrDiasAtraso
+	$collhandle("FCR_FATPDDSVC")->Salvar()
+	if ($procerror)
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "ADICIONAL=Operação->FCRSVCO001.gravaChequeFatura")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		exit (-1)
+	elseif ($status < 0)
+		$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")    
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		exit (-1)
+	endif
+
+	clear/e "F_FCR_FATURAISVC"
+	clear/e "FCR_FATPDDSVC"
+
+	return(0)
+end ; gravaChequeFatura
+
+;==BY BIANCHINI[PRJ/TAREFA 180/239] 12/09/2011==;
+;-------------------------------
+public operation gravaFatCartao
+;--------------------
+	params
+		string piGlobal  :IN
+		string piParams  :IN
+		string poParams  :OUT
+		string poCdErro  :OUT
+		string poCtxErro :OUT
+	endparams
+
+	variables
+		numeric vCdEmpresa, vCdCliente, vNrFatura, vNrParcela,vTpCartao, vCdCartao, vNrSeqCartao, vPrTaxaAdm
+		numeric vCdAutorizacao, vNrNsu, vVlCompra, vNrParcelas, vNrNf, vCdEmpOri, vCdCliOri, vNrFatOri
+		numeric vNrRv, vNrPv, vTpRegoOper, vNrParOri
+		date    vDtCredito, vDtCompra, vDtRv
+		string  viParams, voParams
+	endvariables
+		
+	vCdEmpresa     = $item("CD_EMPRESA"    , piParams)
+	vCdCliente     = $item("CD_CLIENTE"    , piParams)
+	vNrFatura      = $item("NR_FAT"        , piParams)
+	vNrParcela     = $item("NR_PARCELA"    , piParams)
+	vTpCartao      = $item("TP_CARTAO"     , piParams)
+	vCdCartao      = $item("CD_CARTAO"     , piParams)
+	vNrSeqCartao   = $item("NR_SEQCARTAO"  , piParams)
+	vCdAutorizacao = $item("CD_AUTORIZACAO", piParams)
+	vNrNsu         = $item("NR_NSU"        , piParams)
+	vDtCompra      = $item("DT_COMPRA"     , piParams)
+	vVlCompra      = $item("VL_COMPRA"     , piParams)
+	vNrParcelas    = $item("NR_PARCELAS"   , piParams)
+	vNrNf          = $item("NR_NF"         , piParams)
+	vCdEmpOri      = $item("CD_EMPORI"     , piParams)
+	vCdCliOri      = $item("CD_CLIORI"     , piParams)
+	vNrFatOri      = $item("NR_FATORI"     , piParams)
+	vNrParOri      = $item("NR_PARORI"     , piParams)
+	vPrTaxaAdm     = $item("PR_TAXAADM"    , piParams)
+	vNrRv          = $item("NR_RV"         , piParams)
+	vDtRv          = $item("DT_RV"         , piParams)
+	vNrPv          = $item("NR_PV"         , piParams)
+	vTpRegoOper    = $item("TP_REGOOPER"   , piParams)
+	vDtCredito     = $item("DT_CREDITO"    , piParams)
+
+	if (vCdEmpresa = "")
+		$instancehandle->setStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Empresa da fatura não informada.", "ADICIONAL=Operação->FCRSVCO001.gravaFatCartao")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+
+	if (vCdCliente = "")
+		$instancehandle->setStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Cliente da fatura não informado.", "ADICIONAL=Operação->FCRSVCO001.gravaFatCartao")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	if (vNrFatura = "")
+		$instancehandle->setStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Número da fatura não informado.", "ADICIONAL=Operação->FCRSVCO001.gravaFatCartao")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	if (vNrParcela = "")
+		$instancehandle->setStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Número da parcela não informado.", "ADICIONAL=Operação->FCRSVCO001.gravaFatCartao")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+
+	creocc "FCR_FATCARTAOSVC", -1
+	CD_EMPRESA.FCR_FATCARTAOSVC = vCdEmpresa
+	CD_CLIENTE.FCR_FATCARTAOSVC = vCdCliente
+	NR_FAT.FCR_FATCARTAOSVC     = vNrFatura
+	NR_PARCELA.FCR_FATCARTAOSVC = vNrParcela
+	retrieve/o "FCR_FATCARTAOSVC"
+	if ($status = 4) | ($status = -7)
+		retrieve/x "FCR_FATCARTAOSVC"
+	endif
+	
+	CD_OPERADOR.FCR_FATCARTAOSVC = $item("CD_USUARIO", piGlobal)
+	DT_CADASTRO.FCR_FATCARTAOSVC = $datim
+	TP_CARTAO.FCR_FATCARTAOSVC   = vTpCartao
+	NR_RV.FCR_FATCARTAOSVC       = vNrRv
+	DT_RV.FCR_FATCARTAOSVC       = vDtRv
+	NR_PV.FCR_FATCARTAOSVC       = vNrPv
+	TP_REGOOPER.FCR_FATCARTAOSVC = vTpRegoOper
+	DT_CREDITO.FCR_FATCARTAOSVC  = vDtCredito
+	$collhandle("FCR_FATCARTAOSVC")->Salvar()
+	if ($procerror)
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "ADICIONAL=Operação->FCRSVCO001.gravaChequeFatura")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		exit (-1)
+	elseif ($status < 0)
+		$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")    
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		exit (-1)
+	endif
+	
+	return(0)
+End ; operation geraFatCartao
+;==

@@ -1,0 +1,66 @@
+;-----------------------
+public operation validaUsuarioEspecial
+	;-----------------------
+	params
+		string  $xlpg$      :IN    
+		string  piParams    :IN
+		string  poParams    :OUT
+		string  poCdErro    :OUT
+		string  poCtxErro   :OUT
+	endparams
+
+	variables
+		Numeric vCdUsuario
+		String vNmUsuario, vNmLogin
+	endvariables	
+
+	vCdUsuario = $item("CD_USUARIO", piParams)
+
+	if(vCdUsuario = "")
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Usuário não informado!", "ADICIONAL=Operação->ADMSVCO027.validaUsuarioEspecial")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+
+	clear/e "V_ADM_USUARIOSVC"
+	CD_USUARIO.V_ADM_USUARIOSVC = vCdUsuario
+	retrieve/e "V_ADM_USUARIOSVC"
+	if($status >= 0)
+		if (TP_PRIVILEGIO.V_ADM_USUARIOSVC = "A")
+			vNmUsuario = "ADMIN - %%NM_USUARIO.V_ADM_USUARIOSVC"
+			vNmLogin = "A %%NM_LOGIN.V_ADM_USUARIOSVC"
+		elseif(TP_PRIVILEGIO.V_ADM_USUARIOSVC = "E")
+			vNmUsuario = "ENGEN - %%NM_USUARIO.V_ADM_USUARIOSVC"
+			vNmLogin = "E %%NM_LOGIN.V_ADM_USUARIOSVC"
+		elseif(TP_PRIVILEGIO.V_ADM_USUARIOSVC = "S")
+			vNmUsuario = "SUPEX - %%NM_USUARIO.V_ADM_USUARIOSVC"
+			vNmLogin = "S %%NM_LOGIN.V_ADM_USUARIOSVC"
+		elseif(TP_PRIVILEGIO.V_ADM_USUARIOSVC = "F")
+			vNmUsuario = "FINAN - %%NM_USUARIO.V_ADM_USUARIOSVC"
+			vNmLogin = "F %%NM_LOGIN.V_ADM_USUARIOSVC"
+		elseif(TP_PRIVILEGIO.V_ADM_USUARIOSVC = "D")
+			vNmUsuario = "DESEN - %%NM_USUARIO.V_ADM_USUARIOSVC"
+			vNmLogin = "D %%NM_LOGIN.V_ADM_USUARIOSVC"
+		elseif(TP_PRIVILEGIO.V_ADM_USUARIOSVC = "V")
+			vNmUsuario = "VIRTUAL - %%NM_USUARIO.V_ADM_USUARIOSVC"
+			vNmLogin = "V %%NM_LOGIN.V_ADM_USUARIOSVC"
+		else
+			vNmUsuario = "%%NM_USUARIO.V_ADM_USUARIOSVC"
+			vNmLogin = "%%NM_LOGIN.V_ADM_USUARIOSVC"
+		endif
+	else
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Usuário %%vCdUsuario informado é inválido!", "ADICIONAL=Operação->ADMSVCO027.validaUsuarioEspecial")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+
+	if (vNmUsuario != "")
+		putitem/id poParams, "NM_USUARIO", vNmUsuario
+		putitem/id poParams, "NM_LOGIN", 	vNmLogin	
+		putitem/id poParams, "CD_FUNCIONARIO", CD_FUNCIONARIO.V_ADM_USUARIOSVC ; --> ROS --> 172/151 --> 10/06/11
+	endif
+	
+	return(0)
+End;operation validaUsuarioEspecial

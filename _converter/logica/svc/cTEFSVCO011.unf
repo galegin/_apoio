@@ -1,0 +1,659 @@
+;-------------
+entry getParam
+	;-------------
+	variables
+		numeric vCdEmpresa
+		string viParams, voParams
+	endvariables
+	
+	vCdEmpresa = $item("CD_EMPRESA", $xlpg$)
+	viParams = ""
+	putitem viParams, -1, "TEF_TIPO"
+	putitem viParams, -1, "TP_IMPRESSAO_TEF_PAYGO" ;-=CANONICO=- 30/11/2010 TAR 982 PRJ 102 - Parametro de leitura do arquivo intpos		
+	activate "ADMSVCO001".GetParamEmpresa(vCdEmpresa, viParams, voParams, $xCdErro$, $xCtxerro$)
+	if ($procerror)
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+		return(-1)
+	elseif ($xCdErro$)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=%%$item("DESCRICAO", $xCtxErro$)", "")
+		return(-1)
+	endif
+	
+	$tpTEF$ = $item("TEF_TIPO", voParams)
+	$tpImpTefPAYGO$ = $item("TP_IMPRESSAO_TEF_PAYGO", voParams) ;-=CANONICO=- 30/11/2010 TAR 982 PRJ 102 - Parametro de leitura do arquivo intpos		
+
+	return(0)
+end
+
+
+;--------------------
+entry alimentaCampos
+	;--------------------
+	variables
+		string viParams, voParams, vDsRegistro, vDsLinha, vDsNumero
+		numeric vNrLinhas, vNrPos, vNrCont, vVlCalc
+	endvariables
+	
+	$CdEmpresa$ = $item("CD_EMPRESA", $xlpi$)
+	if ($CdEmpresa$ = 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Empresa da transação não informada!", "ADICIONAL=Operação->TEFSVCO011.gravaTransacao")
+		return(-1)
+	endif
+	
+	$DtMovimento$ = $item("DT_SISTEMA", $xlpg$)
+	if ($DtMovimento$ = 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Data de movimento não informada!", "ADICIONAL=Operação->TEFSVCO011.gravaTransacao")
+		return(-1)
+	endif
+	
+	$CdArquivo$ = $item("000-000", $xlpi$)
+	if ($CdArquivo$ = "")
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Campo 000-000 não encontrado no arquivo de resposta!", "ADICIONAL=Operação->TEFSVCO011.gravaTransacao")
+		return(-1)
+	endif
+	
+	$NrSeq$ = $item("001-000", $xlpi$)
+	if ($NrSeq$ = 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Campo 001-000 não encontrado no arquivo de resposta!", "ADICIONAL=Operação->TEFSVCO011.gravaTransacao")
+		return(-1)
+	endif
+
+	$nrDocVinc$ = $item("002-000", $xlpi$)
+
+	$NrNSUaux$ = $item("NR_NSUAUX", $xlpi$) ;-=CANONICO=- (12/07/2011) TAR 583 PRJ 156
+	
+	vDsNumero = $item("003-000", $xlpi$)
+	call achaNumero(vDsNumero, vVlCalc)
+	if ($procerror)
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+	endif    
+	
+	$vlTransacao$ = vVlCalc / 100
+	if ($vlTransacao$ = "")
+		$vlTransacao$ = 0
+	endif
+	
+	$TpStatus$ = $item("009-000", $xlpi$)
+;	if ($TpStatus$ = "")
+;		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Campo 009-000 não encontrado no arquivo de resposta!", "ADICIONAL=Operação->TEFSVCO011.gravaTransacao")
+;		return(-1)
+;	endif
+	
+	$NmRedeTEF$ = $item("010-000", $xlpi$)
+;	if ($NmRedeTEF$ = "")
+;		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Campo 010-000 não encontrado no arquivo de resposta!", "ADICIONAL=Operação->TEFSVCO011.gravaTransacao")
+;		return(-1)
+;	endif
+	
+	$CdRedeTEF$ = $item("010-001", $xlpi$)
+;	if ($CdRedeTEF$ = 0)
+;		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Campo 010-001 não encontrado no arquivo de resposta!", "ADICIONAL=Operação->TEFSVCO011.gravaTransacao")
+;		return(-1)
+;	endif
+	
+	$TpTransacao$ = $item("011-000", $xlpi$)
+;	if ($TpTransacao$ = 0)
+;		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Campo 011-000 não encontrado no arquivo de resposta!", "ADICIONAL=Operação->TEFSVCO011.gravaTransacao")
+;		return(-1)
+;	endif
+	
+	$NrNSU$ = $item("012-000", $xlpi$)
+;	if ($NrNSU$ = 0)
+;		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Campo 012-000 não encontrado no arquivo de resposta!", "ADICIONAL=Operação->TEFSVCO011.gravaTransacao")
+;		return(-1)
+;	endif
+	
+	$CdAutorizacao$ = $item("013-000", $xlpi$)
+	;    if ($CdAutorizacao$ = 0)
+	;        $instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Campo 013-000 não encontrado no arquivo de resposta!", "ADICIONAL=Operação->TEFSVCO011.gravaTransacao")
+	;        return(-1)
+	;    endif
+	
+	$DtTransacao$ = $item("022-000", $xlpi$)
+;	if ($DtTransacao$ = 0)
+;		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Campo 022-000 não encontrado no arquivo de resposta!", "ADICIONAL=Operação->TEFSVCO011.gravaTransacao")
+;		return(-1)
+;	endif
+	
+	$HrTransacao$ = $item("023-000", $xlpi$)
+;	if ($DtTransacao$ = 0)
+;		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Campo 023-000 não encontrado no arquivo de resposta!", "ADICIONAL=Operação->TEFSVCO011.gravaTransacao")
+;		return(-1)
+;	endif
+	
+	$DsFinalizacao$ = $item("027-000", $xlpi$)
+;	if ($DsFinalizacao$ = "")
+;		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Campo 027-000 não encontrado no arquivo de resposta!", "ADICIONAL=Operação->TEFSVCO011.gravaTransacao")
+;		return(-1)
+;	endif
+	
+	if ($tpImpTefPAYGO$ = 1) ;-=CANONICO=- 30/11/2010 TAR 982 PRJ 102 - Impressão do cupom TEF utilizando PAYGO rezumida
+		vDsRegistro = ""
+		vNrLinhas = $item("710-000", $xlpi$)
+		if (vNrLinhas > 0)
+			repeat
+				vNrCont = vNrCont + 1
+				if (vNrCont < 10)
+					vDsLinha = $item("711-00%%vNrCont",$xlpi$)
+				elseif(vNrCont > 9 & vNrCont <= 99) 
+					vDsLinha = $item("711-0%%vNrCont",$xlpi$)
+				elseif(vNrCont > 99)
+					vDsLinha = $item("711-%%vNrCont",$xlpi$)
+				endif
+			
+				length(vDsLinha)
+				if ($result > 3)
+					vDsLinha = vDsLinha[2: $result - 2]
+				else
+					vDsLinha = " "
+				endif
+				vDsRegistro = "%%vDsRegistro%%vDsLinha%%^"
+			until (vNrCont = vNrLinhas)
+		else ;-=CANONICO=- (22-11-2011) AGUA COCO - QUANDO NÃO LOCALIZAR O CUPOM RESUMIDO IMPRIMIR O CUPOM NORMAL
+			vDsRegistro = ""
+			vNrLinhas = $item("028-000", $xlpi$)
+			if (vNrLinhas > 0)
+				repeat
+					vNrCont = vNrCont + 1
+					if (vNrCont < 10)
+						vDsLinha = $item("029-00%%vNrCont",$xlpi$)
+					elseif(vNrCont > 9 & vNrCont <= 99) ;-=CANONICO=- 30/11/2010 - TAR 982 PRJ 102 - BUG corrigido antes testava somente a vNrCont > 9 então nunca iria entrar na > 99
+						vDsLinha = $item("029-0%%vNrCont",$xlpi$)
+					elseif(vNrCont > 99)
+						vDsLinha = $item("029-%%vNrCont",$xlpi$)
+					endif
+				
+					length(vDsLinha)
+					if ($result > 3)
+						vDsLinha = vDsLinha[2: $result - 2]
+					else
+						vDsLinha = " "
+					endif
+					vDsRegistro = "%%vDsRegistro%%vDsLinha%%^"
+				until (vNrCont = vNrLinhas)
+			endif
+		endif
+	else
+		vDsRegistro = ""
+		vNrLinhas = $item("028-000", $xlpi$)
+		if (vNrLinhas > 0)
+			repeat
+				vNrCont = vNrCont + 1
+				if (vNrCont < 10)
+					vDsLinha = $item("029-00%%vNrCont",$xlpi$)
+				elseif(vNrCont > 9 & vNrCont <= 99) ;-=CANONICO=- 30/11/2010 - TAR 982 PRJ 102 - BUG corrigido antes testava somente a vNrCont > 9 então nunca iria entrar na > 99
+					vDsLinha = $item("029-0%%vNrCont",$xlpi$)
+				elseif(vNrCont > 99)
+					vDsLinha = $item("029-%%vNrCont",$xlpi$)
+				endif
+				
+				length(vDsLinha)
+				if ($result > 3)
+					vDsLinha = vDsLinha[2: $result - 2]
+				else
+					vDsLinha = " "
+				endif
+				vDsRegistro = "%%vDsRegistro%%vDsLinha%%^"
+			until (vNrCont = vNrLinhas)
+		endif
+	endif
+
+	$dsCupom$ = vDsRegistro
+	
+	$dsMensagem$ = $item("030-000", $xlpi$)
+
+	$dsNmAdministradora$ = $item("040-000", $xlpi$) ;-=CANONICO=- (10/02/2011) TAR 8 PRJ 181 "Campo da administrador na qual contas o cartao"
+
+	;-=CANONICO=- (17/04/2009) TAR 984 / PRJ 022	         ;
+	call converterString($DsMensagem$,$DsMensagem$) ;remove caracteres especiais e acentuacoes
+	if ($procerror)
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+	endif    
+	;
+	
+	return(0)
+end ;alimentaCampos
+
+;---------------
+entry achaNumero
+	;---------------
+	params        
+		string piNumero : IN
+		numeric poNumero : OUT
+	endparams
+	
+	length(piNumero)
+	while ($result > 0)
+		if (piNumero[1 : 1] >= 0 & piNumero[1 : 1] <= 9 & piNumero[1 : 1] != " ")
+			poNumero = "%%poNumero%%piNumero[1 : 1]"
+		endif
+		piNumero = piNumero[2]
+		length(piNumero)
+	endwhile
+	
+	return(0)
+end
+
+;--------------------------------------------------------
+;-=CANONICO=- (17/04/2009) TAR 984 / PRJ 022	         ;
+entry converterString
+;--------------------------------------------------------
+	params
+		string piString	:In
+		string poString	:Out
+	endparams
+
+	variables
+		string viParams,voParams
+	endvariables
+
+	putitem/id viParams,"DS_STRING",piString
+	putitem/id viParams,"IN_MAIUSCULA",<True>
+	putitem/id viParams,"IN_NUMERO",<True>
+	putitem/id viParams,"IN_ESPACO",<True>
+	putitem/id viParams,"IN_ESPECIAL",<False>
+	
+	activate "EDISVCO020".limparCampo($$gParamGlb,viParams,voParams,$xCdErro$,$xCtxErro$)
+	poString = $item("DS_STRING",voParams)
+	
+	return (0)
+end; converterString
+
+;---------------------------------
+public operation gravaTransacao
+	;---------------------------------
+	params
+		string  $xlpg$      :IN    
+		string  $xlpi$      :IN
+		string  poParams    :OUT
+		string  poCdErro    :OUT
+		string  poCtxErro   :OUT
+	endparams
+	
+	variables
+		string vDsRegistro, vDsLstTransacao, vDsLstFaturas, vNmRede
+		numeric vCdEmpresa, vNrTransacao, vCdTerminal, vTpSituacao
+		numeric vCdEmpFat, vCdClienteFat, vNrFat, vNrParcelaFat
+		date vDtTransacao
+	endvariables
+	
+	vCdTerminal = $item("CD_TERMINAL", $xlpg$)
+	if (vCdTerminal = 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Terminal não informado!", "ADICIONAL=Operação->TEFSVCO011.gravaTransacao")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		exit(-1)
+	endif
+
+	vTpSituacao = $item("TP_SITUACAO", $xlpi$)
+	
+	clear/e "TRA_TRANSACAOSVC"
+	
+	vDsLstTransacao = $item("DS_LSTTRANSACAO", $xlpi$)   
+	
+	if (vDsLstTransacao != "")    
+		repeat
+			getitem vDsRegistro, vDsLstTransacao, 1
+			vCdEmpresa = $item("CD_EMPRESA", vDsRegistro)
+			vNrTransacao = $item("NR_TRANSACAO", vDsRegistro)
+			vDtTransacao = $item("DT_TRANSACAO", vDsRegistro)
+			
+			if (vCdEmpresa = 0)
+				$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Empresa não informada!", "ADICIONAL=Operação->TEFSVCO011.gravaTransacao")
+				poCdErro = $xCdErro$
+				poCtxErro = $xCtxErro$
+				exit(-1)
+			endif
+			
+			if (vNrTransacao = 0)
+				$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Número da transação não informado!", "ADICIONAL=Operação->TEFSVCO011.gravaTransacao")
+				poCdErro = $xCdErro$
+				poCtxErro = $xCtxErro$
+				exit(-1) 
+			endif
+			
+			if (vDtTransacao = "")
+				$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Data transação não informada!", "ADICIONAL=Operação->TEFSVCO011.gravaTransacao")
+				poCdErro = $xCdErro$
+				poCtxErro = $xCtxErro$
+				exit(-1)
+			endif
+			
+			creocc "TRA_TRANSACAOSVC", -1
+			CD_EMPRESA.TRA_TRANSACAOSVC/init = vCdEmpresa
+			NR_TRANSACAO.TRA_TRANSACAOSVC/init = vNrTransacao
+			DT_TRANSACAO.TRA_TRANSACAOSVC/init = vDtTransacao
+			retrieve/o "TRA_TRANSACAOSVC"
+			if ($status = -7)
+				retrieve/x "TRA_TRANSACAOSVC"
+			elseif ($status = 0)
+				$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Transação %%vNrTransacao não cadastrada!", "ADICIONAL=Operação->TEFSVCO011.gravaTransacao")
+				poCdErro = $xCdErro$
+				poCtxErro = $xCtxErro$
+				exit(-1) 
+			endif  
+			delitem vDsLstTransacao, 1
+		until (vDsLstTransacao = "")
+	endif
+	
+	clear/e "FCR_FATURAISVC"
+
+	vDsLstFaturas = $item("DS_FATURAS", $xLpi$)		
+
+	if (vDsLstFaturas != "")
+		repeat
+			getitem vDsRegistro, vDsLstFaturas, 1
+			vCdEmpFat     = $item("CD_EMPRESA", vDsRegistro)
+			vCdClienteFat = $item("CD_CLIENTE", vDsRegistro)
+			vNrFat        = $item("NR_FAT"    , vDsRegistro)
+			vNrParcelaFat = $item("NR_PARCELA", vDsRegistro)
+			
+			if (vCdEmpFat = 0)
+				$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Empresa fatura não informada!", "ADICIONAL=Operação->TEFSVCO011.gravaTransacao")
+				poCdErro = $xCdErro$
+				poCtxErro = $xCtxErro$
+				exit(-1)
+			endif
+			
+			if (vCdClienteFat = 0)
+				$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Cliente da fatura não informado!", "ADICIONAL=Operação->TEFSVCO011.gravaTransacao")
+				poCdErro = $xCdErro$
+				poCtxErro = $xCtxErro$
+				exit(-1) 
+			endif
+			
+			if (vNrFat = "")
+				$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Número fatura não informada!", "ADICIONAL=Operação->TEFSVCO011.gravaTransacao")
+				poCdErro = $xCdErro$
+				poCtxErro = $xCtxErro$
+				exit(-1)
+			endif
+
+			if (vNrParcelaFat = "")
+				$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Número parcela da fatura não informada!", "ADICIONAL=Operação->TEFSVCO011.gravaTransacao")
+				poCdErro = $xCdErro$
+				poCtxErro = $xCtxErro$
+				exit(-1)
+			endif
+
+			creocc "FCR_FATURAISVC", -1
+			CD_EMPRESA.FCR_FATURAISVC/init = vCdEmpFat 
+			CD_CLIENTE.FCR_FATURAISVC/init = vCdClienteFat 
+			NR_FAT.FCR_FATURAISVC/init = vNrFat 
+			NR_PARCELA.FCR_FATURAISVC/init = vNrParcelaFat
+			retrieve/o "FCR_FATURAISVC"
+			if ($status = -7)
+				retrieve/x "FCR_FATURAISVC"
+			elseif ($status = 0)
+				$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Fatura empresa %%vCdEmpFat cliente %vCdClienteFat número %%vNrFat parcela %%vNrParcelaFat não cadastrada!", "ADICIONAL=Operação->TEFSVCO011.gravaTransacao")
+				poCdErro = $xCdErro$
+				poCtxErro = $xCtxErro$
+				exit(-1) 
+			endif  
+
+			delitem vDsLstFaturas, 1
+		until (vDsLstFaturas = "")
+	endif
+
+	call getParam()
+	if ($procerror)
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		exit(-1)
+	endif
+	if ($status < 0)
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		exit(-1)
+	endif
+	
+	if ($tpTEF$ != 1) & ($tpTEF$ != 2)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Parametro p/ empresa TEF_TIPO inválido!", "ADICIONAL=Operação->TEFSVCO011.gravaTransacao")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		exit(-1)
+	endif
+	
+	call alimentaCampos()
+	if ($procerror)
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		exit(-1)
+	endif
+	if ($status < 0)
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		exit(-1)
+	endif
+
+	;obtem o código e a descrição da rede quando um dos dois for passado como nulo
+	if ($CdRedeTef$ = 0 & $NmRedeTef$ != "")
+		clear/e "TEF_REDETEFSVC"
+		NM_REDETEF.TEF_REDETEFSVC/init = $NmRedeTef$
+		retrieve/e "TEF_REDETEFSVC"	
+		if ($status >= 0)
+			$CdRedeTef$ = CD_REDETEF.TEF_REDETEFSVC
+		else
+			scan $NmRedeTef$, "VISA"
+			if ($result > 0)
+				vNmRede = $NmRedeTef$[$result : 4] 
+				clear/e "TEF_REDETEFSVC"
+				NM_REDETEF.TEF_REDETEFSVC/init = vNmRede
+				retrieve/e "TEF_REDETEFSVC"	
+				if ($status >= 0)
+					$CdRedeTef$ = CD_REDETEF.TEF_REDETEFSVC
+				endif
+			endif
+		endif
+	elseif ($CdRedeTef$ > 0 & $NmRedeTef$ = "")
+		clear/e "TEF_REDETEFSVC"
+		CD_REDETEF.TEF_REDETEFSVC/init = $CdRedeTef$
+		retrieve/e "TEF_REDETEFSVC"	
+		$NmRedeTef$ = NM_REDETEF.TEF_REDETEFSVC
+	endif	
+
+	creocc "TEF_TRANSACAOSVC", -1
+	CD_EMPRESA.TEF_TRANSACAOSVC = $CdEmpresa$
+	DT_MOVIMENTO.TEF_TRANSACAOSVC = $DtMovimento$
+	NR_SEQ.TEF_TRANSACAOSVC = $NrSeq$
+	retrieve/o "TEF_TRANSACAOSVC"
+	if ($status = -7)
+		retrieve/x "TEF_TRANSACAOSVC"
+	endif
+	TP_TEF.TEF_TRANSACAOSVC = $TpTEF$
+	CD_ARQUIVO.TEF_TRANSACAOSVC = $CdArquivo$
+	TP_TRANSACAO.TEF_TRANSACAOSVC = $TpTransacao$
+	CD_REDETEF.TEF_TRANSACAOSVC = $CdRedeTEF$
+	;transação autorizado e não impressa
+	if (vTpSituacao = 0)
+		TP_SITUACAO.TEF_TRANSACAOSVC = 1
+	else
+		TP_SITUACAO.TEF_TRANSACAOSVC = vTpSituacao
+	endif
+	VL_TRANSACAO.TEF_TRANSACAOSVC = $vlTransacao$
+	HR_TRANSACAO.TEF_TRANSACAOSVC = $HrTransacao$
+	DT_TRANSACAO.TEF_TRANSACAOSVC = $DtTransacao$
+	NR_NSU.TEF_TRANSACAOSVC = $NrNSU$
+	NR_DOCVINC.TEF_TRANSACAOSVC = $NrDocVinc$
+	NR_NSUAUX.TEF_TRANSACAOSVC = $NrNSUaux$
+	CD_AUTORIZACAO.TEF_TRANSACAOSVC = $CdAutorizacao$
+	CD_TERMINAL.TEF_TRANSACAOSVC = vCdTerminal
+	NM_REDETEF.TEF_TRANSACAOSVC = $NmRedeTEF$
+	TP_STATUS.TEF_TRANSACAOSVC = $TpStatus$
+	DS_FINALIZACAO.TEF_TRANSACAOSVC = $DsFinalizacao$
+	DS_MENSAGEM.TEF_TRANSACAOSVC = $DsMensagem$
+	NR_LINHASCUPOM.TEF_TRANSACAOSVC = $NrLinhasCupom$
+	DS_CUPOM.TEF_TRANSACAOSVC = $DsCupom$
+	CD_OPERADOR.TEF_TRANSACAOSVC = $item("CD_USUARIO", $xlpg$)
+	DT_CADASTRO.TEF_TRANSACAOSVC = $datim
+	
+	if ($empty("TRA_TRANSACAOSVC") = 0)
+		setocc "TRA_TRANSACAOSVC", 1
+		while ($status >=0)
+			creocc "TEF_RELTRANSASVC", -1
+			CD_EMPTEF.TEF_RELTRANSASVC = CD_EMPRESA.TEF_TRANSACAOSVC
+			DT_MOVIMENTO.TEF_RELTRANSASVC = DT_MOVIMENTO.TEF_TRANSACAOSVC
+			NR_SEQ.TEF_RELTRANSASVC =  NR_SEQ.TEF_TRANSACAOSVC       
+			CD_EMPTRA.TEF_RELTRANSASVC = CD_EMPRESA.TRA_TRANSACAOSVC
+			NR_TRANSACAO.TEF_RELTRANSASVC = NR_TRANSACAO.TRA_TRANSACAOSVC
+			DT_TRANSACAO.TEF_RELTRANSASVC = DT_TRANSACAO.TRA_TRANSACAOSVC
+			retrieve/o "TEF_RELTRANSASVC"
+			if ($status = -7)
+				retrieve/x "TEF_RELTRANSASVC"
+			endif
+			CD_OPERADOR.TEF_RELTRANSASVC = $item("CD_USUARIO", $xlpg$)
+			DT_CADASTRO.TEF_RELTRANSASVC = $datim
+			setocc "TRA_TRANSACAOSVC" , $curocc("TRA_TRANSACAOSVC") + 1
+		endwhile
+	endif
+
+	if ($empty("FCR_FATURAISVC") = 0)
+		setocc "FCR_FATURAISVC", 1
+		while ($status >=0)
+			creocc "TEF_RELFATURASVC", -1
+			CD_EMPTEF.TEF_RELFATURASVC = CD_EMPRESA.TEF_TRANSACAOSVC
+			DT_MOVIMENTO.TEF_RELFATURASVC = DT_MOVIMENTO.TEF_TRANSACAOSVC
+			NR_SEQ.TEF_RELFATURASVC =  NR_SEQ.TEF_TRANSACAOSVC
+			CD_EMPFATURA.TEF_RELFATURASVC = CD_EMPRESA.FCR_FATURAISVC
+			CD_CLIENTE.TEF_RELFATURASVC = CD_CLIENTE.FCR_FATURAISVC
+			NR_FATURA.TEF_RELFATURASVC = NR_FAT.FCR_FATURAISVC
+			NR_PARCELA.TEF_RELFATURASVC = NR_PARCELA.FCR_FATURAISVC
+			retrieve/o "TEF_RELFATURASVC"
+			if ($status = -7)
+				retrieve/x "TEF_RELFATURASVC"
+			endif
+			CD_OPERADOR.TEF_RELFATURASVC = $item("CD_USUARIO", $xlpg$)
+			DT_CADASTRO.TEF_RELFATURASVC = $datim
+			setocc "FCR_FATURAISVC" , $curocc("FCR_FATURAISVC") + 1
+		endwhile
+	endif
+
+	
+	$collhandle("TEF_TRANSACAOSVC")->Salvar()
+	if ($procerror)
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		exit(-1)
+	elseif ($status < 0)
+		$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")    
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		exit(-1)
+	endif
+	
+	commit
+	if ($status < 0)
+		rollback
+		exit (-1) 
+	else
+		$instancehandle->SetHint("ID=APLINFO002")
+	endif
+	
+	poParams = ""
+	putitem/id poParams, "CD_EMPRESA", CD_EMPRESA.TEF_TRANSACAOSVC
+	putitem/id poParams, "DT_MOVIMENTO", DT_MOVIMENTO.TEF_TRANSACAOSVC
+	putitem/id poParams, "NR_SEQ", NR_SEQ.TEF_TRANSACAOSVC
+	putitem/id poParams, "DS_CUPOM", $dsCupom$
+	putitem/id poParams, "DS_MENSAGEM", $dsMensagem$
+	
+	exit(0)
+end ;operation gravaTransacao
+
+;------------------------------
+public operation alteraSituacao
+	;------------------------------
+	params
+		string  $xlpg$      :IN    
+		string  piParams    :IN
+		string  poParams    :OUT
+		string  poCdErro    :OUT
+		string  poCtxErro   :OUT
+	endparams
+	
+	variables
+		numeric vCdEmpresa, vNrSeq, vTpSituacao
+		date vDtMovimento
+	endvariables
+	
+	vCdEmpresa = $item("CD_EMPRESA", piParams)
+	
+	if (vCdEmpresa = 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Empresa não informada!", "ADICIONAL=Operação->TEFSVCO011.alteraSituacao")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		exit(-1)
+	endif    
+	
+	vDtMovimento = $item("DT_MOVIMENTO", piParams)
+	
+	if (vDtMovimento = 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Dt. movimento não informada!", "ADICIONAL=Operação->TEFSVCO011.alteraSituacao")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		exit(-1)
+	endif    
+	
+	vNrSeq = $item("NR_SEQ", piParams)
+	
+	if (vNrSeq = 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Nr. sequência transação TEF não informada!", "ADICIONAL=Operação->TEFSVCO011.alteraSituacao")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		exit(-1)
+	endif
+	
+	vTpSituacao = $item("TP_SITUACAO", piParams)
+	
+	if (vTpSituacao != -2) & (vTpSituacao != -1) & (vTpSituacao != 1) & (vTpSituacao != 2) & (vTpSituacao != 3) & (vTpSituacao != 4)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Situação %%vTpSituacao inválida!", "ADICIONAL=Operação->TEFSVCO011.alteraSituacao")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		exit(-1)
+	endif
+	
+	clear/e "TEF_TRANSACAOSVC"
+	CD_EMPRESA.TEF_TRANSACAOSVC/init = vCdEmpresa
+	DT_MOVIMENTO.TEF_TRANSACAOSVC/init = vDtMovimento
+	NR_SEQ.TEF_TRANSACAOSVC/init = vNrSeq
+	retrieve/e "TEF_TRANSACAOSVC"
+	if ($status < 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Transação TEF %%vNrSeq não cadastrada!", "ADICIONAL=Operação->TEFSVCO011.alteraSituacao")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		exit(-1)
+	endif
+	
+	TP_SITUACAO.TEF_TRANSACAOSVC = vTpSituacao
+	;não é permitido guardar o cupom impresso.
+	if (TP_SITUACAO.TEF_TRANSACAOSVC != 1 & TP_SITUACAO.TEF_TRANSACAOSVC != 4)
+		DS_CUPOM.TEF_TRANSACAOSVC = ""
+	endif
+	CD_OPERADOR.TEF_TRANSACAOSVC = $item("CD_USUARIO", $xlpg$)
+	DT_CADASTRO.TEF_TRANSACAOSVC = $datim
+	
+	$collhandle("TEF_TRANSACAOSVC")->Salvar()
+	if ($procerror)
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		exit(-1)
+	elseif ($status < 0)
+		$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")    
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		exit(-1)
+	endif
+	
+	commit
+	if ($status < 0)
+		rollback
+		exit (-1) 
+	else
+		$instancehandle->SetHint("ID=APLINFO002")
+	endif
+	
+	exit(0)
+end ;operation alteraSituacao

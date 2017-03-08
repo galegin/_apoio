@@ -1,0 +1,1326 @@
+; @>-/-- Virginia - PRJ 061 TAR 781 - 02/03/10
+entry buscaContato
+;--------------------------------
+	params
+		string  piGlobal  :IN
+		string  piParams  :IN
+		string  poParams  :OUT
+		numeric poCdErro  :OUT
+		string  poCtxErro :OUT
+	endparams
+
+	variables
+		string viParams, voParams
+	endvariables
+
+	clear/e "PES_TIPOCONTASVC"
+	DS_TIPOCONTATO.PES_TIPOCONTASVC = $item("DS_TIPOCONTATO",piParams)
+	retrieve/e "PES_TIPOCONTASVC"
+	clear/e "PES_CONTATOSVC"
+	CD_PESSOA.PES_CONTATOSVC/init = $item("CD_PESSOA",piParams)
+	CD_TIPOCONTATO.PES_CONTATOSVC/init = CD_TIPOCONTATO.PES_TIPOCONTASVC
+	retrieve/e "PES_CONTATOSVC"	
+	if ($status >= 0)
+		putlistitems/occ poParams, "PES_CONTATOSVC"
+	endif
+
+	return (0)
+end ;entry buscaContato
+
+#include <LIB_PADRAO>:DEF_TEMPLATE_SVC
+;--------------------
+public operation INIT
+;--------------------
+	variables
+		string viParams, voParams
+	endvariables
+
+	#include <LIB_PADRAO>:PRC_INIT
+	; @>-/-- Virginia - PRJ 061 TAR 795 - 06/04/10
+	viParams = ""
+	putitem viParams, -1, "CD_TIPO_FONE"
+	putitem viParams, -1, "CD_TIPO_FAX"
+	activate "ADMSVCO001".GetLstParametro(viParams, voParams, $xCdErro$, $xCtxerro$)
+	if ($procerror)
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+		return(-1)
+	elseif ($xCdErro$)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=%%$item("DESCRICAO", $xCtxErro$)", "ADICIONAL=Operação->FISSVCI004")
+		return(-1)
+	elseif ($status < 0)
+		return(-1)
+	endif
+	
+	$cdTipoFone$ = $item("CD_TIPO_FONE", voParams)
+	$cdTipoFax$ = $item("CD_TIPO_FAX", voParams)
+	; --\-<@
+end ;INIT
+
+;-----------------------
+public operation CLEANUP
+;-----------------------
+#include <LIB_PADRAO>:PRC_CLEANUP
+end ; CLEANUP
+
+
+;--------------------------
+public operation achaGrupo
+;--------------------------
+	params
+		string  piGlobal  :IN
+		string  piParams  :IN
+		string  poParams  :OUT
+		numeric poCdErro  :OUT
+		string  poCtxErro :OUT
+	endparams
+
+
+	variables
+		string viParams, voParams, vDsLstNivel, vDsGrupo, vDsLstCdGrupo, vCdGrupo
+		numeric vCdProduto, vCdSeq
+	endvariables
+
+	vCdProduto 		= $item("CD_PRODUTO", piParams)
+	vCdSeq			= $item("CD_SEQ", piParams)
+	vDsLstCdGrupo = ""
+	vDsGrupo = ""
+	if (vCdSeq = "")
+		clear/e "PRD_PRDGRADESVC"
+		CD_PRODUTO.PRD_PRDGRADESVC/init = vCdProduto
+		retrieve/e "PRD_PRDGRADESVC"
+	endif
+	if ($status >=0) | (vCdSeq != "")
+		viParams = ""
+		if (vCdSeq = "")
+			putitem/id viParams, "CD_SEQGRUPO", CD_SEQGRUPO.PRD_PRDGRADESVC
+		else
+			putitem/id viParams, "CD_SEQGRUPO", vCdSeq
+		endif
+		activate "PRDSVCO004".carregaDadosGrupo($$gParamGlb, viParams, voParams, $xCdErro$, $xCtxErro$)
+		if ($procerror)       
+			$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+			poCdErro  = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return(-1)
+		elseif ($status < 0)
+			$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+			poCdErro  = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return(-1)
+		endif
+		vDsGrupo = $item("DS_GRUPOPARAM", voParams)
+		vDsLstNivel = $item("CD_GRUPOCOMP", voParams)
+		if (vDsLstNivel != "")
+			repeat
+				getitem vCdGrupo, vDsLstNivel, 1
+				if (vDsLstCdGrupo = "")
+					vDsLstCdGrupo = vCdGrupo
+				else
+					vDsLstCdGrupo = "%%vDsLstCdGrupo %%vCdGrupo"
+				endif
+				delitem vDsLstNivel, 1
+			until (vDsLstNivel = "")	
+		endif
+	endif
+	putitem/id poParams, "CD_PRODUTO", vDsLstCdGrupo
+	putitem/id poParams,"DS_PRODUTO", vDsGrupo
+
+	return(0)
+end
+
+;---------------------------
+public operation buscaQt
+;---------------------------
+	params
+		string  piGlobal  :IN
+		string  piParams  :IN
+		string  poParams  :OUT
+		numeric poCdErro  :OUT
+		string  poCtxErro :OUT
+	endparams
+
+variables
+	string vCdEmpresa, vCdProduto
+	numeric vqtde
+endvariables
+	vCdEmpresa 		= $item("CD_EMPRESA", piParams)
+	vCdProduto		= $item("CD_PRODUTO", piParams)
+	clear/e "PRD_PESSALDOSVC"
+	CD_EMPRESA.PRD_PESSALDOSVC/init = vCdEmpresa
+	CD_PRODUTO.PRD_PESSALDOSVC/init = vCdProduto
+	vqtde = 0
+	retrieve/e "PRD_PESSALDOSVC"
+	if ($status>0)
+		setocc "PRD_PESSALDOSVC", 1
+		while ($status>0)
+			vqtde = vqtde + QT_SALDO.PRD_PESSALDOSVC
+			setocc "PRD_PESSALDOSVC", $curocc("PRD_PESSALDOSVC")+1
+		endwhile
+	endif
+	putitem/id poParams,"VL_QTDE", vqtde
+	return(0)
+end
+
+;--------------------------------
+public operation buscaValorSaldo
+;--------------------------------
+
+	params
+		string  piGlobal  :IN
+		string  piParams  :IN
+		string  poParams  :OUT
+		numeric poCdErro  :OUT
+		string  poCtxErro :OUT
+	endparams
+
+
+	variables
+		string viParams, viListas, voParams
+		numeric vQtSaldo, vTotQtSaldo
+		numeric vCdEmpresa, vCdSeq, vTpCusto, vCdEmpresaValorEmp, vCdEmpresaValorSis, vCdProdutoGrade, vTpSaldo
+		Date	vDtSaldo
+	endvariables
+
+	vCdEmpresa			=	$item("CD_EMPRESA", piParams)
+	vCdSeq				=	$item("CD_SEQ", piParams)
+	vTpCusto			=	$item("TP_CUSTO", piParams)
+	vTpSaldo			=	$item("TP_SALDO", piParams)
+	vCdEmpresaValorEmp	=	$item("CD_EMPRESAVALOREMP", piParams)
+	vCdEmpresaValorSis	=	$item("CD_EMPRESAVALORSIS", piParams)
+	vDtSaldo			=	$item("DT_SALDO", piParams)
+	vCdProdutoGrade		=	$item("CD_PRODUTOGRADE", piParams)
+
+	vTotQtSaldo	= 0
+	if (vCdProdutoGrade != 0)
+		;---Busca valor do produto padrao
+		viParams = ""
+		putitem/id viParams, "CD_EMPRESA", vCdEmpresa
+		putitem/id viParams,"CD_SEQGRUPO", vCdSeq
+		putitem/id viParams, "TP_VALOR", "C"
+		putitem/id viParams, "CD_VALOR", vTpCusto
+		putitem/id viParams, "DT_VALOR", vDtSaldo
+		putitem/id viParams, "CD_EMPRESA_VALOR", vCdEmpresaValorEmp
+		putitem/id viParams, "CD_EMPVALOR", vCdEmpresaValorSis
+		putitem/id viParams, "IN_PROMOCAO", <TRUE>
+		viListas = ""    
+		activate "PRDSVCO007".buscaValorData($$gParamGlb, viParams, viListas, voParams, $xCdErro$, $xCtxErro$)
+		if ($procerror)       
+			$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+			poCdErro  = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return(-1)
+		elseif ($xCtxErro$)
+			$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+			poCdErro  = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return(-1)
+		endif
+		putitem/id poParams, "VL_VALOR", $item("VL_VALOR", voParams)
+		;---Busca Saldo do Grupo
+		clear/e "PRD_PRDGRADESVC"
+		CD_SEQGRUPO.PRD_PRDGRADESVC/init = vCdSeq
+		retrieve/e "PRD_PRDGRADESVC"
+		if ($status >= 0)
+			setocc "PRD_PRDGRADESVC", 1
+			while ($status >= 0)                
+				viParams = ""
+				putitem/id viParams,"CD_GRUPOEMPRESA", ""
+				putitem/id viParams,"CD_PRODUTO", CD_PRODUTO.PRD_PRDGRADESVC
+				putitem/id viParams, "CD_SALDO", vTpSaldo
+				putitem/id viParams, "DT_SALDO", vDtSaldo
+				viListas = vCdEmpresa
+				activate "PRDSVCO006".buscaSaldoData($$gParamGlb, viParams, viListas, voParams, $xCdErro$, $xCtxErro$)
+				if ($procerror)       
+					$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+					poCdErro  = $xCdErro$
+					poCtxErro = $xCtxErro$
+					return(-1)
+				elseif ($xCtxErro$)
+					$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+					poCdErro  = $xCdErro$
+					poCtxErro = $xCtxErro$
+					return(-1)
+				endif
+				vQtSaldo = $item("QT_SALDO", voParams)
+				vTotQtSaldo = vTotQtSaldo + vQtSaldo            
+				setocc "PRD_PRDGRADESVC", $curocc("PRD_PRDGRADESVC") + 1
+			endwhile
+			putitem/id poParams, "VL_QTSALDO", vTotQtSaldo
+		endif
+	else
+		clear/e "PRD_PRDGRADESVC"
+		CD_SEQGRUPO.PRD_PRDGRADESVC/init = vCdSeq
+		retrieve/e "PRD_PRDGRADESVC"
+		if ($status >= 0)
+			setocc "PRD_PRDGRADESVC", 1
+			while ($status >= 0)
+				;---Busca saldo do Grupo
+				viParams = ""
+				putitem/id viParams,"CD_GRUPOEMPRESA", ""
+				putitem/id viParams,"CD_PRODUTO", CD_PRODUTO.PRD_PRDGRADESVC
+				putitem/id viParams, "CD_SALDO", vTpCusto
+				putitem/id viParams, "DT_SALDO", vDtSaldo
+				viListas = vCdEmpresa
+				activate "PRDSVCO006".buscaSaldoData($$gParamGlb, viParams, viListas, voParams, $xCdErro$, $xCtxErro$)
+				if ($procerror)       
+					$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+					poCdErro  = $xCdErro$
+					poCtxErro = $xCtxErro$
+					return(-1)
+				elseif ($xCtxErro$)
+					$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+					poCdErro  = $xCdErro$
+					poCtxErro = $xCtxErro$
+					return(-1)
+				endif
+				vQtSaldo = $item("QT_SALDO", voParams)
+				vTotQtSaldo = vTotQtSaldo + vQtSaldo           
+				setocc "PRD_PRDGRADESVC", $curocc("PRD_PRDGRADESVC") + 1
+			endwhile
+			putitem/id poParams, "VL_QTSALDO", vTotQtSaldo
+			viParams = ""
+			putitem/id viParams, "CD_EMPRESA", vCdEmpresa
+			putitem/id viParams,"CD_SEQGRUPO", vCdSeq
+			putitem/id viParams, "TP_VALOR", "C"
+			putitem/id viParams, "CD_VALOR", vTpCusto
+			putitem/id viParams, "DT_VALOR", vDtSaldo
+			putitem/id viParams, "CD_EMPRESA_VALOR", vcdEmpresaValorEmp
+			putitem/id viParams, "CD_EMPVALOR", vcdEmpresaValorSis
+			putitem/id viParams, "IN_PROMOCAO", <TRUE>
+			viListas = ""
+			activate "PRDSVCO007".buscaValorData($$gParamGlb, viParams, viListas, voParams, $xCdErro$, $xCtxErro$)
+			if ($procerror)       
+				$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+				poCdErro  = $xCdErro$
+				poCtxErro = $xCtxErro$
+				return(-1)
+			elseif ($xCtxErro$)
+				$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+				poCdErro  = $xCdErro$
+				poCtxErro = $xCtxErro$
+				return(-1)
+			endif
+			putitem/id poParams, "VL_VALOR", $item("VL_VALOR", voParams)
+		endif
+	endif
+	return(0)
+End ; operation buscaValorSaldo
+
+
+;---------------------------------
+public operation buscaDadosSocios 
+;---------------------------------
+	params
+		string  piGlobal  :IN
+		string  piParams  :IN
+		string  poParams  :OUT
+		numeric poCdErro  :OUT
+		string  poCtxErro :OUT
+	endparams
+
+	variables
+		string viParams, voParams, vpiParams, vpoParams
+	endvariables
+
+	clear/e "CTB_CONFIGEMPSVC"
+	CD_POOLEMPRESA.CTB_CONFIGEMPSVC/init  = $item("CD_POOLEMPRESA", $$gParamGlb)
+	CD_EMPRESA.CTB_CONFIGEMPSVC/init      = $item("CD_EMPRESA", piParams)
+	DT_EXERCONTABIL.CTB_CONFIGEMPSVC/init = $item("CD_ANOEXERCONTABIL", $$gParamGlb)
+	retrieve/e "CTB_CONFIGEMPSVC"
+
+	Clear/e "FIS_CONTSOCIOSVC"
+	CD_PESSOA.FIS_CONTSOCIOSVC/init        = CD_CONTADOR.CTB_CONFIGEMPSVC
+	CD_EMPRESA.FIS_CONTSOCIOSVC/init       = $item("CD_EMPRESA", piParams)
+	TP_IDENTIFICACAO.FIS_CONTSOCIOSVC/init = "C"
+	retrieve/e "FIS_CONTSOCIOSVC"
+
+	viParams = ""
+	putitem/id viParams, "CD_EMPRESA", $item("CD_EMPRESA", piParams)
+	putitem/id viParams, "CD_PESSOA", CD_CONTADOR.CTB_CONFIGEMPSVC
+	activate "PESSVCO005".buscaDadosPessoa($$gParamGlb, viParams, voParams, $xCdErro$, $xCtxErro$)
+	if ($procerror)
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	elseif ($status < 0)
+		$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+
+	;-- MAD [Proj/Tar.170/006] - 13/07/2010
+	vpiParams = ""
+	putitem/id vpiParams, "CD_PESSOA"  , CD_CONTADOR.CTB_CONFIGEMPSVC
+	putitem/id vpiParams, "CD_TIPOFONE", $cdTipoFone$
+	activate "PESSVCO005".buscarTelefone(vpiParams, vpoParams, $xCdErro$, $xCtxErro$)
+	if ($procerror)
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	elseif ($status < 0)
+		$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	;;
+
+	poParams = ""
+	putitem/id poParams, "NM_PESSOA", $item("NM_PESSOA", voParams)
+	putitem/id poParams, "NR_CPFCNPJ", $item("NR_CPFCNPJ", voParams)
+	putitem/id poParams, "NR_FONECONTATO", $item("NR_FONECONTATO", voParams)
+	putitem/id poParams, "DS_EMAIL", $item("DS_EMAIL", voParams)
+	putitem/id poParams, "DS_CRC", DS_CRC.FIS_CONTSOCIOSVC
+	putitem/id poParams, "NR_TELEFONE", $item("NR_TELEFONE", vpoParams)
+
+	return(0)
+
+End; buscaDadosSocios
+
+
+;-------------------------------------
+public operation carregaPesJuridica
+;-------------------------------------
+	params
+		string  piGlobal  :IN
+		string  piParams  :IN
+		string  poParams  :OUT
+		numeric poCdErro  :OUT
+		string  poCtxErro :OUT
+	endparams
+
+	variables
+		string viParams, voParams
+	endvariables
+
+	poParams = ""
+
+	if ($item("CD_PESSOA", piParams) = "")
+		return(0)
+	endif
+
+	clear/e "PES_PESJURIDISVC"
+	CD_PESSOA.PES_PESJURIDISVC/init	= $item("CD_PESSOA", piParams)
+	retrieve/e "PES_PESJURIDISVC"
+	if ($status >= 0)
+		putlistitems/occ poParams, "PES_PESJURIDISVC"
+	endif
+	return(0)
+end; carregaPesJuridica
+
+; @>-/-- Virginia - PRJ 061 TAR 743 - 03/02/10
+;--------------------------------
+public operation carregaPesFisica
+;--------------------------------
+	params
+		string  piGlobal  :IN
+		string  piParams  :IN
+		string  poParams  :OUT
+		numeric poCdErro  :OUT
+		string  poCtxErro :OUT
+	endparams
+
+	variables
+		string viParams, voParams
+	endvariables
+
+	poParams = ""
+
+	if ($item("CD_PESSOA", piParams) = "")
+		return(0)
+	endif
+
+	clear/e "PES_PESFISICASVC"
+	CD_PESSOA.PES_PESFISICASVC/init	= $item("CD_PESSOA", piParams)
+	retrieve/e "PES_PESFISICASVC"
+	if ($status >= 0)
+		putlistitems/occ poParams, "PES_PESFISICASVC"
+	endif
+	return(0)
+end; carregaPesFisica
+; --\-<@
+
+; @>-/-- Virginia - PRJ 061 TAR 743 - 03/02/10
+;-----------------------------------
+public operation carregaLogradouro
+;-----------------------------------
+	params
+		string  piGlobal  :IN
+		string  piParams  :IN
+		string  poParams  :OUT
+		numeric poCdErro  :OUT
+		string  poCtxErro :OUT
+	endparams
+
+	variables
+		string vCdEstado
+	endvariables
+
+	poParams = ""
+
+	if ($item("CD_CEP", piParams) = "")
+		return(0)
+	endif
+
+	clear/e "GLB_LOGRADOURSVC"
+	CD_CEP.GLB_LOGRADOURSVC/init = $item("CD_CEP", piParams)
+	retrieve/e "GLB_LOGRADOURSVC"
+	if ($status >= 0)
+		clear/e "V_GLB_MUNICIPSVC"
+		cd_municipio.v_glb_municipsvc/init = CD_MUNICIPIO.GLB_LOGRADOURSVC
+		retrieve/e "V_GLB_MUNICIPSVC"
+		if ($status < 0)
+			clear/e "V_GLB_MUNICIPSVC"
+		endif
+						
+	vCdEstado = ""
+	if (ds_sigla.v_glb_municipsvc = "RO")
+		;Roraima.
+		vCdEstado = 11
+	elseif (ds_sigla.v_glb_municipsvc = "AC")
+		;Acre.
+		vCdEstado = 12
+	elseif (ds_sigla.v_glb_municipsvc = "AM")
+		;Amazonas.
+		vCdEstado = 13
+	elseif (ds_sigla.v_glb_municipsvc = "RR")
+		;Roraima.
+		vCdEstado = 14
+	elseif (ds_sigla.v_glb_municipsvc = "PA")
+		;Para.
+		vCdEstado = 15
+	elseif (ds_sigla.v_glb_municipsvc = "AP")
+		;Amapa.
+		vCdEstado = 16
+	elseif (ds_sigla.v_glb_municipsvc = "TO")
+		;Tocantins.
+		vCdEstado = 17
+	elseif (ds_sigla.v_glb_municipsvc = "MA")
+		;Maranhao.
+		vCdEstado = 21
+	elseif (ds_sigla.v_glb_municipsvc = "PI")
+		;Piaui.
+		vCdEstado = 22
+	elseif (ds_sigla.v_glb_municipsvc = "CE")
+		;Ceara.
+		vCdEstado = 23
+	elseif (ds_sigla.v_glb_municipsvc = "RN")
+		;Rio grande do norte.
+		vCdEstado = 24
+	elseif (ds_sigla.v_glb_municipsvc = "PB")
+		;Paraiba.
+		vCdEstado = 25
+	elseif (ds_sigla.v_glb_municipsvc = "PE")
+		;Pernambuco.
+		vCdEstado = 26
+	elseif (ds_sigla.v_glb_municipsvc = "AL")
+		;Alagoas.
+		vCdEstado = 27
+	elseif (ds_sigla.v_glb_municipsvc = "SE")
+		;Sergipe.
+		vCdEstado = 28
+	elseif (ds_sigla.v_glb_municipsvc = "BA")
+		;Bahia.
+		vCdEstado = 29
+	elseif (ds_sigla.v_glb_municipsvc = "MG")
+		;Minas gerais.
+		vCdEstado = 31
+	elseif (ds_sigla.v_glb_municipsvc = "ES")
+		;Espirito santo.
+		vCdEstado = 32
+	elseif (ds_sigla.v_glb_municipsvc = "RJ")
+		;Rio de janeiro.
+		vCdEstado = 33
+	elseif (ds_sigla.v_glb_municipsvc = "SP")
+		;Sao paulo.
+		vCdEstado = 35
+	elseif (ds_sigla.v_glb_municipsvc = "PR")
+		;Parana.
+		vCdEstado = 41
+	elseif (ds_sigla.v_glb_municipsvc = "SC")
+		;Santa catarina.
+		vCdEstado = 42
+	elseif (ds_sigla.v_glb_municipsvc = "RS")
+		;Rio grande do sul.
+		vCdEstado = 43
+	elseif (ds_sigla.v_glb_municipsvc = "MS")
+		;Mato grosso do sul.
+		vCdEstado = 50
+	elseif (ds_sigla.v_glb_municipsvc = "MT")
+		;Mato grosso.
+		vCdEstado = 51
+	elseif (ds_sigla.v_glb_municipsvc = "GO")
+		;Goias.
+		vCdEstado = 52
+	elseif (ds_sigla.v_glb_municipsvc = "DF")
+		;Distrito federal.
+		vCdEstado = 53
+	endif
+
+		putlistitems/occ poParams, "V_GLB_MUNICIPSVC"
+		putitem/id poParams, "DS_ESTADO", vCdEstado
+
+	endif
+	return(0)
+End; operation carregaLogradouro
+; --\-<@
+
+; @>-/-- Virginia - PRJ 061 TAR 743 - 03/02/10
+;--------------------------------
+public operation carregaContSocio
+;--------------------------------
+	params
+		string  piGlobal  :IN
+		string  piParams  :IN
+		string  poParams  :OUT
+		numeric poCdErro  :OUT
+		string  poCtxErro :OUT
+	endparams
+
+	variables
+		string viParams, voParams
+		date vDtPeriodo
+	endvariables
+
+	poParams = ""
+
+	if ($item("DS_TIPOCONTATO", piParams) != "")
+		call buscaContato($xlpg$, piParams, poParams, $xCdErro$, $xCtxerro$)	
+	else
+		if ($item("CD_EMPRESA", piParams) = "")
+			return(0)
+		endif	
+
+		vDtPeriodo = $item("DT_PERIODO", piParams) ; rodrigo - PRJ 175 TAR 196 - 22/07/2011
+		clear/e "FIS_CONTSOCIOSVC"
+		CD_EMPRESA.FIS_CONTSOCIOSVC/init       	   = $item("CD_EMPRESA", piParams)
+		;--> VSOUZA PRJ/TAR 170/344 19/08/2011
+		if(vDtPeriodo != "")
+			; -> rodrigo - PRJ 175 TAR 196 - 22/07/2011
+			DT_ADMISSAO.FIS_CONTSOCIOSVC/init			= "·<·=%%vDtPeriodo"
+			DT_DEMISSAO.FIS_CONTSOCIOSVC/init			= "·>·=%%vDtPeriodo"
+			; <- rodrigo - PRJ 175 TAR 196 - 22/07/2011
+			TP_IDENTIFICACAO.FIS_CONTSOCIOSVC/init 	= $item("CONT_SOCIO", piParams)
+		endif	
+		;-------------------------------------->			
+		retrieve/e "FIS_CONTSOCIOSVC"
+		if ($status >= 0)
+			putlistitems/occ poParams, "FIS_CONTSOCIOSVC"
+		endif
+		
+		; @>-/-- Virginia - PRJ 061 TAR 795 - 06/04/10
+		viParams = piParams
+		putitem/id viParams, "CD_TIPOFONE", $cdTipoFone$
+		$instancehandle->carregaPesTelefone($xlpg$, viParams, voParams, $xCdErro$, $xCtxerro$)
+		if ($procerror)
+			$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+			poCdErro  = $xCdErro$
+			poCtxErro = $xCtxErro$
+		endif   
+
+		putitem/id poParams, "NR_TELEFONE", $item("NR_TELEFONE",voParams) 
+		; --\-<@
+	endif
+	return(0)
+end; carregaContSocio
+; --\-<@
+
+; @>-/-- Virginia - PRJ 061 TAR 743 - 03/02/10
+;--------------------------------
+public operation carregaMunIBGE
+;--------------------------------
+	params
+		string  piGlobal  :IN
+		string  piParams  :IN
+		string  poParams  :OUT
+		numeric poCdErro  :OUT
+		string  poCtxErro :OUT
+	endparams
+
+	variables
+		string viParams, voParams
+	endvariables
+
+	poParams = ""
+
+	if ($item("CD_ESTADO", piParams) = "")
+		return(0)
+	endif
+
+	if ($item("CD_MUNICIPIO", piParams) = "")
+		return(0)
+	endif
+
+	clear/e "GLB_MUNIBGESVC"
+	CD_ESTADO.GLB_MUNIBGESVC/init    = $item("CD_ESTADO", piParams)
+	CD_MUNICIPIO.GLB_MUNIBGESVC/init = $item("CD_MUNICIPIO", piParams)
+	retrieve/e "GLB_MUNIBGESVC"
+	if ($status >= 0)
+		putlistitems/occ poParams, "GLB_MUNIBGESVC"
+	endif
+	return(0)
+end; carregaMunIBGE
+; --\-<@
+
+;------------------------------------
+public operation carregaFisNfImposto
+;------------------------------------
+	params
+		string  piGlobal  :IN
+		string  piParams  :IN
+		string  poParams  :OUT
+		numeric poCdErro  :OUT
+		string  poCtxErro :OUT
+	endparams
+
+	variables
+		string viParams, voParams
+	endvariables
+
+	poParams = ""
+	clear/e "FIS_NFIMPOSTOSVC"
+	CD_EMPRESA.FIS_NFIMPOSTOSVC/init	= $item("CD_EMPRESA", piParams)
+	CD_IMPOSTO.FIS_NFIMPOSTOSVC/init	= $item("CD_IMPOSTO", piParams)
+	DT_FATURA.FIS_NFIMPOSTOSVC/init		= $item("DT_FATURA", piParams)
+	NR_FATURA.FIS_NFIMPOSTOSVC/init		= $item("NR_FATURA", piParams)
+
+	retrieve/e "FIS_NFIMPOSTOSVC"
+	if ($status >= 0)
+		putlistitems/occ poParams, "FIS_NFIMPOSTOSVC"
+	endif
+	return(0)
+end; carregaFisNfImposto
+
+
+;----------------------------------------
+public operation carregaFisNfItemImposto
+;----------------------------------------
+	params
+		string  piGlobal  :IN
+		string  piParams  :IN
+		string  poParams  :OUT
+		numeric poCdErro  :OUT
+		string  poCtxErro :OUT
+	endparams
+
+	variables
+		string viParams, voParams
+	endvariables
+
+	poParams = ""
+	clear/e "FIS_NFITEMIMPSVC"
+	CD_EMPRESA.FIS_NFITEMIMPSVC/init	= $item("CD_EMPRESA", piParams)
+	CD_IMPOSTO.FIS_NFITEMIMPSVC/init	= $item("CD_IMPOSTO", piParams)
+	DT_FATURA.FIS_NFITEMIMPSVC/init		= $item("DT_FATURA", piParams)
+	NR_FATURA.FIS_NFITEMIMPSVC/init		= $item("NR_FATURA", piParams)
+	NR_ITEM.FIS_NFITEMIMPSVC/init		= $item("NR_ITEM", piParams)
+
+	retrieve/e "FIS_NFITEMIMPSVC"
+	if ($status >= 0)
+		putlistitems/occ poParams, "FIS_NFITEMIMPSVC"
+	endif
+	return(0)
+end; carregaFisNfItemImposto
+
+
+;--------------------------------
+public operation carregaFisTipi
+;--------------------------------
+	params
+		string  piGlobal  :IN
+		string  piParams  :IN
+		string  poParams  :OUT
+		numeric poCdErro  :OUT
+		string  poCtxErro :OUT
+	endparams
+
+	variables
+		string viParams, voParams
+	endvariables
+
+	poParams = ""
+	clear/e "FIS_TIPISVC"
+	CD_TIPi.FIS_TIPISVC/init	= $item("CD_TIPI", piParams)
+	retrieve/e "FIS_TIPISVC"
+	if ($status >= 0)
+		putlistitems/occ poParams, "FIS_TIPISVC"
+	endif
+	return(0)
+end; carregaFisTipi
+
+
+;--------------------------------
+public operation carregaFisEcf
+;--------------------------------
+	params
+		string  piGlobal  :IN
+		string  piParams  :IN
+		string  poParams  :OUT
+		numeric poCdErro  :OUT
+		string  poCtxErro :OUT
+	endparams
+
+	variables
+		string viParams, voParams
+	endvariables
+
+	poParams = ""
+	clear/e "FIS_ECFSVC"
+	CD_EMPRESA.FIS_ECFSVC/init	= $item("CD_EMPRESA", piParams)
+	NR_ECF.FIS_ECFSVC/init		= $item("NR_ECF", piParams)
+	retrieve/e "FIS_ECFSVC"
+	if ($status >= 0)
+		putlistitems/occ poParams, "FIS_ECFSVC"
+	endif
+	return(0)
+end; carregaFisEcf
+
+
+;---------------------------------
+public operation carregaVPesIndic
+;---------------------------------
+	params
+		string  piGlobal  :IN
+		string  piParams  :IN
+		string  poParams  :OUT
+		numeric poCdErro  :OUT
+		string  poCtxErro :OUT
+	endparams
+
+	variables
+		string viParams, voParams
+	endvariables
+
+	poParams = ""
+	clear/e "V_PES_INDICSVC"
+	CD_PESSOA.V_PES_INDICSVC/init	= $item("CD_PESSOA", piParams)
+	retrieve/e "V_PES_INDICSVC"
+	if ($status >= 0)
+		putlistitems/occ poParams, "V_PES_INDICSVC"
+	endif
+	return(0)
+end; carregaVPesIndic
+
+
+;---------------------------------
+public operation carregaFisCfop
+;---------------------------------
+	params
+		string  piGlobal  :IN
+		string  piParams  :IN
+		string  poParams  :OUT
+		numeric poCdErro  :OUT
+		string  poCtxErro :OUT
+	endparams
+
+	poParams = ""
+
+	if ($item("CD_CFOP", piParams) = "")
+		return(0)
+	endif
+
+	clear/e "FIS_CFOPSVC"
+	CD_CFOP.FIS_CFOPSVC/init = $item("CD_CFOP", piParams)
+	retrieve/e "FIS_CFOPSVC"
+	if ($status >= 0)
+		putlistitems/occ poParams, "FIS_CFOPSVC"
+	endif
+
+	return(0)
+
+End; operation carregaFisCfop
+
+
+;-----------------------------------
+public operation carregaPesCliente
+;-----------------------------------
+	params
+		string  piGlobal  :IN
+		string  piParams  :IN
+		string  poParams  :OUT
+		numeric poCdErro  :OUT
+		string  poCtxErro :OUT
+	endparams
+
+	poParams = ""
+
+	if ($item("CD_CLIENTE", piParams) = "")
+		return(0)
+	endif
+
+	clear/e "PES_CLIENTESVC"
+	CD_CLIENTE.PES_CLIENTESVC/init = $item("CD_CLIENTE", piParams)
+	retrieve/e "PES_CLIENTESVC"
+	if ($status >= 0)
+		putlistitems/occ poParams, "PES_CLIENTESVC"
+	endif
+
+	return(0)
+
+End; operation carregaPesCliente
+
+
+;------------------------------------
+public operation carregaPesTelefone
+;------------------------------------
+	params
+		string  piGlobal  :IN
+		string  piParams  :IN
+		string  poParams  :OUT
+		numeric poCdErro  :OUT
+		string  poCtxErro :OUT
+	endparams
+
+	poParams = ""
+
+	if ($item("CD_PESSOA", piParams) = "")
+		return(0)
+	endif
+
+	clear/e "PES_TELEFONESVC"
+	CD_PESSOA.PES_TELEFONESVC/init    = $item("CD_PESSOA", piParams)
+	; @>-/-- Virginia - PRJ 061 TAR 795 - 06/04/10
+	;NR_SEQUENCIA.PES_TELEFONESVC/init = $item("NR_SEQUENCIA", piParams)
+	if ($item("NR_SEQUENCIA", piParams) != "")
+		NR_SEQUENCIA.PES_TELEFONESVC/init = $item("NR_SEQUENCIA", piParams)	
+	endif
+	if ($item("CD_TIPOFONE", piParams) != "")
+		CD_TIPOFONE.PES_TELEFONESVC/init = $item("CD_TIPOFONE", piParams)	
+	endif
+	; --\-<@
+	retrieve/e "PES_TELEFONESVC"
+	if ($status >= 0)
+		setocc "PES_TELEFONESVC",1
+		putlistitems/occ poParams, "PES_TELEFONESVC"
+	endif
+
+	return(0)
+
+End; operation carregaPesTelefone
+
+; @>-/-- Virginia - PRJ 061 TAR 743
+;------------------------------------
+public operation carregaPesEmail
+;------------------------------------
+	params
+		string  piGlobal  :IN
+		string  piParams  :IN
+		string  poParams  :OUT
+		numeric poCdErro  :OUT
+		string  poCtxErro :OUT
+	endparams
+
+	poParams = ""
+
+	if ($item("CD_PESSOA", piParams) = "")
+		return(0)
+	endif
+
+	if ($item("NR_SEQUENCIA", piParams) != "")
+		clear/e "PES_EMAILSVC"
+		CD_PESSOA.PES_EMAILSVC/init    = $item("CD_PESSOA", piParams)
+		NR_SEQUENCIA.PES_EMAILSVC/init = $item("NR_SEQUENCIA", piParams)
+		retrieve/e "PES_EMAILSVC"
+		if ($status < 0)
+			clear/e "PES_EMAILSVC"
+		endif
+
+	;-- MAD [Proj/Tar.078/3325] - 16/04/2010
+	else
+		clear/e "PES_EMAILSVC"
+		CD_PESSOA.PES_EMAILSVC/init = $item("CD_PESSOA", piParams)
+		IN_PADRAO.PES_EMAILSVC/init = <TRUE>
+		retrieve/e "PES_EMAILSVC"
+		if ($status < 0)
+			clear/e "PES_EMAILSVC"
+			CD_PESSOA.PES_EMAILSVC/init = $item("CD_PESSOA", piParams)
+			retrieve/e "PES_EMAILSVC"
+			if ($status < 0)
+				clear/e "PES_EMAILSVC"
+			else
+				setocc "PES_EMAILSVC", 1
+			endif
+		endif
+	endif
+	;;
+
+	if (!$empty("PES_EMAILSVC"))
+		putlistitems/occ poParams, "PES_EMAILSVC"
+	endif
+
+	return(0)
+
+End; operation carregaPesEmail
+
+; @>-/-- Virginia - PRJ 061 TAR 772 - 17/02/10
+;--------------------------------
+public operation carregaPessoa
+;--------------------------------
+	params
+		string  piGlobal  :IN
+		string  piParams  :IN
+		string  poParams  :OUT
+		numeric poCdErro  :OUT
+		string  poCtxErro :OUT
+	endparams
+
+	variables
+		string viParams, voParams
+	endvariables
+
+	poParams = ""
+
+	if ($item("CD_PESSOA", piParams) = "")
+		return(0)
+	endif
+
+	clear/e "PES_PESSOASVC"
+	CD_PESSOA.PES_PESSOASVC/init	= $item("CD_PESSOA", piParams)
+	retrieve/e "PES_PESSOASVC"
+	if ($status >= 0)
+		putlistitems/occ poParams, "PES_PESSOASVC"
+	endif
+	return(0)
+end; carregaPessoa
+; --\-<@
+
+; @>-/-- Virginia - PRJ 061 TAR 772 - 17/02/10
+;--------------------------------
+public operation carregaEndereco
+;--------------------------------
+	params
+		string  piGlobal  :IN
+		string  piParams  :IN
+		string  poParams  :OUT
+		numeric poCdErro  :OUT
+		string  poCtxErro :OUT
+	endparams
+
+	variables
+		string viParams, voParams, vCdEstado
+	endvariables
+
+	poParams = ""
+
+	if ($item("CD_PESSOA", piParams) = "")
+		return(0)
+	endif
+
+	clear/e "PES_ENDERECOSVC"
+	CD_PESSOA.PES_ENDERECOSVC/init = $item("CD_PESSOA", piParams)
+	retrieve/e "PES_ENDERECOSVC"
+	if ($status >= 0)
+		putlistitems/occ poParams, "PES_ENDERECOSVC"
+		vCdEstado = ""
+		if (ds_sigla.glb_estadosvc = "RO")
+			;Roraima.
+			vCdEstado = 11
+		elseif (ds_sigla.glb_estadosvc = "AC")
+			;Acre.
+			vCdEstado = 12
+		elseif (ds_sigla.glb_estadosvc = "AM")
+			;Amazonas.
+			vCdEstado = 13
+		elseif (ds_sigla.glb_estadosvc = "RR")
+			;Roraima.
+			vCdEstado = 14
+		elseif (ds_sigla.glb_estadosvc = "PA")
+			;Para.
+			vCdEstado = 15
+		elseif (ds_sigla.glb_estadosvc = "AP")
+			;Amapa.
+			vCdEstado = 16
+		elseif (ds_sigla.glb_estadosvc = "TO")
+			;Tocantins.
+			vCdEstado = 17
+		elseif (ds_sigla.glb_estadosvc = "MA")
+			;Maranhao.
+			vCdEstado = 21
+		elseif (ds_sigla.glb_estadosvc = "PI")
+			;Piaui.
+			vCdEstado = 22
+		elseif (ds_sigla.glb_estadosvc = "CE")
+			;Ceara.
+			vCdEstado = 23
+		elseif (ds_sigla.glb_estadosvc = "RN")
+			;Rio grande do norte.
+			vCdEstado = 24
+		elseif (ds_sigla.glb_estadosvc = "PB")
+			;Paraiba.
+			vCdEstado = 25
+		elseif (ds_sigla.glb_estadosvc = "PE")
+			;Pernambuco.
+			vCdEstado = 26
+		elseif (ds_sigla.glb_estadosvc = "AL")
+			;Alagoas.
+			vCdEstado = 27
+		elseif (ds_sigla.glb_estadosvc = "SE")
+			;Sergipe.
+			vCdEstado = 28
+		elseif (ds_sigla.glb_estadosvc = "BA")
+			;Bahia.
+			vCdEstado = 29
+		elseif (ds_sigla.glb_estadosvc = "MG")
+			;Minas gerais.
+			vCdEstado = 31
+		elseif (ds_sigla.glb_estadosvc = "ES")
+			;Espirito santo.
+			vCdEstado = 32
+		elseif (ds_sigla.glb_estadosvc = "RJ")
+			;Rio de janeiro.
+			vCdEstado = 33
+		elseif (ds_sigla.glb_estadosvc = "SP")
+			;Sao paulo.
+			vCdEstado = 35
+		elseif (ds_sigla.glb_estadosvc = "PR")
+			;Parana.
+			vCdEstado = 41
+		elseif (ds_sigla.glb_estadosvc = "SC")
+			;Santa catarina.
+			vCdEstado = 42
+		elseif (ds_sigla.glb_estadosvc = "RS")
+			;Rio grande do sul.
+			vCdEstado = 43
+		elseif (ds_sigla.glb_estadosvc = "MS")
+			;Mato grosso do sul.
+			vCdEstado = 50
+		elseif (ds_sigla.glb_estadosvc = "MT")
+			;Mato grosso.
+			vCdEstado = 51
+		elseif (ds_sigla.glb_estadosvc = "GO")
+			;Goias.
+			vCdEstado = 52
+		elseif (ds_sigla.glb_estadosvc = "DF")
+			;Distrito federal.
+			vCdEstado = 53
+		endif
+		putitem/id poParams, "DS_ESTADO", vCdEstado
+		putitem/id poParams, "DS_SIGLA", ds_sigla.glb_estadosvc
+		putitem/id poParams, "CD_PAIS", cd_pais.glb_estadosvc
+		putitem/id poParams, "CD_ESTADO", cd_estado.glb_estadosvc
+	endif
+	return(0)
+end; carregaEndereco
+; --\-<@
+
+; @>-/-- Virginia - PRJ 061 TAR 772 - 17/02/10
+;----------------------------------
+public operation carregaVEndereco
+;----------------------------------
+	params
+		string  piGlobal  :IN
+		string  piParams  :IN
+		string  poParams  :OUT
+		numeric poCdErro  :OUT
+		string  poCtxErro :OUT
+	endparams
+
+	variables
+		string viParams, voParams, vDsRegistro, vDsLstNf
+	endvariables
+
+	if ($item("NM_CARREGATABELA", piParams) = "")
+		poParams = ""
+		if ($item("CD_PESSOA", piParams) = "")
+			return(0)
+		endif
+		clear/e "V_PES_ENDERECSVC"
+		CD_PESSOA.V_PES_ENDERECSVC/init = $item("CD_PESSOA", piParams)
+		retrieve/e "V_PES_ENDERECSVC"
+		if ($status >= 0)
+			putlistitems/occ poParams, "V_PES_ENDERECSVC"
+		endif
+	elseif ($item("NM_CARREGATABELA", piParams) = "PRD_PRDINFO")
+		poParams = ""
+		clear/e "PRD_PRDINFOSVC"
+		CD_EMPRESA.PRD_PRDINFOSVC/init	= $item("CD_EMPRESA", piParams)
+		CD_PRODUTO.PRD_PRDINFOSVC/init	= $item("CD_PRODUTO", piParams)
+		retrieve/e "PRD_PRDINFOSVC"
+		if ($status >= 0)
+			putlistitems/occ poParams, "PRD_PRDINFOSVC"
+		endif
+		return(0)
+	elseif ($item("NM_CARREGATABELA", piParams) = "FIS_SALDOIMPOSTO")
+		poParams = ""
+		clear/e "FIS_SALDOIMPOSVC"
+		CD_EMPRESA.FIS_SALDOIMPOSVC/init	= $item("CD_EMPRESA", piParams)
+		DT_MESANO.FIS_SALDOIMPOSVC/init		= $item("DT_MESANO", piParams)
+		TP_IMPOSTO.FIS_SALDOIMPOSVC/init	= $item("TP_IMPOSTO", piParams)
+		retrieve/e "FIS_SALDOIMPOSVC"
+		if ($status >= 0)
+			putlistitems/occ poParams, "FIS_SALDOIMPOSVC"
+		endif
+		return(0)
+	elseif ($item("NM_CARREGATABELA", piParams) = "FIS_NFE")
+		poParams = ""
+		clear/e "FIS_NFESVC"
+		CD_EMPRESA.FIS_NFESVC/init	= $item("CD_EMPRESA", piParams)
+		NR_FATURA.FIS_NFESVC/init	= $item("NR_FATURA", piParams)
+		DT_FATURA.FIS_NFESVC/init	= $item("DT_FATURA", piParams)
+		retrieve/e "FIS_NFESVC"
+		if ($status >= 0)
+			putlistitems/occ poParams, "FIS_NFESVC"
+		endif
+		return(0)
+	elseif ($item("NM_CARREGATABELA", piParams) = "FIS_NFECF")
+		poParams = ""
+		clear/e "FIS_NFECFSVC"
+		CD_EMPECF.FIS_NFECFSVC/init	= $item("CD_EMPECF", piParams)
+		if ($item("CD_EMPRESA", piParams) != "")
+			CD_EMPRESA.FIS_NFECFSVC/init  = $item("CD_EMPRESA", piParams)
+		endif
+		if ($item("DT_FATURA", piParams) != "")
+			DT_FATURA.FIS_NFECFSVC/init	= $item("DT_FATURA", piParams)
+		endif
+		if ($item("NR_FATURA", piParams) != "")
+			NR_FATURA.FIS_NFECFSVC/init	= $item("NR_FATURA", piParams)
+		endif
+		if ($item("NR_ECF", piParams) != "")
+			NR_ECF.FIS_NFECFSVC/init	= $item("NR_ECF", piParams)
+		endif
+		retrieve/e "FIS_NFECFSVC"
+		if ($status >= 0)
+			putlistitems/occ poParams, "FIS_NFECFSVC"
+
+			;-- MAD [Proj/Tar.170/127] - 23/11/2010
+			setocc "FIS_NFECFSVC",1
+			while ($status >= 0)	
+				vDsRegistro = ""
+				putitem/id vDsRegistro, "CD_EMPRESA" CD_EMPRESA.FIS_NFECFSVC
+				putitem/id vDsRegistro, "CD_EMPFAT"  CD_EMPFAT.FIS_NFECFSVC
+				putitem/id vDsRegistro, "NR_FATURA"  NR_FATURA.FIS_NFECFSVC
+				putitem/id vDsRegistro, "DT_FATURA"  DT_FATURA.FIS_NFECFSVC
+				putitem vDsLstNf, -1, vDsRegistro
+				setocc "FIS_NFECFSVC", $curocc("FIS_NFECFSVC") + 1
+			endwhile
+			putitem/id poParams, "LST_NF", vDsLstNf
+			;;
+		endif
+		return(0)
+	endif
+	return(0)
+end; carregaVEndereco
+; --\-<@
+
+; @>-/-- Virginia - PRJ 061 TAR 772 - 17/02/10
+;------------------------------
+public operation carregaPais
+;------------------------------
+	params
+		string  piGlobal  :IN
+		string  piParams  :IN
+		string  poParams  :OUT
+		numeric poCdErro  :OUT
+		string  poCtxErro :OUT
+	endparams
+
+	variables
+		string viParams, voParams
+		numeric vCdEstado, vPais
+	endvariables
+
+	poParams = ""
+
+	if ($item("CD_ESTADO", piParams) = "")
+		return(0)
+	endif
+
+	vCdEstado = $item("CD_ESTADO", piParams)
+	
+	selectdb (CD_PAIS) from "GLB_ESTADOSVC" %\
+	u_where (CD_ESTADO.GLB_ESTADOSVC = vCdEstado) %\
+	to (vPais)
+
+	clear/e "GLB_PAISSVC"
+	CD_PAIS.GLB_PAISSVC/init	= vPais
+	retrieve/e "GLB_PAISSVC"
+	if ($status >= 0)
+		putlistitems/occ poParams, "GLB_PAISSVC"
+	endif
+	return(0)
+end; carregaPais
+; --\-<@
+
+;;ICJ [PROJ/TAR 61/845] (03/08/2010)
+;----------------------------------
+public operation buscaParcelasFCP
+;----------------------------------
+	params
+		string  piGlobal  :IN
+		string  piParams  :IN
+		string  poParams  :OUT
+		numeric poCdErro  :OUT
+		string  poCtxErro :OUT
+	endparams	
+	variables
+		numeric vQtParcela, vVlDoc
+	endvariables
+
+	vQtParcela = 0
+	vVlDoc = 0
+
+	;busca qtde parcelas
+				
+	Clear/e "FCP_DUPLICATISVC" 
+	CD_EMPRESA.FCP_DUPLICATISVC/init    = $item("CD_EMPRESA",piParams)
+	CD_FORNECEDOR.FCP_DUPLICATISVC/init = $item("CD_FORNECEDOR",piParams)
+	NR_DUPLICATA.FCP_DUPLICATISVC/init  = $item("NR_DUPLICATA",piParams)
+	retrieve/e "FCP_DUPLICATISVC"
+	if ($status >= 0)
+		setocc "FCP_DUPLICATISVC", 1
+		while ($status >= 0)
+			vQtParcela = vQtParcela + 1
+			vVlDoc = vVlDoc + VL_DUPLICATA.FCP_DUPLICATISVC
+			
+			setocc "FCP_DUPLICATISVC", $curocc("FCP_DUPLICATISVC") + 1
+		endwhile
+	endif
+				
+	putitem/id poParams, "QT_PARCELA", vQtParcela
+	putitem/id poParams, "VL_DOC", vVlDoc
+
+	return(0)
+end;
+;;
+;;ICJ [PROJ/TAR 61/845] (03/08/2010)
+;----------------------------------
+public operation buscaParcelasFCR
+;----------------------------------
+	params
+		string  piGlobal  :IN
+		string  piParams  :IN
+		string  poParams  :OUT
+		numeric poCdErro  :OUT
+		string  poCtxErro :OUT
+	endparams
+	variables
+		numeric vQtParcela, vVlDoc
+	endvariables
+
+	vQtParcela = 0
+	vVlDoc = 0
+
+	Clear/e "FCR_FATURAISVC" 
+	CD_EMPRESA.FCR_FATURAISVC/init = $item("CD_EMPRESA",piParams)
+	CD_CLIENTE.FCR_FATURAISVC/init = $item("CD_CLIENTE",piParams)
+	NR_FAT.FCR_FATURAISVC/init     = $item("NR_FAT",piParams)
+	retrieve/e "FCR_FATURAISVC"
+	if ($status >= 0)
+		setocc "FCR_FATURAISVC", 1
+		while ($status >= 0)
+			vQtParcela = vQtParcela + 1
+			vVlDoc = vVlDoc + VL_FATURA.FCR_FATURAISVC
+			
+			setocc "FCR_FATURAISVC", $curocc("FCR_FATURAISVC") + 1
+		endwhile
+	endif
+				
+	putitem/id poParams, "QT_PARCELA", vQtParcela
+	putitem/id poParams, "VL_DOC", vVlDoc				
+
+	return(0)
+end;
+;;

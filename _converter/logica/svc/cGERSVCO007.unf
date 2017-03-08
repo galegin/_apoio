@@ -1,0 +1,1621 @@
+;---------------------------------
+public operation GetOperComponente 
+	;---------------------------------
+	params 
+		string  piParams         :in
+		string  poParams         :out
+		numeric poCdErro         :out
+		string  poCtxErro        :out
+	endparams 
+	
+	variables
+		numeric vN
+	endvariables
+	
+	;  Inicializa Parametros de Erros
+	poCtxErro= "" 
+	poCdErro = ""
+	poParams = ""
+	;  Inicializa V_GER_OPERCMPTE
+	clear/e "V_GER_OPERCMPSVC"
+	cd_componente.v_ger_opercmpsvc = $item("CD_COMPONENTE",piParams)
+	;  Le GER_OPERCMPTE
+	retrieve/e  "V_GER_OPERCMPSVC"
+	if (!$procerror)
+		setocc "V_GER_OPERCMPSVC", 1
+		while ($status >=0)
+			clear/e "GER_OPERACAOSVC"
+			cd_operacao.ger_operacaosvc = cd_operacao.v_ger_opercmpsvc
+			retrieve/e "GER_OPERACAOSVC"
+			if (!$procerror)
+				vN = vN + 1            
+				;11/06/03 BAM - retornar a operacao e nao a operacao de faturamento
+				;putitem poParams, vN, cd_operfat.ger_operacaosvc
+				putitem poParams, vN, cd_operacao.ger_operacaosvc
+			endif
+			setocc "V_GER_OPERCMPSVC" , $curocc(V_GER_OPERCMPSVC)+1
+		endwhile
+	endif
+	return (0); finaliza a execução da operation
+	;-----------------------------------------------------------------------------------------
+	;Autor: EVJ
+	;Nome : GetOperComponente
+	;Data : 28/11/2002
+	;Versão : V1
+	;Descrição : Monta Lista de Operacao de Movimento a partir da Operacao do Componente
+	;Parametros Entrada : código do Componente
+	;Parametros Saída : Lista de operacao de movimento
+;Histórico Manutenção :
+;Exemplo :
+	; activate "GERSSVCO007".GetOperComponente(piParams,poParams,$xcderro$,$xctxerro$) 
+	;Data    Operador    Detalhes
+	;-----------------------------------------------------------------------------------------
+End ; operation GetOperComponente
+
+;--------------------------
+public operation GetOperFat 
+	;--------------------------
+	params 
+		string  piParams         :in
+		string  poParams         :out
+		numeric poCdErro         :out
+		string  poCtxErro        :out
+	endparams 
+	
+	variables
+		numeric vN
+	endvariables
+	
+	;  Inicializa Parametros de Erros
+	poCtxErro= "" 
+	poCdErro = ""
+	poParams = ""
+	;  Inicializa GER_OPERACAO
+	clear/e "GER_OPERACAOSVC"
+	cd_operacao.ger_operacaosvc/init = $item("CD_OPERACAO",piParams)
+	;  Le GER_OPERACAO
+	retrieve/e "GER_OPERACAOSVC"
+	if (!$procerror)
+		poParams = cd_operfat.ger_operacaosvc
+	endif
+	return (0); finaliza a execução da operation
+	;-----------------------------------------------------------------------------------------
+	;Autor: EVJ
+	;Nome : GetOperFat
+	;Data : 28/11/2002
+	;Versão : V1
+	;Descrição : Busca Operacao p/ Faturamento CD_OPERFAT do ger_operacao
+	;Parametros Entrada : código do Componente
+	;Parametros Saída : Lista de operacao de movimento
+;Histórico Manutenção :
+;Exemplo :
+	; activate "GERSSVCO007".GetOperFat(piParams,poParams,$xcderro$,$xctxerro$) 
+	;Data    Operador    Detalhes
+	;-----------------------------------------------------------------------------------------
+End ; operation GetOperFat
+
+;----------------------------
+public operation GetOperacoes 
+	;----------------------------
+	params 
+		string  piParams         :in
+		string  poParams         :out
+		numeric poCdErro         :out
+		string  poCtxErro        :out
+	endparams 
+	
+	variables
+		numeric vN
+	endvariables
+	
+	;  Inicializa Parametros de Erros
+	poCtxErro= "" 
+	poCdErro = ""
+	poParams = ""
+	;  Inicializa V_GER_OPERCMPTE
+	clear/e "V_GER_OPERCMPSVC"
+	cd_componente.v_ger_opercmpsvc = $item("CD_COMPONENTE",piParams)
+	;  Le GER_OPERCMPTE
+	retrieve/e  "V_GER_OPERCMPSVC"
+	if (!$procerror)
+		setocc "V_GER_OPERCMPSVC", 1
+		while ($status >=0)
+			clear/e "GER_OPERACAOSVC"
+			cd_operacao.ger_operacaosvc = cd_operacao.v_ger_opercmpsvc
+			retrieve/e "GER_OPERACAOSVC"
+			if (!$procerror)
+				vN = vN + 1            
+				putitem poParams, vN, cd_operacao.ger_operacaosvc
+				setocc "V_GER_OPERCMPSVC" , $curocc(V_GER_OPERCMPSVC)+1
+			endif
+		endwhile
+	endif
+	return (0); finaliza a execução da operation
+	;-----------------------------------------------------------------------------------------
+	;Autor: BAM
+	;Nome : GetOperacoes
+	;Data : 25/03/2003
+	;Versão : V1
+	;Descrição : Monta Lista de Operacao a partir do Código do Componente
+	;Parametros Entrada : código do Componente
+	;Parametros Saída : Lista de operacao cadastradas para o componente
+;Histórico Manutenção :
+;Exemplo :
+	; activate "GERSSVCO007".GetOperacoes(piParams,poParams,$xcderro$,$xctxerro$) 
+	;Data    Operador    Detalhes
+	;-----------------------------------------------------------------------------------------
+End ; operation GetOperacoes
+
+;-----------------------------
+public operation ListOperacoes 
+	;-----------------------------
+	params 
+		string  piParams         :in
+		string  poParams         :out
+		numeric poCdErro         :out
+		string  poCtxErro        :out
+	endparams 
+	
+	variables
+		string vDsLstOperacao, vCdComponente, vTpOperacao
+		numeric vCdUsuario, vCdEmpresa, vTpOrdem
+	endvariables
+
+	;  Inicializa Parametros de Erros
+	poCtxErro= "" 
+	poCdErro = ""
+	poParams = ""
+	
+	vCdComponente = $item("CD_COMPONENTE", piParams)
+	if (vCdComponente = "")
+		$instancehandle->SetErroApl("ERRO=-1·;DESCRICAO=Componente não informado! GERSVCO007.ListOperacoes", poCdErro, poCtxErro)
+		return(-1)
+	endif
+
+	vTpOperacao = $item("TP_OPERACAO", piParams) ;ANO Pjt130 Trf17 - 23/06/2008
+
+	clear/e "GER_OPERACAOSVC"
+
+	vDsLstOperacao = $item("DS_LSTOPERACAO", piParams)
+
+	if (vDsLstOperacao != "")
+		CD_OPERACAO.GER_OPERACAOSVC/init = vDsLstOperacao
+		retrieve/e "GER_OPERACAOSVC"
+		if ($status < 0)
+			clear/e "GER_OPERACAOSVC"
+		endif
+	endif
+
+	vCdEmpresa = $item("CD_EMPRESA", piParams)
+	vCdUsuario = $item("CD_USUARIO", piParams)
+	clear/e "ADM_USUOPERCMP"
+	if (vCdusuario > 0)
+		if (vCdEmpresa = 0)	
+			$instancehandle->SetErroApl("ERRO=-1·;DESCRICAO=Empresa não informada! GERSVCO007.ListOperacoes", poCdErro, poCtxErro)
+			return(-1)
+		endif
+		CD_EMPRESA.ADM_USUOPERCMP/init = vCdEmpresa
+		CD_USUARIO.ADM_USUOPERCMP/init = vCdUsuario
+		CD_COMPONENTE.ADM_USUOPERCMP/init = vCdComponente
+		retrieve/e "ADM_USUOPERCMP"
+		if ($status >= 0)
+			setocc "ADM_USUOPERCMP", 1
+			while ($status >=0)
+				creocc "GER_OPERACAOSVC", -1
+				CD_OPERACAO.GER_OPERACAOSVC/init = CD_OPERACAO.ADM_USUOPERCMP		
+				retrieve/o "GER_OPERACAOSVC"
+				if ($status = -7)
+					retrieve/x "GER_OPERACAOSVC"
+					if(TP_OPERACAO.GER_OPERACAOSVC != vTpOperacao & vTpOperacao != "") ;ANO Pjt130 Trf17 - 23/06/2008
+						discard "GER_OPERACAOSVC"
+					endif
+				elseif ($status = 0)
+					discard "GER_OPERACAOSVC"
+				endif
+				setocc "ADM_USUOPERCMP", $curocc("ADM_USUOPERCMP") + 1
+			endwhile
+		else
+			clear/e "ADM_USUOPERCMP"
+		endif
+	endif
+
+	if ($empty("ADM_USUOPERCMP") != 0)
+		clear/e "V_GER_OPERCMPSVC"
+		CD_COMPONENTE.V_GER_OPERCMPSVC = vCdComponente
+		retrieve/e  "V_GER_OPERCMPSVC"
+		if ($status >= 0)
+			setocc "V_GER_OPERCMPSVC", 1
+			while ($status >=0)
+				creocc "GER_OPERACAOSVC", -1
+				CD_OPERACAO.GER_OPERACAOSVC/init = CD_OPERACAO.V_GER_OPERCMPSVC
+				retrieve/o "GER_OPERACAOSVC"
+				if ($status = -7)
+					retrieve/x "GER_OPERACAOSVC"
+					if(TP_OPERACAO.GER_OPERACAOSVC != vTpOperacao & vTpOperacao != "") ;ANO Pjt130 Trf17 - 23/06/2008
+						discard "GER_OPERACAOSVC"
+					endif
+				elseif ($status = 0)
+					discard "GER_OPERACAOSVC"
+				endif
+				setocc "V_GER_OPERCMPSVC", $curocc("V_GER_OPERCMPSVC") + 1
+			endwhile		
+		endif
+	endif
+
+	if ($empty("GER_OPERACAOSVC") = 0)
+		;---Elia Proj. 66/155 14/04/08
+		vTpOrdem = $item("TP_ORDEM", piParams)
+		if (vTpOrdem = 1) ; 1 Descricao
+			sort/e "GER_OPERACAOSVC", "DS_OPERACAO.GER_OPERACAOSVC"
+		endif
+		;
+		setocc "GER_OPERACAOSVC", 1
+		putlistitems/id poParams, CD_OPERACAO.GER_OPERACAOSVC, DS_OPERACAO.GER_OPERACAOSVC
+	endif
+
+	return(0)
+End ; operation ListOperacoes
+
+;--------------------------
+public operation SetEmpresa 
+	;--------------------------
+	params 
+		string  piParams         :in
+		string  poParams         :out
+		numeric poCdErro         :out
+		string  poCtxErro        :out
+	endparams 
+	
+	;  Inicializa Parametros de Erros
+	poCtxErro= "" 
+	poCdErro = ""
+	poParams = ""
+	;  Inicializa GER_EMPRESA
+	clear/e "GER_EMPRESASVC"
+	cd_empresa.ger_empresasvc/init = $item("CD_EMPRESA",piParams)
+	;  Le GER_OPERACAO
+	retrieve/e  "GER_EMPRESASVC"
+	if (!$procerror)
+		poParams = "CD_PESSOA=%%cd_pessoa.ger_empresasvc"
+	endif
+	return (0); finaliza a execução da operation
+	;-----------------------------------------------------------------------------------------
+	;Autor: EVJ
+	;Nome : SetEmpresa
+	;Data : 28/11/2002
+	;Versão : V1
+	;Descrição : Busca a pessoa da empresa selecionada
+	;Parametros Entrada : recebe codigo da pessoa
+	;Parametros Saída : código da Pessoa
+;Histórico Manutenção :
+;Exemplo :
+	; activate "GERSSVCO007".SetEmpresa(piParams,poParams,$xcderro$,$xctxerro$) 
+	;Data    Operador    Detalhes
+	;-----------------------------------------------------------------------------------------
+End ; operation SetEmpresa
+
+;--------------------------------
+public operation SetPessoaEmpresa 
+	;--------------------------------
+	params 
+		string  piParams         :in
+		boolean poInEmpresa      :out
+		numeric poCdErro         :out
+		string  poCtxErro        :out
+	endparams 
+	
+	;  Inicializa Parametros de Erros
+	poCtxErro="" 
+	poCdErro = ""
+	;  Inicializa GER_EMPRESA
+	clear/e "GER_EMPRESASVC"
+	cd_pessoa.ger_empresasvc/init = $item("CD_PESSOA",piParams)
+	;  Le GER_OPERACAO
+	retrieve/e  "GER_EMPRESASVC"
+	if (!$procerror)
+		poInEmpresa = <True>
+	else
+		poInEmpresa = <False>
+	endif
+	return (0); finaliza a execução da operation
+	;-----------------------------------------------------------------------------------------
+	;Autor: EVJ
+	;Nome : SetPessoaEmpresa
+	;Data : 28/11/2002
+	;Versão : V1
+	;Descrição : Valida se a pessoa é uma empresa
+	;Parametros Entrada : recebe codigo da pessoa
+	;Parametros Saída : indicador (0- nao 1 - sim existe)
+	;                   codigo do erro
+	;                   contexto do erro
+;Histórico Manutenção :
+;Exemplo :
+	; activate "GERSSVCO007".SetPessoaEmpresa(piParams,Indicador,$xcderro$,$xctxerro$) 
+	;Data    Operador    Detalhes
+	;-----------------------------------------------------------------------------------------
+End ; operation SetPessoaEmpresa
+
+;--------------------------------
+public operation SetTransferencia 
+	;--------------------------------
+	params 
+		string  piCdOperacao     :in
+		string  poInTransferencia:out
+		numeric poCdErro         :out
+		string  poCtxErro        :out
+	endparams 
+	
+	;  Inicializa Parametros de Erros
+	poCtxErro= "" 
+	poCdErro = ""
+	poInTransferencia = <FALSE>
+	;  Inicializa GER_OPERACAO
+	clear/e "GER_OPERACAOSVC"
+	cd_operacao.ger_operacaosvc/init = piCdOperacao
+	;  Le GER_OPERACAO
+	retrieve/e  "GER_OPERACAOSVC"
+	if (!$procerror)
+		if (tp_modalidade.ger_operacaosvc = 2)
+			poInTransferencia = <TRUE>
+		endif
+	endif
+	return (0); finaliza a execução da operation
+	;-----------------------------------------------------------------------------------------
+	;Autor: EVJ
+	;Nome : SetTransferencia
+	;Data : 28/11/2002
+	;Versão : V1
+	;Descrição : Verifica se a Operacao é transferencia
+	;Parametros Entrada : recebe codigo da Operacao
+	;Parametros Saída : Boolean 
+;Histórico Manutenção :
+;Exemplo :
+	; activate "GERSVCO007".SetTransferencia(picdOperacao,poInTransferencia,$xcderro$,$xctxerro$) 
+	;Data    Operador    Detalhes
+	;-----------------------------------------------------------------------------------------
+End ; operation SetTransferencia
+
+;---------------------------
+public operation VldInValor 
+	;---------------------------
+	params 
+		numeric piCdOperacao  :in
+		string  piTpUnidValor :in
+		boolean poInPadrao    :out
+		numeric poCdErro      :out
+		string  poCtxErro     :out
+	endparams 
+	
+	;--------> Inicializa Parametros de Erros
+	poCtxErro="" 
+	poCdErro = ""
+	;--> Inicializa GER_OPERVALOR
+	clear/e "ger_opervalorsvc"
+	cd_operacao.ger_opervalorsvc/init = piCdOperacao
+	;tp_unidvalor.ger_opervalorsvc/init = piTpUnidValor
+	in_precobase.ger_opervalorsvc/init = <True> 
+	;--> Le GER_OPERVALOR
+	retrieve/e  "ger_opervalorsvc"
+	if ($status < 0) 
+		poInPadrao=<false>
+	elseif ($status = 0) ; encontrou um registro marcado
+		poInPadrao=<True>
+	else
+		$instancehandle->SetErroProc($procerrorcontext,poCdErro,poCtxErro) ; chamada de uma operation que retorno o erro diferente de -1 e -2
+	endif
+	return (0); finaliza a execução da operation
+	;-----------------------------------------------------------------------------------------
+	;Autor: EVJ
+	;Nome : VldInValor    
+	;Data : 02/05/2002
+	;Versão : V1
+	;Descrição : Valida se ja existe um preco ou custo base padrão
+	;Parametros Entrada : recebe codigo da operacao
+	;Parametros Saída : indicador (0- nao 1 - sim existe)
+	;                   codigo do erro
+	;                   contexto do erro
+;Histórico Manutenção :
+;Exemplo :
+	; activate "GERSSVCO007".VldInValor(cd_operacao.ger_operacaofrm,Indicador,$xcderro$,$xctxerro$) 
+	;Data    Operador    DetalhesEnd ; operation VldInValor ; operation VldInValor
+	;-----------------------------------------------------------------------------------------
+End ; operation VldInValor
+
+;---------------------------
+public operation VldInSaldo 
+	;---------------------------
+	params 
+		numeric piCdOperacao  :in
+		boolean poInPadrao    :out
+		numeric poCdErro      :out
+		string  poCtxErro     :out
+	endparams 
+	
+	; Inicializa Parametros de Erros
+	poCtxErro="" 
+	poCdErro = ""
+	; Inicializa GER_OPERSALDO
+	clear/e "ger_opersaldosvc"
+	cd_operacao.ger_opersaldosvc/init = piCdOperacao
+	in_padrao.ger_opersaldosvc/init = <True> 
+	retrieve/e  "ger_opersaldosvc"
+	if ($status < 0) 
+		poInPadrao=<false>
+	elseif ($status = 0) ; encontrou um registro marcado
+		poInPadrao=<True>
+	else
+		$instancehandle->SetErroProc($procerrorcontext,poCdErro,poCtxErro) ; chamada de uma operation que retorno o erro diferente de -1 e -2
+	endif
+	return (0); finaliza a execução da operation
+	;-----------------------------------------------------------------------------------------
+	;Autor: BAM
+	;Nome : VldInSaldo
+	;Data : 09/07/2002
+	;Versão : V1
+	;Descrição : Valida se ja existe um saldo padrão
+	;Parametros Entrada : recebe codigo da operacao
+	;Parametros Saída : indicador (0- nao 1 - sim existe)
+	;                   codigo do erro
+	;                   contexto do erro
+;Histórico Manutenção :
+;Exemplo :
+	; activate "GERSSVCO007".VldInSaldo(cd_operacao.ger_operacaofrm,Indicador,$xcderro$,$xctxerro$) 
+	;Data    Operador    DetalhesEnd ; operation VldInValor ; operation VldInValor
+	;-----------------------------------------------------------------------------------------
+End ; operation VldInSaldo
+
+;---------------------------
+public operation VldInKardex 
+	;---------------------------
+	params 
+		numeric piCdOperacao  :in
+		boolean poInPadrao    :out
+		numeric poCdErro      :out
+		string  poCtxErro     :out
+	endparams 
+	poCtxErro="" 
+	poCdErro = ""
+	clear/e "ger_opersaldosvc"
+	cd_operacao.ger_opersaldosvc/init = piCdOperacao
+	in_gerakardex.ger_opersaldosvc/init = <True> 
+	retrieve/e  "ger_opersaldosvc"
+	if ($status < 0) 
+		poInPadrao=<false>
+	elseif ($status = 0) ; encontrou um registro marcado
+		poInPadrao=<True>
+	else
+		$instancehandle->SetErroProc($procerrorcontext,poCdErro,poCtxErro)
+	endif
+	return (0); finaliza a execução da operation
+	;-----------------------------------------------------------------------------------------
+	;Autor: BAM
+	;Nome : VldInKardex
+	;Data : 20/08/2002
+	;Versão : V1
+	;Descrição : Valida se ja existe um saldo anotado para gerar kardex
+	;Parametros Entrada : recebe codigo da operacao
+	;Parametros Saída : indicador (0- nao 1 - sim existe)
+	;                   codigo do erro
+	;                   contexto do erro
+;Histórico Manutenção :
+;Exemplo :
+	; activate "GERSSVCO007".VldInKardex(cd_operacao.ger_operacaofrm,Indicador,$xcderro$,$xctxerro$) 
+	;Data    Operador    DetalhesEnd ; operation VldInValor ; operation VldInValor
+	;-----------------------------------------------------------------------------------------
+End ; operation VldInKardex
+
+;-----------------------------
+public operation VldInLocacao 
+	;-----------------------------
+	params 
+		numeric piCdProduto   :in
+		string  pIGlobal      :in
+		boolean poInPadrao    :out
+		numeric poCdErro      :out
+		string  poCtxErro     :out
+	endparams 
+	
+	;--------> Inicializa Parametros de Erros/carregamento chave
+	poCtxErro="" 
+	poCdErro = ""
+	clear/e "prd_locacaosvc"
+	cd_empresa.prd_locacaosvc/init = $item("CD_EMPRESA",pIGlobal)
+	cd_produto.prd_locacaosvc/init = piCdProduto
+	in_padrao.prd_locacaosvc/init = <True> 
+	
+	retrieve/e  "prd_locacaosvc"
+	if ($status = -2 ) 
+		poInPadrao=<false>
+	elseif ($status = 0) ; encontrou um registro marcado
+		poInPadrao=<True>
+	else
+		$instancehandle->SetErroProc($procerrorcontext,poCdErro,poCtxErro) ; chamada de uma operation que retorno o erro diferente de -1 e -2
+	endif
+	
+	return (0); finaliza a execução da operation
+	;-----------------------------------------------------------------------------------------
+	;Autor: BAM
+	;Nome : VldInLocacao        
+	;Data : 04/06/2002
+	;Versão : V1
+	;Descrição : Valida se ja existe um IN_PADRAO (locacao padrão)para um produto
+	;Parametros Entrada : recebe codigo do produto
+	;Parametros Saída : indicador (0- nao 1 - sim existe)
+	;                   codigo do erro
+	;                   contexto do erro
+;Histórico Manutenção :
+;Exemplo :
+	; activate "GERSSVCO007".VldInLocacao(cd_produto.prd_produto,Indicador,vGlogal,$xcderro$,$xctxerro$) 
+	;Data    Operador    DetalhesEnd ; operation VldInSaldo ; operation VldInSaldo
+	;-----------------------------------------------------------------------------------------
+End ; operation VldInLocacao
+
+;-----------------------------
+public operation VldInMarkup 
+	;-----------------------------
+	params 
+		numeric piCdProduto   :in
+		string  pIGlobal      :in
+		boolean poInPadrao    :out
+		numeric poCdErro      :out
+		string  poCtxErro     :out
+	endparams 
+	
+	;--------> Inicializa Parametros de Erros/carregamento chave
+	poCtxErro="" 
+	poCdErro = ""
+	clear/e "prd_valorsvc"
+	cd_empresa.prd_valorsvc/init = $item("CD_EMPRESA",pIGlobal)
+	cd_produto.prd_valorsvc/init = piCdProduto
+	in_basemarkup.prd_valorsvc/init = <True> 
+	
+	retrieve/e  "prd_valorsvc"
+	if ($status = -2 ) 
+		poInPadrao=<false>
+	elseif ($status = 0) ; encontrou um registro marcado
+		poInPadrao=<True>
+	else
+		$instancehandle->SetErroProc($procerrorcontext,poCdErro,poCtxErro) ; chamada de uma operation que retorno o erro diferente de -1 e -2
+	endif
+	
+	return (0); finaliza a execução da operation
+	;-----------------------------------------------------------------------------------------
+	;Autor: EVJ
+	;Nome : VldInMarkup        
+	;Data : 01/08/2002
+	;Versão : V1
+	;Descrição : Valida se ja existe um IN_BASEMARKUP (Base p/ Markup)para um produto
+	;Parametros Entrada : recebe codigo do produto
+	;Parametros Saída : indicador (0- nao 1 - sim existe)
+	;                   codigo do erro
+	;                   contexto do erro
+;Histórico Manutenção :
+;Exemplo :
+	; activate "GERSSVCO007".VldInMarkup(cd_produto.prd_produto,Indicador,vGlogal,$xcderro$,$xctxerro$) 
+	;-----------------------------------------------------------------------------------------
+End ; operation VldInMarkup
+
+;---------------------------------
+Public Operation ListModeloNF ;   Lista Modelos de Notas Fiscais
+;---------------------------------
+	
+	params
+		string  piParams  :IN
+		string  poParams  :OUT
+		numeric poCdErro :OUT
+		string  poCtxerro :OUT   
+	endparams
+	
+	poCdErro = 0
+	poCtxerro = ""
+	
+	clear/e "GER_MODNFCSVC"
+	retrieve/e "GER_MODNFCSVC"
+	
+	if ($procerror)
+		$instancehandle->SetErroProc($procerrorcontext)
+	else
+		putlistitems/id poParams,cd_modelonf.ger_modnfcsvc,ds_modelonf.ger_modnfcsvc
+	endif
+	
+	exit
+End ; Operation ListModeloNF
+
+
+;---------------------------------
+Public Operation ListTefArquivo 
+;---------------------------------
+; Lista Arquivos do TEF (ODA) - 02/06/05
+; exemplo de como deve ser a chamada
+; activate "GERSVCO007".ListTefArquivo(viParams, voParams, $xCdErro$, $xCtxErro$)
+;Chamado no: TEFFP001
+	params
+		string  piParams  :IN
+		string  poParams  :OUT
+		numeric poCdErro :OUT
+		string  poCtxerro :OUT   
+	endparams
+	
+	poCdErro = 0
+	poCtxerro = ""
+	
+	clear/e "TEF_ARQUIVOSVC"
+	retrieve/e "TEF_ARQUIVOSVC"
+	if ($procerror)
+		$instancehandle->SetErroProc($procerrorcontext)
+	else
+		putlistitems/id poParams,CD_ARQUIVO.TEF_ARQUIVOSVC,CD_ARQUIVO.TEF_ARQUIVOSVC
+	endif
+	
+	exit
+End ; Lista Arquivos do TEF
+
+;---------------------------------
+Public Operation ListRedeTef 
+;---------------------------------
+; Lista Redes do TEF (ODA) - 02/06/05
+; abaixo exemplo de como deve ser a chamada
+; activate "GERSVCO007".ListRedeTef(viParams, voParams, $xCdErro$, $xCtxErro$)
+;Chamado no: TEFFP001
+	params
+		string  piParams  :IN
+		string  poParams  :OUT
+		numeric poCdErro :OUT
+		string  poCtxerro :OUT   
+	endparams
+	
+	poCdErro = 0
+	poCtxerro = ""
+	
+	clear/e "TEF_REDETEFSVC"
+	retrieve/e "TEF_REDETEFSVC"
+	if ($procerror)
+		$instancehandle->SetErroProc($procerrorcontext)
+	else
+		putlistitems/id poParams,CD_REDETEF.TEF_REDETEFSVC,NM_REDETEF.TEF_REDETEFSVC
+	endif
+	
+	exit
+End ; Lista REDE TEF
+
+
+
+;------------------------------
+;   Lista Modelos de Transações
+;------------------------------
+Public Operation ListModeloTRA 
+	
+	params
+		string  piParams  :IN
+		string  poParams  :OUT
+		numeric poCdErro :OUT
+		string  poCtxerro :OUT   
+	endparams
+	
+	poCdErro = 0
+	poCtxerro = ""
+	
+	clear/e "GER_MODTRACSVC"
+	retrieve/e "GER_MODTRACSVC"
+	
+	if ($procerror)
+		$instancehandle->SetErroProc($procerrorcontext,$xcderro$,$xctxerro$)
+	else
+		putlistitems/id poParams,cd_modelotra.ger_modtracsvc,ds_modelotra.ger_modtracsvc
+	endif
+	
+	return (0)
+End ; Operation ListModeloTRA
+
+;------------------------------
+;   Lista Tipos de Saldo
+;------------------------------
+Public Operation ListTipoSaldo 
+	
+	params
+		string  piParams  :IN
+		string  poParams  :OUT
+		numeric poCdErro :OUT
+		string  poCtxerro :OUT   
+	endparams
+	
+	poCdErro = 0
+	poCtxerro = ""
+	
+	;--->MNT - Prj - 156/0070 - 13/11/09	
+	clear/e "PRD_USUTIPOSASVC"
+	CD_EMPRESA.PRD_USUTIPOSASVC/init = $item("CD_EMPRESA", $$gParamGlb) 
+	CD_USUARIO.PRD_USUTIPOSASVC/init = $item("CD_USUARIO", $$gParamGlb)
+	retrieve/e "PRD_USUTIPOSASVC"
+	if ($status >= 0)
+		setocc "PRD_USUTIPOSASVC", 1
+		while ($status >= 0)
+			clear/e "PRD_TIPOSALDOSVC"	
+			CD_SALDO.PRD_TIPOSALDOSVC/init = CD_SALDO.PRD_USUTIPOSASVC
+			retrieve/e "PRD_TIPOSALDOSVC"
+			if ($procerror)
+				$instancehandle->SetErroProc($procerrorcontext)
+			else
+				putitem/id poParams,CD_SALDO.PRD_TIPOSALDOSVC,DS_SALDO.PRD_TIPOSALDOSVC
+			endif
+
+			setocc "PRD_USUTIPOSASVC", $curocc("PRD_USUTIPOSASVC") + 1
+		endwhile
+	;<---
+	else
+		clear/e "PRD_TIPOSALDOSVC"
+		retrieve/e "PRD_TIPOSALDOSVC"
+	
+		if ($procerror)
+			$instancehandle->SetErroProc($procerrorcontext)
+		else
+			putlistitems/id poParams,CD_SALDO.PRD_TIPOSALDOSVC,DS_SALDO.PRD_TIPOSALDOSVC
+		endif
+	endif
+
+	return (0)
+End ; Operation ListTipoSaldo
+
+;------------------------------
+;   Lista Tipos de Valor
+;------------------------------
+Public Operation ListTipoValor 
+	
+	params
+		string  piParams  :IN
+		string  poParams  :OUT
+		numeric poCdErro :OUT
+		string  poCtxerro :OUT   
+	endparams
+	
+	variables
+		numeric vCdUsuario, vCdEmpresa
+	endvariables
+	
+	poCdErro = 0
+	poCtxerro = ""
+	
+	vCdUsuario = $item("CD_USUARIO", $$gParamGlb)
+	vCdEmpresa = $item("CD_EMPRESA", $$gParamGlb)
+	
+	clear/e "PRD_TIPOVALORSVC"
+	TP_VALOR.PRD_TIPOVALORSVC = $item("TP_VALOR",piParams)
+	retrieve/e "PRD_TIPOVALORSVC"
+	if ($status >= 0)
+		setocc "PRD_TIPOVALORSVC", 1
+		while ($status >= 0)
+			clear/e "PRD_USUCDVALOSVC"
+			CD_EMPRESA.PRD_USUCDVALOSVC/init = vCdEmpresa
+			CD_USUARIO.PRD_USUCDVALOSVC/init = vCdUsuario
+			TP_VALOR.PRD_USUCDVALOSVC/init = TP_VALOR.PRD_TIPOVALORSVC
+			CD_VALOR.PRD_USUCDVALOSVC/init = CD_VALOR.PRD_TIPOVALORSVC
+			retrieve/e "PRD_USUCDVALOSVC"
+			if ($status < 0) | (TP_VALIDACAO.PRD_USUCDVALOSVC != 2)
+				putitem/id poParams, CD_VALOR.PRD_TIPOVALORSVC, DS_VALOR.PRD_TIPOVALORSVC
+			endif
+			
+			setocc "PRD_TIPOVALORSVC", $curocc("PRD_TIPOVALORSVC") + 1
+		endwhile
+	endif
+	
+;	if ($procerror)
+;		$instancehandle->SetErroProc($procerrorcontext,$xcderro$,$xctxerro$)
+;	else
+;		putlistitems/id poParams,CD_VALOR.PRD_TIPOVALORSVC,DS_VALOR.PRD_TIPOVALORSVC
+;	endif
+	
+	return (0)
+End ; Operation ListTipoValor
+
+;------------------------------
+;   Lista Tipos de Classificacao
+;------------------------------
+Public Operation ListTipoClas 
+	
+	params
+		string  piParams  :IN
+		string  poParams  :OUT
+		numeric poCdErro :OUT
+		string  poCtxerro :OUT   
+	endparams
+	
+	poCdErro = 0
+	poCtxerro = ""
+	
+	clear/e "PRD_TIPOCLASSVC"
+	IN_GRUPO.PRD_TIPOCLASSVC = $item("IN_GRUPO",piParams)
+	retrieve/e "PRD_TIPOCLASSVC"
+	
+	if ($procerror)
+		$instancehandle->SetErroProc($procerrorcontext)
+	else
+		putlistitems/id poParams,CD_TIPOCLAS.PRD_TIPOCLASSVC,DS_TIPOCLAS.PRD_TIPOCLASSVC
+	endif
+	
+	return (0)
+End ; Operation ListTipoClas
+
+;---------------------------------------------
+;   Lista Tipos de Classificacao do Patrimonio
+;---------------------------------------------
+Public Operation ListTipoClasPat
+;---------------------------------------------	
+	params
+		string  piParams  :IN
+		string  poParams  :OUT
+		numeric poCdErro  :OUT
+		string  poCtxerro :OUT   
+	endparams
+	
+	poCdErro = 0
+	poCtxerro = ""
+	
+	clear/e "PRD_TIPOCLASSVC"
+	clear/e "PRD_CFGNIVELCSVC"
+	IN_PATRIMONIO.PRD_CFGNIVELCSVC/init = <True>
+	retrieve/e "PRD_CFGNIVELCSVC"
+	if ($status >= 0)
+		setocc "PRD_CFGNIVELISVC"
+		while ($status >= 0)
+			creocc "PRD_TIPOCLASSVC", -1
+			CD_TIPOCLAS.PRD_TIPOCLASSVC/init = CD_TIPOCLAS.PRD_CFGNIVELISVC
+			retrieve/o "PRD_TIPOCLASSVC"
+			if ($status = -7)
+				retrieve/x "PRD_TIPOCLASSVC"
+			endif
+
+			setocc "PRD_CFGNIVELISVC",$curocc(PRD_CFGNIVELISVC)+1
+		endwhile
+		putlistitems/id poParams,CD_TIPOCLAS.PRD_TIPOCLASSVC,DS_TIPOCLAS.PRD_TIPOCLASSVC
+	endif
+	
+	return (0)
+End ; ListTipoClasPat
+
+;------------------------------------------
+;   Lista Configurações de Níveis de Grupos
+;------------------------------------------
+Public Operation ListCfgNivel 
+	
+	params
+		string  piParams  :IN
+		string  poParams  :OUT
+		numeric poCdErro :OUT
+		string  poCtxerro :OUT   
+	endparams
+	
+	poCdErro = 0
+	poCtxerro = ""
+	clear/e "PRD_CFGNIVELCSVC"
+	IN_GRUPO.PRD_CFGNIVELCSVC = $item("IN_GRUPO",piParams)
+	retrieve/e "PRD_CFGNIVELCSVC"
+
+	if ($procerror)
+		$instancehandle->SetErroProc($procerrorcontext,$xcderro$,$xctxerro$)
+	else
+		;Busch 22-01-2007 proj 41/176
+		sort/e "PRD_CFGNIVELCSVC", "DS_CFGNIVEL.PRD_CFGNIVELCSVC"
+		;
+		putlistitems/id poParams,CD_CFGNIVEL.PRD_CFGNIVELCSVC,DS_CFGNIVEL.PRD_CFGNIVELCSVC
+	endif
+	
+	return (0)
+End ; Operation ListCfgNivel
+
+;-----------------------------------------------------
+;   Lista Configurações de Níveis de Grupos Patrimonio
+;-----------------------------------------------------
+Public Operation ListCfgNivelPat
+	
+	params
+		string  piParams  :IN
+		string  poParams  :OUT
+		numeric poCdErro  :OUT
+		string  poCtxerro :OUT   
+	endparams
+	
+	poCdErro = 0
+	poCtxerro = ""
+	clear/e "PRD_CFGNIVELCSVC"
+	IN_GRUPO.PRD_CFGNIVELCSVC = $item("IN_GRUPO",piParams)
+	IN_PATRIMONIO.PRD_CFGNIVELCSVC/init = <True>
+	retrieve/e "PRD_CFGNIVELCSVC"
+
+	if ($procerror)
+		$instancehandle->SetErroProc($procerrorcontext,$xcderro$,$xctxerro$)
+	else
+		;Busch 22-01-2007 proj 41/176
+		sort/e "PRD_CFGNIVELCSVC", "DS_CFGNIVEL.PRD_CFGNIVELCSVC"
+		;
+		putlistitems/id poParams,CD_CFGNIVEL.PRD_CFGNIVELCSVC,DS_CFGNIVEL.PRD_CFGNIVELCSVC
+	endif
+	
+	return (0)
+End ; Operation ListCfgNivelPat
+
+;--------------------------------
+Public Operation ListModeloETIQ 
+;--------------------------------
+	
+	params
+		string  piParams  :IN
+		string  poParams  :OUT
+		numeric poCdErro :OUT
+		string  poCtxerro :OUT   
+	endparams
+	
+	variables
+		string vTpImpressora
+	endvariables
+	
+	poCdErro = 0
+	poCtxerro = ""
+	
+	vTpImpressora = $item("TP_IMPRESSORA", piParams)
+	
+	if (vTpImpressora = "M")
+		clear/e "GER_MODETIQMCSVC"
+		CD_MODELO.GER_MODETIQMCSVC = $item("CD_MODELO", piParams)
+		retrieve/e "GER_MODETIQMCSVC"        
+		if ($procerror)
+			$instancehandle->SetErroProc($procerrorcontext,$xcderro$,$xctxerro$)
+		else
+			putlistitems/id poParams, CD_MODELOETIQ.GER_MODETIQMCSVC, DS_MODELOETIQ.GER_MODETIQMCSVC
+		endif
+	else
+		clear/e "GER_MODETIQCSVC"
+		CD_MODELO.GER_MODETIQCSVC = $item("CD_MODELO", piParams)
+		retrieve/e "GER_MODETIQCSVC"        
+		if ($procerror)
+			$instancehandle->SetErroProc($procerrorcontext,$xcderro$,$xctxerro$)
+		else
+			putlistitems/id poParams, CD_MODELOETIQ.GER_MODETIQCSVC, DS_MODELOETIQ.GER_MODETIQCSVC
+		endif
+	endif
+	
+	return(0)
+End ; Operation ListModeloETIQ
+
+;---------------
+;   Lista Paises
+;---------------
+Public Operation ListPais 
+	
+	params
+		string  piParams  :IN
+		string  poParams  :OUT
+		numeric poCdErro  :OUT
+		string  poCtxerro :OUT   
+	endparams
+	
+	poCdErro = 0
+	poCtxerro = ""
+	
+	clear/e "GLB_PAISSVC"
+	retrieve/e "GLB_PAISSVC"
+	
+	if ($procerror)
+		$instancehandle->SetErroProc($procerrorcontext,$xcderro$,$xctxerro$)
+	else
+		putlistitems/id poParams,cd_pais.glb_paissvc,nm_pais.glb_paissvc
+	endif
+	
+	return (0)
+End ; Operation ListPais
+
+;----------------
+;   Lista Estados
+;----------------
+Public Operation ListEstado 
+	
+	params
+		string  piParams  :IN
+		string  poParams  :OUT
+		numeric poCdErro  :OUT
+		string  poCtxerro :OUT   
+	endparams
+	
+	poCdErro = 0
+	poCtxerro = ""
+	
+	clear/e "GLB_ESTADOSVC"
+	cd_pais.glb_estadosvc/init = $item("CD_PAIS",piParams)
+	retrieve/e "GLB_ESTADOSVC"
+	
+	if ($procerror)
+		$instancehandle->SetErroProc($procerrorcontext,$xcderro$,$xctxerro$)
+	else
+		putlistitems/id poParams,cd_estado.glb_estadosvc,nm_estado.glb_estadosvc
+	endif
+	
+	return (0)
+End ; Operation ListEstado
+
+;----------------
+;   Lista Municipios
+;----------------
+Public Operation ListMunicipio 
+	
+	params
+		string  piParams  :IN
+		string  poParams  :OUT
+		numeric poCdErro  :OUT
+		string  poCtxerro :OUT   
+	endparams
+	
+	poCdErro = 0
+	poCtxerro = ""
+
+	clear/e "GLB_MUNICIPIOSVC"
+	cd_estado.glb_municipiosvc/init = $item("CD_ESTADO",piParams)
+	retrieve/e "GLB_MUNICIPIOSVC"
+	if ($procerror)
+		$instancehandle->SetErroProc($procerrorcontext,$xcderro$,$xctxerro$)
+	else
+		sort/e "GLB_MUNICIPIOSVC", "nm_municipio.glb_municipiosvc:a"
+		putlistitems/id poParams,cd_municipio.glb_municipiosvc,nm_municipio.glb_municipiosvc
+	endif
+	
+	return (0)
+End ; Operation ListMunicipio
+
+;-----------------------------
+;   Lista Tipos de Logradouros
+;-----------------------------
+Public Operation ListTpLogradouro 
+	
+	params
+		string  piParams  :IN
+		string  poParams  :OUT
+		numeric poCdErro  :OUT
+		string  poCtxerro :OUT   
+	endparams
+	
+	poCdErro = 0
+	poCtxerro = ""
+	
+	clear/e "GLB_TPLOGRADOSVC"
+	retrieve/e "GLB_TPLOGRADOSVC"
+	
+	if ($procerror)
+		$instancehandle->SetErroProc($procerrorcontext)
+	else
+		putlistitems/id poParams,cd_tplogradouro.glb_tplogradosvc,ds_tplogradouro.glb_tplogradosvc
+	endif
+	
+	return (0)
+End ; Operation ListTpLogradouro
+
+Public Operation ListGrupoEmpresa 
+	params
+		string  piParams  :IN
+		string  poParams  :OUT
+		numeric poCdErro  :OUT
+		string  poCtxerro :OUT   
+	endparams
+	
+	variables
+		numeric vCdPoolEmpresa
+	endvariables
+
+	vCdPoolEmpresa = $item("CD_POOLEMPRESA", $$gParamGlb)
+
+	poCdErro = 0
+	poCtxerro = ""
+
+	if (vCdPoolEmpresa > 0)
+		clear/e "GER_POOLGRUPOSVC"
+		CD_POOLEMPRESA.GER_POOLGRUPOSVC = vCdPoolEmpresa
+		retrieve/e "GER_POOLGRUPOSVC"
+		if ($procerror)
+			$instancehandle->SetErroProc($procerrorcontext,$xcderro$,$xctxerro$)
+		else
+			sort/e "GER_POOLGRUPOSVC", "NM_GRUPOEMPRESA.GER_POOLGRUPOSVC"
+			putlistitems/id poParams, CD_GRUPOEMPRESA.GER_POOLGRUPOSVC, NM_GRUPOEMPRESA.GER_POOLGRUPOSVC
+		endif
+	else
+		clear/e "GER_GRUPOEMPRSVC"
+		retrieve/e "GER_GRUPOEMPRSVC"
+		if ($procerror)
+			$instancehandle->SetErroProc($procerrorcontext,$xcderro$,$xctxerro$)
+		else
+			sort/e "GER_GRUPOEMPRSVC", "NM_GRUPOEMPRESA.GER_GRUPOEMPRSVC"
+			putlistitems/id poParams, CD_GRUPOEMPRESA.GER_GRUPOEMPRSVC, NM_GRUPOEMPRESA.GER_GRUPOEMPRSVC
+		endif
+	endif
+
+	return (0)
+End ; Operation ListGrupoEmpresa
+
+;----------------------------
+Public Operation ListEmpresa 
+;----------------------------
+	params
+		string  piGlobal  :IN
+		string  piParams  :IN
+		string  poParams  :OUT
+		numeric poCdErro  :OUT
+		string  poCtxerro :OUT   
+	endparams
+	
+	variables
+		numeric vCdGrupoEmpresa, vCdUsuario, vCdPoolEmpresa
+		string vDsComponente, vDsEmpresa, vDsGrupoEmpresa, vLstEmpresa, viParams, voParams
+		boolean vInPoolEmpresa
+	endvariables
+	
+	poCdErro = 0
+	poCtxerro = ""
+	
+	vCdGrupoEmpresa = $item("CD_GRUPOEMPRESA", piGlobal)
+	vCdUsuario = $item("CD_USUARIO", piGlobal)
+	vDsComponente = $item("DS_COMPONENTE", piParams)
+	vInPoolEmpresa = $item("IN_POOLEMPRESA", piParams) ; MFG 17/04/2006 Prj 41 / Trf 24
+	
+	clear/e "GER_EMPRESASVC"
+
+	activate "ADMSVCO006".GetPerfil(piGlobal, vCdUsuario, vDsComponente, "", vDsEmpresa, vDsGrupoEmpresa, $xCdErro$, $xCtxErro$)
+	if ($procerror)       
+		$instancehandle->SetErroProc($procerrorcontext,$xcderro$,$xctxerro$)
+	elseif ($xCtxErro$)
+		$instancehandle->SetErroApl($xCtxErro$,$xCdErro$,$xCtxErro$) 
+		return (-1)
+	endif
+
+	; MFG - 17/04/2006 Prj 41 / Trf 24
+	if (vInPoolEmpresa = <TRUE>)
+		vCdPoolEmpresa = $item("CD_POOLEMPRESA", piGlobal)
+		if (vCdPoolEmpresa > 0)				
+			vDsEmpresa = ""
+			clear/e "GER_POOLGRUPOSVC"
+			CD_POOLEMPRESA.GER_POOLGRUPOSVC/init = vCdPoolEmpresa
+			retrieve/e "GER_POOLGRUPOSVC"
+			if ($status >= 0)
+				setocc "GER_POOLGRUPOSVC", 1
+				while ($status >= 0)
+					clear/e "GER_EMPRESASVC"
+					CD_GRUPOEMPRESA.GER_EMPRESASVC/init = CD_GRUPOEMPRESA.GER_POOLGRUPOSVC
+					retrieve/e "GER_EMPRESASVC"
+					if ($status >= 0)
+						setocc "GER_EMPRESASVC", 1
+						while ($status >= 0)
+							vDsEmpresa = "%%vDsEmpresa%%CD_EMPRESA.GER_EMPRESASVC·;"
+							setocc "GER_EMPRESASVC", $curocc("GER_EMPRESASVC") + 1
+						endwhile
+					endif
+					setocc "GER_POOLGRUPOSVC", $curocc("GER_POOLGRUPOSVC") + 1
+				endwhile
+			endif
+			viParams = ""
+			putitem/id viParams, "CD_EMPRESA", vDsEmpresa
+			putitem/id viParams, "IN_CCUSTO" , <FALSE>
+			activate "SICSVCO004".validaEmpresa(piGlobal, viParams, voParams, $xCdErro$, $xCtxErro$)
+			if ($procerror)
+				$instancehandle->setStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+				return(-1)
+			endif
+			vDsEmpresa = $item("LST_EMPRESA", voParams)
+
+			clear/e "GER_EMPRESASVC"
+		endif
+	endif
+	;
+
+	CD_EMPRESA.GER_EMPRESASVC = vDsEmpresa
+	retrieve/e "GER_EMPRESASVC"
+	if ($procerror)
+		$instancehandle->SetErroProc($procerrorcontext,$xcderro$,$xctxerro$)
+	else
+		putlistitems/id poParams, CD_EMPRESA.GER_EMPRESASVC, DS_EMPRESA.GER_EMPRESASVC
+	endif
+	
+	return (0)
+End ; Operation ListEmpresa
+
+;---------------------------
+public operation getCdCCusto
+	;---------------------------
+	params
+		string  piGlobal    :IN    
+		string  piParams    :IN
+		string  poParams    :OUT
+		numeric poCdErro    :OUT
+		string  poCtxErro   :OUT
+	endparams
+	
+	variables
+		numeric vCdEmpresa, vCdCCusto
+	endvariables
+	
+	vCdEmpresa = $item("CD_EMPRESA", piParams)
+	vCdCCusto = 0
+	
+	if (vCdEmpresa != 0)
+		clear/e "GER_EMPRESASVC"
+		CD_EMPRESA.GER_EMPRESASVC = vCdEmpresa
+		retrieve/e "GER_EMPRESASVC"
+		if ($status >= 0)
+			vCdCCusto = CD_CCUSTO.GER_EMPRESASVC
+		endif    
+	endif
+	
+	poParams = ""
+	putitem/id poParams, "CD_CCUSTO", vCdCCusto
+	
+	return(0)
+end
+
+;----------------------------
+public operation ListPortador
+;----------------------------
+	params
+		string  piParams  :IN
+		string  poParams  :OUT
+		string  poCdErro  :OUT
+		string  poCtxerro :OUT   
+	endparams
+	
+	variables
+		numeric vTpPortador
+	endvariables
+	
+	poCdErro = ""
+	poCtxerro = ""
+	
+	vTpPortador = $item("TP_PORTADOR", piParams)
+
+	clear/e "FGR_PORTADORSVC"
+	TP_PORTADOR.FGR_PORTADORSVC/init = vTpPortador
+	retrieve/e "FGR_PORTADORSVC"
+    if ($status >= 0)
+		putlistitems/id poParams, NR_PORTADOR.FGR_PORTADORSVC, DS_PORTADOR.FGR_PORTADORSVC
+	endif
+	
+	return (0)
+end
+
+;----------------------------
+public operation ListHistRelSub
+;----------------------------
+	params
+		string  piParams  :IN
+		string  poParams  :OUT
+		string  poCdErro  :OUT
+		string  poCtxerro :OUT   
+	endparams
+	
+	variables
+		numeric vTpDocumento, vNrPortador, vCdCartao
+	endvariables
+
+	poParams = ""
+	vTpDocumento = $item("TP_DOCUMENTO", piParams)
+	vNrPortador  = $item("NR_PORTADOR", piParams)
+	vCdCartao    = $item("CD_CARTAO", piParams)	
+
+	if (vTpDocumento = 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Tipo documento não informado!", "ADICIONAL=Operação->GERSVCO007.ListHistRel")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif   
+
+	if (vCdCartao != 0)
+		clear/e "CTC_CARTAOSVC"
+		CD_CARTAO.CTC_CARTAOSVC/init = vCdCartao
+		retrieve/e "CTC_CARTAOSVC"
+		if ($status < 0)
+			$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Cartão %%vCdCartao inválido!", "ADICIONAL=Operação->GERSVCO007.ListHistRel")
+			poCdErro = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return(-1) 
+		endif
+	endif 
+	
+	clear/e "FCX_HISTRELSUSVC"
+	TP_DOCUMENTO.FCX_HISTRELSUSVC/init = vTpDocumento
+	NR_PORTADOR.FCX_HISTRELSUSVC/init = vNrPortador
+	retrieve/e "FCX_HISTRELSUSVC"
+	if ($status >= 0)
+		;---Elia Proj. 133/87 30/10/08
+		setocc "FCX_HISTRELSUSVC", 1
+		while ($status >= 0)
+			if (vCdCartao != 0)
+				clear/e "CTC_TPCARPARSVC"
+				TP_DOCUMENTO.CTC_TPCARPARSVC = vTpDocumento
+				NR_SEQHISTRELSUB.CTC_TPCARPARSVC = NR_SEQHISTRELSUB.FCX_HISTRELSUSVC
+				retrieve/e "CTC_TPCARPARSVC"
+				if ($status >= 0)
+					if (CD_TPCARTAO.CTC_CARTAOSVC = CD_TPCARTAO.CTC_TPCARPARSVC) 
+						putitem/id poParams, NR_SEQHISTRELSUB.FCX_HISTRELSUSVC, DS_HISTRELSUB.FCX_HISTRELSUSVC
+					endif
+				else
+					putitem/id poParams, NR_SEQHISTRELSUB.FCX_HISTRELSUSVC, DS_HISTRELSUB.FCX_HISTRELSUSVC
+				endif
+			else
+				;putlistitems/id poParams, NR_SEQHISTRELSUB.FCX_HISTRELSUSVC, DS_HISTRELSUB.FCX_HISTRELSUSVC
+				putitem/id poParams, NR_SEQHISTRELSUB.FCX_HISTRELSUSVC, DS_HISTRELSUB.FCX_HISTRELSUSVC
+			endif
+			setocc "FCX_HISTRELSUSVC", $curocc("FCX_HISTRELSUSVC") + 1
+		endwhile
+		;
+	endif
+	
+	return(0)
+end ; operation ListHistRelSub
+
+;------------------------------------
+;   Lista Tipos de Valor Produto
+;------------------------------------
+public operation listTipoValorProduto
+;------------------------------------
+	params
+		string  piGlobal  :IN
+		string  piParams  :IN
+		string  poParams  :OUT
+		numeric poCdErro  :OUT
+		string  poCtxerro :OUT   
+	endparams
+
+	variables
+		numeric vCdUsuario
+	endvariables
+	
+	vCdUsuario = $item("CD_USUARIO", piParams)
+	if (vCdUsuario = 0)
+		vCdUsuario = $item("CD_USUARIO", piGlobal)
+	endif
+	
+	poParams = ""
+
+	clear/e "PRD_USUTIPOVASVC"
+	CD_USUARIO.PRD_USUTIPOVASVC/init = vCdUsuario
+	retrieve/e "PRD_USUTIPOVASVC"
+	if ($status < 0) 
+		putitem/id poParams, "C", "Custo"
+		putitem/id poParams, "P", "Preço"
+	else
+		if (IN_CUSTO.PRD_USUTIPOVASVC = <TRUE>)
+			putitem/id poParams, "C", "Custo"
+		endif
+		
+		if (IN_PRECO.PRD_USUTIPOVASVC = <TRUE>)
+			putitem/id poParams, "P", "Preço"
+		endif
+	endif
+	
+	return (0)
+end
+
+;-------------------------------
+public operation listTipoClasPed
+;-------------------------------
+	params
+		string  piParams  : IN
+		string  poParams  : OUT
+		numeric poCdErro  : OUT
+		string  poCtxerro : OUT   
+	endparams
+	
+	variables
+		numeric vTpTipoClas
+	endvariables
+
+	vTpTipoclas = $item("TP_TIPOCLAS", piParams) ;MARTINEZ - PRJ/TAR 22/1978 - 22/11/2011
+
+	poCdErro = 0
+	poCtxerro = ""
+	
+	clear/e "PED_TIPOCLASSVC"
+	;MARTINEZ - PRJ/TAR 22/1978 - 22/11/2011
+	if (vTpTipoClas != "")
+		TP_TIPOCLAS.PED_TIPOCLASSVC/init = vTpTipoClas
+	endif
+	;
+	retrieve/e "PED_TIPOCLASSVC"
+	if ($procerror)
+		$instancehandle->SetErroProc($procerrorcontext)
+	else
+		putlistitems/id poParams,CD_TIPOCLAS.PED_TIPOCLASSVC,DS_TIPOCLAS.PED_TIPOCLASSVC
+	endif
+	
+	return (0)
+end
+
+;-------------------------------
+public operation listTipoClasCmp
+;-------------------------------
+	params
+		string  piParams  : IN
+		string  poParams  : OUT
+		numeric poCdErro  : OUT
+		string  poCtxerro : OUT   
+	endparams
+	
+	poCdErro = 0
+	poCtxerro = ""
+	
+	clear/e "CMP_TIPOCLASSVC"
+	retrieve/e "CMP_TIPOCLASSVC"
+	if ($procerror)
+		$instancehandle->SetErroProc($procerrorcontext)
+	else
+		putlistitems/id poParams,CD_TIPOCLAS.CMP_TIPOCLASSVC,DS_TIPOCLAS.CMP_TIPOCLASSVC
+	endif
+	
+	return (0)
+end
+
+;---Elia Proj. 102/399 19/09/08
+public operation listaNrNF
+;------------------------------
+
+	params
+		string  piGlobal    :IN    
+		string  piParams    :IN
+		string  poParams    :OUT
+		numeric poCdErro    :OUT
+		string  poCtxErro   :OUT
+	endparams
+
+	variables
+		string vCdSerie
+		numeric vCdEmpresa, vNrNF
+	endvariables
+	
+	vCdEmpresa = $item("CD_EMPRESA", piParams)
+	vCdSerie = $item("CD_SERIE", piParams)
+
+	vNrNf = ""
+
+	if (vCdEmpresa = 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Empresa não informada!", "ADICIONAL=Operação->GERSVCO007.listaNrNF")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+
+	if (vCdSerie = "")
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Série não informada!", "ADICIONAL=Operação->GERSVCO007.listaNrNF")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+
+	clear/e "GER_SERIESVC"
+	CD_SERIE.GER_SERIESVC/init = vCdSerie
+	retrieve/e "GER_SERIESVC"
+	if ($status >= 0)
+		clear/e "GER_NREMPSEQSVC"
+		CD_EMPRESA.GER_NREMPSEQSVC/init = vCdEmpresa
+		NM_ENTIDADE.GER_NREMPSEQSVC/init = "FIS_NF"
+		NM_ATRIBUTO.GER_NREMPSEQSVC/init = DS_SIGLA.GER_SERIESVC
+		retrieve/e "GER_NREMPSEQSVC"
+		if ($status >= 0)
+			vNrNf = NR_ATUAL.GER_NREMPSEQSVC
+		endif
+	else
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Série %%vCdSerie inválida!", "ADICIONAL=Operação->GERSVCO007.listaNrNF")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+
+	putitem/id poParams, "NR_NF", vNrNf
+
+	return (0)
+
+End ; operation listaNrNF
+
+;----------------------------------------
+;-- MAD [Proj/Tar.101/367] - 24/11/2008
+Public Operation ListTipoCor
+;----------------------------------------
+	
+	params
+		string  piParams  :IN
+		string  poParams  :OUT
+		numeric poCdErro  :OUT
+		string  poCtxerro :OUT   
+	endparams
+	
+	poCdErro = 0
+	poCtxerro = ""
+	
+	clear/e "PRD_GRUCORSVC"
+	retrieve/e "PRD_GRUCORSVC"
+	
+	if ($procerror)
+		$instancehandle->SetErroProc($procerrorcontext)
+	else
+		putlistitems/id poParams,CD_GRUPO.PRD_GRUCORSVC,DS_GRUPO.PRD_GRUCORSVC
+	endif
+	
+	return(0)
+
+End ; Operation ListTipoCor
+;;
+
+;>-- MAC - PRJ 136 TAR 59 - 30/11/09 ---------
+;   Lista Tipos de Classificacao de Pessoa
+;---------------------------------------------
+Public Operation ListTipoClasPes 
+	
+	params
+		string  piParams  :IN
+		string  poParams  :OUT
+		numeric poCdErro  :OUT
+		string  poCtxerro :OUT   
+	endparams
+	
+	poCdErro = 0
+	poCtxerro = ""
+	
+	clear/e "PES_TIPOCLASSVC"
+	retrieve/e "PES_TIPOCLASSVC"
+	
+	if ($procerror)
+		$instancehandle->SetErroProc($procerrorcontext)
+	else
+		putlistitems/id poParams,CD_TIPOCLAS.PES_TIPOCLASSVC,DS_TIPOCLAS.PES_TIPOCLASSVC
+	endif
+	
+	return (0)
+End ; Operation ListTipoClasPes
+
+
+;-------------------------------
+Public Operation ListTipoClasTra 
+	;-------------------------------	
+	;thamati 05/01/2010 [Proj. 0130 - Tar. 0871]		
+	params
+		string  piParams  :IN
+		string  poParams  :OUT
+		numeric poCdErro  :OUT
+		string  poCtxerro :OUT   
+	endparams		 
+
+	poCdErro = 0
+	poCtxerro = ""
+	
+	clear/e "TRA_TIPOCLASSVC"
+	TP_TIPOCLAS.TRA_TIPOCLASSVC/init = $item("TP_TIPOCLAS", piParams)
+	retrieve/e "TRA_TIPOCLASSVC"
+	
+	if ($procerror)
+		$instancehandle->SetErroProc($procerrorcontext)
+	else
+		putlistitems/id poParams,CD_TIPOCLAS.TRA_TIPOCLASSVC,DS_TIPOCLAS.TRA_TIPOCLASSVC
+	endif
+	
+	return (0)
+End ; OOperation ListTipoClasTra 
+
+#include <LIB_PADRAO>:DEF_TEMPLATE_SVC
+
+;--------------------------------------
+Public Operation ListaProdutoFinanceiro
+;--------------------------------------
+;      DIONE |179/0004| 13/12/10      -
+;--------------------------------------	
+	params
+		string  piParams  :IN
+		string  poParams  :OUT
+		numeric poCdErro  :OUT
+		string  poCtxerro :OUT   
+	endparams
+	
+	poCdErro = 0
+	poCtxerro = ""
+
+	clear/e "PRF_TIPOPRDFISVC"
+	retrieve/e "PRF_TIPOPRDFISVC"
+	if ($procerror)
+		$instancehandle->SetErroProc($procerrorcontext,$xcderro$,$xctxerro$)
+	else	
+		sort/e "PRF_TIPOPRDFISVC"	, "DS_TIPOPRDFIN.PRF_TIPOPRDFISVC"
+		putlistitems/id poParams, CD_TIPOPRDFIN.PRF_TIPOPRDFISVC, DS_TIPOPRDFIN.PRF_TIPOPRDFISVC
+	endif
+	
+	return (0)
+End ; Operation ListaProdutoFinanceiro

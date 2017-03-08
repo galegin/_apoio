@@ -1,0 +1,280 @@
+;------------------------
+entry preEDIT 
+	;------------------------
+
+	variables
+		string viParams, voParams
+	endvariables
+
+	$vlDocumento$ = $item("VL_DOCUMENTO", $xlpi$)
+	$nrPortador$ = $item("NR_PORTADOR", $xlpi$)
+	$nrSeqHistRelSub$ = $item("NR_SEQHISTRELSUB", $xlpi$)
+	$nrDocumento$ = $item("NR_DOCUMENTO", $xlpi$)
+	$tpArredondamento$ = $item("TP_ARREDONDAMENTO", $xlpi$)
+	$inDireto$ = $item("IN_DIRETO", $xlpi$)
+	$cdCartao$ = $item("CD_CARTAO", $xlpi$) ;---Elia Proj. 133/87 30/10/08
+	$inSimulador$ = $item("IN_SIMULADOR", $xlpi$)
+	
+	if ($vlDocumento$ = 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Valor não informado!", "")
+		exit(-1)
+	endif
+	
+	$instancehandle->carregarPortador()
+	if ($procerror)
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+	endif
+	
+	$instancehandle->valorPadrao()
+	if ($procerror)
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+	endif
+	
+	return(0)	
+End ; operation preEDIT
+
+;---------------------------------
+partner operation carregarPortador
+;---------------------------------
+	variables
+		string viParams, voParams
+	endvariables
+	
+	viParams = ""
+	putitem/id viParams, "TP_PORTADOR", 3	
+	activate "GERSVCO007".ListPortador(viParams, voParams, $xCdErro$, $xCtxErro$)
+	if ($procerror)       
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+		return(-1)
+	elseif ($status < 0)
+		$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")
+		return(-1)
+	endif
+	
+	$valrep(TP_PORTADOR.SIS_DUMMY) = voParams
+	
+	return(0)
+end ;CarregaPortador
+
+;---------------------------------
+partner operation carregarParcelas
+;---------------------------------
+	variables
+		string viParams, voParams
+	endvariables
+	
+	viParams = ""
+	putitem/id viParams, "TP_DOCUMENTO", 4
+	putitem/id viParams, "NR_PORTADOR", TP_PORTADOR.SIS_DUMMY
+	putitem/id viParams, "CD_CARTAO", $cdCartao$ ;---Elia Proj. 133/87 30/10/08
+	activate "GERSVCO007".ListHistRelSub(viParams, voParams, $xCdErro$, $xCtxErro$)
+	if ($procerror)       
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+		return(-1)
+	elseif ($status < 0)
+		$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")
+		return(-1)
+	endif
+	
+	$valrep(NR_SEQHISTRELSUB.SIS_DUMMY) = voParams
+	
+	return(0)
+end ;CarregarParcelas
+
+
+;----------------------------
+partner operation valorPadrao
+;----------------------------
+	variables
+		string viParams, voParams, vDsLstDocumento
+		numeric vNrDocumento
+	endvariables
+
+	if ($inDireto$ = <TRUE>)
+		if ($nrSeqHistRelSub$ = 0)
+			$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Sequência de cartão de crédito não informada!", "")
+			return(-1)
+		endif
+
+		if ($nrDocumento$ = 0)
+			$instancehandle->numerar()
+			if ($procerror)
+				$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+			endif
+		endif
+		
+		clear/e "FCX_HISTRELSUB"
+		TP_DOCUMENTO.FCX_HISTRELSUB/init = 4
+		NR_SEQHISTRELSUB.FCX_HISTRELSUB/init = $nrSeqHistRelSub$
+		retrieve/e "FCX_HISTRELSUB"
+		if ($status < 0)
+			$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Sequência de cartão de crédito %%$nrSeqHistRelSub$ não cadastrada!", "")
+			return(-1)
+		endif
+		
+		$nrPortador$ = NR_PORTADOR.FCX_HISTRELSUB
+		fieldsyntax TP_PORTADOR.SIS_DUMMY, "DIM"
+		fieldsyntax NR_SEQHISTRELSUB.SIS_DUMMY, "DIM"
+	endif
+
+	VL_DOCUMENTO.SIS_DUMMY/init = $vlDocumento$
+	TP_PORTADOR.SIS_DUMMY/init = $nrPortador$
+	$instancehandle->carregarParcelas()
+	if ($procerror)
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+	endif
+	
+	NR_SEQHISTRELSUB.SIS_DUMMY/init = $nrSeqHistRelSub$
+	NR_DOCUMENTO.SIS_DUMMY/init = $nrDocumento$
+	
+	if ($inSimulador$ = <TRUE>)
+		fieldsyntax VL_DOCUMENTO.SIS_DUMMY, ""
+		
+		$nrParcela$ = 0
+		if ($nrSeqHistRelSub$ != 0)
+			clear/e "FCX_HISTRELSUB"
+			TP_DOCUMENTO.FCX_HISTRELSUB/init = 4
+			NR_SEQHISTRELSUB.FCX_HISTRELSUB/init = $nrSeqHistRelSub$
+			retrieve/e "FCX_HISTRELSUB"
+			if ($status >= 0)
+				$nrParcela$ = NR_PARCELAS.FCX_HISTRELSUB
+			endif
+		endif
+	else
+		fieldsyntax VL_DOCUMENTO.SIS_DUMMY, "DIM"
+	endif
+	
+	$prompt = NR_DOCUMENTO.SIS_DUMMY
+	
+	return(0)
+end
+
+;----------------------------
+partner operation geraParcela
+;----------------------------
+	variables
+		string vDsRegistro, viParams, voParams, listaVencimento, lstVencto
+		numeric vNrIndice, vVlCalc, vVlParcela, vVlResto
+	endvariables
+	
+	clear/e "FCX_HISTRELSUB"
+	TP_DOCUMENTO.FCX_HISTRELSUB/init = 4
+	NR_SEQHISTRELSUB.FCX_HISTRELSUB/init = NR_SEQHISTRELSUB.SIS_DUMMY
+	retrieve/e "FCX_HISTRELSUB"
+	if ($status < 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Sequência cartão %%NR_SEQHISTRELSUB.SIS_DUMMY não cadastrada!", "")
+		return(-1)
+	endif
+	
+	if (NR_PARCELAS.FCX_HISTRELSUB = 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Sequência cartão %%NR_SEQHISTRELSUB.SIS_DUMMY sem nr. de parcelas cadastrado!", "")
+		return(-1)
+	endif
+	
+	if ($inSimulador$ = <TRUE>) & ($nrParcela$ != 0) & ($nrParcela$ != NR_PARCELAS.FCX_HISTRELSUB)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Sequência cartão %%NR_SEQHISTRELSUB.SIS_DUMMY com %%NR_PARCELAS.FCX_HISTRELSUB parcela(s) cadastrada.%%^%%%Diferente de %%$nrParcela$ parcela(s) do simulador!", "")
+		return(-1)
+	endif
+	
+	if ($inSimulador$ = <TRUE>) & (VL_DOCUMENTO.SIS_DUMMY <= 0 | VL_DOCUMENTO.SIS_DUMMY > $vlDocumento$)
+		message/info "O valor do documento deve ser maior que 0 (zero) e menor ou igual a %%$vlDocumento$%%%!"
+		$prompt = VL_DOCUMENTO.SIS_DUMMY
+		return(-1)
+	endif
+	
+	$dsLstParcela$ = ""
+	clear/e "SIS_PARCELAMENTO"
+
+	vVlCalc = VL_DOCUMENTO.SIS_DUMMY / NR_PARCELAS.FCX_HISTRELSUB
+	vVlParcela = vVlCalc[round, 2]
+	vVlResto = VL_DOCUMENTO.SIS_DUMMY
+	
+	vNrIndice = 1
+	repeat
+		creocc "SIS_PARCELAMENTO", -1
+		NR_PARCELA.SIS_PARCELAMENTO/init = vNrIndice
+		VL_PARCELA.SIS_PARCELAMENTO/init = vVlParcela
+		DT_VENCIMENTO.SIS_PARCELAMENTO/init = $item("DT_SISTEMA", $$gParamGlb)
+		vVlResto = vVlResto - vVlParcela
+		vNrIndice = vNrIndice + 1
+	until (vNrIndice > NR_PARCELAS.FCX_HISTRELSUB)
+	
+	;==BY BIANCHINI[PRJ/TAREFA 180/0300] 16/11/2011==;
+	;setocc "SIS_PARCELAMENTO", -1
+	setocc "SIS_PARCELAMENTO", 1
+	;==
+	VL_PARCELA.SIS_PARCELAMENTO/init = VL_PARCELA.SIS_PARCELAMENTO + vVlResto
+	
+	if ($empty("SIS_PARCELAMENTO") = 0)
+		setocc "SIS_PARCELAMENTO", 1            
+		while ($status >= 0)
+			putlistitems/occ vDsRegistro, "SIS_PARCELAMENTO"
+			putitem $dsLstParcela$, -1, vDsRegistro
+			setocc "SIS_PARCELAMENTO", $curocc("SIS_PARCELAMENTO") + 1
+		endwhile
+	endif
+	
+	return(0)	
+end
+
+;------------------------
+partner operation numerar
+;------------------------	
+	variables
+		numeric vNrFat
+		date vDtSistema
+		string viParams,voParams
+	endvariables
+	
+	viParams = ""
+	putitem/id viParams, "NM_ENTIDADE", "FCR_FATURAI"
+	activate "GERSVCO031".getNumSeq($xlpg$, viParams, voParams, $xCdErro$, $xCtxerro$)
+	if ($procerror)
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+		return(-1)  
+	elseif ($status < 0)
+		$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")
+		return(-1)  
+	endif    
+	
+	$nrDocumento$ = $item("NR_SEQUENCIA", voParams)
+	
+	return(0)
+end
+
+operation validaCampos
+
+if (NR_DOCUMENTO.SIS_DUMMY = 0)
+	$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Documento não informado!", "")
+	return(-1)
+endif
+
+if (TP_PORTADOR.SIS_DUMMY = 0)
+	$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Operadora não informada!", "")
+	return(-1)
+endif
+
+if (NR_SEQHISTRELSUB.SIS_DUMMY = 0)
+	$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Parcelamento não informado!", "")
+	return(-1)
+endif
+
+$instancehandle->geraParcela()
+if ($procerror)
+	$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+endif
+
+if ($status < 0)
+	return(-1)
+endif
+
+$xlpo$ = ""
+putitem/id $xlpo$, "DS_LSTPARCELA", $dsLstParcela$
+putitem/id $xlpo$, "NR_PORTADOR", TP_PORTADOR.SIS_DUMMY
+putitem/id $xlpo$, "NR_SEQHISTRELSUB", NR_SEQHISTRELSUB.SIS_DUMMY
+putitem/id $xlpo$, "NR_DOCUMENTO", NR_DOCUMENTO.SIS_DUMMY
+;Projeto 078 - Tarefa 2397 - Aloisio Gargantini - 22/06/2009
+putitem/id $xlpo$, "CD_AUTORIZACAO", NR_AUTORIZACAO.SIS_DUMMY
+putitem/id $xlpo$, "NR_PARCELAS", NR_PARCELAS.FCX_HISTRELSUB
+;
+exit(0)

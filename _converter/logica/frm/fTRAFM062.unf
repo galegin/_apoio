@@ -1,0 +1,449 @@
+;-------------------------
+entry preCLEAR 
+	;-------------------------
+	variables
+		String viParams, voParams, vDsDescMax
+	endvariables
+
+	clear/e "SIS_DESCONTOS"
+
+	$instancehandle->valorPadrao()
+	if ($procerror)
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+	endif
+
+	;--->MNT - Prj 156/0170 - 05/02/2010
+	vDsDescMax = ""
+	vDsDescMax	 = $lowercase($descricaoDescMax$)	
+	$instancehandle->convPriLetraMaiuscula($descricaoDescMax$,voParams)
+	If ($procerror)
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+	endif	
+	DS_DESCMAX.SIS_DESCONTOS = voParams
+	;<---
+
+	$prompt = PR_DESCONTO.SIS_DESCONTOS
+
+	return(-1)
+End ; operation preCLEAR
+
+;-------------------------
+entry posCLEAR 
+	;-------------------------
+	variables
+		String viParams, voParams, vDsDescMax
+	endvariables
+	
+	$prompt = PR_DESCONTO.SIS_DESCONTOS
+
+	;>-- MAC - PRJ 102 TAR 789 - 03/02/2010 ---
+	$instancehandle->calculaPercDescontoMaximo()
+	if ($procerror)
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+	endif
+	;--<
+
+	;--->MNT - Prj 156/0170 - 05/02/2010
+	vDsDescMax = ""
+	vDsDescMax	 = $lowercase($descricaoDescMax$)	
+	$instancehandle->convPriLetraMaiuscula($descricaoDescMax$,voParams)
+	If ($procerror)
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+	endif	
+	DS_DESCMAX.SIS_DESCONTOS = voParams
+	;<---
+	
+	return(0)
+End ; operation posCLEAR
+
+;------------------------
+entry preEDIT 
+;------------------------ 
+	variables
+		string  viParams, voParams, vDsDescMax
+		numeric vCdEmpresa, vCdEmpTra, vNrTransacao
+		date    vDtTransacao
+	endvariables
+	
+	$inArredondaPreco$ = $item("IN_ARREDONDAPRECO",$xlpi$)
+	$inAlteraVlLiquido$ = $item("IN_ALTERAVLLIQUIDO",$xlpi$)
+	$vlTotBruto$ = $item("VL_TOTALBRUTO",$xlpi$)
+	$vlBaseDesc$ = $item("VL_BASEDESC",$xlpi$)
+	$prDescMax$ = $item("PR_DESCMAXIMO",$xlpi$)
+	$prDesconto$ = $item("PR_DESCONTO",$xlpi$)
+	$vlDesconto$ = $item("VL_DESCONTO",$xlpi$)
+	$cdOperacao$ = $item("CD_OPERACAO",$xlpi$)	
+	$cdCliente$ = $item("CD_PESSOA", $xlpi$)
+	$vlBonus$ = $item("VL_BONUS", $xlpi$) ;---Elia Proj. 102/538 12/05/09
+	vCdEmpresa = $item("CD_EMPRESA", $$gParamGlb)
+
+	;>-- MAC - PRJ 102 TAR 789 - 03/02/2010 ---
+	$instancehandle->calculaPercDescontoMaximo()
+	if ($procerror)
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+	endif
+	;--<
+	
+	;--->MNT - Prj 156/0170 - 05/02/2010
+	vDsDescMax	 = $lowercase($descricaoDescMax$)	
+	$instancehandle->convPriLetraMaiuscula($descricaoDescMax$,voParams)
+	If ($procerror)
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+	endif	
+	DS_DESCMAX.SIS_DESCONTOS = voParams
+	;<---
+	
+;	if ($prDescMax$ = 0)
+;		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Desconto máximo não informado!", "")
+;		exit(-1)
+;	endif       
+
+	if ($prDescMax$ > 100)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Desconto máximo maior que 100%!", "")
+		exit(-1)
+	endif       
+
+	if ($vlBaseDesc$ = 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Valor base para cálculo não informado!", "")
+		exit(-1)
+	endif
+
+	$instancehandle->valorPadrao()
+	if ($procerror)
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+	endif
+
+	return(0)
+End ; operation preEDIT
+
+;---------------------
+partner operation INIT 
+	;---------------------
+	;;Parametros por empresa
+	$xlplemp$ = ""
+	putitem $xlplemp$, -1, "IN_UTILIZA_DESC_MAX_CLI"
+	putitem $xlplemp$, -1, "TP_LIMITE_DESCONTO" ;<ANO Pjt102 Trf784 - 21/01/2010>
+	putitem $xlplemp$, -1, "DESCRICAO_DESC_MAX";--->MNT - Prj 156/0170 05/02/2010
+	putitem $xlplemp$, -1, "IN_UTILIZA_BIOMETRIA_FAT";-=CANONICO=- (08/03/2010) TAR 803 PRJ 102	
+	activate "ADMSVCO001".GetParamEmpresa($item("CD_EMPRESA", $$gParamGlb), $xlplemp$, $xlplemp$, $xcderro$, $xctxerro$)
+	if ($procerror)
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+	elseif ($xcdErro$)
+		$instancehandle->SetErroApl($xCtxErro$, $xCdErro$, $xCtxErro$)
+	endif
+	
+	$descricaoDescMax$ = $item("DESCRICAO_DESC_MAX", $xlplemp$);--->MNT - Prj 156/0170 05/02/2010
+	$inUtilizaDescCli$ = $item("IN_UTILIZA_DESC_MAX_CLI", $xlplemp$)
+	$tpLimiteDesconto$ = $item("TP_LIMITE_DESCONTO", $xlplemp$) ;<ANO Pjt102 Trf784 - 21/01/2010>
+	$inUtilizaBiometria$ = $item("IN_UTILIZA_BIOMETRIA_FAT", $xlplEmp$) ;-=CANONICO=- (08/03/2010) TAR 803 PRJ 102	
+	
+	$formtitle = "%%$componentname - Manutenção de Desconto Geral"
+End ; operation INIT
+
+;----------------------------
+partner operation valorPadrao
+	;----------------------------
+	PR_DESCMAX.SIS_DESCONTOS/init  = $prDescMax$
+	VL_TOTBRUTO.SIS_DESCONTOS/init = $vlTotBruto$
+	VL_BASEDESC.SIS_DESCONTOS/init = $vlBaseDesc$
+	VL_DESCONTO.SIS_DESCONTOS/init = $vlDesconto$
+	PR_DESCONTO.SIS_DESCONTOS/init = $prDesconto$
+	$cdUsuarioDesc$ = ""
+	
+	;    if (VL_DESCONTO.SIS_DESCONTOS != 0) | (PR_DESCONTO.SIS_DESCONTOS != 0)
+	$instancehandle->calculaDesconto()
+	if ($procerror)
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+	endif
+
+	if ($inUtilizaDescCli$ = <TRUE>) & ($cdCliente$ > 0) | ($tpLimiteDesconto$ = 1)
+		fieldsyntax BT_NIVELDESCONTO.SIS_DESCONTOS, "DIM"
+	else
+		if ($cdOperacao$ = 0)
+			fieldsyntax BT_NIVELDESCONTO.SIS_DESCONTOS, "DIM"
+		else
+			fieldsyntax BT_NIVELDESCONTO.SIS_DESCONTOS, ""
+		endif
+	endif
+	
+	return(0)
+end
+
+;---------------------------------
+partner operation alteraDescMaximo
+	;---------------------------------
+	variables
+		string viParams, voParams
+	endvariables
+	
+	viParams = ""
+	putitem/id viParams, "IN_USULOGADO", <TRUE>
+	putitem/id viParams, "DS_COMPONENTE", "TRAFM062"
+	putitem/id viParams, "IN_UTILIZA_BIOMETRIA", $InUtilizaBiometria$
+	activate "ADMFM020".exec(viParams, voParams, $xCdErro$, $xCtxerro$)
+	if ($procerror)  
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")     
+		return (-1)
+	endif
+	if ($status < 0)
+		return (-1)
+	endif
+	
+	$cdUsuarioDesc$ = $item("CD_USUARIO", voParams)
+	
+	clear/e "TRA_LIMDESCONTO"
+	CD_OPERACAO.TRA_LIMDESCONTO/init = $cdOperacao$
+	CD_USUARIO.TRA_LIMDESCONTO/init = $cdUsuarioDesc$
+	retrieve/e "TRA_LIMDESCONTO"
+	if ($status >= 0)
+		$prDescMax$ = PR_DESCMAX.TRA_LIMDESCONTO
+		PR_DESCMAX.SIS_DESCONTOS = PR_DESCMAX.TRA_LIMDESCONTO
+	else
+		$prDescMax$ = 0
+		PR_DESCMAX.SIS_DESCONTOS = 0
+		clear/e "TRA_LIMDESCONTO"
+	endif
+	
+	return(0)
+end
+
+;--------------------------------
+partner operation calculaDesconto
+;--------------------------------
+	variables
+		numeric vCalc
+		string  viParams,voParams
+		boolean vInBloqueio
+	endvariables
+	
+	vCalc = (VL_BASEDESC.SIS_DESCONTOS * PR_DESCONTO.SIS_DESCONTOS / 100)
+	VL_TOTALDES.SIS_DESCONTOS = vCalc[Round, 2]
+	VL_TOTALDES.SIS_DESCONTOS = VL_TOTALDES.SIS_DESCONTOS + VL_DESCONTO.SIS_DESCONTOS
+	vCalc = VL_TOTALDES.SIS_DESCONTOS / VL_BASEDESC.SIS_DESCONTOS * 100
+	PR_TOTALDES.SIS_DESCONTOS = vCalc[Round, 6]
+	
+	VL_TOTLIQ.SIS_DESCONTOS = VL_BASEDESC.SIS_DESCONTOS - (VL_TOTALDES.SIS_DESCONTOS + $vlBonus$)
+	if ($inArredondaPreco$ = 1)
+		viParams = ""
+		putitem/id viParams, "VL_PRECO", VL_TOTLIQ.SIS_DESCONTOS
+		activate "PRDSVCO007".arredondaPreco($$gParamGlb, viParams, voParams, $xCdErro$, $xCtxerro$)
+		if ($procerror)       
+			$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+			return(-1)
+		elseif ($status < 0)
+			$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")
+			return(-1)
+		endif
+		VL_TOTLIQ.SIS_DESCONTOS = $item("VL_PRECO", voParams)
+		vCalc = ((1 - (VL_TOTLIQ.SIS_DESCONTOS / VL_BASEDESC.SIS_DESCONTOS)) * 100)
+		PR_TOTALDES.SIS_DESCONTOS = vCalc [Round, 6]
+		VL_TOTALDES.SIS_DESCONTOS = (VL_BASEDESC.SIS_DESCONTOS - VL_TOTLIQ.SIS_DESCONTOS)
+	endif
+
+;	if (PR_TOTALDES.SIS_DESCONTOS > PR_DESCMAX.SIS_DESCONTOS)
+;		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Valor maior que o desconto máximo!", "")
+;		macro "^CLEAR"
+;	endif
+	
+	return (0)
+end
+
+;>-- MAC - PRJ 102 TAR 789 - 03/02/2010 ---
+partner operation calculaPercDescontoMaximo
+;------------------------------------------
+
+	variables
+		string  viParams, voParams
+		numeric vCdEmpresa, vCdEmpTra, vNrTransacao
+		date    vDtTransacao
+		boolean vInAchou
+	endvariables		
+
+	vCdEmpresa = $item("CD_EMPRESA", $$gParamGlb)
+
+	if ($prDescMax$ > 0)
+		; Quando receber o Percentual de desconto maximo mante-lo
+	elseif ($cdCliente$ > 0) & (($inUtilizaDescCli$ = <TRUE>) | ($tpLimiteDesconto$ = 3)) ;Verifica desconto máximo por Cliente(PESFM010)
+		clear/e "PES_EMPCLIDESC"
+		CD_EMPRESA.PES_EMPCLIDESC/init = vCdEmpresa
+		CD_CLIENTE.PES_EMPCLIDESC/init = $cdCliente$
+		retrieve/e "PES_EMPCLIDESC"
+		if ($status >= 0)
+			$prDescMaxCli$ = PR_DESCMAX.PES_EMPCLIDESC
+			$prDescMax$ = PR_DESCMAX.PES_EMPCLIDESC
+		else
+			$prDescMax$ = 0
+		endif
+	elseif($tpLimiteDesconto$ = 0) ;Limite por Usuário/Operação(TRAFL008)
+		$cdUsuarioDesc$ = $item("CD_USUARIO", $$gParamGlb)
+
+		clear/e "TRA_LIMDESCONTO"
+		CD_OPERACAO.TRA_LIMDESCONTO/init = $cdOperacao$
+		CD_USUARIO.TRA_LIMDESCONTO/init = $cdUsuarioDesc$
+		retrieve/e "TRA_LIMDESCONTO"
+		if ($status >= 0)
+			$prDescMax$ = PR_DESCMAX.TRA_LIMDESCONTO
+			PR_DESCMAX.SIS_DESCONTOS = PR_DESCMAX.TRA_LIMDESCONTO
+		else
+			$prDescMax$ = 0
+			PR_DESCMAX.SIS_DESCONTOS = 0
+			clear/e "TRA_LIMDESCONTO"
+		endif
+	elseif($tpLimiteDesconto$ = 1 | $tpLimiteDesconto$ = 2 | $tpLimiteDesconto$ = 4)
+		;1 - Limite de desconto de acordo com o Guia e Cliente(PESFP036)
+		;2 - Limite de desconto por Usuário/Opração e Prazo médio(TRAFL008 - Tabela prazo médio)
+		;3 - Limite desconto cliente/guia - PESFP037
+		vCdEmpTra   = $item("CD_EMPTRA"   , $xlpi$)
+		vDtTransacao= $item("DT_TRANSACAO", $xlpi$)
+		vNrTransacao= $item("NR_TRANSACAO", $xlpi$)
+
+		if(vCdEmpTra = 0) | (vDtTransacao = 0) | (vNrTransacao = 0)
+			message/info "Dados da transação não informado!"
+			exit(-1)
+		endif
+
+		viParams = ""
+		putitem/id viParams, "CD_EMPRESA"  , vCdEmpTra
+		putitem/id viParams, "DT_TRANSACAO", vDtTransacao
+		putitem/id viParams, "NR_TRANSACAO", vNrTransacao
+		activate "GERSVCO110".validaLimiteDesconto($$gParamGlb, viParams, voParams, $xCdErro$, $xCtxErro$)
+		if ($procerror)
+			$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+			return(-1)
+		elseif ($status < 0)
+			$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")
+			return(-1)
+		endif
+		$prDescMax$ = $item("PR_DESCONTOMAX", voParams)		
+	;-- MSOUZA (03/11/2011) [PRJ 191/TAR 13]
+	elseif($tpLimiteDesconto$ = 5)
+		vInAchou = <FALSE>
+
+		clear/e "PES_CLIADIC"
+		CD_CLIENTE.PES_CLIADIC/init = $cdCliente$
+		retrieve/e "PES_CLIADIC"
+		if($status >= 0)
+
+			if(CD_TABDESC.PES_CLIADIC != "")
+				clear/e "PES_TABDESC"
+				CD_TABDESC.PES_TABDESC/init = CD_TABDESC.PES_CLIADIC				
+				retrieve/e "PES_TABDESC"
+				if($status >= 0)
+					$descricaoDescMax$ = "Tab. desconto"
+					$prDescMax$ = PR_TABDESC.PES_TABDESC
+					vInAchou = <TRUE>
+				endif
+			endif
+		endif
+	;-- MSOUZA (13/01/2012) [PRJ 191/TAR 26]		
+		if(vInAchou = <FALSE>)
+			$cdUsuarioDesc$ = $item("CD_USUARIO", $$gParamGlb)
+		
+			clear/e "TRA_LIMDESCONTO"
+			CD_OPERACAO.TRA_LIMDESCONTO/init = $cdOperacao$
+			CD_USUARIO.TRA_LIMDESCONTO/init = $cdUsuarioDesc$
+			retrieve/e "TRA_LIMDESCONTO"
+			if ($status >= 0)
+				$prDescMax$ = PR_DESCMAX.TRA_LIMDESCONTO
+				PR_DESCMAX.SIS_DESCONTOS = PR_DESCMAX.TRA_LIMDESCONTO
+			else
+				$prDescMax$ = 0
+				PR_DESCMAX.SIS_DESCONTOS = 0
+				clear/e "TRA_LIMDESCONTO"
+			endif
+		endif
+
+	endif
+	;--
+	return(0)
+End; operation calculaPercDescontoMaximo
+
+;--------------------------------
+partner operation convPriLetraMaiuscula
+;--------------------------------
+;--->MNT - Prj 156/0170 - 05/02/2010
+	params
+		string viParams :IN
+		string voParams :OUT
+	endparams
+	variables
+		string vDescricao, vPriLetra, vPriLetraM
+	endvariables
+	lowercase viParams, vDescricao
+	vPriLetra = vDescricao[1,1]
+	uppercase vPriLetra, vPriLetraM
+	voParams = $replace(vDescricao, 1, vPriLetra, vPriLetraM)
+;<---
+	return(0)
+end ;convPriLetraMaiuscula
+
+if (PR_TOTALDES.SIS_DESCONTOS < 0)
+	$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Desconto não pode ser negativo!", "")
+	return(-1)
+endif
+
+;--------------------------------
+partner operation confirmar
+;--------------------------------
+
+if (PR_TOTALDES.SIS_DESCONTOS > PR_DESCMAX.SIS_DESCONTOS)
+	if ($inUtilizaDescCli$ = <TRUE>) & ($cdCliente$ > 0)
+		if (PR_TOTALDES.SIS_DESCONTOS > $prDescMaxCli$)
+			$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Valor maior que o desconto máximo permitido para o cliente!", "")
+			return(-1)
+		else
+			if ($cdOperacao$ = 0)
+				$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Valor maior que o desconto máximo permitido para o cliente!", "")
+				return(-1)
+			else
+				$instancehandle->alteraDescMaximo()
+				if ($procerror)
+					$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+					return(-1)
+				endif
+				if ($status < 0)
+					return(-1)
+				endif
+				if (PR_DESCMAX.SIS_DESCONTOS > $prDescMaxCli$)
+					PR_DESCMAX.SIS_DESCONTOS = $prDescMaxCli$
+				endif
+				
+				if (PR_TOTALDES.SIS_DESCONTOS > PR_DESCMAX.SIS_DESCONTOS)
+					$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Valor maior que o desconto máximo permitido para o cliente!", "")
+					return(-1)
+				endif
+			endif
+		endif
+	else
+		if ($cdOperacao$ = 0)
+			$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Valor maior que o desconto máximo!", "")
+			return(-1)
+		else
+			$instancehandle->alteraDescMaximo()
+			if ($procerror)
+				$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+				return(-1)
+			endif
+			if ($status < 0)
+				return(-1)
+			endif
+			if (PR_TOTALDES.SIS_DESCONTOS > PR_DESCMAX.SIS_DESCONTOS)
+				$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Valor maior que o desconto máximo!", "")
+				return(-1)
+			endif
+		endif
+	endif
+endif
+
+$xlpo$ = ""
+putitem/id $xlpo$, "PR_DESCONTO", PR_DESCONTO.SIS_DESCONTOS
+putitem/id $xlpo$, "VL_DESCONTO", VL_DESCONTO.SIS_DESCONTOS
+putitem/id $xlpo$, "PR_TOTALDESC", PR_TOTALDES.SIS_DESCONTOS
+putitem/id $xlpo$, "VL_TOTALDESC", VL_TOTALDES.SIS_DESCONTOS
+putitem/id $xlpo$, "VL_TOTALLIQUIDO", VL_TOTLIQ.SIS_DESCONTOS
+putitem/id $xlpo$, "CD_USUARIODESC", $cdUsuarioDesc$
+putitem/id $xlpo$, "PR_DESCMAXIMO", PR_DESCMAX.SIS_DESCONTOS ;thamati 12/05/2010 [Proj. 0156 - Tar. 0305]
+
+exit(0)
+
+end;

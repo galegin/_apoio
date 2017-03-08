@@ -1,0 +1,103 @@
+;-----------------------------
+public operation validaHistRel
+;-----------------------------
+
+	params
+		string  $xlpg$      :IN    
+		string  piParams    :IN
+		string  poParams    :OUT
+		string  poCdErro    :OUT
+		string  poCtxErro   :OUT
+	endparams
+
+	variables
+		numeric vCdEmpresa, vCdUsuario, vTpDocumento, vCdPessoa
+		boolean inValido, vInTotalizador, vInFaturamento, vInRecebimento
+	endvariables	
+
+	vInTotalizador = $item("IN_TOTALIZADOR", piParams)
+	vInFaturamento = $item("IN_FATURAMENTO", piParams)
+	vInRecebimento = $item("IN_RECEBIMENTO", piParams)
+
+	vCdEmpresa   = $item("CD_EMPRESA", piParams)
+	if (vCdEmpresa = 0)
+		vCdEmpresa = $item("CD_EMPRESA", $xlpg$)
+	endif
+
+	vCdUsuario   = $item("CD_USUARIO", piParams)
+	if (vCdUsuario = 0)
+		vCdUsuario = $item("CD_USUARIO", $xlpg$)
+	endif
+
+	vCdPessoa   = $item("CD_PESSOA", piParams)
+
+	vTpDocumento = $item("TP_DOCUMENTO", piParams)
+	if (vTpDocumento = 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Tipo de documento não informado!", "ADICIONAL=Operação->FCXSVCO005.validaHistRel")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+
+	inValido = <TRUE>
+
+	if (vCdPessoa != 0)
+		clear/e "PES_CLIENTEFPSVC"
+		CD_CLIENTE.PES_CLIENTEFPSVC/init = vCdPessoa
+		retrieve/e "PES_CLIENTEFPSVC"
+		if ($status >= 0)
+			clear/e "PES_CLIENTEFPSVC"
+			CD_CLIENTE.PES_CLIENTEFPSVC/init = vCdPessoa
+			TP_DOCUMENTO.PES_CLIENTEFPSVC/init = vTpDocumento
+			retrieve/e "PES_CLIENTEFPSVC"
+			if ($status < 0)
+				inValido = <FALSE>
+				putitem/id poParams, "IN_VALIDO", inValido
+				return (0)
+			endif
+		endif
+	endif
+
+	;---Verifica historico por usuario
+	clear/e "FCX_HISTRELUSSVC"
+	CD_USUARIO.FCX_HISTRELUSSVC/init = vCdUsuario
+	retrieve/e "FCX_HISTRELUSSVC"
+	if ($status >= 0)
+		clear/e "FCX_HISTRELUSSVC"
+		CD_USUARIO.FCX_HISTRELUSSVC/init = vCdUsuario
+		TP_DOCUMENTO.FCX_HISTRELUSSVC/init = vTpDocumento
+		IN_TOTALIZADOR.FCX_HISTRELUSSVC/init = vInTotalizador
+		IN_FATURAMENTO.FCX_HISTRELUSSVC/init = vInFaturamento
+		IN_RECEBIMENTO.FCX_HISTRELUSSVC/init = vInRecebimento
+		retrieve/e "FCX_HISTRELUSSVC"
+		if ($status < 0)
+			inValido = <FALSE>
+			putitem/id poParams, "IN_VALIDO", inValido
+			return (0)
+		endif
+	endif
+
+	;---Verifica historico por empresa
+	clear/e "FCX_HISTRELEMSVC"
+	CD_EMPRESA.FCX_HISTRELEMSVC/init = vCdEmpresa
+	retrieve/e "FCX_HISTRELEMSVC"
+	if ($status >= 0)
+		clear/e "FCX_HISTRELEMSVC"
+		CD_EMPRESA.FCX_HISTRELEMSVC/init = vCdEmpresa
+		TP_DOCUMENTO.FCX_HISTRELEMSVC/init = vTpDocumento
+		IN_TOTALIZADOR.FCX_HISTRELEMSVC/init = vInTotalizador
+		IN_FATURAMENTO.FCX_HISTRELEMSVC/init = vInFaturamento
+		IN_RECEBIMENTO.FCX_HISTRELEMSVC/init = vInRecebimento
+		retrieve/e "FCX_HISTRELEMSVC"
+		if ($status < 0)
+			inValido = <FALSE>
+			putitem/id poParams, "IN_VALIDO", inValido
+			return (0)
+		endif
+	endif
+
+	putitem/id poParams, "IN_VALIDO", inValido
+
+	return (0)
+
+End ; operation listaHistRel

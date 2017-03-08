@@ -1,0 +1,663 @@
+;LSC - 07/12/2006 - ESTE SERVICO NAO POSSUIA UMA INIT, FOI ADICIONADA
+public operation INIT
+;--------------------
+	;LSC (07/12/2006) - Projeto: 71 Tarefa: 73 - Verifica parametros Corporativos, extrair IN_USA_COND_PGTO_ESPECIAL
+	$xlpl$ = ""
+	putitem $xlpl$, -1, "IN_USA_COND_PGTO_ESPECIAL"
+	activate "ADMSVCO001".GetLstParametro($xlpl$, $xlpl$, $xcderro$, $xctxerro$)
+	if ($procerror)
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+	elseif ($xcdErro$)
+		$instancehandle->SetErroApl($xCtxErro$, $xCdErro$, $xCtxErro$)
+	endif
+	$UsaCondPgtoEspecial$ = $item("IN_USA_COND_PGTO_ESPECIAL",$xlpl$)
+
+	;Luiz Carlos Paulek - Projeto 94 - Tarefa 79 - Se parametro "IN_PARCELAMINIMA" = <TRUE> = Pedido de Venda
+
+	putitem $xlplemp$, -1, "VL_MINIMO_PARCELA"
+	activate "ADMSVCO001".GetParamEmpresa($item("CD_EMPRESA", $$gParamGlb), $xlplemp$, $xlplemp$, $xcderro$, $xctxerro$)
+	if ($procerror)
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+	elseif ($xcdErro$)
+		$instancehandle->SetErroApl($xCtxErro$, $xCdErro$, $xCtxErro$)
+	endif
+	$vlMinimoParcela$ = $item("VL_MINIMO_PARCELA", $xlplemp$)
+	;
+end ;INIT
+;
+;----------------------------
+public operation calcPrzMedio
+;---------------------------- 
+	params
+		string  piParams      :IN
+		string  poParams      :OUT      
+		numeric poCdErro      :OUT
+		string  poCtxErro     :OUT 
+	endparams
+	
+	variables
+		numeric vCdCondPgto, vQtCalc, vNrParcela, vQtDia, vNrPrazoMedio
+	endvariables
+	
+	;-->Inicializacao Parametro erro
+	poCdErro = 0 
+	poCtxErro = "" 
+
+	vCdCondPgto = $item("CD_CONDPGTO", piParams)
+
+	if (vCdCondPgto = 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Condição de pagamento não informada!", "ADICIONAL=Operação->GERSVCO013.calcPrzMedio")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	
+	;LSC - (11/12/2006) - 
+	if ($UsaCondPgtoEspecial$ = 0) ;Parametro setato para 0 o cliente não utilizara forma de pagamentos especiais
+	
+		clear/e "GER_CONDPGTOCSVC"
+		CD_CONDPGTO.GER_CONDPGTOCSVC/init = vCdCondPgto
+		retrieve/e "GER_CONDPGTOCSVC"
+		if ($status < 0)
+			$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Condição de pagamento %%vCdCondPgto não cadastrada!", "ADICIONAL=Operação->GERSVCO013.calcPrzMedio")
+			poCdErro = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return(-1)
+		endif
+
+		if ($empty("GER_CONDPGTOISVC") != 0)
+			poParams = ""
+			putitem/id poParams, "NR_PRAZOMEDIO", 0
+			return(0)
+		endif
+	
+		if ($empty("GER_CONDPGTOISVC") != 0)
+			$instancehandle->SetErroApl("ERRO=-1·;MENSAGEM=Condição de Pagamento sem parcelas cadastradas!",poCdErro,poCtxErro)
+			return (-1)
+		endif 
+
+		setocc "GER_CONDPGTOISVC", -1
+		vNrParcela = $totocc("GER_CONDPGTOISVC")
+
+		vQtDia = 0
+
+		setocc "GER_CONDPGTOISVC", 1
+		while ($status >= 0)
+			vQtDia = vQtDia + QT_DIA.GER_CONDPGTOISVC
+			setocc "GER_CONDPGTOISVC", $curocc("GER_CONDPGTOISVC") + 1
+		endwhile
+
+		vQtCalc = vQtDia / vNrParcela
+		vNrPrazoMedio = vQtCalc[round]
+
+		poParams = ""
+		putitem/id poParams, "NR_PRAZOMEDIO", vNrPrazoMedio	
+
+	elseif($UsaCondPgtoEspecial$ = 1) ;Parametro setato para 1 o cliente utilizara forma de pagamentos especiais
+	
+		clear/e "GER_CONDPGTOCSVC"
+		CD_CONDPGTO.GER_CONDPGTOCSVC/init = vCdCondPgto
+		retrieve/e "GER_CONDPGTOCSVC"
+		if ($status < 0)
+			$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Condição de pagamento %%vCdCondPgto não cadastrada!", "ADICIONAL=Operação->GERSVCO013.calcPrzMedio")
+			poCdErro = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return(-1)
+		endif
+
+		if ($empty("GER_CONDPGTOISVC") != 0) & ($empty("GER_CONDPGTOESVC") != 0)
+			poParams = ""
+			putitem/id poParams, "NR_PRAZOMEDIO", 0
+			$instancehandle->SetErroApl("ERRO=-1·;MENSAGEM=Condição de Pagamento sem parcelas cadastradas!",poCdErro,poCtxErro)
+			return (-1)
+		endif
+	
+		;if ($empty("GER_CONDPGTOISVC") != 0)
+			;$instancehandle->SetErroApl("ERRO=-1·;MENSAGEM=Condição de Pagamento sem parcelas cadastradas!",poCdErro,poCtxErro)
+			;return (-1)
+		;endif 
+		
+		if ($empty("GER_CONDPGTOISVC") = 0 ) ;quando não vazia a GER_CONDPGTOISVC
+			setocc "GER_CONDPGTOISVC", -1
+			vNrParcela = $totocc("GER_CONDPGTOISVC")
+
+			vQtDia = 0
+
+			setocc "GER_CONDPGTOISVC", 1
+			while ($status >= 0)
+				vQtDia = vQtDia + QT_DIA.GER_CONDPGTOISVC
+				setocc "GER_CONDPGTOISVC", $curocc("GER_CONDPGTOISVC") + 1
+			endwhile
+
+			;vQtCalc = vQtDia / vNrParcela
+			;vNrPrazoMedio = vQtCalc[round]
+
+			;poParams = ""
+			;putitem/id poParams, "NR_PRAZOMEDIO", vNrPrazoMedio	
+		endif		
+
+		if ($empty("GER_CONDPGTOESVC") = 0 ) ;quando não vazia a GER_CONDPGTOESVC
+			setocc "GER_CONDPGTOESVC", -1
+			vNrParcela = $totocc("GER_CONDPGTOESVC")
+
+			vQtDia = 0
+
+			setocc "GER_CONDPGTOESVC", 1
+			while ($status >= 0)
+				vQtDia = vQtDia + NR_DIAVENCIMENTO.GER_CONDPGTOESVC
+				setocc "GER_CONDPGTOESVC", $curocc("GER_CONDPGTOESVC") + 1
+			endwhile
+
+			;vQtCalc = vQtDia / vNrParcela
+			;vNrPrazoMedio = vQtCalc[round]
+
+			;poParams = ""
+			;putitem/id poParams, "NR_PRAZOMEDIO", vNrPrazoMedio	
+		endif		
+		vQtCalc = vQtDia / vNrParcela
+		vNrPrazoMedio = vQtCalc[round]
+
+		poParams = ""
+		putitem/id poParams, "NR_PRAZOMEDIO", vNrPrazoMedio	
+	endif
+	return (0)
+End ; operation CalcPrzMedio
+
+;---------------------------
+public operation geraParcela
+;---------------------------
+	params
+		string  $xlpg$      :IN    
+		string  piParams    :IN
+		string  poParams    :OUT
+		string  poCdErro    :OUT
+		string  poCtxErro   :OUT
+	endparams
+	
+	variables
+		string vDsRegistro, vDsLstParcela 
+		numeric vCdCondPgto, vNrParcela, vVlCalc, vVlParcela, vNrTotalDia
+		numeric vVlResto, vVlTotal, vNrPrazoMedio, vTpArredondamento
+		numeric vNrDiaFinal, vNrDiaSistem, vNrMesSistem, vNrAnoSistem
+		date vDtBase, vDtaSistemDia
+	endvariables
+
+	;Luiz Carlos Paulek - 02/04/2007 - Tarefa 79 - Projeto 94 - Carregar o parametro para verificacao se e uma venda ou nao
+	$inParcelaMinima$ = $item("IN_PARCELAMINIMA",piParams)
+	if ($inParcelaMinima$ != <TRUE>)
+		$vlMinimoParcela$ = 0
+	endif
+	;Luiz Carlos Paulek - 02/04/2007 - Tarefa 79 - Projeto 94
+	
+	vCdCondPgto = $item("CD_CONDPGTO", piParams)
+	vVlTotal = $item("VL_TOTAL", piParams)
+	vDtBase = $item("DT_BASE", piParams)
+	if (vDtBase = "")
+		vDtBase = $item("DT_SISTEMA", $xlpg$)
+	endif
+	vTpArredondamento = $item("TP_ARREDONDAMENTO", piParams)
+	
+	if (vVlTotal = 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Valor não informado!", "ADICIONAL=Operação->GERSVCO013.geraParcela")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		exit(-1)
+	endif
+
+	if (vCdCondPgto = 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Condição de pagamento não informada!", "ADICIONAL=Operação->GERSVCO013.geraParcela")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		exit(-1)
+	endif
+
+	;LSC - (11/12/2006) - Projeto 71 - Tarefa 73 
+	if ($UsaCondPgtoEspecial$ = 0) ;Parametro setato para 0 o cliente não utilizara forma de pagamentos especiais
+
+		clear/e "GER_CONDPGTOCSVC"
+		CD_CONDPGTO.GER_CONDPGTOCSVC/init = vCdCondPgto
+		retrieve/e "GER_CONDPGTOCSVC"
+		if ($status < 0)
+			$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Condição de pagamento %%vCdCondPgto não cadastrada!", "ADICIONAL=Operação->GERSVCO013.geraParcela")
+			poCdErro = $xCdErro$
+			poCtxErro = $xCtxErro$
+			exit(-1)
+		endif
+
+		if ($empty("GER_CONDPGTOISVC") != 0)
+			$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Condição de pagamento %%vCdCondPgto sem parcelas cadastradas!", "ADICIONAL=Operação->GERSVCO013.geraParcela")
+			poCdErro = $xCdErro$
+			poCtxErro = $xCtxErro$
+			exit(-1)
+		endif
+
+		setocc "GER_CONDPGTOISVC", -1
+		vNrParcela = $totocc("GER_CONDPGTOISVC")
+	
+		vVlResto = vVlTotal
+		vVlCalc = vVlTotal / vNrParcela
+
+		;Luiz Carlos Paulek - 02/04/2007 - Tarefa 79 - Projeto 94 - Impedir que o valor da parcela seja inferior ao parametro "VL_MINIMO_PARCELA"
+		if (vVlCalc < $vlMinimoParcela$)
+			vNrParcela = 1
+			vVlResto = vVlTotal
+			vVlCalc = vVlTotal / vNrParcela
+		endif
+
+		;Luiz Carlos Paulek - 02/04/2007 - Tarefa 79 - Projeto 94 - Impedir que o valor da parcela seja inferior ao parametro "VL_MINIMO_PARCELA"
+
+		vVlParcela = vVlCalc[round, 2]
+		if (vTpArredondamento = 1)
+			vVlParcela = $int(vVlCalc);vVlCalc[round, 0]
+			if (vVlParcela < 1)
+				vVlParcela = vVlCalc[round, 2]
+			endif
+		endif
+		vNrTotalDia = 0
+
+;		clear/e "SIS_PARCELAMENTO"
+;		setocc "GER_CONDPGTOISVC", 1
+;		while ($status >= 0)
+;			creocc "SIS_PARCELAMENTO", -1
+;			NR_PARCELA.SIS_PARCELAMENTO = $curocc("GER_CONDPGTOISVC")
+;			VL_PARCELA.SIS_PARCELAMENTO = vVlParcela
+;			DT_VENCIMENTO.SIS_PARCELAMENTO = vDtBase + QT_DIA.GER_CONDPGTOISVC
+;			vNrTotalDia = vNrTotalDia + QT_DIA.GER_CONDPGTOISVC
+;			vVlResto = vVlResto - vVlParcela			
+;			setocc "GER_CONDPGTOISVC", $curocc("GER_CONDPGTOISVC") + 1
+;		endwhile
+
+		;Luiz Carlos Paulek - 02/04/2007 - Tarefa 79 - Projeto 94 - Impedir que o valor da parcela seja inferior ao parametro "VL_MINIMO_PARCELA"
+		if (vNrParcela > 1)
+			clear/e "SIS_PARCELAMENTO"
+			setocc "GER_CONDPGTOISVC", 1
+			while ($status >= 0)
+				creocc "SIS_PARCELAMENTO", -1
+				NR_PARCELA.SIS_PARCELAMENTO = $curocc("GER_CONDPGTOISVC")
+				VL_PARCELA.SIS_PARCELAMENTO = vVlParcela
+				DT_VENCIMENTO.SIS_PARCELAMENTO = vDtBase + QT_DIA.GER_CONDPGTOISVC
+				vNrTotalDia = vNrTotalDia + QT_DIA.GER_CONDPGTOISVC
+				vVlResto = vVlResto - vVlParcela			
+				setocc "GER_CONDPGTOISVC", $curocc("GER_CONDPGTOISVC") + 1
+			endwhile
+		else
+			clear/e "SIS_PARCELAMENTO"
+			setocc "GER_CONDPGTOISVC", 1
+			creocc "SIS_PARCELAMENTO", -1
+			NR_PARCELA.SIS_PARCELAMENTO = 1
+			VL_PARCELA.SIS_PARCELAMENTO = vVlParcela
+			DT_VENCIMENTO.SIS_PARCELAMENTO = vDtBase + QT_DIA.GER_CONDPGTOISVC;(ODA) estva com essa variavel. vNrPrazoMedio
+			vNrTotalDia = vNrTotalDia + vNrPrazoMedio
+			vVlResto = vVlResto - vVlParcela		
+		endif
+		;Luiz Carlos Paulek - 02/04/2007 - Tarefa 79 - Projeto 94 - Impedir que o valor da parcela seja inferior ao parametro "VL_MINIMO_PARCELA"
+
+		if (vVlResto != 0)
+			if (vVlResto > 0)
+				setocc "SIS_PARCELAMENTO", 1
+			else
+				setocc "SIS_PARCELAMENTO", -1
+			endif
+			VL_PARCELA.SIS_PARCELAMENTO = VL_PARCELA.SIS_PARCELAMENTO + vVlResto
+		endif
+
+		vDsLstParcela = ""
+		setocc "SIS_PARCELAMENTO", 1            
+		while ($status >= 0)
+			vDsRegistro = ""
+			putlistitems/occ vDsRegistro, "SIS_PARCELAMENTO"
+			putitem vDsLstParcela, -1, vDsRegistro
+			setocc "SIS_PARCELAMENTO", $curocc("SIS_PARCELAMENTO") + 1
+		endwhile
+
+		vVlCalc = vNrTotalDia / vNrParcela
+		vNrPrazoMedio = vVlCalc[round, 3]
+
+		poParams = ""
+		putitem/id poParams, "DS_LSTPARCELA", vDsLstParcela
+		putitem/id poParams, "NR_PRAZOMEDIO", vNrPrazoMedio
+		
+	elseif($UsaCondPgtoEspecial$ = 1);Parametro setato para 1 o cliente não utilizara forma de pagamentos especiais
+
+		clear/e "GER_CONDPGTOCSVC"
+		CD_CONDPGTO.GER_CONDPGTOCSVC/init = vCdCondPgto
+		retrieve/e "GER_CONDPGTOCSVC"
+		if ($status < 0)
+			$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Condição de pagamento %%vCdCondPgto não cadastrada!", "ADICIONAL=Operação->GERSVCO013.geraParcela")
+			poCdErro = $xCdErro$
+			poCtxErro = $xCtxErro$
+			exit(-1)
+		endif
+
+		if ($empty("GER_CONDPGTOISVC") != 0) & ($empty("GER_CONDPGTOESVC") != 0)
+
+			$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Condição de pagamento %%vCdCondPgto sem parcelas cadastradas!", "ADICIONAL=Operação->GERSVCO013.geraParcela")
+			poCdErro = $xCdErro$
+			poCtxErro = $xCtxErro$
+			exit(-1)
+		endif
+
+		if ($empty("GER_CONDPGTOISVC") = 0) ;quando GER_CONDPGTOISVC tiver registro
+			setocc "GER_CONDPGTOISVC", -1
+			vNrParcela = $totocc("GER_CONDPGTOISVC")
+
+			vVlResto = vVlTotal
+			vVlCalc = vVlTotal / vNrParcela
+			vVlParcela = vVlCalc[round, 2]
+			if (vTpArredondamento = 1)
+				vVlParcela = $int(vVlCalc);vVlCalc[round, 0]
+				if (vVlParcela < 1)
+					vVlParcela = vVlCalc[round, 2]
+				endif
+			endif
+			vNrTotalDia = 0
+
+			clear/e "SIS_PARCELAMENTO"
+			setocc "GER_CONDPGTOISVC", 1
+			while ($status >= 0)
+				creocc "SIS_PARCELAMENTO", -1
+				NR_PARCELA.SIS_PARCELAMENTO = $curocc("GER_CONDPGTOISVC")
+				VL_PARCELA.SIS_PARCELAMENTO = vVlParcela
+				DT_VENCIMENTO.SIS_PARCELAMENTO = vDtBase + QT_DIA.GER_CONDPGTOISVC
+				vNrTotalDia = vNrTotalDia + QT_DIA.GER_CONDPGTOISVC
+				vVlResto = vVlResto - vVlParcela			
+				setocc "GER_CONDPGTOISVC", $curocc("GER_CONDPGTOISVC") + 1
+			endwhile
+
+			if (vVlResto != 0)
+				if (vVlResto > 0)
+					setocc "SIS_PARCELAMENTO", 1
+				else
+					setocc "SIS_PARCELAMENTO", -1
+				endif
+				VL_PARCELA.SIS_PARCELAMENTO = VL_PARCELA.SIS_PARCELAMENTO + vVlResto
+			endif
+
+			vDsLstParcela = ""
+			setocc "SIS_PARCELAMENTO", 1            
+			while ($status >= 0)
+				vDsRegistro = ""
+				putlistitems/occ vDsRegistro, "SIS_PARCELAMENTO"
+				putitem vDsLstParcela, -1, vDsRegistro
+				setocc "SIS_PARCELAMENTO", $curocc("SIS_PARCELAMENTO") + 1
+			endwhile
+
+			vVlCalc = vNrTotalDia / vNrParcela
+			vNrPrazoMedio = vVlCalc[round, 3]
+
+			poParams = ""
+			putitem/id poParams, "DS_LSTPARCELA", vDsLstParcela
+			putitem/id poParams, "NR_PRAZOMEDIO", vNrPrazoMedio
+			return(0)
+		endif
+
+		if ($empty("GER_CONDPGTOESVC") = 0) ;quando GER_CONDPGTOESVC tiver registro
+			setocc "GER_CONDPGTOESVC", -1
+			vNrParcela = $totocc("GER_CONDPGTOESVC")
+	
+			vVlResto = vVlTotal
+			vVlCalc = vVlTotal
+			vVlParcela = vVlCalc[round, 2]
+			
+			vNrTotalDia = 0
+			vNrDiaFinal = 0
+			vDtaSistemDia = vDtBase 
+			vNrDiaSistem = vDtaSistemDia[D]
+			vNrMesSistem = vDtaSistemDia[M]
+			vNrAnoSistem = vDtaSistemDia[Y]
+			
+			clear/e "SIS_PARCELAMENTO"
+			setocc "GER_CONDPGTOESVC", 1
+			while ($status >= 0)
+				if (vNrDiaSistem >= NR_DIAINICIAL.GER_CONDPGTOESVC) & (vNrDiaSistem <= NR_DIAFINAL.GER_CONDPGTOESVC)
+					
+					creocc "SIS_PARCELAMENTO", -1
+
+					if (NR_PARCELAS.GER_CONDPGTOCSVC = 1) ;Intervalo 1
+						vNrMesSistem = vNrMesSistem + 1
+					endif
+	
+					if (NR_PARCELAS.GER_CONDPGTOCSVC = 2) | (NR_PARCELAS.GER_CONDPGTOCSVC = 3) ;Intervalo 2 ou Intervalo 3
+						vNrDiaFinal = NR_DIAFINAL.GER_CONDPGTOESVC + 10
+						if (vNrDiaFinal >= 30)
+							vNrMesSistem = vNrMesSistem + 1
+						endif
+					endif	
+
+					if (vNrMesSistem > 12)
+						vNrMesSistem = 1
+						vNrAnoSistem = vNrAnoSistem + 1
+					endif
+	
+					NR_PARCELA.SIS_PARCELAMENTO = $curocc("GER_CONDPGTOESVC")
+					VL_PARCELA.SIS_PARCELAMENTO = vVlParcela
+					DT_VENCIMENTO.SIS_PARCELAMENTO = "%%NR_DIAVENCIMENTO.GER_CONDPGTOESVC%%%/%%vNrMesSistem%%%/%%vNrAnoSistem"
+					vNrTotalDia = NR_DIAVENCIMENTO.GER_CONDPGTOESVC
+					
+					setocc "GER_CONDPGTOESVC", $curocc("GER_CONDPGTOESVC") + 1
+				endif
+			
+				setocc "GER_CONDPGTOESVC", $curocc("GER_CONDPGTOESVC") + 1
+			endwhile
+			
+			vDsLstParcela = ""
+			setocc "SIS_PARCELAMENTO", 1            
+			while ($status >= 0)
+				vDsRegistro = ""
+				putlistitems/occ vDsRegistro, "SIS_PARCELAMENTO"
+				putitem vDsLstParcela, -1, vDsRegistro
+				setocc "SIS_PARCELAMENTO", $curocc("SIS_PARCELAMENTO") + 1
+			endwhile
+
+			vVlCalc = vNrTotalDia 
+			vNrPrazoMedio = vVlCalc[round, 3]
+
+			poParams = ""
+			putitem/id poParams, "DS_LSTPARCELA", vDsLstParcela
+			putitem/id poParams, "NR_PRAZOMEDIO", vNrPrazoMedio
+		endif
+	endif
+	;LSC - (11/12/2006) - Projeto 71 - Tarefa 73 
+
+	exit(0)	
+end
+
+#include <LIB_PADRAO>:DEF_TEMPLATE_SVC
+
+;------------------------------
+public operation gravaDocumento
+;------------------------------
+	params
+		string  $xlpg$      :IN    
+		string  piParams    :IN
+		string  poParams    :OUT
+		string  poCdErro    :OUT
+		string  poCtxErro   :OUT
+	endparams
+	
+	variables
+		numeric vCdCondPgto
+		string vDsLstDocumento, vDsRegistro
+	endvariables
+	
+	vCdCondPgto = $item("CD_CONDPGTO", piParams)
+	vDsLstDocumento = $item("DS_LSTDOCUMENTO", piParams)
+	
+	if (vCdCondPgto = 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Condição de pagamento não informada!", "ADICIONAL=Operação->GERSVCO013.gravaDocumento")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		exit(-1)
+	endif
+	
+	clear/e "GER_CONDPGTOCSVC"
+	CD_CONDPGTO.GER_CONDPGTOCSVC/init = vCdCondPgto
+	retrieve/e "GER_CONDPGTOCSVC"
+	if ($status < 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Condição de pagamento %%vCdCondPgto não encontrada!", "ADICIONAL=Operação->GERSVCO013.gravaDocumento")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		exit(-1)
+	endif
+	
+	if ($empty("GER_CONDPGTOHSVC") = 0)
+		setocc "GER_CONDPGTOHSVC", -1
+		
+		$collhandle("GER_CONDPGTOHSVC")->Excluir()
+		if ($procerror)
+			$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+			poCdErro = $xCdErro$
+			poCtxErro = $xCtxErro$
+			exit(-1)
+		elseif ($status < 0)
+			$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")    
+			poCdErro = $xCdErro$
+			poCtxErro = $xCtxErro$
+			exit(-1)
+		endif 
+	endif  
+	
+	if (vDsLstDocumento != "")
+		repeat
+			getitem vDsRegistro, vDsLstDocumento, 1
+			
+			creocc "GER_CONDPGTOHSVC", -1
+			getlistitems/occ vDsRegistro, "GER_CONDPGTOHSVC"
+			CD_OPERADOR.GER_CONDPGTOHSVC = $item("CD_USUARIO", $xlpg$)
+			DT_CADASTRO.GER_CONDPGTOHSVC = $datim
+			
+			delitem vDsLstDocumento, 1
+		until (vDsLstDocumento = "")
+	endif
+	
+	$collhandle("GER_CONDPGTOHSVC")->Salvar()
+	if ($procerror)
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		exit(-1)
+	elseif ($status < 0)
+		$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")    
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		exit(-1)
+	endif 
+	
+	exit(0)
+end
+
+;----------------------------
+public operation geraParcelaLimiteMinimo
+;---------------------------- 
+	;Fiuza 10/08/07 - projeto 94 tarefa 216
+	params
+		string  piParams      :IN
+		string  poParams      :OUT      
+		numeric poCdErro      :OUT
+		string  poCtxErro     :OUT 
+	endparams
+	
+	variables
+		numeric vCdCondPgto, vQtCalc, vNrParcela, vQtDia, vNrPrazoMedio
+		numeric vVlCalc, vVlTotal, vVlMinimo, vVlParcela
+		string vDsLstDia, vDsRegistro
+		boolean vInSair
+	endvariables
+	
+	;-->Inicializacao Parametro erro
+	poCdErro = 0 
+	poCtxErro = "" 
+
+	vCdCondPgto = $item("CD_CONDPGTO", piParams)
+	vVlTotal = $item("VL_TOTAL", piParams)
+	vVlMinimo = $item("VL_MINIMO", piParams)
+
+	if (vCdCondPgto = 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Condição de pagamento não informada!", "ADICIONAL=Operação->GERSVCO013.geraParcelaLimiteMinimo")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	if (vVlTotal = 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Valor total não informado!", "ADICIONAL=Operação->GERSVCO013.geraParcelaLimiteMinimo")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	if (vVlMinimo = 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Valor mínimo da parcela não informado!", "ADICIONAL=Operação->GERSVCO013.geraParcelaLimiteMinimo")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif	
+	if ($UsaCondPgtoEspecial$ != 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Para esse tipo de parcelamento não é permitido usar forma de pgto especial!", "ADICIONAL=Operação->GERSVCO013.geraParcelaLimiteMinimo")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+
+	clear/e "GER_CONDPGTOCSVC"
+	CD_CONDPGTO.GER_CONDPGTOCSVC/init = vCdCondPgto
+	retrieve/e "GER_CONDPGTOCSVC"
+	if ($status < 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Condição de pagamento %%vCdCondPgto não cadastrada!", "ADICIONAL=Operação->GERSVCO013.geraParcelaLimiteMinimo")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	
+	if ($empty("GER_CONDPGTOISVC") != 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Condição de pagamento sem parcelas cadastradas!", "ADICIONAL=Operação->GERSVCO013.geraParcelaLimiteMinimo")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif 
+
+	clear/e "TMP_NR09SVC"
+
+	setocc "GER_CONDPGTOISVC", 1
+	while ($status >= 0)
+		creocc "TMP_NR09SVC", -1
+		NR_GERAL.TMP_NR09SVC = $curocc("GER_CONDPGTOISVC")
+		NR_DIAS.TMP_NR09SVC = QT_DIA.GER_CONDPGTOISVC
+		setocc "GER_CONDPGTOISVC", $curocc("GER_CONDPGTOISVC") + 1
+	endwhile
+
+	vNrParcela = $totocc("TMP_NR09SVC")
+	vVlCalc = vVlTotal / vNrParcela
+	vVlParcela = vVlCalc[round, 2]
+
+	while (vVlParcela < vVlMinimo)
+		if ($totocc("TMP_NR09SVC") > 1) 
+			setocc "TMP_NR09SVC", 1
+			while ($status >= 0)
+				if ($curocc("TMP_NR09SVC") = $totocc("TMP_NR09SVC"))
+					discard "TMP_NR09SVC"
+					break
+				else
+					vVlCalc = (NR_DIAS.TMP_NR09SVC + $next("NR_DIAS.TMP_NR09SVC")) / 2
+					vQtDia = vVlCalc[round, 0]
+					NR_DIAS.TMP_NR09SVC = vQtDia
+					setocc "TMP_NR09SVC", $curocc("TMP_NR09SVC") + 1	
+				endif				
+			endwhile
+			vNrParcela = $totocc("TMP_NR09SVC")
+			vVlCalc = vVlTotal / vNrParcela
+			vVlParcela = vVlCalc[round, 2]
+		else
+			vNrParcela = 1
+			vVlParcela = vVlCalc[round, 2]
+			break
+		endif		
+	endwhile
+	
+	setocc "TMP_NR09SVC", 1
+	vDsLstDia = ""
+	putlistitems vDsLstDia, NR_DIAS.TMP_NR09SVC
+
+	putitem/id poParams, "NR_PARCELA", vNrParcela
+	putitem/id poParams, "DS_LSTDIA", vDsLstDia
+	
+	return (0)
+End ; operation calcPrzMedioReadequandoParcela

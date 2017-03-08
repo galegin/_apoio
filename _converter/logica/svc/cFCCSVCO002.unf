@@ -1,0 +1,5160 @@
+entry getParam
+	variables
+		numeric vCdEmpresa
+		string viParams, voParams
+	endvariables
+
+	viParams = ""
+	putitem viParams, -1, "CD_TPMANUT_CXMATRIZ"	
+	putitem viParams, -1, "CD_TPMANUT_CXFILIAL"	
+	putitem viParams, -1, "CD_TPMANUT_CXUSUARIO"	
+	putitem viParams, -1, "CD_TPMANUT_CLIENTE"
+	putitem viParams, -1, "CD_TPMANUT_FORNECEDOR"
+	putitem viParams, -1, "CD_TPMANUT_REPRE"
+	;MTF(04/07/2008) - Projeto 131, tarefa 0002.
+	putitem viParams, -1, "CD_TPMANUT_SOCIO"
+	;
+	;==BY BIANCHINI[PRJ/TAREFA 186/110] 29/06/2011 ==;
+	putitem viParams, -1, "IN_LOG_MOV_CTAPES"
+	;==
+	activate "ADMSVCO001".GetLstParametro(viParams, voParams, $xCdErro$, $xCtxerro$)
+	if ($procerror)
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+		return(-1)
+	elseif ($xCdErro$)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=%%$item("DESCRICAO", $xCtxErro$)", "ADICIONAL=Operação->FCCSVCO002.getParam")
+		return(-1)
+	elseif ($status < 0)
+		return(-1)
+	endif
+	;==BY BIANCHINI[PRJ/TAREFA 186/110] 29/06/2011 ==;
+	$inLogMovCtapes$    = $item("IN_LOG_MOV_CTAPES"    , voParams) 
+	;==	
+	$cdTpCxMatriz$      = $item("CD_TPMANUT_CXMATRIZ"  , voParams)
+	$cdTpCxFilial$      = $item("CD_TPMANUT_CXFILIAL"  , voParams)
+	$cdTpCxUsuario$     = $item("CD_TPMANUT_CXUSUARIO" , voParams)
+	$cdTpCliente$       = $item("CD_TPMANUT_CLIENTE"   , voParams)
+	$cdTpFornecedor$    = $item("CD_TPMANUT_FORNECEDOR", voParams)
+	$cdTpRepresentante$ = $item("CD_TPMANUT_REPRE"     , voParams)
+	;MTF(04/07/2008) - Projeto 131, tarefa 0002.
+	$cdTpManutSocio$    = $item("CD_TPMANUT_SOCIO"     , voParams)
+	;
+	
+	;MTF(13/11/2007) - Projeto 078, tarefa 923.
+	if ($cdTpCxMatriz$ = "")
+		$instancehandle->setStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Tipo manutenção conta caixa matriz não informado no parâmetro corporativo.%%^CD_TPMANUT_CXMATRIZ", "")
+		return(-1)
+	endif
+	if ($cdTpCxFilial$ = "")
+		$instancehandle->setStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Tipo manutenção conta caixa filial não informado no parâmetro corporativo.%%^CD_TPMANUT_CXFILIAL", "")
+		return(-1)
+	endif
+	if ($cdTpCxUsuario$ = "")
+		$instancehandle->setStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Tipo manutenção conta caixa usuário não informado no parâmetro corporativo.%%^CD_TPMANUT_CXUSUARIO", "")
+		return(-1)
+	endif
+	if ($cdTpCliente$ = "")
+		$instancehandle->setStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Tipo manutenção cliente não informado no parâmetro corporativo.%%^CD_TPMANUT_CLIENTE", "")
+		return(-1)
+	endif
+	if ($cdTpFornecedor$ = "")
+		$instancehandle->setStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Tipo manutenção fornecedor não informado no parâmetro corporativo.%%^CD_TPMANUT_FORNECEDOR", "")
+		return(-1)
+	endif
+	if ($cdTpRepresentante$ = "")
+		$instancehandle->setStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Tipo manutenção representante não informado no parâmetro corporativo.%%^CD_TPMANUT_REPRE", "")
+		return(-1)
+	endif
+	;
+	;MTF(04/07/2008) - Projeto 131, tarefa 0002.
+	if ($cdTpManutSocio$ = "")
+		$instancehandle->setStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Tipo manutenção sócio não informado no parâmetro corporativo.%%^CD_TPMANUT_SOCIO", "")
+		return(-1)
+	endif
+	;
+	
+	vCdEmpresa = $item("CD_EMPRESA", $xlpg$)
+	viParams = ""
+	putitem viParams, -1, "IN_CAIXA_TERMINAL"
+	activate "ADMSVCO001".GetParamEmpresa(vCdEmpresa, viParams, voParams, $xCdErro$, $xCtxerro$)
+	if ($procerror)
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+		return(-1)
+	elseif ($xCdErro$)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=%%$item("DESCRICAO", $xCtxErro$)", "ADICIONAL=Operação->FCCSVCO002.getParam")
+		return(-1)
+	elseif ($status < 0)
+		return(-1)
+	endif
+	
+	$inCxTerminal$ = $item("IN_CAIXA_TERMINAL", voParams)
+
+	return(0)
+end
+
+;------------------------------------
+entry ConverterString
+;------------------------------------
+    params
+        string piString :In
+        string poString :Out
+    endparams
+    variables
+        string viParams,voParams
+    endvariables
+
+    putitem/id viParams,"DS_STRING",piString
+    putitem/id viParams,"IN_MAIUSCULA",<True>
+    putitem/id viParams,"IN_NUMERO",<True>
+    putitem/id viParams,"IN_ESPACO",<True>
+    putitem/id viParams,"IN_ESPECIAL",<False>
+    putitem/id viParams,"IN_MANTERPONTO",<False>
+    activate "EDISVCO020".limparCampo($$gParamGlb,viParams,voParams,$xCdErro$,$xCtxErro$)
+    poString = $item("DS_STRING",voParams)
+    return (0)
+end;
+
+;------------------------------
+public operation movimentaConta
+;------------------------------
+	params
+		string $xlpg$    :IN
+		string piParams  :IN
+		string piValores :IN
+		string poParams  :OUT
+		string poCdErro  :OUT
+		string poCtxErro :OUT
+	endparams
+	
+	variables
+		date    vDtLiq, vDtMovimento, vDtSistema, vDtAbertura, vDtSaldoAnt, vDtConci
+		string  viParams, voParams, vTpOperacao, vDsDoc, vDsAux, viValores, piValidaCtaFilialMatriz, poValidaCtaFilialMatriz, vDs, vDsObs, vDsLstObservacao
+		boolean vInEstorno, vInAchou, vInData, vInCaixa, vInCalcCtaAuto
+		boolean vLanctoContraCaixa ;quando for um lançamento de CONTRA-CAIXA o conteúdo será TRUE
+		numeric vNrTipContraCaixa  ;tipo de contra caixa (0-NAO UTILIZA) (1-CONTRA CX PARA MATRIZ) (2- CONTRA CX PARA EMP.LOGADA)
+		numeric vCdEmpresa, vNrCtaPes, vCdHistorico, vVlLancto, vVlSaldoAnt, vCdEmpMovRel, vCdEmpLiq, vNrSeqLiq, vNrSeqMov, vCdOperador, vVlSaldoConciAnt
+		numeric vCdTerminal, vNrSeqCaixa, vTpDocumento, vNrSeqHistRelSub, vCdOPerConci, vNrCtapesContraCaixa, vNrSeqMovRel, vTpOrigem, vCdEmpChqPres, vCdCliChqPres, vNrChequePres
+	endvariables
+
+	clear/e "FCC_MOVSVC"
+	clear/e "FCC_CTASALDOSVC"
+	clear/e "FCC_CTASALDORSVC"
+
+	vCdEmpresa       = $item("CD_EMPRESA"      , piParams)
+	vNrCtaPes        = $item("NR_CTAPES"       , piParams)
+	vCdHistorico     = $item("CD_HISTORICO"    , piParams)
+	vDtMovimento     = $item("DT_MOVIMENTO"    , piParams)
+	vVlLancto        = $item("VL_LANCTO"       , piParams)
+	vVlLancto        = vVlLancto[round,2] ;MARTINEZ - PRJ/TAR 180/242 - 02/09/2011
+	vInEstorno       = $item("IN_ESTORNO"      , piParams)
+	vCdEmpLiq        = $item("CD_EMPLIQ"       , piParams)
+	vDtLiq           = $item("DT_LIQ"          , piParams)
+	vNrSeqLiq        = $item("NR_SEQLIQ"       , piParams)
+	vDsDoc           = $item("DS_DOC"          , piParams)
+	vDsAux           = $item("DS_AUX"          , piParams)    
+	vInCaixa         = $item("IN_CAIXA"        , piParams)
+	vCdTerminal      = $item("CD_TERMINAL"     , piParams)
+	vDtAbertura      = $item("DT_ABERTURA"     , piParams)
+	vNrSeqCaixa      = $item("NR_SEQCAIXA"     , piParams)
+	vTpDocumento     = $item("TP_DOCUMENTO"    , piParams)
+	vNrSeqHistRelSub = $item("NR_SEQHISTRELSUB", piParams)
+	vDtConci         = $item("DT_CONCI"        , piParams)
+	vDsLstObservacao = $item("LST_OBS"         , piParams) ;Projeto 180 - Tarefa 0127 - Aloisio Gargantini - 23/03/2011
+	vCdOperador      = $item("CD_USUARIO"      , $xlpg$)
+	vDtSistema       = $item("DT_SISTEMA"      , $xlpg$)
+	vCdOperConci     = $item("CD_OPERCONCI"    , piParams) ;MTF(27/06/2006) - Projeto 069, tarefa 010.
+	;Projeto 078 - Tarefa 1675 - Aloisio Gargantini - 04/08/2008
+	vNrSeqMovRel     = $item("NR_SEQMOVREL"    , piParams)
+	vTpOrigem        = $item("TP_ORIGEM"       , piParams)
+	;
+	vCdEmpMovRel     = $item("CD_EMPMOVREL"    , piParams) ;Projeto 078 - Tarefa 2878 - Aloisio Gargantini - 21/10/2009
+	;Projeto 180 - Tarefa 0181 - Aloisio Gargantini - 25/05/2011
+	vCdEmpChqPres    = $item("CD_EMPCHQPRES"   , piParams)
+	vCdCliChqPres    = $item("CD_CLICHQPRES"   , piParams)
+	vNrChequePres    = $item("NR_CHEQUEPRES"   , piParams)
+	;
+	;-----------------------------------------------------------
+	;TRUE = Lançamento de CONTRA-CAIXA / FALSE = Não é lançamento de CONTRA-CAIXA
+	vLanctoContraCaixa = $item("IN_LANCTO_CONTRA_CAIXA", piParams)
+	vDsObs             = $item("DS_OBS"                , piParams)
+	;-----------------------------------------------------------
+	;-----------------------------------------------------------------------------
+	;MARCOS ROGERIO / EVALDO - 28/07/2008
+	;limpa caracteres especiais de uma string e mantem pontuação - "/"   ","    ":"
+	;-----------------------------------------------------------------------------
+	Call ConverterString(vDsAux,vDsAux)
+	if ($procerror)
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+		return (-1)
+	endif
+	;-----------------------------------------------------------------------------
+	vDsAux = vDsAux[1:60]
+	;-----------------------------------------------------------------------------
+	if (vCdEmpresa = 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Empresa não informada!", "ADICIONAL=Operação->FCCSVCO002.movimentaConta")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	
+	clear/e "GER_EMPRESASVC"
+	CD_EMPRESA.GER_EMPRESASVC/init = vCdEmpresa
+	retrieve/e "GER_EMPRESASVC"
+	if ($status < 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN01","ADICIONAL= Empresa%%%=%%vCdEmpresa não cadastrada!Operação->FCCSVCO002.movimentaConta")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	
+	if (vNrCtaPes = 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Conta não informada!", "ADICIONAL=Operação->FCCSVCO002.movimentaConta")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+
+	clear/e "FCC_CTAPESSVC"
+	NR_CTAPES.FCC_CTAPESSVC/init = vNrCtaPes
+	retrieve/e "FCC_CTAPESSVC"
+	if ($status < 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Conta %%vNrCtaPes não cadastrada!", "ADICIONAL=Operação->FCCSVCO002.movimentaConta")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	
+	if (vCdHistorico = 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Histórico não informado!", "ADICIONAL=Operação->FCCSVCO002.movimentaConta")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+
+	if (vInCaixa = <TRUE>)
+		if (vCdTerminal = 0)
+			$instancehandle->SetStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Terminal não informado!", "ADICIONAL=Operação->FCCSVCO002.movimentaConta")
+			poCdErro  = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return(-1)
+		endif
+
+		if (vDtAbertura = "")
+			$instancehandle->SetStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Dt. de abertura do caixa não informada!", "ADICIONAL=Operação->FCCSVCO002.movimentaConta")
+			poCdErro  = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return(-1)
+		endif		
+
+		if (vNrSeqCaixa = 0)
+			$instancehandle->SetStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Nr. de sequência de caixa não informado!", "ADICIONAL=Operação->FCCSVCO002.movimentaConta")
+			poCdErro  = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return(-1)
+		endif		
+	endif
+	
+	clear/e "FCC_HISTORICOSVC"
+	CD_HISTORICO.FCC_HISTORICOSVC/init = vCdHistorico
+	retrieve/e "FCC_HISTORICOSVC"
+	if ($status < 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Histórico %%vCdHistorico não cadastrado!", "ADICIONAL=Operação->FCCSVCO002.movimentaConta")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+
+	if (IN_AUTACONCI.FCC_HISTORICOSVC = <TRUE>) & (vDtConci  = "")
+		vDtConci = vDtMovimento
+	endif
+
+	vTpOperacao = TP_OPERACAO.FCC_HISTORICOSVC
+
+	if (vDtMovimento = 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Data movimento não informada!", "ADICIONAL=Operação->FCCSVCO002.movimentaConta")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	
+	if (vVlLancto = 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Valor não informado!", "ADICIONAL=Operação->FCCSVCO002.movimentaConta")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	
+	if (vCdEmpLiq = 0) & ((vDtLiq != "") | (vNrSeqLiq > 0))
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Empresa liquidação não informada!", "ADICIONAL=Operação->FCCSVCO002.movimentaConta")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	
+	if (vDtLiq = "") & ((vCdEmpLiq > 0) | (vNrSeqLiq > 0))
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Data liquidação não informada!", "ADICIONAL=Operação->FCCSVCO002.movimentaConta")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	
+	if (vNrSeqLiq = 0) & ((vCdEmpLiq > 0) | (vDtLiq != ""))
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Número sequência liquidação não informada!", "ADICIONAL=Operação->FCCSVCO002.movimentaConta")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+
+	if (vTpDocumento = 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Tipo de documento não informado!", "ADICIONAL=Operação->FCCSVCO002.movimentaConta")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+
+	if (vNrSeqHistRelSub = 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Sequencia auxiliar de parcelamento não informada!", "ADICIONAL=Operação->FCCSVCO002.movimentaConta")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+
+	;==BY BIANCHINI[PRJ/TAREFA 186/110] 29/06/2011==;
+	call getParam()
+	if ($procerror)
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		exit(-1)
+	elseif ($status < 0)
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		exit(-1)
+	endif
+	;==	
+	viParams = ""
+	voParams = ""
+	putitem/id viParams, "NR_CTAPES", vNrCtaPes
+	putitem/id viParams, "DT_LANCTO", vDtMovimento
+	activate "FCCSVCO002".ValidaDt(viParams, voParams, $xCdErro$, $xCtxerro$)
+	if ($procerror)
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)  
+	elseif ($status < 0)
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	else
+		vInData = $item("IN_OK", voParams)
+		if (vInData = <FALSE>)
+			$dtMovimento$ = vDtMovimento
+			$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Data de movimento %%$dtMovimento$ inválida da conta %%vNrCtaPes!", "ADICIONAL=Operação->FCCSVCO002.movimentaConta")
+			poCdErro  = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return(-1)
+		endif
+	endif        
+	
+	vVlLancto = $abs(vVlLancto)
+	
+	viParams = ""
+	voParams = ""
+	putitem/id viParams, "NM_ENTIDADE", "FCC_MOV"
+	activate "GERSVCO031".getNumSeq($xlpg$, viParams, voParams, $xCdErro$, $xCtxerro$)
+	if ($procerror)
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)  
+	elseif ($status < 0)
+		$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)  
+	endif    
+
+	vNrSeqMov = $item("NR_SEQUENCIA", voParams)
+
+	clear/e "FCC_MOVSVC"
+	NR_CTAPES.FCC_MOVSVC        = vNrCtaPes
+	DT_MOVIM.FCC_MOVSVC         = vDtMovimento
+	NR_SEQMOV.FCC_MOVSVC        = vNrSeqMov
+	CD_EMPRESA.FCC_MOVSVC       = vCdEmpresa
+	TP_OPERACAO.FCC_MOVSVC      = vTpOperacao
+	CD_GRUPOEMPRESA.FCC_MOVSVC  = CD_GRUPOEMPRESA.GER_EMPRESASVC
+	CD_HISTORICO.FCC_MOVSVC     = vCdHistorico
+	TP_DOCUMENTO.FCC_MOVSVC     = vTpDocumento
+	NR_SEQHISTRELSUB.FCC_MOVSVC = vNrSeqHistRelSub
+	VL_LANCTO.FCC_MOVSVC        = vVlLancto
+	IN_ESTORNO.FCC_MOVSVC       = vInEstorno
+	CD_EMPLIQ.FCC_MOVSVC        = vCdEmpLiq
+	DT_LIQ.FCC_MOVSVC           = vDtLiq
+	NR_SEQLIQ.FCC_MOVSVC        = vNrSeqLiq
+	DS_DOC.FCC_MOVSVC           = vDsDoc[1:15]
+	DS_AUX.FCC_MOVSVC           = vDsAux[1:60]
+
+	if (vInEstorno = <TRUE>)
+		CD_OPERESTORNO.FCC_MOVSVC = $item("CD_USUARIO", $xlpg$)
+		DT_ESTORNO.FCC_MOVSVC     = $datim
+	endif
+
+	if (vDtConci != "")
+		CD_OPERCONCI.FCC_MOVSVC = $item("CD_USUARIO", $xlpg$)
+		DT_CONCI.FCC_MOVSVC     = vDtConci
+	else
+		CD_OPERCONCI.FCC_MOVSVC = ""
+		DT_CONCI.FCC_MOVSVC     = ""
+	endif
+	;MTF(27/06/2006) - Projeto 069, tarefa 010.
+	if (vCdOPerConci != "")
+		cd_operconci.fcc_movsvc = vCdOperConci
+	endif
+	;
+	;Projeto 180 - Tarefa 0181 - Aloisio Gargantini - 25/05/2011
+	CD_EMPCHQPRES.FCC_MOVSVC = vCdEmpChqPres
+	CD_CLICHQPRES.FCC_MOVSVC = vCdCliChqPres
+	NR_CHEQUEPRES.FCC_MOVSVC = vNrChequePres
+	;
+	CD_OPERADOR.FCC_MOVSVC   = vCdOperador
+	DT_CADASTRO.FCC_MOVSVC   = $datim
+
+	;MTF(02/12/2010) - Projeto 078, tarefa 3986.
+	;==BY BIANCHINI[PRJ/TAREFA 186/110] 29/06/2011==;
+	if ($inLogMovCtapes$ = <TRUE>)
+		if ($status = -10) | ($status = -11)
+			$instancehandle->setStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Saldo da conta corrente %%NR_CTAPES.FCC_MOVSVC está sendo atualizado neste momento por outro processo.%%^%%^Favor efetuar o processo mais tarde.", "")
+			poCdErro  = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return(-1)
+		endif
+		;
+	endif
+	;==
+	
+	if (vInCaixa = <TRUE>)
+		creocc "FCX_CAIXAMSVC", -1
+		CD_EMPRESA.FCX_CAIXAMSVC  = vCdEmpresa
+		CD_TERMINAL.FCX_CAIXAMSVC = vCdTerminal
+		DT_ABERTURA.FCX_CAIXAMSVC = vDtAbertura
+		NR_SEQ.FCX_CAIXAMSVC      = vNrSeqCaixa
+		CD_OPERADOR.FCX_CAIXAMSVC = vCdOperador
+		DT_CADASTRO.FCX_CAIXAMSVC = $datim
+	endif
+
+	$collhandle("FCC_MOVSVC")->Salvar()
+	if ($procerror)
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return (-1)
+	elseif ($status < 0)
+		$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")    
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return (-1)
+	endif	
+
+	if (vDtConci != "")
+		vInAchou         = <FALSE>
+		vVlSaldoAnt      = 0
+		vVlSaldoConciAnt = 0
+		;busca a data do saldo anterior
+		vDtSaldoAnt      = ""
+
+		selectdb max(DT_MOVIM) %\
+		from "FCC_CTASALDOSVC" %\
+		u_where (NR_CTAPES.FCC_CTASALDOSVC = vNrCtaPes & %\
+		DT_MOVIM.FCC_CTASALDOSVC < vDtConci) %\
+		to vDtSaldoAnt
+		if ($status < 0)
+			$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+			poCdErro  = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return (-1)
+		else
+			if (vDtSaldoAnt != "")
+				clear/e "FCC_CTASALDOSVC"
+				NR_CTAPES.FCC_CTASALDOSVC/init = vNrCtaPes
+				DT_MOVIM.FCC_CTASALDOSVC/init  = vDtSaldoAnt
+				retrieve/e "FCC_CTASALDOSVC"
+				if ($status >= 0)
+					vVlSaldoAnt      = VL_SALDO.FCC_CTASALDOSVC
+					vVlSaldoConciAnt = VL_SALDOCONCI.FCC_CTASALDOSVC
+				else
+					$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Não foi possível obter o saldo do dia %%vDtSaldoAnt da conta %%vNrCtaPes!", "ADICIONAL=Operação->FCCSVCO002.movimentaConta")
+					poCdErro  = $xCdErro$
+					poCtxErro = $xCtxErro$
+					return(-1)
+				endif            
+			endif
+		endif       
+
+		clear/e "FCC_CTASALDOSVC"
+
+		creocc "FCC_CTASALDOSVC", -1
+		NR_CTAPES.FCC_CTASALDOSVC = vNrCtaPes
+		DT_MOVIM.FCC_CTASALDOSVC  = vDtConci
+		retrieve/o "FCC_CTASALDOSVC"
+		if ($status = -7)
+			retrieve/x "FCC_CTASALDOSVC"
+
+			if (TP_OPERACAO.FCC_MOVSVC = "C")
+				VL_SALDOCONCI.FCC_CTASALDOSVC = VL_SALDOCONCI.FCC_CTASALDOSVC + VL_LANCTO.FCC_MOVSVC
+			else
+				VL_SALDOCONCI.FCC_CTASALDOSVC = VL_SALDOCONCI.FCC_CTASALDOSVC - VL_LANCTO.FCC_MOVSVC
+			endif
+		else
+			if (vTpOperacao = "C")
+				VL_SALDOCONCI.FCC_CTASALDOSVC =  vVlSaldoConciAnt + VL_LANCTO.FCC_MOVSVC
+			else
+				VL_SALDOCONCI.FCC_CTASALDOSVC = vVlSaldoConciAnt  - VL_LANCTO.FCC_MOVSVC
+			endif
+			VL_SALDO.FCC_CTASALDOSVC = vVlSaldoAnt
+		endif
+		
+		CD_OPERADOR.FCC_CTASALDOSVC = vCdOperador
+		;MTF(26/10/2007) - Projeto 078, tarefa 884.
+		;DT_CADASTRO.FCC_CTASALDOSVC = $date
+		DT_CADASTRO.FCC_CTASALDOSVC = $datim
+		;
+		;MTF(02/12/2010) - Projeto 078, tarefa 3986.
+		;==BY BIANCHINI[PRJ/TAREFA 186/110] 29/06/2011==;
+		if ($inLogMovCtapes$ = <TRUE>)
+			if ($status = -10) | ($status = -11)
+				$instancehandle->setStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Saldo da conta corrente %%NR_CTAPES.FCC_CTASALDOSVC está sendo atualizado neste momento por outro processo.%%^%%^Favor efetuar o processo mais tarde.", "")
+				poCdErro  = $xCdErro$
+				poCtxErro = $xCtxErro$
+				return(-1)
+			endif
+			;
+		endif
+		;==
+		$collhandle("FCC_CTASALDOSVC")->Salvar()
+		if ($procerror)
+			$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+			poCdErro  = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return (-1)
+		elseif ($status < 0)
+			$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")    
+			poCdErro  = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return (-1)
+		endif        
+
+		clear/e "FCC_CTASALDOSVC"
+		NR_CTAPES.FCC_CTASALDOSVC = vNrCtaPes
+		DT_MOVIM.FCC_CTASALDOSVC  = "·>%%vDtConci"
+		retrieve/e "FCC_CTASALDOSVC"
+		if ($status >= 0)
+			setocc "FCC_CTASALDOSVC", 1
+			while ($status >= 0)
+				if (TP_OPERACAO.FCC_MOVSVC = "C")
+					VL_SALDOCONCI.FCC_CTASALDOSVC = VL_SALDOCONCI.FCC_CTASALDOSVC + VL_LANCTO.FCC_MOVSVC
+				else
+					VL_SALDOCONCI.FCC_CTASALDOSVC = VL_SALDOCONCI.FCC_CTASALDOSVC - VL_LANCTO.FCC_MOVSVC
+				endif    
+				CD_OPERADOR.FCC_CTASALDOSVC = vCdOperador
+				;MTF(26/10/2007) - Projeto 078, tarefa 884.
+				;DT_CADASTRO.FCC_CTASALDOSVC = $date
+				DT_CADASTRO.FCC_CTASALDOSVC = $datim
+				;
+				;MTF(02/12/2010) - Projeto 078, tarefa 3986.
+				;==BY BIANCHINI[PRJ/TAREFA 186/110] 29/06/2011==;
+				if ($inLogMovCtapes$ = <TRUE>)	
+					if ($status = -10) | ($status = -11)
+						$instancehandle->setStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Saldo da conta corrente %%NR_CTAPES.FCC_CTASALDOSVC está sendo atualizado neste momento por outro processo.%%^%%^Favor efetuar o processo mais tarde.", "")
+						poCdErro  = $xCdErro$
+						poCtxErro = $xCtxErro$
+						return(-1)
+					endif
+					;
+				endif
+				;==
+				
+				setocc "FCC_CTASALDOSVC", $curocc("FCC_CTASALDOSVC") + 1
+			endwhile
+		
+			$collhandle("FCC_CTASALDOSVC")->Salvar()
+			if ($procerror)
+				$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+				poCdErro  = $xCdErro$
+				poCtxErro = $xCtxErro$
+				return (-1)
+			elseif ($status < 0)
+				$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")    
+				poCdErro  = $xCdErro$
+				poCtxErro = $xCtxErro$
+				return (-1)
+			endif
+		endif
+	endif
+
+;Nao habilitar logica abaixo - fornaroli 07/04/2010.	
+;	;vInCalcCtaAuto = $item("IN_CALCULA_SALDO_CTA_AUTO", $xLpg$)
+;	vInCalcCtaAuto  = <TRUE> ;Esta condicao foi inclusa para nao efetuar a logica abaixo, pois a logica abaixo esta sendo executada pela trigger T_CALCULA_SALDO_CTA_CTR.sql.
+;	if (vInCalcCtaAuto != <TRUE>) ;-- MAD [Proj/Tar.078/3165] - 17/02/2010
+	vInAchou         = <FALSE>
+	vVlSaldoAnt      = 0
+	vVlSaldoConciAnt = 0
+	;busca a data do saldo anterior
+	vDtSaldoAnt      = ""       
+	
+	selectdb max(DT_MOVIM) %\
+	from "FCC_CTASALDOSVC" %\
+	u_where (NR_CTAPES.FCC_CTASALDOSVC = vNrCtaPes & %\
+	DT_MOVIM.FCC_CTASALDOSVC < vDtMovimento) %\
+	to vDtSaldoAnt
+	if ($status < 0)
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return (-1)
+	else
+		if (vDtSaldoAnt != "")
+			clear/e "FCC_CTASALDOSVC"
+			NR_CTAPES.FCC_CTASALDOSVC/init = vNrCtaPes
+			DT_MOVIM.FCC_CTASALDOSVC/init  = vDtSaldoAnt
+			retrieve/e "FCC_CTASALDOSVC"
+			if ($status >= 0)
+				vVlSaldoAnt      = VL_SALDO.FCC_CTASALDOSVC
+				vVlSaldoConciAnt = VL_SALDOCONCI.FCC_CTASALDOSVC
+				vInAchou         = <TRUE>
+			else
+				$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Não foi possível obter o saldo do dia %%vDtSaldoAnt da conta %%vNrCtaPes!", "ADICIONAL=Operação->FCCSVCO002.movimentaConta")
+				poCdErro  = $xCdErro$
+				poCtxErro = $xCtxErro$
+				return(-1)
+			endif            
+		endif
+	endif       
+	
+	;gerar/atualizar o saldo na data do movimento
+	clear/e "FCC_CTASALDOSVC"
+	
+	creocc "FCC_CTASALDOSVC", -1
+	NR_CTAPES.FCC_CTASALDOSVC = vNrCtaPes
+	DT_MOVIM.FCC_CTASALDOSVC  = vDtMovimento
+	retrieve/o "FCC_CTASALDOSVC"
+	if ($status = -7)
+		retrieve/x "FCC_CTASALDOSVC"
+		if (VL_CREDITOS.FCC_CTASALDOSVC = 0 & VL_DEBITOS.FCC_CTASALDOSVC = 0)
+			if (vTpOperacao = "C")
+				VL_SALDO.FCC_CTASALDOSVC    =  vVlSaldoAnt + vVlLancto
+				VL_CREDITOS.FCC_CTASALDOSVC = vVlLancto
+			else
+				VL_SALDO.FCC_CTASALDOSVC   = vVlSaldoAnt - vVlLancto
+				VL_DEBITOS.FCC_CTASALDOSVC = vVlLancto
+			endif        
+			if (vInAchou = <TRUE>)
+				IN_INICIAL.FCC_CTASALDOSVC = <FALSE>
+			else
+				IN_INICIAL.FCC_CTASALDOSVC = <TRUE>
+			endif
+		else
+			if (vTpOperacao = "C")
+				VL_SALDO.FCC_CTASALDOSVC    = VL_SALDO.FCC_CTASALDOSVC    + vVlLancto
+				VL_CREDITOS.FCC_CTASALDOSVC = VL_CREDITOS.FCC_CTASALDOSVC + vVlLancto
+			else
+				VL_SALDO.FCC_CTASALDOSVC    = VL_SALDO.FCC_CTASALDOSVC    - vVlLancto
+				VL_DEBITOS.FCC_CTASALDOSVC  = VL_DEBITOS.FCC_CTASALDOSVC  + vVlLancto
+			endif
+		endif
+	else
+		if (vTpOperacao = "C")
+			VL_SALDO.FCC_CTASALDOSVC    =  vVlSaldoAnt + vVlLancto
+			VL_CREDITOS.FCC_CTASALDOSVC = vVlLancto
+		else
+			VL_SALDO.FCC_CTASALDOSVC    = vVlSaldoAnt  - vVlLancto
+			VL_DEBITOS.FCC_CTASALDOSVC  = vVlLancto
+		endif        
+		if (vInAchou = <TRUE>)
+			IN_INICIAL.FCC_CTASALDOSVC = <FALSE>
+		else
+			IN_INICIAL.FCC_CTASALDOSVC = <TRUE>
+		endif
+		VL_SALDOCONCI.FCC_CTASALDOSVC = vVlSaldoConciAnt
+	endif
+		
+	;MTF(02/12/2010) - Projeto 078, tarefa 3986.
+	;==BY BIANCHINI[PRJ/TAREFA 186/110] 29/06/2011==;
+	if ($inLogMovCtapes$ = <TRUE>)
+		if ($status = -10) | ($status = -11)
+			$instancehandle->setStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Saldo da conta corrente %%NR_CTAPES.FCC_CTASALDOSVC está sendo atualizado neste momento por outro processo.%%^%%^Favor efetuar o processo mais tarde.", "")
+			poCdErro  = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return(-1)
+		endif
+		;
+	endif
+	;==
+
+	CD_OPERADOR.FCC_CTASALDOSVC = vCdOperador
+	;MTF(26/10/2007) - Projeto 078, tarefa 884.
+	;DT_CADASTRO.FCC_CTASALDOSVC = $date
+	DT_CADASTRO.FCC_CTASALDOSVC = $datim
+	;
+	
+	$collhandle("FCC_CTASALDOSVC")->Salvar()
+	if ($procerror)
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return (-1)
+	elseif ($status < 0)
+		$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")    
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return (-1)
+	endif
+	
+	clear/e "FCC_CTASALDOSVC"
+	NR_CTAPES.FCC_CTASALDOSVC = vNrCtaPes
+	DT_MOVIM.FCC_CTASALDOSVC  = "·>%%vDtMovimento"
+	retrieve/e "FCC_CTASALDOSVC"
+	if ($status >= 0)
+		setocc "FCC_CTASALDOSVC", 1
+		while ($status >= 0)
+			if (vTpOperacao = "C")
+				VL_SALDO.FCC_CTASALDOSVC    = VL_SALDO.FCC_CTASALDOSVC    + vVlLancto
+				;VL_CREDITOS.FCC_CTASALDOSVC = VL_CREDITOS.FCC_CTASALDOSVC + vVlLancto ;Projeto 080 - Tarefa 0132 - Aloisio Gargantini - 25/03/2011
+			else
+				VL_SALDO.FCC_CTASALDOSVC   = VL_SALDO.FCC_CTASALDOSVC   - vVlLancto
+				;VL_DEBITOS.FCC_CTASALDOSVC = VL_DEBITOS.FCC_CTASALDOSVC + vVlLancto ;Projeto 080 - Tarefa 0132 - Aloisio Gargantini - 25/03/2011
+			endif
+				
+			;MTF(02/12/2010) - Projeto 078, tarefa 3986.
+			;==BY BIANCHINI[PRJ/TAREFA 186/110] 29/06/2011==;
+			if ($inLogMovCtapes$ = <TRUE>)
+				if ($status = -10) | ($status = -11)
+					$instancehandle->setStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Saldo da conta corrente %%NR_CTAPES.FCC_CTASALDOSVC está sendo atualizado neste momento por outro processo.%%^%%^Favor efetuar o processo mais tarde.", "")
+					poCdErro  = $xCdErro$
+					poCtxErro = $xCtxErro$
+					return(-1)
+				endif
+				;
+			endif
+			;==
+			CD_OPERADOR.FCC_CTASALDOSVC = vCdOperador
+			;MTF(26/10/2007) - Projeto 078, tarefa 884.
+			;DT_CADASTRO.FCC_CTASALDOSVC = $date
+			DT_CADASTRO.FCC_CTASALDOSVC = $datim
+			;
+			setocc "FCC_CTASALDOSVC", $curocc("FCC_CTASALDOSVC") + 1
+		endwhile
+	
+		$collhandle("FCC_CTASALDOSVC")->Salvar()
+		if ($procerror)
+			$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+			poCdErro  = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return (-1)
+		elseif ($status < 0)
+			$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")    
+			poCdErro  = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return (-1)
+		endif
+	endif
+		
+	;Grava saldo por tipo de documento
+	vInAchou    = <FALSE>
+	vVlSaldoAnt = 0
+	;busca a data do saldo anterior
+	vDtSaldoAnt = ""
+	selectdb max(DT_MOVIM) %\
+	from "FCC_CTASALDORSVC" %\
+	u_where (NR_CTAPES.FCC_CTASALDORSVC = vNrCtaPes        & %\
+	TP_DOCUMENTO.FCC_CTASALDORSVC       = vTpDocumento     & %\
+	NR_SEQHISTRELSUB.FCC_CTASALDORSVC   = vNrSeqHistRelSub & %\
+	DT_MOVIM.FCC_CTASALDORSVC < vDtMovimento) %\
+	to vDtSaldoAnt
+	if ($status < 0)
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return (-1)
+	else
+		if (vDtSaldoAnt = "")
+			clear/e "FCC_CTASALDORSVC"
+			creocc "FCC_CTASALDORSVC",-1
+			NR_CTAPES.FCC_CTASALDORSVC        = NR_CTAPES.FCC_CTAPESSVC
+			TP_DOCUMENTO.FCC_CTASALDORSVC     = vTpDocumento
+			NR_SEQHISTRELSUB.FCC_CTASALDORSVC = vNrSeqHistRelSub
+			DT_MOVIM.FCC_CTASALDORSVC         = DT_ABERTURA.FCC_CTAPESSVC - 1
+			IN_INICIAL.FCC_CTASALDORSVC       = <TRUE>
+			VL_SALDO.FCC_CTASALDORSVC         = 0
+			VL_SALDOCONCI.FCC_CTASALDORSVC    = 0
+			VL_CREDITOS.FCC_CTASALDORSVC      = 0
+			VL_DEBITOS.FCC_CTASALDORSVC       = 0
+			CD_OPERADOR.FCC_CTASALDORSVC      = vCdOperador
+			;MTF(26/10/2007) - Projeto 078, tarefa 884.
+			;DT_CADASTRO.FCC_CTASALDORSVC      = $date
+			dt_cadastro.fcc_ctasaldorsvc      = $datim
+			;
+			;MTF(02/12/2010) - Projeto 078, tarefa 3986.
+			;==BY BIANCHINI[PRJ/TAREFA 186/110] 29/06/2011==;
+			if ($inLogMovCtapes$ = <TRUE>)
+				if ($status = -10) | ($status = -11)
+					$instancehandle->setStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Saldo da conta corrente %%NR_CTAPES.FCC_CTASALDORSVC está sendo atualizado neste momento por outro processo.%%^%%^Favor efetuar o processo mais tarde.", "")
+					poCdErro  = $xCdErro$
+					poCtxErro = $xCtxErro$
+					return(-1)
+				endif
+				;
+			endif
+			;==
+			$collhandle("FCC_CTASALDORSVC")->Salvar()
+			if ($procerror)
+				$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+				poCdErro  = $xCdErro$
+				poCtxErro = $xCtxErro$
+				return (-1)
+			elseif ($status < 0)
+				$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")    
+				poCdErro  = $xCdErro$
+				poCtxErro = $xCtxErro$
+				return (-1)
+			endif
+		else
+			clear/e "FCC_CTASALDORSVC"
+			NR_CTAPES.FCC_CTASALDORSVC/init        = vNrCtaPes
+			TP_DOCUMENTO.FCC_CTASALDORSVC/init     = vTpDocumento
+			NR_SEQHISTRELSUB.FCC_CTASALDORSVC/init = vNrSeqHistRelSub
+			DT_MOVIM.FCC_CTASALDORSVC/init         = vDtSaldoAnt
+			retrieve/e "FCC_CTASALDORSVC"
+			if ($status >= 0)
+				vVlSaldoAnt = VL_SALDO.FCC_CTASALDORSVC
+				vInAchou    = <TRUE>
+			else
+				$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Não foi possível obter o saldo do dia %%vDtSaldoAnt da conta %%vNrCtaPes!", "ADICIONAL=Operação->FCCSVCO002.movimentaConta")
+				poCdErro  = $xCdErro$
+				poCtxErro = $xCtxErro$
+				return(-1)
+			endif            
+		endif
+	endif  
+	
+	;gerar/atualizar o saldo na data do movimento
+	clear/e "FCC_CTASALDORSVC"
+	creocc "FCC_CTASALDORSVC", -1
+	NR_CTAPES.FCC_CTASALDORSVC        = vNrCtaPes
+	TP_DOCUMENTO.FCC_CTASALDORSVC     = vTpDocumento
+	NR_SEQHISTRELSUB.FCC_CTASALDORSVC = vNrSeqHistRelSub
+	DT_MOVIM.FCC_CTASALDORSVC         = vDtMovimento
+	retrieve/o "FCC_CTASALDORSVC"
+	if ($status = -7)
+		retrieve/x "FCC_CTASALDORSVC"
+
+		if (vTpOperacao = "C")
+			VL_SALDO.FCC_CTASALDORSVC    = VL_SALDO.FCC_CTASALDORSVC    + vVlLancto
+			VL_CREDITOS.FCC_CTASALDORSVC = VL_CREDITOS.FCC_CTASALDORSVC + vVlLancto
+		else
+			VL_SALDO.FCC_CTASALDORSVC    = VL_SALDO.FCC_CTASALDORSVC    - vVlLancto
+			VL_DEBITOS.FCC_CTASALDORSVC  = VL_DEBITOS.FCC_CTASALDORSVC  + vVlLancto
+		endif        
+	else
+		if (vTpOperacao = "C")
+			VL_SALDO.FCC_CTASALDORSVC    =  vVlSaldoAnt + vVlLancto
+			VL_CREDITOS.FCC_CTASALDORSVC = vVlLancto
+		else
+			VL_SALDO.FCC_CTASALDORSVC    = vVlSaldoAnt  - vVlLancto
+			VL_DEBITOS.FCC_CTASALDORSVC  = vVlLancto
+		endif        
+		if (vInAchou = <TRUE>)
+			IN_INICIAL.FCC_CTASALDORSVC = <FALSE>
+		else
+			IN_INICIAL.FCC_CTASALDORSVC = <TRUE>
+		endif
+	endif
+		
+	;MTF(02/12/2010) - Projeto 078, tarefa 3986.
+	;==BY BIANCHINI[PRJ/TAREFA 186/110] 29/06/2011==;
+	if ($inLogMovCtapes$ = <TRUE>)
+		if ($status = -10) | ($status = -11)
+			$instancehandle->setStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Saldo da conta corrente %%NR_CTAPES.FCC_CTASALDORSVC está sendo atualizado neste momento por outro processo.%%^%%^Favor efetuar o processo mais tarde.", "")
+			poCdErro  = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return(-1)
+		endif
+		;
+	endif
+	;==
+
+	;HAF - 12/09/05
+	;Em conversa com Fábio
+	;Não existe saldo conciliado por tipo de documento
+	VL_SALDOCONCI.FCC_CTASALDORSVC = 0
+	CD_OPERADOR.FCC_CTASALDORSVC   = vCdOperador
+	;MTF(26/10/2007) - Projeto 078, tarefa 884.
+	;DT_CADASTRO.FCC_CTASALDORSVC   = $date
+	dt_cadastro.fcc_ctasaldorsvc   = $datim
+	;
+		
+	$collhandle("FCC_CTASALDORSVC")->Salvar()
+	if ($procerror)
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return (-1)
+	elseif ($status < 0)
+		$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")    
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return (-1)
+	endif
+	
+	clear/e "FCC_CTASALDORSVC"
+	NR_CTAPES.FCC_CTASALDORSVC        = vNrCtaPes
+	TP_DOCUMENTO.FCC_CTASALDORSVC     = vTpDocumento
+	NR_SEQHISTRELSUB.FCC_CTASALDORSVC = vNrSeqHistRelSub
+	DT_MOVIM.FCC_CTASALDORSVC         = "·>%%vDtMovimento"
+	retrieve/e "FCC_CTASALDORSVC"
+	if ($status >= 0)
+		setocc "FCC_CTASALDORSVC", 1
+		while ($status >= 0)
+			if (DT_MOVIM.FCC_CTASALDORSVC = "")
+			endif
+			if (vTpOperacao = "C")
+				VL_SALDO.FCC_CTASALDORSVC    = VL_SALDO.FCC_CTASALDORSVC    + vVlLancto
+				;VL_CREDITOS.FCC_CTASALDORSVC = VL_CREDITOS.FCC_CTASALDORSVC + vVlLancto ;Projeto 080 - Tarefa 0132 - Aloisio Gargantini - 25/03/2011
+				if (CD_OPERCONCI.FCC_MOVSVC > 0)
+					VL_SALDOCONCI.FCC_CTASALDORSVC = VL_SALDOCONCI.FCC_CTASALDORSVC + vVlLancto
+				endif
+			else
+				VL_SALDO.FCC_CTASALDORSVC   = VL_SALDO.FCC_CTASALDORSVC   - vVlLancto
+				;VL_DEBITOS.FCC_CTASALDORSVC = VL_DEBITOS.FCC_CTASALDORSVC + vVlLancto ;Projeto 080 - Tarefa 0132 - Aloisio Gargantini - 25/03/2011
+				if (CD_OPERCONCI.FCC_MOVSVC > 0)
+					VL_SALDOCONCI.FCC_CTASALDORSVC = VL_SALDOCONCI.FCC_CTASALDORSVC - vVlLancto
+				endif
+			endif
+				
+			;MTF(02/12/2010) - Projeto 078, tarefa 3986.
+			;==BY BIANCHINI[PRJ/TAREFA 186/110] 29/06/2011==;
+			if ($inLogMovCtapes$ = <TRUE>)		
+					if ($status = -10) | ($status = -11)
+					$instancehandle->setStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Saldo da conta corrente %%NR_CTAPES.FCC_CTASALDORSVC está sendo atualizado neste momento por outro processo.%%^%%^Favor efetuar o processo mais tarde.", "")
+					poCdErro  = $xCdErro$
+					poCtxErro = $xCtxErro$
+					return(-1)
+				endif
+				;
+			endif
+			;==
+			CD_OPERADOR.FCC_CTASALDORSVC = vCdOperador
+			;MTF(26/10/2007) - Projeto 078, tarefa 884.
+			;DT_CADASTRO.FCC_CTASALDORSVC = $date
+			DT_CADASTRO.FCC_CTASALDORSVC = $datim
+			;
+			setocc "FCC_CTASALDORSVC", $curocc("FCC_CTASALDORSVC") + 1
+		endwhile
+	
+		$collhandle("FCC_CTASALDORSVC")->Salvar()
+		if ($procerror)
+			$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+			poCdErro  = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return (-1)
+		elseif ($status < 0)
+			$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")    
+			poCdErro  = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return (-1)
+		endif
+	endif
+;	endif
+
+	;Marcos Rogerio - Projeto 63 / Tarefa 31 - 26/06/2006 - fábio
+	;poParams = ""
+	;putitem/id poParams, "NR_CTAPES", NR_CTAPES.FCC_MOVSVC
+	;putitem/id poParams, "DT_MOVIM" , DT_MOVIM.FCC_MOVSVC
+	;putitem/id poParams, "NR_SEQMOV", NR_SEQMOV.FCC_MOVSVC
+
+	;fim da original da Operation MovimentaConta
+
+	;-----------------------------------------------------------
+	;Marcos Rogerio - Projeto 63 / Tarefa 31 - 26/06/2006 - fábio
+	;-----------------------------------------------------------
+	;grava observação do movimento quando for passado uma observação por parâmetro para a operation MovimentaConta
+	;Projeto 180 - Tarefa 0127 - Aloisio Gargantini - 23/03/2011
+	if (vDsLstObservacao != "")	
+		repeat
+			getitem vDs, vDsLstObservacao, 1	
+
+			if (vDs != "")
+				putitem/id viParams, "NR_CTAPES"    , NR_CTAPES.FCC_MOVSVC
+				putitem/id viParams, "DT_MOVIM"     , DT_MOVIM.FCC_MOVSVC
+				putitem/id viParams, "NR_SEQMOV"    , NR_SEQMOV.FCC_MOVSVC
+				putitem/id viParams, "CD_COMPONENTE", "FCCSVCO002"
+				putitem/id viParams, "DS_OBS"       , vDs
+				activate "FCCSVCO002".gravaObsMov($xlpg$, viParams, voParams, $xCdErro$, $xCtxerro$)
+				if ($procerror)       
+					$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "ADICIONAL=Operação->FCCSVCO002.movimentaConta/observação")
+					poCdErro  = $xCdErro$
+					poCtxErro = $xCtxErro$
+					return (-1)
+				endif
+				if ($status < 0)
+					$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "ADICIONAL=Operação->FCCSVCO002.movimentaConta/observação")
+					poCdErro  = $xCdErro$
+					poCtxErro = $xCtxErro$
+					return (-1)
+				endif
+			endif
+
+			delitem vDsLstObservacao , 1
+		until (vDsLstObservacao = "")
+		vDs = ""
+	endif
+	;
+	if (vDsObs != "")	
+		viParams = ""
+		putitem/id viParams, "NR_CTAPES"    , NR_CTAPES.FCC_MOVSVC
+		putitem/id viParams, "DT_MOVIM"     , DT_MOVIM.FCC_MOVSVC
+		putitem/id viParams, "NR_SEQMOV"    , NR_SEQMOV.FCC_MOVSVC
+		putitem/id viParams, "CD_COMPONENTE", "FCCSVCO002"
+		putitem/id viParams, "DS_OBS"       , vDsObs
+		activate "FCCSVCO002".gravaObsMov($xlpg$, viParams, voParams, $xCdErro$, $xCtxerro$)
+		if ($procerror)       
+			$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "ADICIONAL=Operação->FCCSVCO002.movimentaConta/observação")
+			poCdErro  = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return (-1)
+		endif
+		if ($status < 0)
+			$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "ADICIONAL=Operação->FCCSVCO002.movimentaConta/observação")
+			poCdErro  = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return (-1)
+		endif
+	endif
+	;-----------------------------------------------------------
+	;**************************************************************************************
+	;INICIO DOS PROCEDIMENTOS PARA LANÇAMENTO DE CONTRA-CAIXA
+	;**************************************************************************************
+	;Marcos Rogerio - Projeto 63 / Tarefa 31 - 26/06/2006 - fábio
+	;-----------------------------------------------------------
+;	;TRUE = Lançamento de CONTRA-CAIXA / FALSE = Não é lançamento de CONTRA-CAIXA
+;	vLanctoContraCaixa = $item("IN_LANCTO_CONTRA_CAIXA" , piParams)
+	;so executa se não for um lançamento de contra-caixa
+	if (vLanctoContraCaixa = <FALSE> | vLanctoContraCaixa = "")
+		poParams = ""
+		putitem/id poParams, "NR_CTAPES", NR_CTAPES.FCC_MOVSVC
+		putitem/id poParams, "DT_MOVIM" , DT_MOVIM.FCC_MOVSVC
+		putitem/id poParams, "NR_SEQMOV", NR_SEQMOV.FCC_MOVSVC
+
+		$vDtMovim_Temp$     = DT_MOVIM.FCC_MOVSVC 
+		$vNrCtapes_Temp$    = NR_CTAPES.FCC_MOVSVC
+		$vCdHistorico_Temp$ = CD_HISTORICO.FCC_MOVSVC
+		$vDsHistorico_Temp$ = DS_HISTORICO.FCC_HISTORICOSVC
+	endif
+	;-----------------------------------------------------------
+	;como a operation  FCCSVCO002.MovimentaConta é executada para geração de lançamentos de CONTRA-CAIXA
+	;... o conteúdo da variável (vLanctoContraCaixa) impede que que o processo de CONTRA-CAIXA seja chamado uma segunda vez
+	if (IN_CONTRACX.FCC_HISTORICOSVC = <TRUE> & (vLanctoContraCaixa = <FALSE> | vLanctoContraCaixa = ""))
+		;------------------------------------------------------------
+		;Parametros gerais 
+		;retorna o tipo de contra-caixa 
+		$xlpl$ = ""
+		putitem $xlpl$, -1, "NR_TIPO_CONTRA_CAIXA"
+		activate "ADMSVCO001".GetLstParametro($xlpl$, $xlpl$, $xcderro$, $xctxerro$)
+		if ($procerror)
+			$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+		endif
+		if ($xcdErro$)
+			$instancehandle->SetErroApl($xCtxErro$, $xCdErro$, $xCtxErro$)
+		endif
+		vNrTipContraCaixa  = $item("NR_TIPO_CONTRA_CAIXA",$xlpl$)
+		;------------------------------------------------------------
+		;se a função de CONTRA-CAIXA não estiver habilitada no parametro NR_TIPO_CONTRA_CAIXA, os movimentos não serão executados
+		if (vNrTipContraCaixa != "" & vNrTipContraCaixa != 0)
+			;---------------------------------------------------------
+			;retorna o caixa de acordo com o NR_TIPO_CONTRA_CAIXA
+			putitem/id piValidaCtaFilialMatriz, "NR_TIPOCONTRACAIXA", vNrTipContraCaixa
+			putitem/id piValidaCtaFilialMatriz, "CD_EMPCTAPES"      , CD_EMPRESA.FCC_MOVSVC
+			$instancehandle->ValidaCtaFilialMatriz(piValidaCtaFilialMatriz,poValidaCtaFilialMatriz)
+			if ($procerror)
+				$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "ADICIONAL=Operação->FCCSVCO002.movimentaConta/Contra-Caixa")
+				poCdErro  = $xCdErro$
+				poCtxErro = $xCtxErro$
+				return(-1)
+			elseif ($status < 0)
+				$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "ADICIONAL=Operação->FCCSVCO002.movimentaConta/Contra-Caixa")    
+				poCdErro  = $xCdErro$
+				poCtxErro = $xCtxErro$
+				return(-1)
+			endif
+			;-----------------------------------------------------------
+			vNrCtapesContraCaixa = $item("NR_CTAPES_CONTRACX", poValidaCtaFilialMatriz)
+			;-----------------------------------------------------------
+			;gera lançamento de CONTRA-CAIXA - CRÉDITO
+			viParams = ""
+			putitem/id viParams, "DS_OBS"                , "LANCTO. CONTRA-CX DE: %%$vDtMovim_Temp$, CTA: %%$vNrCtapes_Temp$, HIST: %%$vCdHistorico_Temp$%%%-%%$vDsHistorico_Temp$"
+			putitem/id viParams, "IN_LANCTO_CONTRA_CAIXA", <TRUE>               ;identifica que este é um lançamento de CONTRA-CAIXA
+			putitem/id viParams, "NR_CTAPES"             , vNrCtapesContraCaixa ;conta validada pelo parametro NR_TIPO_CONTRA_CAIXA 
+			putitem/id viParams, "CD_HISTORICO"          , 980                  ;histórico de contra cx-CRÉDITO
+			putitem/id viParams, "DT_MOVIMENTO"          , DT_MOVIM.FCC_MOVSVC  ;data movimento
+			putitem/id viParams, "VL_LANCTO"             , VL_LANCTO.FCC_MOVSVC
+			putitem/id viParams, "CD_EMPLIQ"             , CD_EMPLIQ.FCC_MOVSVC
+			putitem/id viParams, "DT_LIQ"                , DT_LIQ.FCC_MOVSVC
+			putitem/id viParams, "NR_SEQLIQ"             , NR_SEQLIQ.FCC_MOVSVC
+			putitem/id viParams, "DS_DOC"                , DS_DOC.FCC_MOVSVC
+			putitem/id viParams, "DS_AUX"                , "**VER OBS. MOVTO.**"
+			putitem/id viParams, "TP_DOCUMENTO"          , TP_DOCUMENTO.FCC_MOVSVC
+			putitem/id viParams, "NR_SEQHISTRELSUB"      , NR_SEQHISTRELSUB.FCC_MOVSVC
+			putitem/id viParams, "TP_OPERACAO"           , TP_OPERACAO.FCC_MOVSVC
+			putitem/id viParams, "CD_EMPRESA"            , CD_EMPRESA.FCC_MOVSVC
+			putitem/id viParams, "CD_GRUPOEMPRESA"       , CD_GRUPOEMPRESA.FCC_MOVSVC
+			putitem/id viParams, "DT_CONCI"              , ""
+			putitem/id viParams, "CD_OPERCONCI"          , ""
+			putitem/id viParams, "IN_ESTORNO"            , <FALSE>
+			putitem/id viParams, "CD_OPERESTORNO"        , ""
+			putitem/id viParams, "DT_ESTORNO"            , ""
+			activate "FCCSVCO002".movimentaConta($$gParamGlb, viParams, viValores, voParams, $xCdErro$, $xCtxerro$)
+			if ($procerror)       
+				$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "ADICIONAL=Operação->FCCSVCO002.movimentaConta/Contra-Caixa")
+				poCdErro  = $xCdErro$
+				poCtxErro = $xCtxErro$
+				return(-1)
+			elseif ($status < 0)
+				$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Lançamento de CONTRA-CAIXA para o Historico 980 não efetuado !", "ADICIONAL=Operação->FCCSVCO002.movimentaConta/Contra-Caixa")
+				poCdErro  = $xCdErro$
+				poCtxErro = $xCtxErro$
+				return(-1)
+			endif
+			;-----------------------------------------------------------
+			;gera lançamento de CONTRA CAIXA - DÉBITO
+			viParams = ""
+			putitem/id viParams, "DS_OBS"                , "LANCTO. CONTRA-CX DE: %%$vDtMovim_Temp$, CTA: %%$vNrCtapes_Temp$, HIST: %%$vCdHistorico_Temp$%%%-%%$vDsHistorico_Temp$"
+			putitem/id viParams, "IN_LANCTO_CONTRA_CAIXA", <TRUE>               ;identifica que este é um lançamento de CONTRA-CAIXA
+			putitem/id viParams, "NR_CTAPES"             , vNrCtapesContraCaixa ;conta validada pelo parametro NR_TIPO_CONTRA_CAIXA 
+			putitem/id viParams, "CD_HISTORICO"          , 981                  ;histórico de contra cx-DÉBITO
+			putitem/id viParams, "DT_MOVIMENTO"          , DT_MOVIM.FCC_MOVSVC  ;data movimento
+			putitem/id viParams, "VL_LANCTO"             , VL_LANCTO.FCC_MOVSVC
+			putitem/id viParams, "CD_EMPLIQ"             , CD_EMPLIQ.FCC_MOVSVC
+			putitem/id viParams, "DT_LIQ"                , DT_LIQ.FCC_MOVSVC
+			putitem/id viParams, "NR_SEQLIQ"             , NR_SEQLIQ.FCC_MOVSVC
+			putitem/id viParams, "DS_DOC"                , DS_DOC.FCC_MOVSVC
+			putitem/id viParams, "DS_AUX"                , "**VER OBS. MOVTO.**"
+			putitem/id viParams, "TP_DOCUMENTO"          , TP_DOCUMENTO.FCC_MOVSVC
+			putitem/id viParams, "NR_SEQHISTRELSUB"      , NR_SEQHISTRELSUB.FCC_MOVSVC
+			putitem/id viParams, "TP_OPERACAO"           , TP_OPERACAO.FCC_MOVSVC
+			putitem/id viParams, "CD_EMPRESA"            , CD_EMPRESA.FCC_MOVSVC
+			putitem/id viParams, "CD_GRUPOEMPRESA"       , CD_GRUPOEMPRESA.FCC_MOVSVC
+			putitem/id viParams, "DT_CONCI"              , ""
+			putitem/id viParams, "CD_OPERCONCI"          , ""
+			putitem/id viParams, "IN_ESTORNO"            , <FALSE>
+			putitem/id viParams, "CD_OPERESTORNO"        , ""
+			putitem/id viParams, "DT_ESTORNO"            , ""
+			activate "FCCSVCO002".movimentaConta($$gParamGlb, viParams, viValores, voParams, $xCdErro$, $xCtxerro$)
+			if ($procerror)       
+				$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "ADICIONAL=Operação->FCCSVCO002.movimentaConta/Contra-Caixa")
+				poCdErro  = $xCdErro$
+				poCtxErro = $xCtxErro$
+				return(-1)
+			elseif ($status < 0)
+				$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Lançamento de CONTRA-CAIXA para o Historico 981 não efetuado !", "ADICIONAL=Operação->FCCSVCO002.movimentaConta/Contra-Caixa")
+				poCdErro  = $xCdErro$
+				poCtxErro = $xCtxErro$
+				return(-1)
+			endif
+			;-----------------------------------------------------------
+		endif   ;fim do teste de (vNrTipContraCaixa)
+		;------------------------------------------------------------
+	endif   ;fim do teste de (IN_CONTRACX.FCC_HISTORICOSVC e vLanctoContraCaixa)
+	;------------------------------------------------------------
+	;------------------------------------------------------------
+
+	;Projeto 078 - Tarefa 1675 - Aloisio Gargantini - 04/08/2008
+	if (vNrSeqMovRel > 0)
+		viParams  = ""
+		viValores = ""
+		voParams  = ""
+		;Projeto 078 - Tarefa 2878 - Aloisio Gargantini - 21/10/2009
+		;putitem/id viParams, "CD_EMPMOV"    , vCdEmpresa
+		if (vCdEmpMovRel > 0)
+			putitem/id viParams, "CD_EMPMOV", vCdEmpMovRel
+		else
+			putitem/id viParams, "CD_EMPMOV", vCdEmpresa
+		endif
+		;
+		putitem/id viParams, "DT_MOV"      , DT_MOVIM.FCC_MOVSVC
+		putitem/id viParams, "NR_SEQMOV"   , vNrSeqMovRel
+		putitem/id viParams, "NR_CTAPESFCC", NR_CTAPES.FCC_MOVSVC
+		putitem/id viParams, "NR_SEQMOVFCC", NR_SEQMOV.FCC_MOVSVC
+		putitem/id viParams, "TP_OPERACAO" , vTpOperacao
+		if (vTpOrigem = "")
+			if (vTpOperacao = "D")
+				putitem/id viParams, "TP_ORIGEM", 1
+			else
+				putitem/id viParams, "TP_ORIGEM", 2
+			endif
+		else
+			putitem/id viParams, "TP_ORIGEM", vTpOrigem
+		endif
+
+		activate "FCCSVCO017".gravaMovRel($$gParamGlb, viParams, voParams, $xCdErro$, $xCtxerro$)
+		if ($procerror)       
+			$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "ADICIONAL=Operação->FCCSVCO017.gravaMovRel")
+			poCdErro  = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return(-1)
+		endif
+		if ($status < 0)
+			$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Gravação do relacionamento de movimento não efetuado !", "ADICIONAL=Operação->FCCSVCO017.gravaMovRel")
+			poCdErro  = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return(-1)
+		endif
+	endif
+	;	
+	putitem/id poParams, "NR_SEQMOV", vNrSeqMov ;Projeto 078 - Tarefa 3076 - Aloisio Gargantini - 21/01/2010
+	
+	return(0)
+End ;operation movimentaConta
+
+
+;--------------------------------------
+partner Operation ValidaCtaFilialMatriz
+;Marcos R. Kuzminski
+;Data.....: 23/11/20057
+;Descrição: identifica a conta da matriz e da filial
+;Chamada..: 
+;----------------------------
+
+	Params
+		string  pViparams :IN
+		string  pVoParams :OUT
+	EndParams
+
+	variables
+		string  viParams
+		string  voParams
+		numeric vCdEmpresaCtapes
+		numeric pNrTipoTipoContraCaixa
+		numeric vContaCxMatriz
+		numeric vContaCxFilial
+
+		numeric poCdErro
+		string 	poCtxErro
+	endvariables
+
+	;---------------------------------------------------------
+	pNrTipoTipoContraCaixa = $item("NR_TIPOCONTRACAIXA" , pViParams)
+	vCdEmpresaCtapes       = $item("CD_EMPCTAPES"       , pViParams)
+	;---------------------------------------------------------
+	;Parametros por empresa
+	viParams = ""
+	putitem viParams, -1, "CD_CTAPES_CXFILIAL"
+	putitem viParams, -1, "CD_CTAPES_CXMATRIZ"
+	activate "ADMSVCO001".GetParamEmpresa(vCdEmpresaCtapes, viParams, voParams, $xcderro$, $xctxerro$)
+	if ($procerror)
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+	elseif ($xcdErro$)
+		$instancehandle->SetErroApl($xCtxErro$, $xCdErro$, $xCtxErro$)
+	endif
+	;----------------------------------------------------------
+	vContaCxMatriz = $item("CD_CTAPES_CXMATRIZ", voParams)
+	vContaCxFilial = $item("CD_CTAPES_CXFILIAL", voParams)
+	;----------------------------------------------------------
+	;retorna a conta caixa da empresa matriz
+	if (pNrTipoTipoContraCaixa = 1)
+		if (vContaCxMatriz  != "")
+			putitem/id pVoParams, "NR_CTAPES_CONTRACX"  ,vContaCxMatriz 
+		else
+			$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Conta matriz não configurada no parâmetro CD_CTAPES_CXMATRIZ !", "ADICIONAL=Operação->FCCSVCO002/ValidaCtaFilialMatriz")
+			poCdErro  = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return(-1)
+		endif
+	endif
+	;----------------------------------------------------------
+	;retorna a conta caixa da empresa filial
+	if (pNrTipoTipoContraCaixa = 2)
+		if (vContaCxFilial != "")
+			putitem/id pVoParams, "NR_CTAPES_CONTRACX"  ,vContaCxFilial
+		else
+			$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Conta filial não configurada no parâmetro CD_CTAPES_CXFILIAL !", "ADICIONAL=Operação->FCCSVCO002/ValidaCtaFilialMatriz")
+			poCdErro  = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return(-1)
+		endif
+	endif
+	;----------------------------------------------------------
+
+	return (0)
+
+end   ;ValidaCtaFilialMatriz
+
+
+
+
+
+
+;-------------------------------
+public operation buscaSaldoConta
+;-------------------------------
+	params
+		string  $xlpg$    :IN    
+		string  piParams    :IN
+		string  piValores   :IN
+		string  poParams    :OUT
+		string  poCdErro    :OUT
+		string  poCtxErro   :OUT
+	endparams
+	
+	variables
+		numeric vNrCtaPes, vVlSaldo, vVlSaldoConci
+		date vDtSaldo, vDtMovim
+	endvariables
+	
+	vNrCtaPes = $item("NR_CTAPES", piParams)
+	vDtSaldo = $item("DT_SALDO", piParams)
+	
+	if (vNrCtaPes = 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Conta não informada!", "ADICIONAL=Operação->FCCSVCO002.buscaSaldoConta")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	
+	if (vDtSaldo = "")
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Data saldo não informada!", "ADICIONAL=Operação->FCCSVCO002.buscaSaldoConta")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	
+	vVlSaldo = 0
+	vVlSaldoConci = 0
+	vDtMovim = ""
+	selectdb max(DT_MOVIM) %\
+	from "FCC_CTASALDOSVC" %\
+	u_where (NR_CTAPES.FCC_CTASALDOSVC = vNrCtaPes & %\
+	DT_MOVIM.FCC_CTASALDOSVC <= vDtSaldo) %\
+	to vDtMovim
+	if ($status < 0)
+;		$instancehandle->SetErroOpr($procerrorcontext, $xCdErro$, $xCtxErro$)
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return (-1)
+	endif     
+	
+	if (vDtMovim = "")
+		selectdb min(DT_MOVIM) %\
+		from "FCC_CTASALDOSVC" %\
+		u_where (NR_CTAPES.FCC_CTASALDOSVC = vNrCtaPes) %\
+		to vDtMovim
+		if ($status < 0)
+;			$instancehandle->SetErroOpr($procerrorcontext, $xCdErro$, $xCtxErro$)
+			$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+			poCdErro = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return (-1)
+		endif   
+	endif        
+	
+	if (vDtMovim != "")    
+		clear/e "FCC_CTASALDOSVC"
+		NR_CTAPES.FCC_CTASALDOSVC = vNrCtaPes
+		DT_MOVIM.FCC_CTASALDOSVC = vDtMovim
+		retrieve/e "FCC_CTASALDOSVC"
+		if ($status >= 0)
+			vVlSaldo = VL_SALDO.FCC_CTASALDOSVC
+			vVlSaldoConci = VL_SALDOCONCI.FCC_CTASALDOSVC
+		endif
+	endif
+	
+	poParams = ""
+	putitem/id poParams, "VL_SALDO", vVlSaldo
+	putitem/id poParams, "VL_SALDOCONCI", vVlSaldoConci
+	putitem/id poParams, "DT_SALDO", vDtMovim
+	
+	return(0)
+end
+
+;-------------------------------
+public operation buscaSaldoCtaTp
+;-------------------------------
+; BUSCAR O SALDO DE DETERMINADO TIPO 
+; informar conta, tipo, numero de seq. e  data
+; retorna: saldo, saldo conciliado, data
+	params
+		string  $xlpg$    	:IN    
+		string  piParams   	:IN
+		string  piValores  	:IN
+		string  poParams   	:OUT
+		string  poCdErro   	:OUT
+		string  poCtxErro 	:OUT
+	endparams
+	variables
+		numeric vVlSaldo, vVlSaldoConci, vTpDocumento, vNrSeqHistRelSub
+		string  vNrCtaPes, vDsconta, vDscta
+		date vDtSaldo, vDtMovim
+	endvariables
+	clear/e "FCC_CTASALDORSVC" 
+	vNrCtaPes = $item("NR_CTAPES", piParams)
+	vTpDocumento 		= $item("TP_DOCUMENTO", piParams)
+	vNrSeqHistRelSub	= $item("NR_SEQHISTRELSUB", piParams)
+	vDtSaldo 			= $item("DT_SALDO", piParams)
+	if (vNrCtaPes = "")
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Conta não informada!", "ADICIONAL=Operação->FCCSVCO002.buscaSaldoCtaTp")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	if (vTpDocumento = 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO= Tipo documento da conta não informado!", "ADICIONAL=Operação->FCCSVCO002.buscaSaldoCtaTp")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	if (vNrSeqHistRelSub = 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO= Número de sequência da conta não informado!", "ADICIONAL=Operação->FCCSVCO002.buscaSaldoCtaTp")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	if (vDtSaldo = "")
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Data saldo não informada!", "ADICIONAL=Operação->FCCSVCO002.buscaSaldoCtaTp")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	vVlSaldo = 0
+	vVlSaldoConci = 0
+	vDtMovim = ""
+
+	selectdb max(DT_MOVIM) %\
+			from "FCC_CTASALDORSVC" %\
+		 u_where		(NR_CTAPES.FCC_CTASALDORSVC    = vNrCtaPes        & %\
+					 TP_DOCUMENTO.FCC_CTASALDORSVC = vTpDocumento     & %\
+				 NR_SEQHISTRELSUB.FCC_CTASALDORSVC = vNrSeqHistRelSub & %\
+						 DT_MOVIM.FCC_CTASALDORSVC <= vDtSaldo)          %\
+			  to vDtMovim
+	if ($status < 0)
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return (-1)
+	endif     
+	if (vDtMovim = "")
+		selectdb min(DT_MOVIM) %\
+			from "FCC_CTASALDORSVC" %\
+		 u_where	   (NR_CTAPES.FCC_CTASALDORSVC = vNrCtaPes)       & %\
+					(TP_DOCUMENTO.FCC_CTASALDORSVC = vTpDocumento)    & %\
+				(NR_SEQHISTRELSUB.FCC_CTASALDORSVC = vNrSeqHistRelSub)  %\
+			  to vDtMovim
+		if ($status < 0)
+			$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+			poCdErro = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return (-1)
+		endif   
+	endif        
+	if (vDtMovim != "")    
+		clear/e "FCC_CTASALDORSVC"
+		NR_CTAPES.FCC_CTASALDORSVC 				= vNrCtaPes
+		TP_DOCUMENTO.FCC_CTASALDORSVC 			= vTpDocumento
+		NR_SEQHISTRELSUB.FCC_CTASALDORSVC	= vNrSeqHistRelSub
+		DT_MOVIM.FCC_CTASALDORSVC 				= vDtMovim
+		retrieve/e "FCC_CTASALDORSVC"
+		if ($status >= 0)
+			vVlSaldo = VL_SALDO.FCC_CTASALDORSVC
+			vVlSaldoConci = VL_SALDOCONCI.FCC_CTASALDORSVC
+		endif
+	endif
+	poParams = ""
+	putitem/id poParams, "VL_SALDO", vVlSaldo
+	putitem/id poParams, "VL_SALDOCONCI", vVlSaldoConci
+	putitem/id poParams, "DT_SALDO", vDtMovim
+	return(0)
+end; operation BuscaSaldoCtaTp
+
+;-----------------------------
+public operation BuscaSaldoAnt
+;-----------------------------
+	params
+		string  $xlpg$    :IN    
+		string  piParams    :IN
+		string  piValores   :IN
+		string  poParams    :OUT
+		string  poCdErro    :OUT
+		string  poCtxErro   :OUT
+	endparams
+	
+	variables
+		numeric vNrCtaPes, vVlSaldo, vVlSaldoConci, vVlCreditos, vVlDebitos
+		date vDtSaldo, vDtMovim
+	endvariables
+	
+	vNrCtaPes = $item("NR_CTAPES", piParams)
+	vDtSaldo = $item("DT_SALDO", piParams)
+	
+	if (vNrCtaPes = 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Conta não informada!", "ADICIONAL=Operação->FCCSVCO002.buscaSaldoConta")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	
+	if (vDtSaldo = "")
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Data saldo não informada!", "ADICIONAL=Operação->FCCSVCO002.buscaSaldoConta")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	vVlSaldo = 0
+	vDtMovim = ""
+	selectdb max(DT_MOVIM) %\
+	from "FCC_CTASALDOSVC" %\
+	u_where (NR_CTAPES.FCC_CTASALDOSVC = vNrCtaPes & %\
+ 	          DT_MOVIM.FCC_CTASALDOSVC < vDtSaldo      ) %\
+	to vDtMovim
+	if ($status < 0)
+;		$instancehandle->SetErroOpr($procerrorcontext, $xCdErro$, $xCtxErro$)
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return (-1)
+	endif     
+	
+	if (vDtMovim != "")    
+		clear/e "FCC_CTASALDOSVC"
+		NR_CTAPES.FCC_CTASALDOSVC = vNrCtaPes
+		DT_MOVIM.FCC_CTASALDOSVC = vDtMovim
+		retrieve/e "FCC_CTASALDOSVC"
+		if ($status >= 0)
+			vVlSaldo = VL_SALDO.FCC_CTASALDOSVC
+			vVlSaldoConci = vl_saldoconci.fcc_ctasaldosvc
+			vVlDebitos = vl_debitos.fcc_ctasaldosvc
+			vVlCreditos = vl_creditos.fcc_ctasaldosvc
+		endif            
+	endif
+	
+	poParams = ""
+	putitem/id poParams, "VL_SALDO", vVlSaldo
+	putitem/id poParams, "VL_SALDOCONCI", vVlSaldoConci
+	putitem/id poParams, "VL_DEBITOS", vVlDebitos
+	putitem/id poParams, "VL_CREDITOS", vVlCreditos
+	putitem/id poParams, "DT_SALDO", vDtMovim
+	
+	return(0)
+	end; BuscaSaldoAnt
+	;------------------------
+	
+;------------------------
+public operation ValidaDt
+;------------------------
+	params
+		string piParams  :IN
+		string poParams  :OUT
+		string poCdErro  :OUT
+		string poCtxErro :OUT
+	endparams
+	variables
+		numeric vCtaPes
+		Date     vDtLancto, vDtMovIni
+		boolean vOK
+	endvariables
+	vCtaPes     = $item("NR_CTAPES",piParams)
+	vDtLancto     = $item("DT_LANCTO",piParams)
+	if (vCtaPes = 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Conta não informada!", "ADICIONAL=Operação->FCCSVCO002.ValidaDt")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	
+	if (vDtLancto = "")
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Data movimento não informada!", "ADICIONAL=Operação->FCCSVCO002.ValidaDt")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+
+	vDtMovIni = ""
+	selectdb max(DT_MOVIM) %\
+	from "FCC_CTASALDOSVC" %\
+	u_where (NR_CTAPES.FCC_CTASALDOSVC = vCtaPes & %\
+	IN_INICIAL.FCC_CTASALDOSVC = <true>) %\
+	to vDtMovIni
+	if ($status < 0)
+;		$instancehandle->SetErroOpr($procerrorcontext, $xCdErro$, $xCtxErro$)
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return (-1)
+	elseif (vDtMovIni = "")
+		;Nao encotrou lancamento de saldo inicial, criar um baseado na data de cadastro
+		;da conta -1 ZERO, Somente para informar data inicial
+		clear/e "FCC_CTAPESSVC"
+		nr_ctapes.fcc_ctapessvc/init = vCtaPes
+		retrieve/e "FCC_CTAPESSVC"
+		if ($status < 0)
+			$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Conta não localizada!", "ADICIONAL=Operação->FCCSVCO002.ValidaDt")
+			poCdErro = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return(-1)
+		else
+			clear/e "FCC_CTASALDOSVC"
+			creocc "FCC_CTASALDOSVC",-1
+			nr_ctapes.fcc_ctasaldosvc = nr_ctapes.fcc_ctapessvc
+			dt_movim.fcc_ctasaldosvc = dt_abertura.fcc_ctapessvc - 1
+			cd_operador.fcc_ctasaldosvc = '999999'
+			in_inicial.fcc_ctasaldosvc = <true>
+			vl_saldo.fcc_ctasaldosvc = 0
+			vl_saldoconci.fcc_ctasaldosvc = 0
+			vl_creditos.fcc_ctasaldosvc = 0
+			vl_debitos.fcc_ctasaldosvc = 0
+			;MTF(26/10/2007) - Projeto 078, tarefa 884.
+			;dt_cadastro.fcc_ctasaldosvc = $date
+			dt_cadastro.fcc_ctasaldosvc = $datim
+			;
+			$collhandle("FCC_CTASALDOSVC")->Salvar()
+			if ($procerror)
+				$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+				poCdErro = $xCdErro$
+				poCtxErro = $xCtxErro$
+				return (-1)
+			elseif ($status < 0)
+				$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")    
+				poCdErro = $xCdErro$
+				poCtxErro = $xCtxErro$
+				return (-1)
+			endif
+			vDtMovIni = dt_movim.fcc_ctasaldosvc 
+		endif
+	endif     
+	if (vDtMovIni != "")
+		;encontrou uma data 
+		if (vDtMovIni >= vDtLancto)
+			;a data e eh maior ou igual a data do lancamento - ERRO
+			vOK = <false>
+		else
+			;a data e eh menor que a data do lancamento - CORRETO
+			vOK = <true>
+		endif
+	else
+		;nao encontrou uma data  - ERRO na entidade CTASALDO
+		vOK = <false>
+	endif
+	
+	poParams = ""
+	putitem/id poParams, "DT_INICIAL", vDtMovIni
+	putitem/id poParams, "IN_OK", vOK
+	
+	return(0)
+	end; ValidaDt
+	;------------------------------------------------------------------------------------------
+	;BAM - 09/09/04 - Recebe uma data e verifica se pode ser feito lancamento nesta data.
+	;                - A regra diz que nao pode existir lancamento no mesmo dia ou anterior ao lancto.
+	;                de saldo que estiver anotado como inicial (IN_INICIAL.FCC_CTASALDO = <TRUE>)
+	;Parametros de entrada    : NR_CTAPES, DT_LANCTO
+	;Parametro de saida        : IN_OK - sendo <true> = pode lancar <false>= nao pode
+	;------------------------------------------------------------------------------------------
+	
+;---------------------------------
+public operation conciliaMovimento
+;---------------------------------
+	params
+		string  $xlpg$    :IN    
+		string  piParams  :IN
+		string  piValores :IN
+		string  poParams  :OUT
+		string  poCdErro  :OUT
+		string  poCtxErro :OUT
+	endparams
+	
+	variables
+		numeric vNrCtaPes, vNrSeqMov, vCdOperador, vCdOperConci
+		numeric vVlSaldoAnt, vVlSaldoConciAnt
+		date    vDtMovimento, vDtConci, vDtSaldoAnt
+		boolean vInCancelamento
+	endvariables
+	
+	vNrCtaPes       = $item("NR_CTAPES",       piParams)
+	vDtMovimento    = $item("DT_MOVIMENTO",    piParams)
+	vNrSeqMov       = $item("NR_SEQMOV",       piParams)
+	vInCancelamento = $item("IN_CANCELAMENTO", piParams)
+	vCdOperador     = $item("CD_USUARIO",      $xlpg$)
+	vCdOperConci    = $item("CD_USUARIO",      $xlpg$)
+	vDtConci        = $item("DT_CONCILIA",     piParams)
+	
+	if (vNrCtaPes = 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Conta não informada!", "ADICIONAL=Operação->FCCSVCO002.conciliaMovimento")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	
+	if (vDtMovimento = 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Data movimento não informada!", "ADICIONAL=Operação->FCCSVCO002.conciliaMovimento")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	
+	if (vNrSeqMov = 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Sequência de movimento não informada!", "ADICIONAL=Operação->FCCSVCO002.conciliaMovimento")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif    
+	
+	if (vDtConci = 0) & (vInCancelamento = <FALSE>)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Data de conciliação não informada!", "ADICIONAL=Operação->FCCSVCO002.conciliaMovimento")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+
+	;--Douglas Ferreira - [Prj/Tarefa 180/0253] - 02/09/2011 - trecho comentado
+	;;MARTINEZ - PRJ/TAR 186/165 - 09/08/2011
+	;if (vDtConci < vDtMovimento)
+	;	$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Data de conciliação menor que a data do movimnto!", "ADICIONAL=Operação->FCCSVCO002.conciliaMovimento")
+	;	poCdErro  = $xCdErro$
+	;	poCtxErro = $xCtxErro$
+	;	return(-1)
+	;endif
+	;;
+	;
+	
+	clear/e "FCC_MOVSVC"
+	NR_CTAPES.FCC_MOVSVC = vNrCtaPes
+	DT_MOVIM.FCC_MOVSVC  = vDtMovimento
+	NR_SEQMOV.FCC_MOVSVC = vNrSeqMov
+	retrieve/e "FCC_MOVSVC"
+	if ($status >= 0)
+		
+		;Douglas Ferreira - [Prj/Tarefa 186/0257] - 04/10/2011 - comentada validação de data da conciliação
+		;;--Douglas Ferreira - [Prj/Tarefa 180/0253] - 02/09/2011
+		;clear/e "F_FCC_AUTOCHEQUE"
+		;NR_CTAPES.F_FCC_AUTOCHEQUE/init = NR_CTAPES.FCC_MOVSVC
+		;DT_MOVIM.F_FCC_AUTOCHEQUE/init  = DT_MOVIM.FCC_MOVSVC
+		;NR_SEQMOV.F_FCC_AUTOCHEQUE/init = NR_SEQMOV.FCC_MOVSVC
+		;retrieve/e "F_FCC_AUTOCHEQUE"
+		;if ($status >= 0)
+		;	
+		;	; Rinaldo - PRJ/TAR 186/235 - 20/09/2011
+		;	vDtaCheque = DT_EMISSAO.F_FCC_AUTOCHEQUE
+		;	if (DT_EMISSAO.F_FCC_AUTOCHEQUE > DT_VENCIMENTO.F_FCC_AUTOCHEQUE)
+		;		vDtaCheque = DT_VENCIMENTO.F_FCC_AUTOCHEQUE	
+		;	endif
+		;	;
+		;	
+		;	if (IN_EMITIDO.F_FCC_AUTOCHEQUE != <TRUE>)
+		;		$instancehandle->SetStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Cheque ainda não foi emitido! %%^Movimento: Cta. %%vNrCtapes Dt. %%vDtMovimento Nr. %%vNrSeqMov", "ADICIONAL=Operação->FCCSVCO002.conciliaMovimento")
+		;		poCdErro  = $xCdErro$
+		;		poCtxErro = $xCtxErro$
+		;		return(-1)
+		;	elseif (IN_CANCELADO.F_FCC_AUTOCHEQUE = <TRUE>)
+		;		$instancehandle->SetStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Cheque está cancelado! %%^Movimento: Cta. %%vNrCtapes Dt. %%vDtMovimento Nr. %%vNrSeqMov", "ADICIONAL=Operação->FCCSVCO002.conciliaMovimento")
+		;		poCdErro  = $xCdErro$
+		;		poCtxErro = $xCtxErro$
+		;		return(-1)
+		;	elseif (vDtConci < vDtaCheque) & (vInCancelamento = <FALSE>)
+		;		$instancehandle->SetStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Data de conciliação menor que a data de emissão ou vencimento do cheque! %%^Movimento: Cta. %%vNrCtapes Dt. %%vDtMovimento Nr. %%vNrSeqMov", "ADICIONAL=Operação->FCCSVCO002.conciliaMovimento")
+		;		poCdErro  = $xCdErro$
+		;		poCtxErro = $xCtxErro$
+		;		return(-1)
+		;	endif
+		;endif
+		;;
+		;
+		if (vInCancelamento = <TRUE>)
+			if (CD_OPERCONCI.FCC_MOVSVC = 0)
+				$instancehandle->SetStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Movimento não está conciliado!", "ADICIONAL=Operação->FCCSVCO002.conciliaMovimento")
+				poCdErro  = $xCdErro$
+				poCtxErro = $xCtxErro$
+				return(-1)    
+			endif
+		else
+			if (CD_OPERCONCI.FCC_MOVSVC > 0)
+				$instancehandle->SetStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Movimento já está conciliado!", "ADICIONAL=Operação->FCCSVCO002.conciliaMovimento")
+				poCdErro  = $xCdErro$
+				poCtxErro = $xCtxErro$
+				return(-1)    
+			endif
+		endif
+	else
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Movimento não cadastrado!", "ADICIONAL=Operação->FCCSVCO002.conciliaMovimento")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+
+	if (vInCancelamento = <TRUE>)
+		CD_OPERCONCI.FCC_MOVSVC = ""
+		DT_CONCI.FCC_MOVSVC     = ""
+	else
+		CD_OPERCONCI.FCC_MOVSVC = vCdOperConci
+		DT_CONCI.FCC_MOVSVC     = vDtConci
+	endif
+
+	CD_OPERADOR.FCC_MOVSVC = vCdOperador
+	DT_CADASTRO.FCC_MOVSVC = $datim
+	$collhandle("FCC_MOVSVC")->Salvar()
+	if ($procerror)
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return (-1)
+	elseif ($status < 0)
+		$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")    
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return (-1)
+	endif
+	
+	if (vDtConci = 0)
+		if (DT_CONCI.FCC_MOVSVC != "")
+			vDtConci = DT_CONCI.FCC_MOVSVC
+		else
+			vDtConci = DT_MOVIM.FCC_MOVSVC
+		endif
+	endif
+
+	vVlSaldoAnt      = 0
+	vVlSaldoConciAnt = 0
+	;busca a data do saldo anterior
+	vDtSaldoAnt      = ""
+
+	if (vDtConci > 0)
+		selectdb max(DT_MOVIM) %\
+		from "FCC_CTASALDOSVC" %\
+		u_where (NR_CTAPES.FCC_CTASALDOSVC = vNrCtaPes & %\
+		DT_MOVIM.FCC_CTASALDOSVC < vDtConci) %\
+		to vDtSaldoAnt
+		if ($status < 0)
+			$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+			poCdErro  = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return (-1)
+		else
+			if (vDtSaldoAnt != "")
+				clear/e "FCC_CTASALDOSVC"
+				NR_CTAPES.FCC_CTASALDOSVC/init = vNrCtaPes
+				DT_MOVIM.FCC_CTASALDOSVC/init  = vDtSaldoAnt
+				retrieve/e "FCC_CTASALDOSVC"
+				if ($status >= 0)
+					vVlSaldoAnt      = VL_SALDO.FCC_CTASALDOSVC
+					vVlSaldoConciAnt = VL_SALDOCONCI.FCC_CTASALDOSVC
+				else
+					$instancehandle->SetStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Não foi possível obter o saldo do dia %%vDtSaldoAnt da conta %%vNrCtaPes!", "ADICIONAL=Operação->FCCSVCO002.movimentaConta")
+					poCdErro  = $xCdErro$
+					poCtxErro = $xCtxErro$
+					return(-1)
+				endif            
+			endif
+		endif       
+
+		clear/e "FCC_CTASALDOSVC"
+
+		creocc "FCC_CTASALDOSVC", -1
+		NR_CTAPES.FCC_CTASALDOSVC = vNrCtaPes
+		DT_MOVIM.FCC_CTASALDOSVC  = vDtConci
+		retrieve/o "FCC_CTASALDOSVC"
+		if ($status = -7)
+			retrieve/x "FCC_CTASALDOSVC"
+
+			if (vInCancelamento = <TRUE>)
+				if (TP_OPERACAO.FCC_MOVSVC = "C")
+					VL_SALDOCONCI.FCC_CTASALDOSVC = VL_SALDOCONCI.FCC_CTASALDOSVC - VL_LANCTO.FCC_MOVSVC
+				else
+					VL_SALDOCONCI.FCC_CTASALDOSVC = VL_SALDOCONCI.FCC_CTASALDOSVC + VL_LANCTO.FCC_MOVSVC
+				endif
+			else
+				if (TP_OPERACAO.FCC_MOVSVC = "C")
+					VL_SALDOCONCI.FCC_CTASALDOSVC = VL_SALDOCONCI.FCC_CTASALDOSVC + VL_LANCTO.FCC_MOVSVC
+				else
+					VL_SALDOCONCI.FCC_CTASALDOSVC = VL_SALDOCONCI.FCC_CTASALDOSVC - VL_LANCTO.FCC_MOVSVC
+				endif
+			endif
+		else
+			if (vInCancelamento = <TRUE>)
+				if (TP_OPERACAO.FCC_MOVSVC = "C")
+					VL_SALDOCONCI.FCC_CTASALDOSVC = vVlSaldoConciAnt - VL_LANCTO.FCC_MOVSVC
+				else
+					VL_SALDOCONCI.FCC_CTASALDOSVC = vVlSaldoConciAnt + VL_LANCTO.FCC_MOVSVC
+				endif
+			else
+				if (TP_OPERACAO.FCC_MOVSVC = "C")
+					VL_SALDOCONCI.FCC_CTASALDOSVC = vVlSaldoConciAnt + VL_LANCTO.FCC_MOVSVC
+				else
+					VL_SALDOCONCI.FCC_CTASALDOSVC = vVlSaldoConciAnt - VL_LANCTO.FCC_MOVSVC
+				endif
+			endif
+
+			VL_SALDO.FCC_CTASALDOSVC = vVlSaldoAnt
+		endif
+
+		CD_OPERADOR.FCC_CTASALDOSVC = vCdOperador
+		;MTF(26/10/2007) - Projeto 078, tarefa 884.
+		;DT_CADASTRO.FCC_CTASALDOSVC = $date
+		dt_cadastro.fcc_ctasaldosvc = $datim
+		;
+		
+		$collhandle("FCC_CTASALDOSVC")->Salvar()
+		if ($procerror)
+			$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+			poCdErro  = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return (-1)
+		elseif ($status < 0)
+			$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")    
+			poCdErro  = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return (-1)
+		endif        
+
+		clear/e "FCC_CTASALDOSVC"
+		NR_CTAPES.FCC_CTASALDOSVC = vNrCtaPes
+		DT_MOVIM.FCC_CTASALDOSVC  = "·>%%vDtConci"
+		retrieve/e "FCC_CTASALDOSVC"
+		if ($status >= 0)
+			setocc "FCC_CTASALDOSVC", 1
+			while ($status >= 0)
+				if (vInCancelamento = <TRUE>)
+					if (TP_OPERACAO.FCC_MOVSVC = "C")
+						VL_SALDOCONCI.FCC_CTASALDOSVC = VL_SALDOCONCI.FCC_CTASALDOSVC - VL_LANCTO.FCC_MOVSVC
+					else
+						VL_SALDOCONCI.FCC_CTASALDOSVC = VL_SALDOCONCI.FCC_CTASALDOSVC + VL_LANCTO.FCC_MOVSVC
+					endif
+				else
+					if (TP_OPERACAO.FCC_MOVSVC = "C")
+						VL_SALDOCONCI.FCC_CTASALDOSVC = VL_SALDOCONCI.FCC_CTASALDOSVC + VL_LANCTO.FCC_MOVSVC
+					else
+						VL_SALDOCONCI.FCC_CTASALDOSVC = VL_SALDOCONCI.FCC_CTASALDOSVC - VL_LANCTO.FCC_MOVSVC
+					endif
+				endif
+
+				CD_OPERADOR.FCC_CTASALDOSVC = vCdOperador
+				;MTF(26/10/2007) - Projeto 078, tarefa 884.
+				;DT_CADASTRO.FCC_CTASALDOSVC = $date
+				dt_cadastro.fcc_ctasaldosvc = $datim
+				;
+				setocc "FCC_CTASALDOSVC", $curocc("FCC_CTASALDOSVC") + 1
+			endwhile
+		
+			$collhandle("FCC_CTASALDOSVC")->Salvar()
+			if ($procerror)
+				$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+				poCdErro  = $xCdErro$
+				poCtxErro = $xCtxErro$
+				return (-1)
+			elseif ($status < 0)
+				$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")    
+				poCdErro  = $xCdErro$
+				poCtxErro = $xCtxErro$
+				return (-1)
+			endif
+		endif
+	endif        
+	
+	return(0)
+End ;operation conciliaMovimento
+
+;-------------------------------
+public operation ProximaSeqCheque
+	;-------------------------------
+	params
+		string  $xlpg$        :IN
+		numeric piNrCtaPes    :IN
+		numeric piNrChequeImp :IN
+		numeric poNrCheque    :OUT
+		string  poCdErro      :OUT
+		string  poCtxErro     :OUT
+	endparams
+	variables
+		numeric vNrCheque
+	endvariables
+
+	poNrCheque = 0
+	if (piNrCtaPes = "")
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Faltou o nr. da conta!", "ADICIONAL=Operação->FCCSVCO002.BuscarSeqCheque")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)    
+	endif
+	clear/e "FCC_CTAPESSVC"
+	nr_ctapes.fcc_ctapessvc/init = piNrCtaPes    
+	retrieve/e "FCC_CTAPESSVC"
+	if ($procerror)
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return (-1)
+	elseif ($status < 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Não localizou o nr. da conta!", "ADICIONAL=Operação->FCCSVCO002.BuscarSeqCheque")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)    
+	else
+		if (in_ativo.fcc_ctapessvc)
+			retrieve/e "FCC_SEQCHEQUESVC"
+			if ($status < 0)
+				clear/e "FCC_SEQCHEQUESVC"
+				creocc  "FCC_SEQCHEQUESVC", -1
+				nr_ctapes.fcc_seqchequesvc = nr_ctapes.fcc_ctapessvc
+				nr_cheque.fcc_seqchequesvc = 1
+			else
+				if (piNrChequeImp > 0)
+					; o numero aqui em teoria acabou de ser impresso, continuar a partir dele
+					nr_cheque.fcc_seqchequesvc/init = piNrChequeImp
+				endif
+				nr_cheque.fcc_seqchequesvc = nr_cheque.fcc_seqchequesvc + 1
+			endif
+			cd_operador.fcc_seqchequesvc = $item("CD_USUARIO",$xlpg$)
+			;MTF(26/10/2007) - Projeto 078, tarefa 884.
+			;dt_cadastro.fcc_seqchequesvc = $item("DT_SISTEMA",$xlpg$)
+			dt_cadastro.fcc_seqchequesvc = $datim
+			;
+			$collhandle(FCC_SEQCHEQUESVC)->Salvar()
+			if ($procerror)
+				$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+				poCdErro  = $xCdErro$
+				poCtxErro = $xCtxErro$
+				return (-1)
+			elseif ($status < 0)
+				$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Não atualizou a seq. do nr. de cheque!", "ADICIONAL=Operação->FCCSVCO002.BuscarSeqCheque")
+				poCdErro  = $xCdErro$
+				poCtxErro = $xCtxErro$
+				return(-1)    
+			else
+				poNrCheque = nr_cheque.fcc_seqchequesvc
+				return (0)
+			endif
+		else
+			$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO= Conta inativa! ","")
+			poCdErro  = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return(-1)    
+		endif
+	endif
+	;---------------------------------------------------------------------------------------------
+	; BAM - 16/09/04, gera o proximo nr. do cheque que sera autorizado na impressao
+	; entrada    : o nr. da conta
+	; saida        : o numero do proximo cheque a ser autorizado, toda vez que imprimir um 
+	;                cheque, incrementar o proximo
+	;---------------------------------------------------------------------------------------------
+End ;BuscarSeqCheque
+
+
+;------------------------------
+public operation AutorizaCheque
+;------------------------------
+	params
+		string $xlpg$    :IN
+		string piParams  :IN
+		string poParams  :OUT
+		string poCdErro  :OUT
+		string poCtxErro :OUT
+	endparams
+	variables
+		numeric vNrCtapes, vNrCtaPesC, vCont, vNrOrdem, vVlCheque, vTotChq
+		string  vTpAutorizacao, vDsNominal, vDsDoc, vDsAux
+		Date    vDtCheque
+	endvariables
+
+	getitem/id vNrCtapes,      piParams, "NR_CTAPES"
+	getitem/id vNrCtapesC,     piParams, "NR_CTAPESC" ;conta credora para a transf.
+	getitem/id vTpAutorizacao, piParams, "TP_AUTORIZACAO"
+	getitem/id vDsDoc,         piParams, "DS_DOC"
+	getitem/id vDsAux,         piParams, "DS_AUX"
+	if (vNrCtaPes = "")
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Faltou o nr. da conta!", "ADICIONAL=Operação->FCCSVCO002.AutorizaCheque")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)    
+	endif
+	clear/e "FCC_CTAPESSVC"
+	nr_ctapes.fcc_ctapessvc/init = vNrCtaPes    
+	retrieve/e "FCC_CTAPESSVC"
+	if ($procerror)
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return (-1)
+	elseif ($status < 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Não localizou o nr. da conta!", "ADICIONAL=Operação->FCCSVCO002.AutorizaCheque")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)    
+	else
+		if (in_ativo.fcc_ctapessvc)
+			clear/e "FCC_AUTORIZACSVC"
+			dt_autorizacao.fcc_autorizacsvc = $item("DT_SISTEMA", $xlpg$) 
+			newinstance "GERSVCO011", "GERSVCO011W", "TRANSACTION=TRUE"
+			activate "GERSVCO011W".GetNumSeq($xlpg$,"FCC_AUTORIZACAO","NR_SEQAUTO",dt_autorizacao.fcc_autorizacsvc,99999,nr_seqauto.fcc_autorizacsvc,$xCdErro$,$xCtxErro$)
+			if ($procerror)
+				$instancehandle->SetErroProc($procerrorcontext,$xCdErro$,$xCtxErro$)
+				return (-1) 
+			elseif ($xCdErro$)
+				$instancehandle->SetErroApl($xCtxErro$,$xCdErro$,$xCtxErro$) 
+				return (-1)
+			else
+				deleteinstance "GERSVCO011W"
+			endif    
+			nr_ctapes.fcc_autorizacsvc      = nr_ctapes.fcc_ctapessvc
+			in_automatico.fcc_autorizacsvc  = <false>
+			tp_emitido.fcc_autorizacsvc     = "N"
+			tp_autorizacao.fcc_autorizacsvc = vTpAutorizacao
+			cd_operador.fcc_autorizacsvc    = $item("CD_USUARIO", $xlpg$)
+			dt_cadastro.fcc_autorizacsvc    = $datim
+			$collhandle(FCC_AUTORIZACSVC)->Salvar()
+			if ($procerror)
+				$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+				poCdErro  = $xCdErro$
+				poCtxErro = $xCtxErro$
+				return (-1)
+			elseif ($status < 0)
+				$instancehandle->SetStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Não atualizou a seq. do nr. de cheque!", "ADICIONAL=Operação->FCCSVCO002.BuscarSeqCheque")
+				poCdErro  = $xCdErro$
+				poCtxErro = $xCtxErro$
+				return(-1)    
+			else
+				;gerar os cheques autorizados
+				vCont = 1
+				getitem/id vNrOrdem,   piParams, "NR_ORDEM%%vCont"
+				getitem/id vDtcheque,  piParams, "DT_CHEQUE%%vCont"
+				getitem/id vVlcheque,  piParams, "VL_CHEQUE%%vCont"
+				getitem/id vDsNominal, piParams, "DS_NOMINAL%%vCont"
+				while (vNrOrdem != "")
+					creocc "FCC_AUTOCHEQSVC",-1
+					dt_autorizacao.fcc_autocheqsvc = dt_autorizacao.fcc_autorizacsvc
+					nr_seqauto.fcc_autocheqsvc     = nr_seqauto.fcc_autorizacsvc
+					nr_seqcheque.fcc_autocheqsvc   = vNrOrdem
+					vl_cheque.fcc_autocheqsvc      = vVlCheque
+					dt_vencimento.fcc_autocheqsvc  = vDtCheque
+					in_emitido.fcc_autocheqsvc     = <FALSE> ; 30/05/05 ""
+					dt_emissao.fcc_autocheqsvc     = ""
+					cd_operemitido.fcc_autocheqsvc = ""
+					cd_opercopia.fcc_autocheqsvc   = ""
+					in_copia.fcc_autocheqsvc       = <FALSE> ; 30/05/05 ""
+					nr_cheque.fcc_autocheqsvc      = ""
+					;-----------------------------------------------------------------------------
+					;MARCOS ROGERIO / EVALDO - 28/07/2008
+					;limpa caracteres especiais de uma string e mantem pontuação - "/"   ","    ":"
+					;-----------------------------------------------------------------------------
+					Call ConverterString(vDsNominal, vDsNominal)
+					if ($procerror)
+						$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+						return (-1)
+					endif
+					;-----------------------------------------------------------------------------
+					ds_nominal.fcc_autocheqsvc  = vDsNominal[1:30]
+					;-----------------------------------------------------------------------------
+					cd_empliq.fcc_autocheqsvc   = ""
+					dt_liq.fcc_autocheqsvc      = ""
+					nr_seqliq.fcc_autocheqsvc   = ""
+					;BAM - 06/06/05 - ???????
+					nr_ctapes.fcc_autocheqsvc   = "" ; vNrCtaPesC
+					dt_movim.fcc_autocheqsvc    = ""
+					nr_seqmov.fcc_autocheqsvc   = ""
+					cd_operador.fcc_autocheqsvc = $item("CD_USUARIO", $xlpg$)
+					dt_cadastro.fcc_autocheqsvc = $datim
+					vCont = vCont + 1
+					getitem/id vNrOrdem,   piParams, "NR_ORDEM%%vCont"
+					getitem/id vDtcheque,  piParams, "DT_CHEQUE%%vCont"
+					getitem/id vVlcheque,  piParams, "VL_CHEQUE%%vCont"
+					getitem/id vDsNominal, piParams, "DS_NOMINAL%%vCont"
+				endwhile    
+				if (vCont > 1)
+					vTotChq = vCont - 1	
+					$collhandle(FCC_AUTORIZACSVC)->Salvar()
+					if ($procerror)
+						$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+						poCdErro  = $xCdErro$
+						poCtxErro = $xCtxErro$
+						return (-1)
+					elseif ($status < 0)
+						$instancehandle->SetStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Não autorizou nenhum cheque!", "ADICIONAL=Operação->FCCSVCO002.AutorizaCheque")
+						poCdErro  = $xCdErro$
+						poCtxErro = $xCtxErro$
+						return(-1)    
+					else
+						;sucesso
+						putitem/id poParams, "DT_AUTORIZACAO", dt_autorizacao.fcc_autorizacsvc
+						putitem/id poParams, "NR_SEQAUTO",     nr_seqauto.fcc_autocheqsvc
+						;retornar a chave do AUTOCHEQUE
+						vCont = 0
+						clear/e "FCC_AUTOCHEQSVC"
+						dt_autorizacao.fcc_autocheqsvc = dt_autorizacao.fcc_autorizacsvc
+						nr_seqauto.fcc_autocheqsvc     = nr_seqauto.fcc_autorizacsvc
+						retrieve/e "FCC_AUTOCHEQSVC"	
+						setocc "FCC_AUTOCHEQSVC", 1 
+						while ($status >= 0)
+							vCont = vCont + 1
+							putitem/id poParams, "NR_SEQCHEQUE%%vCont", nr_seqcheque.fcc_autocheqsvc
+							setocc "FCC_AUTOCHEQSVC", $curocc(FCC_AUTOCHEQSVC) + 1 
+							if (vCont > vTotChq)
+								$status = -1
+							endif
+						endwhile    
+						putitem/id poParams, "NR_SEQCHEQUE", nr_seqcheque.fcc_autocheqsvc
+						return (0)
+					endif
+				else
+					$instancehandle->SetStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Não autorizou nenhum cheque!", "ADICIONAL=Operação->FCCSVCO002.AutorizaCheque")
+					poCdErro  = $xCdErro$
+					poCtxErro = $xCtxErro$
+					return(-1)    
+				endif    
+			endif
+		else
+			$instancehandle->SetStatus(<STS_ERRO>, "GEN001", "DESCRICAO= Conta inativa! ", "ADICIONAL=Operação->FCCSVCO002.AutorizaCheque")
+			poCdErro  = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return(-1)    
+		endif
+	endif
+	;---------------------------------------------------------------------------------------------
+	; BAM - 30/09/04, gera uma autorizacao de cheque a ser impressao
+	; entrada    : nr. da conta, tipo de autorizacao, dados dos cheques
+	; saida        : 0 - sucesso . -1 falha
+	;---------------------------------------------------------------------------------------------
+end ;AutorizaCheque
+
+;-------------------------------
+public operation criaContaPessoa
+	;-------------------------------
+	params
+		string $xlpg$    :IN    
+		string piParams  :IN
+		string poParams  :OUT
+		string poCdErro  :OUT
+		string poCtxErro :OUT
+	endparams
+	
+	variables
+		numeric vCdEmpresa, vNrCtaPes, vNrCta, vCdMoeda
+		numeric vCdPessoa, vCdOperCaixa
+		string  viParams, voParams, vInNatureza, vTpConta, vDsTitular
+		date    vDtSistema
+		numeric vTpManutencao
+	endvariables
+	
+	poParams   = ""
+	
+	vCdEmpresa = $item("CD_EMPRESA", piParams)
+	if (vCdEmpresa = 0)
+		vCdEmpresa = $item("CD_EMPRESA", $xlpg$)        
+	endif
+	vInNatureza = $item("IN_NATUREZA", piParams)
+	vCdMoeda = $item("CD_MOEDA", piParams)
+	if (vCdMoeda = 0)
+		vCdMoeda = $item("CD_MOEDA", $xlpg$)        
+	endif
+	vCdPessoa = $item("CD_PESSOA", piParams)
+	vCdOperCaixa = $item("CD_OPERCAIXA", piParams)
+	vTpConta = $item("TP_CONTA", piParams)
+	vDtSistema = $item("DT_SISTEMA", piParams)
+	if (vDtSistema = "")
+		vDtSistema = $item("DT_SISTEMA",$xLpg$)
+	endif
+	vDsTitular = $item("DS_TITULAR", piParams) 
+	vTpManutencao = $item("TP_MANUTENCAO", piParams)
+
+	clear/e "GER_EMPRESASVC"
+	CD_EMPRESA.GER_EMPRESASVC/init = vCdEmpresa
+	retrieve/e "GER_EMPRESASVC"
+	if ($status < 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Empresa %%vCdEmpresa não cadastrada!", "ADICIONAL=Operação->FCCSVCO002.criaContaPessoa")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif    	
+	
+	if (vCdPessoa = 0) & (vCdOperCaixa = 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Pessoa e operador de caixa não informados!", "ADICIONAL=Operação->FCCSVCO002.criaContaPessoa")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	if (vInNatureza = "")
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Natureza da conta não informada!", "ADICIONAL=Operação->FCCSVCO002.criaContaPessoa")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+
+	;--Douglas Ferreira - [Prj/Tarefa 78/3947] - 22/11/2010
+	if ($item("IN_LANCTODOFNI", piParams) = <TRUE>) & ($item("DT_MOVTODOFNI", piParams) = "")
+		$instancehandle->setStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Data de movimento do Dofni não informada!", "ADICIONAL=Operação->FCCSVCO002.criaContaPessoa")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	;
+
+	call getParam()
+	if ($procerror)
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		exit(-1)
+	elseif ($status < 0)
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	
+	clear/e "FCC_CTAPESSVC"
+	if (vCdPessoa > 0)
+		CD_PESSOA.FCC_CTAPESSVC/init = vCdPessoa
+		CD_EMPRESA.FCC_CTAPESSVC/init = vCdEmpresa
+		if (vTpManutencao = 0)
+			if (vTpConta = "F") ;Fornecedor
+				TP_MANUTENCAO.FCC_CTAPESSVC/init = $cdTpFornecedor$
+			elseif (vTpConta = "R") ;Representante/Guia
+				TP_MANUTENCAO.FCC_CTAPESSVC/init = $cdTpRepresentante$
+			elseif (vTpConta = "C") ;Cliente
+				TP_MANUTENCAO.FCC_CTAPESSVC/init = $cdTpCliente$
+			endif
+		else
+			TP_MANUTENCAO.FCC_CTAPESSVC/init = vTpManutencao
+		endif
+
+		retrieve/e "FCC_CTAPESSVC"
+		if ($status >= 0)
+			putitem/id poParams, "DS_TITULAR", DS_TITULAR.FCC_CTAPESSVC
+			putitem/id poParams, "NR_CTAPES", NR_CTAPES.FCC_CTAPESSVC
+			putitem/id poParams, "IN_ACHOU", <TRUE>
+			exit(0)
+		endif
+	else
+		CD_OPERCAIXA.FCC_CTAPESSVC/init = vCdOperCaixa
+		CD_EMPRESA.FCC_CTAPESSVC/init = vCdEmpresa
+		TP_MANUTENCAO.FCC_CTAPESSVC/init = $cdTpCxUsuario$
+		retrieve/e "FCC_CTAPESSVC"
+		if ($status >= 0)
+			putitem/id poParams, "DS_TITULAR", ds_titular.fcc_ctapessvc
+			putitem/id poParams, "NR_CTAPES", NR_CTAPES.FCC_CTAPESSVC
+			putitem/id poParams, "IN_ACHOU", <TRUE>
+			exit(0)
+		endif
+	endif	
+
+	vNrCtaPes = 0
+	while (vNrCtaPes = 0)
+		viParams = ""
+		putitem/id viParams, "NM_ENTIDADE", "FCC_CTAPES"
+		activate "GERSVCO031".getNumSeq($xlpg$, viParams, voParams, $xCdErro$, $xCtxerro$)
+		if ($procerror)
+			$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+			poCdErro = $xCdErro$
+			poCtxErro = $xCtxErro$
+			exit(-1)  
+		elseif ($status < 0)
+			$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")
+			poCdErro = $xCdErro$
+			poCtxErro = $xCtxErro$
+			exit(-1)  
+		endif    
+
+		vNrCta = $item("NR_SEQUENCIA", voParams)
+
+		clear/e "FCC_CTAPESSVC"
+		NR_CTAPES.FCC_CTAPESSVC/init = vNrCta
+		retrieve/e "FCC_CTAPESSVC"
+		if ($status < 0)
+			vNrCtaPes = vNrCta
+		endif
+	endwhile
+
+	clear/e "FCC_CTAPESSVC"
+	creocc "FCC_CTAPESSVC", -1
+	NR_CTAPES.FCC_CTAPESSVC = vNrCtaPes
+	IN_NATUREZA.FCC_CTAPESSVC = vInNatureza
+	CD_EMPRESA.FCC_CTAPESSVC = CD_EMPRESA.GER_EMPRESASVC
+	CD_GRUPOEMPRESA.FCC_CTAPESSVC = CD_GRUPOEMPRESA.GER_EMPRESASVC
+	CD_MOEDA.FCC_CTAPESSVC = vCdMoeda
+	DT_LIMITEVENC.FCC_CTAPESSVC = vDtSistema
+	;--Douglas Ferreira - [Prj/Tarefa 78/3947] - 22/11/2010
+	;DT_ABERTURA.FCC_CTAPESSVC = vDtSistema - 30 ; 1
+	if ($item("IN_LANCTODOFNI", piParams) = <TRUE>)
+		DT_ABERTURA.FCC_CTAPESSVC = $item("DT_MOVTODOFNI", piParams)
+	else
+		DT_ABERTURA.FCC_CTAPESSVC = vDtSistema - 30 ; 1
+	endif
+	;
+	NR_SITUACAO.FCC_CTAPESSVC = 0
+	IN_ATIVO.FCC_CTAPESSVC = <TRUE>
+	TP_CONTA.FCC_CTAPESSVC = 0
+	if (vCdPessoa > 0)
+		CD_PESSOA.FCC_CTAPESSVC = vCdPessoa
+		if (vTpManutencao = 0)
+			if (vTpConta = "F") ;Fornecedor
+				TP_MANUTENCAO.FCC_CTAPESSVC = $cdTpFornecedor$
+			elseif (vTpConta = "R") ;Representante/Guia
+				TP_MANUTENCAO.FCC_CTAPESSVC = $cdTpRepresentante$
+			elseif (vTpConta = "C") ;Cliente
+				TP_MANUTENCAO.FCC_CTAPESSVC = $cdTpCliente$
+			endif
+		else
+			TP_MANUTENCAO.FCC_CTAPESSVC = vTpManutencao
+		endif
+		;MTF(13/11/2007) - Projeto 078, tarefa 923.
+		if (vDsTitular = "") & ((vTpConta = "F") | (vTpConta = "R") | (vTpConta = "C"))
+			clear/e "PES_PESSOASVC"
+			cd_pessoa.pes_pessoasvc/init = vCdPessoa
+			retrieve/e "PES_PESSOASVC"
+			if ($status >= 0)
+				vDsTitular = nm_pessoa.pes_pessoasvc[1:20]
+			endif
+		endif
+		;
+	else
+		CD_OPERCAIXA.FCC_CTAPESSVC = vCdOperCaixa
+		TP_MANUTENCAO.FCC_CTAPESSVC = $cdTpCxUsuario$
+	endif
+	;-----------------------------------------------------------------------------
+	;MARCOS ROGERIO / EVALDO - 28/07/2008
+	;limpa caracteres especiais de uma string e mantem pontuação - "/"   ","    ":"
+	;-----------------------------------------------------------------------------
+	Call ConverterString(vDsTitular,vDsTitular)
+	if ($procerror)
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+		return (-1)
+	endif
+	;-----------------------------------------------------------------------------
+	DS_TITULAR.FCC_CTAPESSVC = vDsTitular[1:20]
+	NR_MODFINC.FCC_CTAPESSVC = 0;campo requerido
+	CD_OPERADOR.FCC_CTAPESSVC = $item("CD_USUARIO", $xlpg$)
+	;MTF(26/10/2007) - Projeto 078, tarefa 884.
+	;DT_CADASTRO.FCC_CTAPESSVC = $item("DT_SISTEMA", $xlpg$)
+	dt_cadastro.fcc_ctapessvc = $datim
+	;
+	if (dt_cadastro.fcc_ctapessvc= "")
+		DT_CADASTRO.FCC_CTAPESSVC = $date - 1d
+	endif
+	$collhandle("FCC_CTAPESSVC")->Salvar()
+	if ($procerror)
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		exit(-1)
+	elseif ($status < 0)
+		$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")    
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		exit(-1)
+	endif
+	putitem/id poParams, "DS_TITULAR", ds_titular.fcc_ctapessvc
+	putitem/id poParams, "NR_CTAPES", NR_CTAPES.FCC_CTAPESSVC
+	putitem/id poParams, "IN_ACHOU", <FALSE>
+
+	exit(0)
+end
+
+;--------------------------------
+public operation buscaContaPessoa
+;--------------------------------
+	params
+		string  $xlpg$    :IN    
+		string  piParams    :IN
+		string  poParams    :OUT
+		string  poCdErro    :OUT
+		string  poCtxErro   :OUT
+	endparams
+	
+	variables
+		string vTpConta
+		numeric vCdPessoa, vCdEmpresa
+		boolean vInObrigatorio
+	endvariables	
+	
+	vCdPessoa = $item("CD_PESSOA", piParams)
+	vCdEmpresa = $item("CD_EMPRESA", piParams)
+	if (vCdEmpresa = 0)
+		vCdEmpresa = $item("CD_EMPRESA", $xlpg$)
+	endif
+	vTpConta = $item("TP_CONTA", piParams)
+	vInObrigatorio = $item("IN_OBRIGATORIO", piParams)
+	
+	if (vCdPessoa = 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Pessoa não informada!", "ADICIONAL=Operação->FCCSVCO002.buscaContaPessoa")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		exit(-1)
+	endif
+
+	call getParam()
+	if ($procerror)
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		exit(-1)
+	elseif ($status < 0)
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		exit(-1)
+	endif
+
+	clear/e "FCC_CTAPESSVC"
+	CD_PESSOA.FCC_CTAPESSVC/init = vCdPessoa
+	CD_EMPRESA.FCC_CTAPESSVC/init = vCdEmpresa
+	if (vTpConta = "F") ;Fornecedor
+		TP_MANUTENCAO.FCC_CTAPESSVC/init = $cdTpFornecedor$
+	elseif (vTpConta = "R") ;Representante/Guia
+		TP_MANUTENCAO.FCC_CTAPESSVC/init = $cdTpRepresentante$
+	;MTF(04/07/2008) - Projeto 131, tarefa 0002.
+	elseif (vTpConta = "S") ;Socio.
+		tp_manutencao.fcc_ctapessvc/init = $cdTpManutSocio$
+	;
+	else
+		TP_MANUTENCAO.FCC_CTAPESSVC/init = $cdTpCliente$
+	endif
+	retrieve/e "FCC_CTAPESSVC"
+	if ($status < 0)
+		if (vInObrigatorio = <FALSE>)
+			exit(0)
+		else
+			$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Nenhuma conta corrente cadastada para a pessoa %%vCdPessoa na empresa %%vCdEmpresa%%%!", "ADICIONAL=Operação->FCCSVCO002.buscaContaPessoa")
+			poCdErro = $xCdErro$
+			poCtxErro = $xCtxErro$
+			exit(-1)
+		endif
+	else
+		setocc "FCC_CTAPESSVC", -1
+		setocc "FCC_CTAPESSVC", 1
+		if ($totocc("FCC_CTAPESSVC") > 1)
+			$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Exite mais de uma conta corrente cadastada para a pessoa %%vCdPessoa na empresa %%vCdEmpresa%%%!", "ADICIONAL=Operação->FCCSVCO002.buscaContaPessoa")
+			poCdErro = $xCdErro$
+			poCtxErro = $xCtxErro$
+			exit(-1)
+		endif
+	endif
+
+	poParams = ""
+	putitem/id poParams, "NR_CTAPES", NR_CTAPES.FCC_CTAPESSVC
+
+	exit(0)
+end
+
+;---------------------------
+public operation AutorizaDup
+;---------------------------
+	params
+		string $xlpg$     :IN
+		string piParams     :IN
+		string poParams     :OUT
+		string poCdErro     :OUT
+		string poCtxErro    :OUT
+	endparams
+	variables
+		numeric vCdEmp, vCdForn, vNrDup, vNrParcela, vVlPagto, vNrCtapes, vVlJuros, %\
+				vVlDesconto, vCont, vSeqPag, vVlRateio, vPosAuto, vVlChq, vNrCtaPesC
+		string  vDsDoc, vDsAux
+	endvariables
+	getitem/id vNrCtapes,piParams,"NR_CTAPES"
+	if (vNrCtaPes = "")
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Faltou o nr. da conta!", "ADICIONAL=Operação->FCCSVCO002.AutorizaCheque")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)    
+	endif
+	clear/e "FCC_CTAPESSVC"
+	nr_ctapes.fcc_ctapessvc/init = vNrCtaPes    
+	retrieve/e "FCC_CTAPESSVC"
+	if ($procerror)
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return (-1)
+	elseif ($status < 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Não localizou o nr. da conta!", "ADICIONAL=Operação->FCCSVCO002.AutorizaDup")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)    
+	else
+		if (!in_ativo.fcc_ctapessvc)
+			$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO= Conta inativa! ","")
+			poCdErro = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return(-1)    
+		endif
+		;relacionar os cheques autorizados com as duplicatas
+		vCont = 1
+		vPosAuto = 1 ;primeira autorizacao
+		vSeqPag = 0 ;seq. das autorizacoes de pagto.
+		getitem/id vCdEmp,piParams,"CD_EMPRESA%%vCont"
+		getitem/id vCdForn,piParams,"CD_FORNECEDOR%%vCont"
+		getitem/id vNrCtapesC,piParams,"NR_CTAPESC%%vCont"
+		getitem/id vNrDup,piParams,"NR_DUPLICATA%%vCont"
+		getitem/id vNrParcela,piParams,"NR_PARCELA%%vCont"
+		getitem/id vVlPagto,piParams,"VL_PAGAMENTO%%vCont"
+		getitem/id vVlJuros,piParams,"VL_JUROS%%vCont"
+		getitem/id vVlDesconto,piParams,"VL_DESCONTO%%vCont"
+		getitem/id vDsDoc,piParams,"DS_DOC%%vCont"
+		getitem/id vDsAux,piParams,"DS_AUX%%vCont"
+		while (vCdEmp != "")
+			vVlRateio = 0	
+			;buscar todos os cheques desta autorizacao
+			clear/e "FCC_AUTOCHEQSVC"
+			dt_autorizacao.fcc_autocheqsvc/init = $item("DT_AUTORIZACAO",piParams)
+			nr_seqauto.fcc_autocheqsvc/init = $item("NR_SEQAUTO",piParams)
+			retrieve/e "FCC_AUTOCHEQSVC" 
+			if ($status >= 0)
+				vVlChq = 0
+				vVlPagto = vVlPagto[round,2]
+				vVlRateio = vVlPagto ;valor pago da dup.
+				setocc "FCC_AUTOCHEQSVC",vPosAuto;inicial ou a partir de onde parou
+				while (vVlRateio > 0)
+					if (vVlChq = 0)
+						;primeira passagem ou usar o saldo chq. para prox. dup.
+						vVlChq = vl_cheque.fcc_autocheqsvc  
+						vVlChq = vVlChq[round,2]
+					endif
+					creocc "FCC_AUTOPAGSVC",-1
+					;fazer o rateio do valor
+					vSeqPag = vSeqPag + 1	
+					
+					dt_autorizacao.fcc_autopagsvc = $item("DT_AUTORIZACAO",piParams)
+					nr_seqauto.fcc_autopagsvc = $item("NR_SEQAUTO",piParams)
+					nr_seqcheque.fcc_autopagsvc = nr_seqcheque.fcc_autocheqsvc
+					nr_seqpag.fcc_autopagsvc = vSeqPag ;uma seq.
+					cd_operador.fcc_autopagsvc = $item("CD_USUARIO", $xlpg$)
+					dt_cadastro.fcc_autopagsvc = $datim
+					nr_ctapes.fcc_autopagsvc = vNrCtaPesC;do fornecedor do adiantamento
+					cd_empresa.fcc_autopagsvc = vCdEmp
+
+					cd_fornecedor.fcc_autopagsvc = vCdForn
+					nr_duplicata.fcc_autopagsvc = vNrDup
+					nr_parcela.fcc_autopagsvc = vNrParcela
+					;rateio - anota somente quanto este cheque suporta
+					if (vVlChq > vVlRateio)
+						;paga totalmente (ou parcial/) esta e sobra para a prox.
+						vl_pagamento.fcc_autopagsvc = vVlRateio
+						vVlChq = vVlChq - vVlRateio
+						vVlRateio = 0
+					else
+						;o chq para total ou parcialmente a duplicata
+						vl_pagamento.fcc_autopagsvc = vVlChq
+						vVlRateio = vVlRateio - vVlChq
+						vVlChq = 0
+					endif
+					;repete sempre a mesma informacao, fica por conta do servico
+					;ratear o juros e outros valores.
+					vVlJuros = vVlJuros[round,2]
+					vl_juros.fcc_autopagsvc = vVlJuros
+					vl_desconto.fcc_autopagsvc = vVlDesconto
+					;-----------------------------------------------------------------------------
+					;MARCOS ROGERIO / EVALDO - 28/07/2008
+					;limpa caracteres especiais de uma string e mantem pontuação - "/"   ","    ":"
+					;-----------------------------------------------------------------------------
+					Call ConverterString(vDsDoc,vDsDoc)
+					if ($procerror)
+						$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+						return (-1)
+					endif
+					;-----------------------------------------------------------------------------
+					ds_doc.fcc_autopagsvc = vDsDoc[1:15]
+					;-----------------------------------------------------------------------------
+					;MARCOS ROGERIO / EVALDO - 28/07/2008
+					;limpa caracteres especiais de uma string e mantem pontuação - "/"   ","    ":"
+					;-----------------------------------------------------------------------------
+					Call ConverterString(vDsAux,vDsAux)
+					if ($procerror)
+						$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+						return (-1)
+					endif
+					;-----------------------------------------------------------------------------
+					ds_aux.fcc_autopagsvc = vDsAux[1:20]
+					if (vVlChq > 0) & (vVlRateio <= 0)
+						;este chq. ainda tem saldo para pagar outra dup.
+						;pegar outra dup.
+						vCont = vCont + 1
+						getitem/id vCdEmp,piParams,"CD_EMPRESA%%vCont"
+						getitem/id vCdForn,piParams,"CD_FORNECEDOR%%vCont"
+						getitem/id vNrCtaPesC,piParams,"NR_CTAPESC%%vCont"
+						getitem/id vNrDup,piParams,"NR_DUPLICATA%%vCont"
+						getitem/id vNrParcela,piParams,"NR_PARCELA%%vCont"
+						getitem/id vVlPagto,piParams,"VL_PAGAMENTO%%vCont"
+						getitem/id vVlJuros,piParams,"VL_JUROS%%vCont"
+						getitem/id vVlDesconto,piParams,"VL_DESCONTO%%vCont"
+						getitem/id vDsDoc,piParams,"DS_DOC%%vCont"
+						getitem/id vDsAux,piParams,"DS_AUX%%vCont"
+						vVlRateio = vVlPagto ;valor pago da dup.
+						vVlRateio = vVlRateio[round,2]
+						vVlJuros = vVlJuros[round,2]
+						if (vCdEmp = "")			
+							;ERRO - existe valor de chq. autoriz. para ratear e 
+							;nao existe mais duplicata
+							$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Não localizou o nr. da conta!", "ADICIONAL=Operação->FCCSVCO002.AutorizaDup - sobra chq.")
+							poCdErro = $xCdErro$
+							poCtxErro = $xCtxErro$
+							return(-1)    
+						endif
+					else
+						;busca um novo chq
+						setocc "FCC_AUTOCHEQSVC",$curocc(FCC_AUTOCHEQSVC) + 1
+						if ($status < 0)
+							vVlRateio = -1; forcar a saida, nao existe mais chq. autoriz.
+						else
+							vPosAuto = $curocc(FCC_AUTOCHEQSVC)
+						endif
+					endif	
+				endwhile
+			endif
+			$status = 0
+			vCont = vCont + 1
+			getitem/id vCdEmp,piParams,"CD_EMPRESA%%vCont"
+			getitem/id vCdForn,piParams,"CD_FORNECEDOR%%vCont"
+			getitem/id vNrDup,piParams,"NR_DUPLICATA%%vCont"
+			getitem/id vNrParcela,piParams,"NR_PARCELA%%vCont"
+			getitem/id vVlPagto,piParams,"VL_PAGAMENTO%%vCont"
+			getitem/id vVlJuros,piParams,"VL_JUROS%%vCont"
+			getitem/id vVlDesconto,piParams,"VL_DESCONTO%%vCont"
+			getitem/id vDsDoc,piParams,"DS_DOC%%vCont"
+			getitem/id vDsAux,piParams,"DS_AUX%%vCont"
+		endwhile    
+		$status = 0	
+		$collhandle(FCC_AUTOPAGSVC)->Salvar()
+		if ($procerror)
+			$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+			poCdErro = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return (-1)
+		elseif ($status < 0)
+			$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$,"ADICIONAL=Operação->FCCSVCO002.AutorizaDup - Não autorizou nenhuma duplicata!")
+			poCdErro = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return(-1)    
+		else
+			;sucesso
+			return (0)
+		endif
+	endif
+	;---------------------------------------------------------------------------------------------
+	; BAM - 27/10/04, gera a autorizacao de pagamento da duplicata a partir dos cheques
+	;		autorizados.
+	; entrada    : nr. da conta, tipo de autorizacao, dados das duplicatas
+	; saida        : 0 - sucesso . -1 falha
+	;---------------------------------------------------------------------------------------------
+end ;AutorizaDup
+
+;--------------------------------
+public operation AutoChqAvulsoDup
+;--------------------------------
+	params
+		string $xlpg$     	:IN
+		string piParams     :IN
+		string poParams     :OUT
+		string poCdErro     :OUT
+		string poCtxErro    :OUT
+	endparams
+	variables
+		numeric vCdEmp, vCdForn, vNrDup, vNrParcela, vVlPagto, vNrCtapes, vVlJuros, %\
+				vVlDesconto, vNrCtaPesC, vCont
+		string  vDsDoc, vDsAux
+	endvariables
+	getitem/id vNrCtapes,piParams,"NR_CTAPES"
+	if (vNrCtaPes = "")
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Faltou o nr. da conta!", "ADICIONAL=Operação->FCCSVCO002.AutoChqAvusloDup")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)    
+	endif
+	clear/e "FCC_CTAPESSVC"
+	nr_ctapes.fcc_ctapessvc/init = vNrCtaPes    
+	retrieve/e "FCC_CTAPESSVC"
+	if ($procerror)
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return (-1)
+	elseif ($status < 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Não localizou o nr. da conta!", "ADICIONAL=Operação->FCCSVCO002.AutoChqAvulsoDup")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)    
+	else
+		if (!in_ativo.fcc_ctapessvc)
+			$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO= Conta inativa! ","")
+			poCdErro = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return(-1)    
+		endif
+		;relacionar no primeiro cheque as duplicatas autorizadas
+		clear/e "FCC_AUTOCHEQSVC"
+		dt_autorizacao.fcc_autocheqsvc/init 	= $item("DT_AUTORIZACAO",piParams)
+		nr_seqauto.fcc_autocheqsvc/init 		= $item("NR_SEQAUTO",piParams)
+		retrieve/e "FCC_AUTOCHEQSVC" 
+		setocc "FCC_AUTOCHEQSVC",1
+		vCont = 1
+		getitem/id vCdEmp,piParams,"CD_EMPRESA%%vCont"
+		getitem/id vCdForn,piParams,"CD_FORNECEDOR%%vCont"
+		getitem/id vNrCtapesC,piParams,"NR_CTAPESC%%vCont"
+		getitem/id vNrDup,piParams,"NR_DUPLICATA%%vCont"
+		getitem/id vNrParcela,piParams,"NR_PARCELA%%vCont"
+		getitem/id vVlPagto,piParams,"VL_PAGAMENTO%%vCont"
+		getitem/id vVlJuros,piParams,"VL_JUROS%%vCont"
+		getitem/id vVlDesconto,piParams,"VL_DESCONTO%%vCont"
+		getitem/id vDsDoc,piParams,"DS_DOC%%vCont"
+		getitem/id vDsAux,piParams,"DS_AUX%%vCont"
+		while (vCdEmp != "")
+			creocc "FCC_AUTOPAGSVC",-1
+			dt_autorizacao.fcc_autopagsvc 	= $item("DT_AUTORIZACAO",piParams)
+			nr_seqauto.fcc_autopagsvc 			= $item("NR_SEQAUTO",piParams)
+			nr_seqcheque.fcc_autopagsvc 		= nr_seqcheque.fcc_autocheqsvc
+			nr_seqpag.fcc_autopagsvc 			= vCont ;uma seq.
+			cd_operador.fcc_autopagsvc 			= $item("CD_USUARIO", $xlpg$)
+			dt_cadastro.fcc_autopagsvc 			= $datim
+			nr_ctapes.fcc_autopagsvc 			= vNrCtaPesC
+			cd_empresa.fcc_autopagsvc 			= vCdEmp
+			cd_fornecedor.fcc_autopagsvc 	= vCdForn
+			nr_duplicata.fcc_autopagsvc 		= vNrDup
+			nr_parcela.fcc_autopagsvc 			= vNrParcela
+			vl_pagamento.fcc_autopagsvc 		= vVlPagto
+			vl_juros.fcc_autopagsvc 			= vVlJuros
+			vl_desconto.fcc_autopagsvc 			= vVlDesconto
+			;-----------------------------------------------------------------------------
+			;MARCOS ROGERIO / EVALDO - 28/07/2008
+			;limpa caracteres especiais de uma string e mantem pontuação - "/"   ","    ":"
+			;-----------------------------------------------------------------------------
+			Call ConverterString(vDsDoc,vDsDoc)
+			if ($procerror)
+				$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+				return (-1)
+			endif
+			;-----------------------------------------------------------------------------
+			ds_doc.fcc_autopagsvc 				= vDsDoc[1:15]
+			;-----------------------------------------------------------------------------
+			;MARCOS ROGERIO / EVALDO - 28/07/2008
+			;limpa caracteres especiais de uma string e mantem pontuação - "/"   ","    ":"
+			;-----------------------------------------------------------------------------
+			Call ConverterString(vDsAux,vDsAux)
+			if ($procerror)
+				$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+				return (-1)
+			endif
+			;-----------------------------------------------------------------------------
+			ds_aux.fcc_autopagsvc 				= vDsAux[1:20]
+			;buscar a próxima dup.
+			vCont = vCont + 1
+			getitem/id vCdEmp,piParams,"CD_EMPRESA%%vCont"
+			getitem/id vCdForn,piParams,"CD_FORNECEDOR%%vCont"
+			getitem/id vNrCtaPesC,piParams,"NR_CTAPESC%%vCont"
+			getitem/id vNrDup,piParams,"NR_DUPLICATA%%vCont"
+			getitem/id vNrParcela,piParams,"NR_PARCELA%%vCont"
+			getitem/id vVlPagto,piParams,"VL_PAGAMENTO%%vCont"
+			getitem/id vVlJuros,piParams,"VL_JUROS%%vCont"
+			getitem/id vVlDesconto,piParams,"VL_DESCONTO%%vCont"
+			getitem/id vDsDoc,piParams,"DS_DOC%%vCont"
+			getitem/id vDsAux,piParams,"DS_AUX%%vCont"
+		endwhile
+		$status = 0
+		$collhandle(FCC_AUTOPAGSVC)->Salvar()
+		if ($procerror)
+			$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+			poCdErro = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return (-1)
+		elseif ($status < 0)
+			$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$,"ADICIONAL=Operação->FCCSVCO002.AutoChqAvulsoDup - Não autorizou nenhuma duplicata!")
+			poCdErro = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return(-1)    
+		else
+			;sucesso
+			return (0)
+		endif
+	endif
+;---------------------------------------------------------------------------------------------
+; BAM - 12/08/05, gera a autorizacao de pagamento da duplicata a partir dos cheques
+;		autorizados. No 1o. cheque todas as duplicatas
+;		ALTARACAO EFETUADA PARA ATENDER AO CHEQUE AVULSO PAGANDO DUPLICATAS NA BRASCOL
+; entrada    : nr. da conta, tipo de autorizacao, dados das duplicatas
+; saida        : 0 - sucesso . -1 falha
+;---------------------------------------------------------------------------------------------
+end ;AutoChqAvulsoDup
+;--------------------------
+public operation BuscarBAC
+;--------------------------
+	params
+		string $xlpg$     :IN
+		string piParams     :IN
+		string poParams     :OUT
+		string poCdErro     :OUT
+		string poCtxErro    :OUT
+	endparams
+	clear/e "FCC_CTAPESSVC"
+	nr_banco.fcc_ctapessvc/init = $item("NR_BANCO",piParams)
+	nr_agencia.fcc_ctapessvc/init = $item("NR_AGENCIA",piParams)
+	ds_conta.fcc_ctapessvc/init = $item("DS_CONTA",piParams)
+	retrieve/e "FCC_CTAPESSVC"
+	if ($status >= 0)
+		;encontrou uma conta com este Banco/Agencia/Conta
+		poParams = "NR_CTAPES=%%nr_ctapes.fcc_ctapessvc"
+	else
+		poParams = ""
+	endif
+	exit (0)
+	;---------------------------------------------------------------------------------------------
+	; BAM - 06/12/04, verfica se existe uma conta com o Banco/Agencia/Conta igual ao recebido
+	;		no parametro.
+	; entrada    : nr. do banco, agência, conta 
+	; saida        : encontrou - retorna o nr_ctapes
+	;				 não encontrou - não retorna nada
+	;---------------------------------------------------------------------------------------------
+End;BuscarBAC
+;---------------------------
+public operation BuscarCaixa
+;---------------------------
+	params
+		string $xlpg$       :IN
+		string piParams     :IN
+		string poParams     :OUT
+		string poCdErro     :OUT
+		string poCtxErro    :OUT
+	endparams
+	clear/e "FCC_CTAPESSVC"
+	cd_empresa.fcc_ctapessvc/init = $item("CD_EMPRESA",piParams)
+	tp_manutencao.fcc_ctapessvc/init = $item("TP_MANUTENCAO",piParams)
+	retrieve/e "FCC_CTAPESSVC"
+	if ($status >= 0)
+		;encontrou uma conta com esta empresa / tipo manutenção
+		poParams = "NR_CTAPES=%%nr_ctapes.fcc_ctapessvc"
+	else
+		poParams = ""
+	endif
+	exit (0)
+	;---------------------------------------------------------------------------------------------
+	; BAM - 11/05/05, verifica se existe uma conta para esta empresa e tipo manutencao
+	;		Somente pode existir uma conta do tipo manutencao em cada empresa.
+	; entrada    :  empresa
+	;				tipo manutencao
+	; saida      : encontrou - retorna o nr_ctapes
+	;			   não encontrou - não retorna nada
+	;---------------------------------------------------------------------------------------------
+
+;-------------------------------
+;public operation BuscarCxMatriz
+;-------------------------------
+;	params
+;		string $xlpg$       :IN
+;		string piParams     :IN
+;		string poParams     :OUT
+;		string poCdErro     :OUT
+;		string poCtxErro    :OUT
+;	endparams
+;	clear/e "FCC_CTAPESSVC"
+;	cd_empresa.fcc_ctapessvc/init = $item("CD_EMPRESA",piParams)
+;	tp_manutencao.fcc_ctapessvc/init = $item("TP_MANUTENCAO",piParams)
+;	retrieve/e "FCC_CTAPESSVC"
+;	if ($status >= 0)
+;		;encontrou uma conta com este tipo manutenção
+;		poParams = "NR_CTAPES=%%nr_ctapes.fcc_ctapessvc"
+;	else
+;		poParams = ""
+;	endif
+;	exit (0)
+	;---------------------------------------------------------------------------------------------
+	; BAM - 28/01/05, verifica se existe uma conta para este tipo manutencao (caixa matriz).
+	;		Somente pode existir uma empresa e uma grupo empresa no ambiente todo.
+	; entrada    : tipo manutencao
+	; saida        : encontrou - retorna o nr_ctapes
+	;				 não encontrou - não retorna nada
+	;---------------------------------------------------------------------------------------------
+;End;BuscarCxMatriz
+;------------------------------
+;public operation BuscarCxFilial
+;;------------------------------
+;	params
+;		string $xlpg$       :IN
+;		string piParams     :IN
+;		string poParams     :OUT
+;		string poCdErro     :OUT
+;		string poCtxErro    :OUT
+;	endparams
+;	clear/e "FCC_CTAPESSVC"
+;	cd_empresa.fcc_ctapessvc/init = $item("CD_EMPRESA",piParams)
+;	tp_manutencao.fcc_ctapessvc/init = $item("TP_MANUTENCAO",piParams)
+;	retrieve/e "FCC_CTAPESSVC"
+;	if ($status >= 0)
+;		;encontrou uma conta com esta empresa e tipo manutenção
+;		poParams = "NR_CTAPES=%%nr_ctapes.fcc_ctapessvc"
+;	else
+;		poParams = ""
+;	endif
+;	exit (0)
+;	;---------------------------------------------------------------------------------------------
+;	; BAM - 28/01/05, verifica se existe uma conta para esta empresa/tipo manutenção (caixa filial). 
+;	;		Somente pode existir uma por código de empresa
+;	; entrada    : cd_empresa,  tp_manutencao
+;	; saida        : encontrou - retorna o nr_ctapes
+;	;				 não encontrou - não retorna nada
+;	;---------------------------------------------------------------------------------------------
+;End;BuscarCxFilial
+;-------------------------------
+;;-----------------------------
+;public operation BuscarCxFundo
+;;-----------------------------
+;	params
+;		string $xlpg$       :IN
+;		string piParams     :IN
+;		string poParams     :OUT
+;		string poCdErro     :OUT
+;		string poCtxErro    :OUT
+;	endparams
+;	clear/e "FCC_CTAPESSVC"
+;	cd_empresa.fcc_ctapessvc/init = $item("CD_EMPRESA",piParams)
+;	tp_manutencao.fcc_ctapessvc/init = $item("TP_MANUTENCAO",piParams)
+;	retrieve/e "FCC_CTAPESSVC"
+;	if ($status >= 0)
+;		;encontrou uma conta com esta empresa e tipo manutenção
+;		poParams = "NR_CTAPES=%%nr_ctapes.fcc_ctapessvc"
+;	else
+;		poParams = ""
+;	endif
+;	exit (0)
+;	;---------------------------------------------------------------------------------------------
+;	; BAM - 10/05/05, verifica se existe uma conta para esta empresa/tipo manutenção (caixa fundo). 
+;	;		Somente pode existir uma por código de empresa
+;	; entrada    : cd_empresa,  tp_manutencao
+;	; saida        : encontrou - retorna o nr_ctapes
+;	;				 não encontrou - não retorna nada
+;	;---------------------------------------------------------------------------------------------
+;End;BuscarCxFundo
+;-------------------------------
+public operation BuscarCxUsuario
+;-------------------------------
+	params
+		string $xlpg$       :IN
+		string piParams     :IN
+		string poParams     :OUT
+		string poCdErro     :OUT
+		string poCtxErro    :OUT
+	endparams
+	clear/e "FCC_CTAPESSVC"
+	cd_empresa.fcc_ctapessvc/init = $item("CD_EMPRESA",piParams)
+	tp_manutencao.fcc_ctapessvc/init = $item("TP_MANUTENCAO",piParams)
+	cd_opercaixa.fcc_ctapessvc/init = $item("CD_OPERCAIXA",piParams)
+	retrieve/e "FCC_CTAPESSVC"
+	if ($status >= 0)
+		;encontrou uma conta com esta empresa e tipo manutenção
+		poParams = "NR_CTAPES=%%nr_ctapes.fcc_ctapessvc"
+	else
+		poParams = ""
+	endif
+	exit (0)
+	;---------------------------------------------------------------------------------------------
+	; BAM - 28/01/05, verifica se existe uma conta para esta empresa/tipo manutenção/operador de caixa
+	;		Somente pode existir uma por código de empresa,tp manutencao e operador
+	; entrada    : cd_empresa,  tp_manutencao, cd_opercaixa
+	; saida        : encontrou - retorna o nr_ctapes
+	;				 não encontrou - não retorna nada
+	;---------------------------------------------------------------------------------------------
+End;BuscarCxUsuario
+
+;-------------------------------
+public operation BuscarPessoaCta
+;-------------------------------
+	params
+		string $xlpg$     :IN
+		string piParams     :IN
+		string poParams     :OUT
+		string poCdErro     :OUT
+		string poCtxErro    :OUT
+	endparams
+
+	variables
+		numeric vNrCtaPes
+	endvariables
+
+	clear/e "FCC_CTAPESSVC"
+	cd_empresa.fcc_ctapessvc/init    = $item("CD_EMPRESA",piParams)
+	tp_manutencao.fcc_ctapessvc/init = $item("TP_MANUTENCAO",piParams)
+	cd_pessoa.fcc_ctapessvc/init     = $item("CD_PESSOA",piParams)
+	;Projeto 078 - Tarefa 2196 - Aloisio Gargantini - 30/03/2009
+	nr_banco.fcc_ctapessvc/init      = $item("NR_BANCO",piParams)
+	nr_agencia.fcc_ctapessvc/init    = $item("NR_AGENCIA",piParams)
+	ds_conta.fcc_ctapessvc/init      = $item("DS_CONTA",piParams)
+	;
+	retrieve/e "FCC_CTAPESSVC"
+	if ($status >= 0)
+		;encontrou uma conta com esta empresa/tp manut/pessoa
+		vNrCtaPes = nr_ctapes.fcc_ctapessvc
+		poParams = "NR_CTAPES=%%vNrCtaPes"
+	else
+		poParams = ""
+	endif
+
+	exit (0)
+	;-----------------------------------------------------------------------------------
+	; BAM - 17/01/05, verfica se existe uma conta com empresa/tipo de manutencao/pessoa
+	; igual ao recebido no parametro.
+	; entrada    : empresa, tipo manutencao e cod. pessoa
+	; saida        : encontrou - retorna o nr_ctapes
+	;				 não encontrou - não retorna nada
+	;---------------------------------------------------------------------------------------------
+End;BuscarPessoaCta
+
+;----------------------------------
+public operation gravaLiquidacaoMov
+;----------------------------------
+	params
+		string $xlpg$ :IN
+		string piParams :IN
+		string poParams :OUT
+		string poCdErro :OUT
+		string poCtxErro :OUT
+	endparams
+
+	variables
+		numeric vNrCtapes, vNrSeqMov, vCdEmpLiq, vNrSeqLiq
+		date vDtMovim, vDtLiq
+	endvariables
+
+	vNrCtapes = $item("NR_CTAPES", piParams)
+	vDtMovim = $item("DT_MOVIM", piParams)
+	vNrSeqMov = $item("NR_SEQMOV", piParams)
+	vCdEmpLiq = $item("CD_EMPLIQ", piParams)
+	vDtLiq = $item("DT_LIQ", piParams)
+	vNrSeqLiq = $item("NR_SEQLIQ", piParams)
+
+	if (vNrCtapes = 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Número CTA não informado!", "ADICIONAL=Operação->FCCSVCO002.gravaLiquidacaoMov")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+
+	if (vDtMovim = "")
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Data de movimento não informada!", "ADICIONAL=Operação->FCCSVCO002.gravaLiquidacaoMov")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+
+	if (vNrSeqMov = 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Número da sequência de movimento não informada!", "ADICIONAL=Operação->FCCSVCO002.gravaLiquidacaoMov")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+
+	if (vCdEmpLiq = 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Empresa da liquidação não informada!", "ADICIONAL=Operação->FCCSVCO002.gravaLiquidacaoMov")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+
+	if (vDtLiq = "")
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Data da liquidação não informada!", "ADICIONAL=Operação->FCCSVCO002.gravaLiquidacaoMov")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+
+	if (vNrSeqLiq = 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Número da liquidação não informada!", "ADICIONAL=Operação->FCCSVCO002.gravaLiquidacaoMov")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+
+	clear/e "FCC_MOVSVC"
+	NR_CTAPES.FCC_MOVSVC = vNrCtaPes
+	DT_MOVIM.FCC_MOVSVC = vDtMovim
+	NR_SEQMOV.FCC_MOVSVC = vNrSeqMov
+	retrieve/e "FCC_MOVSVC"
+	if ($status < 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Movimentação %%NR_CTAPES.FCC_MOVSVC / %%DT_MOVIM.FCC_MOVSVC / %%NR_SEQMOV.FCC_MOVSVC não cadastrada!", "ADICIONAL=Operação->FCCSVCO002.gravaLiquidacaoMov")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+
+	CD_EMPLIQ.FCC_MOVSVC = vCdEmpLiq
+	DT_LIQ.FCC_MOVSVC = vDtLiq
+	NR_SEQLIQ.FCC_MOVSVC = vNrSeqLiq
+	CD_OPERADOR.FCC_MOVSVC = $item("CD_USUARIO", $xlpg$)
+	DT_CADASTRO.FCC_MOVSVC = $datim	
+
+	$collhandle("FCC_MOVSVC")->Salvar()
+	if ($procerror)
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return (-1)
+	elseif ($status < 0)
+		$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")    
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return (-1)
+	endif
+
+	return(0)
+end ;gravaLiquidacaoMov
+
+;---------------------------
+public operation gravaObsMov
+;---------------------------
+	params
+		string $xlpg$ :IN
+		string piParams :IN
+		string poParams :OUT
+		string poCdErro :OUT
+		string poCtxErro :OUT
+	endparams
+
+	variables
+		numeric vNrCtapes, vNrSeqMov, voLinha
+		string vCdComponente, vDsObs
+		boolean vInManutencao
+		date vDtMovim	
+	endvariables
+
+	vNrCtapes = $item("NR_CTAPES", piParams)
+	vDtMovim = $item("DT_MOVIM", piParams)
+	vNrSeqMov = $item("NR_SEQMOV", piParams)
+	vCdComponente = $item("CD_COMPONENTE", piParams)
+	vInManutencao = $item("IN_MANUTENCAO", piParams)
+	vDsObs = $item("DS_OBS", piParams)
+
+	if (vNrCtapes = 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Número CTA não informado!", "ADICIONAL=Operação->FCCSVCO002.gravaObsMov")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+
+	if (vDtMovim = "")
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Data de movimento não informada!", "ADICIONAL=Operação->FCCSVCO002.gravaObsMov")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+
+	if (vNrSeqMov = 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Número da sequência de movimento não informada!", "ADICIONAL=Operação->FCCSVCO002.gravaObsMov")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+
+	if (vCdComponente = "")
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Código do componente não informado!", "ADICIONAL=Operação->FCCSVCO002.gravaObsMov")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+
+	if (vDsObs = "")
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Descrição da observação não informada!", "ADICIONAL=Operação->FCCSVCO002.gravaObsMov")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+
+	activate "FCCSVCO002".seqLinhaObs(vNrCtapes, vDtMovim, vNrSeqMov, voLinha, $xCdErro$, $xCtxerro$)
+	if ($procerror)
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)  
+	elseif ($status < 0)
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+
+	if (voLinha = 0)
+		voLinha = 1
+	endif
+
+	;-----------------------------------------------------------------------------
+	;MARCOS ROGERIO / EVALDO / ALOISIO - 29/07/2008
+	;limpa caracteres especiais de uma string e mantem pontuação - "/"   ","    ":"
+	;-----------------------------------------------------------------------------
+	Call ConverterString(vDsObs,vDsObs)
+	if ($procerror)
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+		return (-1)
+	endif
+	;-----------------------------------------------------------------------------
+
+	clear/e "OBS_MOVSVC"
+	creocc "OBS_MOVSVC", -1
+	NR_CTAPES.OBS_MOVSVC = vNrCtapes
+	DT_MOVIM.OBS_MOVSVC = vDtMovim
+	NR_SEQMOV.OBS_MOVSVC = vNrSeqMov
+	NR_LINHA.OBS_MOVSVC = voLinha
+	CD_OPERADOR.OBS_MOVSVC = $item("CD_USUARIO", $xlpg$)
+	DT_CADASTRO.OBS_MOVSVC = $datim
+	CD_COMPONENTE.OBS_MOVSVC = vCdComponente
+	IN_MANUTENCAO.OBS_MOVSVC = vInManutencao
+	DS_OBS.OBS_MOVSVC = vDsObs[1:80]
+	$collhandle("FCC_MOVSVC")->Salvar()
+	if ($procerror)
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return (-1)
+	elseif ($status < 0)
+		$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")    
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return (-1)
+	endif
+
+	return(0)
+end ;gravaObsMov
+
+;--------------------
+operation seqLinhaObs
+;--------------------
+	params
+		numeric piNrCtapes :IN
+		date piDtMovim :IN
+		numeric piNrSeqMov :IN
+		numeric poLinha :OUT
+		string poCdErro :OUT
+		string poCtxErro :OUT
+	endparams
+
+	selectdb max(NR_LINHA) %\
+	from "OBS_MOVSVC" %\
+	u_where (NR_CTAPES.OBS_MOVSVC = piNrCtapes & %\
+	DT_MOVIM.OBS_MOVSVC = piDtMovim & %\
+	NR_SEQMOV.OBS_MOVSVC = piNrSeqMov) %\
+	to poLinha
+	if ($status < 0)
+;		$instancehandle->SetErroOpr($procerrorcontext, $xCdErro$, $xCtxErro$)
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return (-1)
+	endif
+
+	poLinha = poLinha + 1
+
+	return (0)
+end ;seqLinhaObs
+
+;--------------------------------
+public operation estornaMovimento
+;--------------------------------
+	params
+		string $xlpg$ :IN
+		string piParams :IN
+		string poParams :OUT
+		string poCdErro :OUT
+		string poCtxErro :OUT
+	endparams
+
+	variables
+		numeric vNrCtaPes, vNrSeqMov, vTpLiquidacao, vNrSeqMovRel, vVlSaldo
+		date vDtMovim
+		string viParams, voParams, viValores
+		boolean vInConci, vIndicaRetorno, vInValidaAutoChq
+		string vDsObs
+	endvariables
+
+	vNrCtaPes        = $item("NR_CTAPES" , piParams)
+	vDtMovim         = $item("DT_MOVIM"  , piParams)
+	vNrSeqMov        = $item("NR_SEQMOV" , piParams)
+	;Projeto 078 - Tarefa 3337 - Aloisio Gargantini - 20/04/2010
+	vInValidaAutoChq = $item("IN_VALIDAAUTOCHQ" , piParams)
+	vDsObs    = $item("DS_OBS"    , piParams)
+	
+	;--Douglas Ferreira - [Prj/Tarefa 78/3722] - 13/09/2010
+	if (vNrCtaPes <= 0) | (vNrCtaPes = "")
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Conta corrente não informada para estorno de movimento de conta!", "")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	if (vDtMovim <= 0) | (vDtMovim = "")
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Data do movimento não informada para estorno de movimento de conta!", "ADICIONAL=Operação->FCCSVCO002.estornaMovimento")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	if (vNrSeqMov <= 0) | (vNrSeqMov = "")
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Sequência do movimento não informada para estorno de movimento de conta!", "ADICIONAL=Operação->FCCSVCO002.estornaMovimento")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	;
+
+	viParams = ""
+	putitem viParams, -1, "TP_LIQUIDACAO_FCC"
+	activate "ADMSVCO001".GetParamEmpresa($$gCdEmpresa, viParams, voParams, $xcderro$, $xctxerro$)
+	if ($procerror)
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+	elseif ($xcdErro$)
+		$instancehandle->SetErroApl($xCtxErro$, $xCdErro$, $xCtxErro$)
+	endif
+	vTpLiquidacao = $item("TP_LIQUIDACAO_FCC", voParams)
+
+	;Projeto 078 - Tarefa 3337 - Aloisio Gargantini - 20/04/2010
+	;if (vTpLiquidacao = 1)  ;Baixa a duplicata na conciliação
+	if (vTpLiquidacao = 1) & (vInValidaAutoChq = <TRUE>) ;Baixa a duplicata na conciliação
+	;
+		vIndicaRetorno = <FALSE>
+		clear/e "FCC_AUTOCHEQSVC"
+		NR_CTAPES.FCC_AUTOCHEQSVC/init = vNrCtaPes
+		DT_MOVIM.FCC_AUTOCHEQSVC/init  = vDtMovim
+		NR_SEQMOV.FCC_AUTOCHEQSVC/init = vNrSeqMov
+		retrieve/e "FCC_AUTOCHEQSVC"
+		if ($status >= 0)
+			setocc "FCC_AUTOCHEQSVC", 1
+
+			while ($status >= 0)	
+				clear/e "FCC_AUTOPAGSVC"
+				DT_AUTORIZACAO.FCC_AUTOPAGSVC/init = DT_AUTORIZACAO.FCC_AUTOCHEQSVC
+				NR_SEQAUTO.FCC_AUTOPAGSVC/init = NR_SEQAUTO.FCC_AUTOCHEQSVC
+				NR_SEQCHEQUE.FCC_AUTOPAGSVC/init = NR_SEQCHEQUE.FCC_AUTOCHEQSVC
+				retrieve/e "FCC_AUTOPAGSVC"
+				if ($status >= 0)
+					setocc "FCC_AUTOPAGSVC", 1
+
+					while ($status >= 0)
+						clear/e "FCP_DUPLICATISVC"
+						CD_EMPRESA.FCP_DUPLICATISVC/init    = CD_EMPRESA.FCC_AUTOPAGSVC
+						CD_FORNECEDOR.FCP_DUPLICATISVC/init = CD_FORNECEDOR.FCC_AUTOPAGSVC
+						NR_DUPLICATA.FCP_DUPLICATISVC/init  = NR_DUPLICATA.FCC_AUTOPAGSVC  
+						NR_PARCELA.FCP_DUPLICATISVC/init    = NR_PARCELA.FCC_AUTOPAGSVC    					
+						retrieve/e "FCP_DUPLICATISVC"
+						if ($status >=0)
+							if (TP_ESTAGIO.FCP_DUPLICATISVC = 4)
+								vIndicaRetorno = <TRUE>	
+							endif
+						else
+							$status = 0
+						endif
+
+						setocc "FCC_AUTOPAGSVC", $curocc("FCC_AUTOPAGSVC") + 1
+					endwhile
+					$status = 0
+				endif
+
+				setocc "FCC_AUTOCHEQSVC", $curocc("FCC_AUTOCHEQSVC") + 1
+			endwhile
+			$status = 0
+		endif
+
+		if (vIndicaRetorno = <TRUE>)
+			message/warning "Movimento possui duplicata com estágio igual a CHEQUE EMITIDO aguardando conciliação, não podendo ser estornado o movimento!"
+			return (-1)
+		endif
+	endif
+	;
+
+	clear/e "FCC_MOVSVC"
+	NR_CTAPES.FCC_MOVSVC = vNrCtaPes
+	DT_MOVIM.FCC_MOVSVC = vDtMovim
+	NR_SEQMOV.FCC_MOVSVC = vNrSeqMov
+	retrieve/e "FCC_MOVSVC"
+	if ($status < 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Movimento para estorno não encontrado!", "ADICIONAL=Operação->FCCSVCO002.estornaMovimento")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	if (IN_ESTORNO.FCC_MOVSVC)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Movimento já estornado!", "ADICIONAL=Operação->FCCSVCO002.estornaMovimento")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+
+	CD_OPERESTORNO.FCC_MOVSVC = $item("CD_USUARIO", $xlpg$)
+	DT_ESTORNO.FCC_MOVSVC = $datim
+	IN_ESTORNO.FCC_MOVSVC = <TRUE>
+	$collhandle("FCC_MOVSVC")->Salvar()
+	if ($procerror)
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return (-1)
+	elseif ($status < 0)        
+		$instancehandle->SetErroApl($xCtxErro$, $xCdErro$, $xCtxErro$)
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return (-1)
+	endif                
+
+	;Projeto 078 - Tarefa 3177 - Aloisio Gargantini - 19/02/2010
+	if ($item("IN_SOMENTEESTORNO", piParams) = <TRUE>)
+		return(0)
+	endif
+	;
+
+;---comentado por: MSOUZA (04/10/2011) [PRJ 182/TAR 169]	
+	;Hugo em 13/05/11 Tarefa 182-68
+;	if (TP_OPERACAO.FCC_MOVSVC = "C") & (TP_DOCUMENTO.FCC_MOVSVC = 20)
+;		viParams = ""
+;		putitem/id viParams, "NR_CTAPES", NR_CTAPES.FCC_MOVSVC
+;		putitem/id viParams, "TP_DOCUMENTO", 20 ;CREDEV
+;		putitem/id viParams, "NR_SEQHISTRELSUB", 1
+;		putitem/id viParams, "DT_SALDO", $item("DT_SISTEMA", $xlpg$)
+;		newinstance "FCCSVCO002", "FCCSVCO002B", "TRANSACTION=FALSE"
+;		activate "FCCSVCO002B".buscaSaldoCtaTp($xlpg$, viParams, viValores, voParams, $xCdErro$, $xCtxerro$)
+;		if ($procerror)       
+;			$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+;			poCdErro = $xCdErro$
+;			poCtxErro = $xCtxErro$
+;			return (-1)
+;		elseif ($status < 0)
+;			$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")
+;			poCdErro = $xCdErro$
+;			poCtxErro = $xCtxErro$
+;			return (-1)
+;		endif
+;		deleteinstance "FCCSVCO002B"
+;		
+;		vVlSaldo = $item("VL_SALDO", voParams)
+;		
+;		if (vVlSaldo < VL_LANCTO.FCC_MOVSVC)
+;			$instancehandle->SetStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Saldo de CREDEV insuficiente para gerar movimento de estorno!!", "ADICIONAL=Operação->FCCSVCO002.estornaMovimento")
+;			poCdErro = $xCdErro$
+;			poCtxErro = $xCtxErro$
+;			return(-1)
+;		endif
+;	endif
+	;
+;-----------
+	
+	viParams = ""
+	putitem/id viParams, "CD_EMPRESA", CD_EMPRESA.FCC_MOVSVC
+	putitem/id viParams, "NR_CTAPES", NR_CTAPES.FCC_MOVSVC
+	putitem/id viParams, "DT_MOVIMENTO", DT_MOVIM.FCC_MOVSVC
+	if (TP_OPERACAO.FCC_MOVSVC = "C")
+		putitem/id viParams, "CD_HISTORICO", 805
+	else
+		putitem/id viParams, "CD_HISTORICO", 804
+	endif
+	putitem/id viParams, "VL_LANCTO", VL_LANCTO.FCC_MOVSVC
+	putitem/id viParams, "IN_ESTORNO", <TRUE>
+	putitem/id viParams, "DS_DOC", NR_SEQMOV.FCC_MOVSVC
+	putitem/id viParams, "DS_AUX", DS_AUX.FCC_MOVSVC
+	putitem/id viParams, "DT_CONCI", DT_CONCI.FCC_MOVSVC
+	putitem/id viParams, "CD_OPERCONCI", CD_OPERCONCI.FCC_MOVSVC
+	putitem/id viParams, "TP_DOCUMENTO", TP_DOCUMENTO.FCC_MOVSVC
+	putitem/id viParams, "NR_SEQHISTRELSUB", NR_SEQHISTRELSUB.FCC_MOVSVC
+	newinstance "FCCSVCO002", "FCCSVCO002A", "TRANSACTION=FALSE"
+	activate "FCCSVCO002A".movimentaConta($xlpg$, viParams, viValores, voParams, $xCdErro$, $xCtxerro$)
+	if ($procerror)       
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return (-1)
+	elseif ($status < 0)
+		$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return (-1)
+	endif
+	deleteinstance "FCCSVCO002A"
+
+	viParams = ""
+	putitem/id viParams, "NR_CTAPES"      , NR_CTAPES.FCC_MOVSVC
+	putitem/id viParams, "DT_MOVIM"       , DT_MOVIM.FCC_MOVSVC
+	putitem/id viParams, "NR_SEQMOV"      , NR_SEQMOV.FCC_MOVSVC
+	;Projeto 078 - Tarefa 3512 - Aloisio Gargantini - 25/06/2010
+	if ($item("CD_COMPONENTE", piParams) != "")
+		putitem/id viParams, "CD_COMPONENTE", $item("CD_COMPONENTE", piParams)
+	else
+	;
+		putitem/id viParams, "CD_COMPONENTE"  , "FCCSVCO002"
+	endif
+
+	;-------------------------------------------------------------
+	;Marcos Rogerio - Projeto 63 / Tarefa 31 - 28/06/2006 - Fábio
+	if (vDsObs != "")	
+		putitem/id viParams, "DS_OBS"         , vDsObs
+	else
+		putitem/id viParams, "DS_OBS"         , "ESTORNO DA MOVIMENTACAO"
+	endif
+	;-------------------------------------------------------------
+	newinstance "FCCSVCO002", "FCCSVCO002B", "TRANSACTION=FALSE"
+	activate "FCCSVCO002B".gravaObsMov($xlpg$, viParams, voParams, $xCdErro$, $xCtxerro$)
+	if ($procerror)       
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return (-1)
+	elseif ($status < 0)
+		$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return (-1)
+	endif
+	deleteinstance "FCCSVCO002B"
+
+	return(0)
+end ;estornaMovimento
+;--------------------------
+public operation BuscarMov
+;--------------------------
+params
+	string $xlpg$       :IN
+	string piParams     :IN
+	string poParams     :OUT
+	string poCdErro     :OUT
+	string poCtxErro    :OUT
+endparams
+variables
+	boolean vInEncontrou
+endvariables
+	vInEncontrou = <false>
+	clear/e "FCC_CTAPESSVC"
+	nr_ctapes.fcc_ctapessvc/init = $item("NR_CTAPES",piParams)
+	retrieve/e "FCC_CTAPESSVC"
+	if ($status >= 0)
+		;encontrou uma conta com este Banco/Agencia/Conta
+		clear/e "FCC_MOVSVC"
+		nr_ctapes.fcc_movsvc/init = nr_ctapes.fcc_ctapessvc
+		retrieve/e "FCC_MOVSVC"
+		if ($status >= 0)
+			;existe movimento para esta conta
+			vInEncontrou = <true>
+		endif
+	endif
+	poParams = "IN_ENCONTROU=%%vInEncontrou"
+	exit (0)
+	;---------------------------------------------------------------------------------------------
+	; BAM - 08/06/05, verfica se existe um lancamento para a conta
+	; entrada    : nr. conta
+	; saida      : encontrou - <true>
+	;			   não encontrou - <false>
+	;---------------------------------------------------------------------------------------------
+End; BuscarMov
+;----------------------------
+public operation RegraTpManut
+;----------------------------
+params
+	string $xlpg$       :IN
+	string piParams     :IN
+	string poParams     :OUT
+	string poCdErro     :OUT
+	string poCtxErro    :OUT
+endparams
+variables
+	numeric vTpManutencao
+	boolean vInDiferente
+endvariables
+	vInDiferente = <false>
+	vTpManutencao = $item("TP_MANUTENCAO",piParams)
+	clear/e "FCC_CTAPESSVC"
+	nr_ctapes.fcc_ctapessvc/init = $item("NR_CTAPES",piParams)
+	retrieve/e "FCC_CTAPESSVC"
+	if ($status >= 0)
+		;encontrou a conta
+		clear/e "FCC_MOVSVC"
+		nr_ctapes.fcc_movsvc/init = nr_ctapes.fcc_ctapessvc
+		retrieve/e "FCC_MOVSVC"
+		if ($status >= 0)
+			;existe movimento para esta conta
+			if (vTpManutencao != tp_manutencao.fcc_ctapessvc)
+				vInDiferente = <true>
+			endif
+		endif
+	endif
+	poParams = "IN_DIFERENTE=%%vInDiferente"
+	exit (0)
+	;---------------------------------------------------------------------------------------------
+	; BAM - 08/06/05, verfica se existe um lancamento para a conta e se o tipo de manutencao
+	;	              informado é o mesmo 
+	; entrada    : nr. conta, tp_manutencao
+	; saida      : diferente - <true>
+	;			   não encontrou  ou igual - <false>
+	;---------------------------------------------------------------------------------------------
+End; RegraTpManut
+;-----------------------------------
+public operation AlteraDtAberturaCta
+;-----------------------------------
+params
+		string $xlpg$ :IN
+		string piParams :IN
+		string poParams :OUT
+		string poCdErro :OUT
+		string poCtxErro :OUT
+endparams
+variables
+	numeric vNrCta
+	Date    vDtAbertura
+endvariables	
+	vNrCta = $item("NR_CTAPES",piParams)
+	vDtAbertura = $item("DT_ABERTURA",piParams)
+	if (vNrCta = 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Número CTA não informado!", "ADICIONAL=Operação->FCCSVCO002.AlteraDtAberturaCta")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	if (vDtAbertura = 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Data de Abertura CTA não informada!", "ADICIONAL=Operação->FCCSVCO002.AlteraDtAberturaCta")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	if (vDtAbertura > $date)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Data de Abertura CTA não pode ser superior a data de hoje!", "ADICIONAL=Operação->FCCSVCO002.AlteraDtAberturaCta")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+
+	clear/e "FCC_CTAPESSVC"
+	nr_ctapes.fcc_ctapessvc = vNrCta
+	retrieve/e "FCC_CTAPESSVC"
+	if ($status < 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Não conseguiu localizar a conta informada!", "ADICIONAL=Operação->FCCSVCO002.AlteraDtAberturaCta")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	if (dt_abertura.fcc_ctapessvc != vDtAbertura)
+		clear/e "FCC_CTASALDOSVC"
+		nr_ctapes.fcc_ctasaldosvc = nr_ctapes.fcc_ctapessvc
+		in_inicial.fcc_ctasaldosvc = <true>
+		retrieve/e "FCC_CTASALDOSVC"
+		if ($status < 0)
+			$instancehandle->SetStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Não conseguiu localizar o lancamento de saldo inicial!", "ADICIONAL=Operação->FCCSVCO002.AlteraDtAberturaCta")
+			poCdErro = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return(-1)
+		endif
+		;remove este registro 
+		remocc "FCC_CTASALDOSVC"
+		if ($status < 0)
+			$instancehandle->SetStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Não conseguiu remover o lancamento de saldo inicial!", "ADICIONAL=Operação->FCCSVCO002.AlteraDtAberturaCta")
+			poCdErro = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return(-1)
+		endif
+		$collhandle("FCC_CTASALDOSVC")->Salvar()
+		if ($procerror)
+			$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+			poCdErro = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return (-1)
+		elseif ($status < 0)
+			$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")    
+			poCdErro = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return (-1)
+		endif
+		;criar o novo registro de saldo inicial
+		creocc "FCC_CTASALDOSVC",-1
+		nr_ctapes.fcc_ctasaldosvc 		= nr_ctapes.fcc_ctapessvc
+		dt_movim.fcc_ctasaldosvc 		= vDtAbertura
+		in_inicial.fcc_ctasaldosvc 		= <true>
+		vl_saldo.fcc_ctasaldosvc 		= 0
+		vl_saldoconci.fcc_ctasaldosvc 	= 0
+		vl_creditos.fcc_ctasaldosvc 	= 0
+		vl_debitos.fcc_ctasaldosvc		= 0
+
+		cd_operador.fcc_ctasaldosvc 	= $item("CD_USUARIO", $xlpg$)
+		dt_cadastro.fcc_ctasaldosvc 	= $datim
+		$collhandle("FCC_CTASALDOSVC")->Salvar()
+		if ($procerror)
+			$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+			poCdErro = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return (-1)
+		elseif ($status < 0)
+			$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")    
+			poCdErro = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return (-1)
+		endif
+		;altera a dt_abertura da ctapes
+		dt_abertura.fcc_ctapessvc = vDtAbertura
+
+		cd_operador.fcc_ctapessvc 	= $item("CD_USUARIO", $xlpg$)
+		dt_cadastro.fcc_ctapessvc 	= $datim
+		$collhandle("FCC_CTAPESSVC")->Salvar()
+		if ($procerror)
+			$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+			poCdErro = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return (-1)
+		elseif ($status < 0)
+			$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")    
+			poCdErro = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return (-1)
+		endif
+	else
+		return (-1)
+	endif
+	return (0)	
+	;---------------------------------------------------------------------------------------------
+	; BAM - 19/08/05, alterar a data de abertura de uma conta, alterando o lancamento de 
+	;					saldo inicial da mesma
+	; entrada    : nr. conta, dt_abertura (nova data)
+	;---------------------------------------------------------------------------------------------
+End;AlteraDtAberturaCta
+
+;----------------------------------
+public operation buscaContaOperador
+;----------------------------------
+	params
+		string  $xlpg$       :IN    
+		string  piParams     :IN
+		string  poLstCtaPesCx:OUT
+		string  poCdErro     :OUT
+		string  poCtxErro    :OUT
+	endparams
+
+	variables
+		numeric vCdTerminal, vCdEmpresa, vCdOperador
+		boolean vInValidaCxUsuario
+	endvariables	
+
+	vCdOperador = $item("CD_OPERADOR", piParams)
+	if (vCdOperador = 0)
+		vCdOperador = $item("CD_USUARIO", $xlpg$)
+	endif
+
+	vCdTerminal = $item("CD_TERMINAL", piParams)
+	if (vCdTerminal = 0)
+		vCdTerminal = $item("CD_TERMINAL", $xlpg$)
+	endif
+
+	vCdEmpresa = $item("CD_EMPRESA", piParams)
+	if (vCdEmpresa = 0)
+		vCdEmpresa = $item("CD_EMPRESA", $xlpg$)
+	endif
+	
+	vInValidaCxUsuario = $item("IN_VALIDA_CXUSUARIO", piParams)
+	if (vInValidaCxUsuario = "")
+		vInValidaCxUsuario = <TRUE>
+	endif
+
+	call getParam()
+	if ($procerror)
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		exit(-1)
+	elseif ($status < 0)
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		exit(-1)
+	endif
+
+	;caixa matriz
+	clear/e "FCC_TPMANUTUSSVC"
+	CD_EMPRESA.FCC_TPMANUTUSSVC         = vCdEmpresa
+	CD_USULIBERADO.FCC_TPMANUTUSSVC     = vCdOperador
+	TP_MANUTENCAO.FCC_TPMANUTUSSVC/init	= $cdTpCxMatriz$
+	retrieve/e "FCC_TPMANUTUSSVC"
+	if ($status >= 0)
+		clear/e "FCC_CTAPESSVC"
+		CD_EMPRESA.FCC_CTAPESSVC    = vCdEmpresa
+		TP_MANUTENCAO.FCC_CTAPESSVC = $cdTpCxMatriz$ 
+		;Aloisio, sem tarefa. Quando existia mais de uma conta, e a primeira estava INATIVA, não carregava o dropdown no FCPFP005.
+		IN_ATIVO.FCC_CTAPESSVC      = <TRUE>
+		;
+		retrieve/e "FCC_CTAPESSVC"
+		if ($status >= 0)
+			if (IN_ATIVO.FCC_CTAPESSVC)
+				putitem/id poLstCtaPesCx, "NR_CTAPES_CXMATRIZ", NR_CTAPES.FCC_CTAPESSVC
+			endif
+		endif
+	endif
+
+	;caixa filial
+	clear/e "FCC_TPMANUTUSSVC"
+	CD_EMPRESA.FCC_TPMANUTUSSVC     = vCdEmpresa
+	CD_USULIBERADO.FCC_TPMANUTUSSVC = vCdOperador
+	TP_MANUTENCAO.FCC_TPMANUTUSSVC  = $cdTpCxFilial$
+	retrieve/e "FCC_TPMANUTUSSVC"
+	if ($status >= 0)
+		clear/e "FCC_CTAPESSVC"
+		CD_EMPRESA.FCC_CTAPESSVC    = vCdEmpresa
+		TP_MANUTENCAO.FCC_CTAPESSVC = $cdTpCxFilial$
+		;Aloisio, sem tarefa. Quando existia mais de uma conta, e a primeira estava INATIVA, não carregava o dropdown no FCPFP005.
+		IN_ATIVO.FCC_CTAPESSVC      = <TRUE>
+		;
+		retrieve/e "FCC_CTAPESSVC"
+		if ($status >= 0)
+			if (IN_ATIVO.FCC_CTAPESSVC)
+				putitem/id poLstCtaPesCx, "NR_CTAPES_CXFILIAL", NR_CTAPES.FCC_CTAPESSVC
+			endif
+		endif
+	endif
+
+	;caixa usuário
+	clear/e "FCC_TPMANUTUSSVC"
+	CD_EMPRESA.FCC_TPMANUTUSSVC     = vCdEmpresa
+	CD_USULIBERADO.FCC_TPMANUTUSSVC = vCdOperador
+	TP_MANUTENCAO.FCC_TPMANUTUSSVC  = $cdTpCxUsuario$
+	retrieve/e "FCC_TPMANUTUSSVC"
+	if ($status >= 0)
+		if ($inCxTerminal$ = 0)
+			clear/e "FCC_CTAPESSVC"
+			CD_EMPRESA.FCC_CTAPESSVC    = vCdEmpresa
+			CD_OPERCAIXA.FCC_CTAPESSVC  = vCdOperador
+			TP_MANUTENCAO.FCC_CTAPESSVC = $cdTpCxUsuario$ 
+			;Aloisio, sem tarefa. Quando existia mais de uma conta, e a primeira estava INATIVA, não carregava o dropdown no FCPFP005.
+			IN_ATIVO.FCC_CTAPESSVC      = <TRUE>
+			;
+			retrieve/e "FCC_CTAPESSVC"
+			if ($status >= 0)
+				if (IN_ATIVO.FCC_CTAPESSVC)
+					putitem/id poLstCtaPesCx, "NR_CTAPES_CXUSUARIO", NR_CTAPES.FCC_CTAPESSVC
+					putitem/id poLstCtaPesCx, "NR_CTAPES", NR_CTAPES.FCC_CTAPESSVC
+				else
+					$instancehandle->SetStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Conta %%NR_CTAPES.FCC_CTAPESSVC esta inativa!", "ADICIONAL=Operação->FCCSVCO002.buscaContaOperador")
+					poCdErro = $xCdErro$
+					poCtxErro = $xCtxErro$
+					exit(-1)
+				endif
+			else
+				if (vInValidaCxUsuario = <TRUE>)
+					$instancehandle->SetStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Nenhuma conta cadastrada para o usuário %%vCdOperador na empresa %%vCdEmpresa%%%!", "ADICIONAL=Operação->FCCSVCO002.buscaContaOperador")
+					poCdErro = $xCdErro$
+					poCtxErro = $xCtxErro$
+					exit(-1)
+				endif
+			endif
+		else
+			if (vCdTerminal = 0)
+				$instancehandle->SetStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Terminal não informado!", "ADICIONAL=Operação->FCCSVCO002.bucaContaOperador")
+				poCdErro = $xCdErro$
+				poCtxErro = $xCtxErro$
+				exit(-1)
+			endif
+
+			clear/e "GER_TERMINALSVC"
+			CD_EMPRESA.GER_TERMINALSVC  = vCdEmpresa
+			CD_TERMINAL.GER_TERMINALSVC = vCdTerminal
+			retrieve/e "GER_TERMINALSVC"
+			if ($status >= 0)
+				if (NR_CTAPES.GER_TERMINALSVC = 0)
+					$instancehandle->SetStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Nenhuma conta informada para o terminal %%vCdTerminal", "ADICIONAL=Operação->FCCSVCO002.bucaContaOperador")
+					poCdErro = $xCdErro$
+					poCtxErro = $xCtxErro$
+					exit(-1)
+				else					
+					clear/e "FCC_CTAPESSVC"
+					NR_CTAPES.FCC_CTAPESSVC = NR_CTAPES.GER_TERMINALSVC
+					retrieve/e "FCC_CTAPESSVC"
+					if ($status >= 0)
+						if (IN_ATIVO.FCC_CTAPESSVC)
+							putitem/id poLstCtaPesCx, "NR_CTAPES_CXUSUARIO", NR_CTAPES.FCC_CTAPESSVC
+							putitem/id poLstCtaPesCx, "NR_CTAPES", NR_CTAPES.FCC_CTAPESSVC
+						else
+							$instancehandle->SetStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Conta %%nr_ctapes.fcc_ctapessvc esta inativa!", "ADICIONAL=Operação->FCCSVCO002.bucaContaOperador")
+							poCdErro = $xCdErro$
+							poCtxErro = $xCtxErro$
+							exit(-1)
+						endif
+					else
+						$instancehandle->SetStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Conta %%NR_CTAPES.GER_TERMINALSVC cadastrada para o terminal não encontrada!", "ADICIONAL=Operação->FCCSVCO002.bucaContaOperador")
+						poCdErro = $xCdErro$
+						poCtxErro = $xCtxErro$
+						exit(-1)
+					endif
+				endif
+			else
+				$instancehandle->SetStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Nenhuma conta cadastrada para o terminal %%vCdTerminal na empresa %%vCdEmpresa%%%!", "ADICIONAL=Operação->FCCSVCO002.bucaContaOperador")
+				poCdErro = $xCdErro$
+				poCtxErro = $xCtxErro$
+				exit(-1)
+			endif
+		endif
+	endif
+
+	if (poLstCtaPesCx = "")
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Não foram localizadas contas tipo manutencao caixa para o terminal %%vCdTerminal na empresa %%vCdEmpresa%%%!", "ADICIONAL=Operação->FCCSVCO002.bucaContaOperador")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		exit(-1)
+	endif
+
+	exit(0)
+end ;buscaContaOperador
+
+
+;------------------------------------------------------------------;
+public operation atualizaHistoricoFcc                              ;
+;------------------------------------------------------------------;
+; MTF - 30/12/2005                                                 ;
+; Funcao : Faz a atualizacao dos historicos do GLB_FCCHISTORICO p/ ;
+;          FCC_HISTORICO que nao existem ou foram alterados.       ;
+; Chamada: bt_atuhistorico.dummy2 - FCCFM003                       ;
+;          operation - efetua()   - FCXFM003                       ;
+;------------------------------------------------------------------;
+;
+	params
+		string  piGlobal  :IN
+		string  piParams  :IN
+		string  poParams  :OUT
+		numeric poCdErro  :OUT
+		string  poCtxErro :OUT
+	endparams
+	variables
+		numeric vNrRegistros
+		boolean vInGrava
+	endvariables
+	
+	vNrRegistros = 0
+	clear/e "GLB_FCCHISTORSVC"
+	cd_historico.glb_fcchistorsvc/init = "·>799"
+	retrieve/e "GLB_FCCHISTORSVC"
+	if ($status >= 0)
+		setocc "GLB_FCCHISTORSVC", 1
+		repeat
+			
+			message/hint "Atualizando histórico: %%cd_historico.glb_fcchistorsvc"
+			
+			clear/e "FCC_HISTORICOSVC"
+			cd_historico.fcc_historicosvc/init = cd_historico.glb_fcchistorsvc
+			retrieve/e "FCC_HISTORICOSVC"
+			if ($status < 0)
+				clear/e "FCC_HISTORICOSVC"
+				creocc "FCC_HISTORICOSVC", -1
+				cd_historico.fcc_historicosvc = cd_historico.glb_fcchistorsvc
+				tp_operacao.fcc_historicosvc  = tp_operacao.glb_fcchistorsvc
+				ds_historico.fcc_historicosvc = ds_historico.glb_fcchistorsvc
+				in_pedesenha.fcc_historicosvc = in_pedesenha.glb_fcchistorsvc
+				in_autaconci.fcc_historicosvc = in_autaconci.glb_fcchistorsvc
+				in_contracx.fcc_historicosvc  = in_contracx.glb_fcchistorsvc
+				in_geracp.fcc_historicosvc    = in_geracp.glb_fcchistorsvc
+				cd_operador.fcc_historicosvc  = $item("CD_USUARIO", piGlobal)
+				;MTF(26/10/2007) - Projeto 078, tarefa 884.
+				;dt_cadastro.fcc_historicosvc  = $item("DT_CADASTRO", piGlobal)
+				dt_cadastro.fcc_historicosvc  = $datim
+				;
+				$collhandle("FCC_HISTORICOSVC")->salvar()
+				if ($status < 0)
+					$instancehandle->setStatus(<STS_ERRO>, $procerror, $procerrorcontext, "ADICIONAL=Erro gravação histsrico.    Operation - atualizaHistoricoFcc() FCCSVCO013")
+					poCdErro  = $xCdErro$
+					poCtxErro = $xCtxErro$
+					return(-1)
+				endif
+				vNrRegistros = vNrRegistros + 1
+			else
+				vInGrava = <FALSE>
+				if (tp_operacao.fcc_historicosvc != tp_operacao.glb_fcchistorsvc)
+					tp_operacao.fcc_historicosvc  = tp_operacao.glb_fcchistorsvc
+					vInGrava = <TRUE>
+				endif
+				if (ds_historico.fcc_historicosvc != ds_historico.glb_fcchistorsvc)
+					ds_historico.fcc_historicosvc  = ds_historico.glb_fcchistorsvc
+					vInGrava = <TRUE>
+				endif
+				if (in_pedesenha.fcc_historicosvc != in_pedesenha.glb_fcchistorsvc)
+					in_pedesenha.fcc_historicosvc  = in_pedesenha.glb_fcchistorsvc
+					vInGrava = <TRUE>
+				endif
+				if (in_autaconci.fcc_historicosvc != in_autaconci.glb_fcchistorsvc)
+					in_autaconci.fcc_historicosvc  = in_autaconci.glb_fcchistorsvc
+					vInGrava = <TRUE>
+				endif
+				if (in_contracx.fcc_historicosvc != in_contracx.glb_fcchistorsvc)
+					in_contracx.fcc_historicosvc  = in_contracx.glb_fcchistorsvc
+					vInGrava = <TRUE>
+				endif
+				if (in_geracp.fcc_historicosvc != in_geracp.glb_fcchistorsvc)
+					in_geracp.fcc_historicosvc  = in_geracp.glb_fcchistorsvc
+					vInGrava = <TRUE>
+				endif
+				
+				if (vInGrava = <TRUE>)
+					cd_operador.fcc_historicosvc  = $item("CD_USUARIO", piGlobal)
+					;MTF(26/10/2007) - Projeto 078, tarefa 884.
+					;dt_cadastro.fcc_historicosvc  = $item("DT_CADASTRO", piGlobal)
+					dt_cadastro.fcc_historicosvc  = $datim
+					;
+					$collhandle("FCC_HISTORICOSVC")->salvar()
+					if ($status < 0)
+						$instancehandle->setStatus(<STS_ERRO>, $procerror, $procerrorcontext, "ADICIONAL=Erro gravação histórico.    Operation - atualizaHistoricoFcc() FCCSVCO013")
+						poCdErro  = $xCdErro$
+						poCtxErro = $xCtxErro$
+						return(-1)
+					endif
+					vNrRegistros = vNrRegistros + 1
+				endif
+			endif
+			
+			setocc "GLB_FCCHISTORSVC", $curocc(GLB_FCCHISTORSVC) + 1
+		until($status < 0)
+		$status = 0
+	endif
+	message/hint ""
+	putitem/id poParams, "NR_REGISTROS", vNrRegistros
+	
+	return(0)
+End ;operation atualizaHistoricoFcc.
+
+
+;----------------------------------------------------------------;
+public operation atualizaHistoricoGlb                            ;
+;----------------------------------------------------------------;
+; MTF - 30/12/2005                                               ;
+; Funcao : Faz a atualizacao dos historicos do FCC_HISTORICO que ;
+;          foram criados ou alterados  p/ o GLB_FCCHISTORICO.    ;
+; Chamada: posStore() - SISFM019                                 ;
+;----------------------------------------------------------------;
+;
+	params
+		string  piGlobal  :IN
+		string  piParams  :IN
+		string  poParams  :OUT
+		numeric poCdErro  :OUT
+		string  poCtxErro :OUT
+	endparams
+	variables
+		string  vTpOperacao, vDsHistorico, vLstHistorico, vDsLinha
+		numeric vCdHistorico
+		boolean vInPedeSenha, vInAutaConci, vInContraCx, vInGeraCp, vInGrava
+	endvariables
+	
+	vLstHistorico = $item("DS_HISTORICO", piParams)
+	if (vLstHistorico = "")
+		$instancehandle->setStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Histórico não informado para atualização.", "")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	
+	repeat
+		
+		getitem vDsLinha, vLstHistorico, 1
+		vCdHistorico = $item("CD_HISTORICO", vDsLinha)
+		vTpOperacao  = $item("TP_OPERACAO", vDsLinha)
+		vDsHistorico = $item("DS_HISTORICO", vDsLinha)
+		vInPedeSenha = $item("IN_PEDESENHA", vDsLinha)
+		vInAutaConci = $item("IN_AUTACONCI", vDsLinha)
+		vInContraCx  = $item("IN_CONTRACX", vDsLinha)
+		vInGeraCp    = $item("IN_GERACP", vDsLinha)
+		
+		message/hint "Atualizando histórico: %%vCdHistorico"
+		
+		clear/e "GLB_FCCHISTORSVC"
+		cd_historico.glb_fcchistorsvc/init = vCdHistorico
+		retrieve/e "GLB_FCCHISTORSVC"
+		if ($status < 0)
+			clear/e "GLB_FCCHISTORSVC"
+			creocc "GLB_FCCHISTORSVC", -1
+			cd_historico.glb_fcchistorsvc = vCdHistorico
+			tp_operacao.glb_fcchistorsvc  = vTpOperacao
+			ds_historico.glb_fcchistorsvc = vDsHistorico
+			in_pedesenha.glb_fcchistorsvc = vInPedeSenha
+			in_autaconci.glb_fcchistorsvc = vInAutaConci
+			in_contracx.glb_fcchistorsvc  = vInContraCx
+			in_geracp.glb_fcchistorsvc    = vInGeraCp
+			cd_operador.glb_fcchistorsvc  = $item("CD_USUARIO", piGlobal)
+			;MTF(26/10/2007) - Projeto 078, tarefa 884.
+			;dt_cadastro.glb_fcchistorsvc  = $item("DT_CADASTRO", piGlobal)
+			dt_cadastro.glb_fcchistorsvc  = $datim
+			;
+			
+			$collhandle("GLB_FCCHISTORSVC")->salvar()
+			if ($status < 0)
+				$instancehandle->setStatus(<STS_ERRO>, $procerror, $procerrorcontext, "ADICIONAL=Erro gravação histórico.    Operation - atualizaHistoricoGlb() FCCSVCO013")
+				poCdErro  = $xCdErro$
+				poCtxErro = $xCtxErro$
+				return(-1)
+			endif
+		else
+			vInGrava = <FALSE>
+			if (tp_operacao.glb_fcchistorsvc != vTpOperacao)
+				tp_operacao.glb_fcchistorsvc  = vTpOperacao
+				vInGrava = <TRUE>
+			endif
+			if (ds_historico.glb_fcchistorsvc != vDsHistorico)
+				ds_historico.glb_fcchistorsvc  = vDsHistorico
+				vInGrava = <TRUE>
+			endif
+			if (in_pedesenha.glb_fcchistorsvc != vInPedeSenha)
+				in_pedesenha.glb_fcchistorsvc  = vInPedeSenha
+				vInGrava = <TRUE>
+			endif
+			if (in_autaconci.glb_fcchistorsvc != vInAutaConci)
+				in_autaconci.fcc_historicosvc  = vInAutaConci
+				vInGrava = <TRUE>
+			endif
+			if (in_contracx.glb_fcchistorsvc != vInContraCx)
+				in_contracx.glb_fcchistorsvc  = vInContraCx
+				vInGrava = <TRUE>
+			endif
+			if (in_geracp.glb_fcchistorsvc != vInGeraCp)
+				in_geracp.glb_fcchistorsvc  = vInGeraCp
+				vInGrava = <TRUE>
+			endif
+			
+			if (vInGrava = <TRUE>)
+				cd_operador.glb_fcchistorsvc  = $item("CD_USUARIO", piGlobal)
+				;MTF(26/10/2007) - Projeto 078, tarefa 884.
+				;dt_cadastro.glb_fcchistorsvc  = $item("DT_CADASTRO", piGlobal)
+				dt_cadastro.glb_fcchistorsvc  = $datim
+				;
+				
+				$collhandle("GLB_FCCHISTORSVC")->salvar()
+				if ($status < 0)
+					$instancehandle->setStatus(<STS_ERRO>, $procerror, $procerrorcontext, "ADICIONAL=Erro gravação histórico.    Operation - atualizaHistoricoGlb() FCCSVCO013")
+					poCdErro  = $xCdErro$
+					poCtxErro = $xCtxErro$
+					return(-1)
+				endif
+			endif
+		endif
+		
+		delitem vLstHistorico, 1
+	until(vLstHistorico = "")
+	
+	message/hint ""
+	
+	return(0)
+End ;operation atualizaHistoricoFcc.
+
+;-------------------------------
+public operation alteraMovimento
+;-------------------------------
+;ATENCAO - NAO UTILIZE ESSA ROTINA
+;Criado por Hugo em 01/02/2006
+;Esta rotina foi criado exclusivamente para a Lojão
+;caso deseje utilizar esta rotina favor falar com 
+;o Fabio ou Hugo
+	params
+		string  $xlpg$ :IN
+		string  piParams :IN
+		string  poParams :OUT
+		string  poCdErro :OUT
+		string  poCtxErro :OUT
+	endparams
+	
+	variables
+		numeric vNrCtaPes, vNrSeqMov, vTpDocumento, vNrSeqHistRelSub, vCdHistorico, vVlLancto
+		numeric vVlSaldoAnt, vCdOperador, vVlSaldoConciAnt, vVlLanctoAnt
+		date vDtMovim, vDtConci, vDtSaldoAnt
+		string vTpOperacao, vTpOperacaoAnt
+		boolean vInAchou
+	endvariables
+
+	vNrCtaPes = $item("NR_CTAPES", piParams)
+	vDtMovim = $item("DT_MOVIM", piParams)
+	vNrSeqMov = $item("NR_SEQMOV", piParams)
+	vTpDocumento = $item("TP_DOCUMENTO", piParams)
+	vNrSeqHistRelSub = $item("NR_SEQHISTRELSUB", piParams)
+	vCdHistorico = $item("CD_HISTORICO", piParams)
+	vVlLancto = $item("VL_LANCTO", piParams)
+	vCdOperador = $item("CD_USUARIO", $xlpg$)
+
+	if (vNrCtaPes = 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Conta não informada!", "ADICIONAL=Operação->FCCSVCO002.alteraMovimento")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+
+	if (vDtMovim = 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Data movimento não informada!", "ADICIONAL=Operação->FCCSVCO002.alteraMovimento")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	
+	if (vNrSeqMov = 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Sequencia do movimento não informado!", "ADICIONAL=Operação->FCCSVCO002.alteraMovimento")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	
+	if (vTpDocumento = 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Tipo de documento não informado!", "ADICIONAL=Operação->FCCSVCO002.alteraMovimento")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+
+	if (vTpDocumento = 4 | vTpDocumento = 5) & (vNrSeqHistRelSub = 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Sequencia auxiliar de parcelamento não informada!", "ADICIONAL=Operação->FCCSVCO002.alteraMovimento")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	
+	if (vNrSeqHistRelSub = 0)
+		vNrSeqHistRelSub = 1
+	endif
+
+	if (vCdHistorico = 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Histórico não informado!", "ADICIONAL=Operação->FCCSVCO002.alteraMovimento")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+
+	if (vVlLancto = 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Valor não informado!", "ADICIONAL=Operação->FCCSVCO002.alteraMovimento")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	
+	clear/e "FCC_CTAPESSVC"
+	NR_CTAPES.FCC_CTAPESSVC/init = vNrCtaPes
+	retrieve/e "FCC_CTAPESSVC"
+	if ($status < 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Conta %%vNrCtaPes não cadastrada!", "ADICIONAL=Operação->FCCSVCO002.alteraMovimento")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+
+	clear/e "FCC_HISTORICOSVC"
+	CD_HISTORICO.FCC_HISTORICOSVC/init = vCdHistorico
+	retrieve/e "FCC_HISTORICOSVC"
+	if ($status < 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Histórico %%vCdHistorico não cadastrado!", "ADICIONAL=Operação->FCCSVCO002.alteraMovimento")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+
+	if (IN_AUTACONCI.FCC_HISTORICOSVC = <TRUE>) & (vDtConci  = "")
+		vDtConci = vDtMovim
+	endif
+
+	vTpOperacao = TP_OPERACAO.FCC_HISTORICOSVC
+	vVlLancto = $abs(vVlLancto)
+
+	clear/e "FCC_MOVSVC"
+	NR_CTAPES.FCC_MOVSVC = vNrCtaPes
+	DT_MOVIM.FCC_MOVSVC = vDtMovim
+	NR_SEQMOV.FCC_MOVSVC = vNrSeqMov
+	retrieve/e "FCC_MOVSVC"
+	if ($status < 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Movimento para alteração não encotrado!", "ADICIONAL=Operação->FCCSVCO002.alteraMovimento")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+
+	if (IN_ESTORNO.FCC_MOVSVC = <TRUE>)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Movimento estornado. Não i possível fazer alteração!", "ADICIONAL=Operação->FCCSVCO002.alteraMovimento")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+
+	vTpOperacaoAnt = TP_OPERACAO.FCC_MOVSVC
+	vVlLanctoAnt = VL_LANCTO.FCC_MOVSVC
+
+	vDtConci = DT_CONCI.FCC_MOVSVC
+
+	if (vTpDocumento = 4 | vTpDocumento = 5)
+		NR_SEQHISTRELSUB.FCC_MOVSVC = vNrSeqHistRelSub
+	else
+		NR_SEQHISTRELSUB.FCC_MOVSVC = 1
+	endif
+
+	if (vDtConci != "")
+		CD_OPERCONCI.FCC_MOVSVC = $item("CD_USUARIO", $xlpg$)
+		DT_CONCI.FCC_MOVSVC = vDtConci
+	else
+		CD_OPERCONCI.FCC_MOVSVC = ""
+		DT_CONCI.FCC_MOVSVC = ""
+	endif
+
+	CD_OPERADOR.FCC_MOVSVC = vCdOperador
+	DT_CADASTRO.FCC_MOVSVC = $datim
+	TP_DOCUMENTO.FCC_MOVSVC = vTpDocumento
+	CD_HISTORICO.FCC_MOVSVC = vCdHistorico
+	VL_LANCTO.FCC_MOVSVC = vVlLancto
+	TP_OPERACAO.FCC_MOVSVC = vTpOperacao
+
+	$collhandle("FCC_MOVSVC")->Salvar()
+	if ($procerror)
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return (-1)
+	elseif ($status < 0)
+		$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")    
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return (-1)
+	endif	
+
+	if (vDtConci != "")
+		vInAchou = <FALSE>
+		vVlSaldoAnt = 0
+		vVlSaldoConciAnt = 0
+		;busca a data do saldo anterior
+		vDtSaldoAnt = ""
+
+		selectdb max(DT_MOVIM) %\
+		from "FCC_CTASALDOSVC" %\
+		u_where (NR_CTAPES.FCC_CTASALDOSVC = vNrCtaPes & %\
+		DT_MOVIM.FCC_CTASALDOSVC < vDtConci) %\
+		to vDtSaldoAnt
+		if ($status < 0)
+			$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+			poCdErro = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return (-1)
+		else
+			if (vDtSaldoAnt != "")
+				clear/e "FCC_CTASALDOSVC"
+				NR_CTAPES.FCC_CTASALDOSVC/init = vNrCtaPes
+				DT_MOVIM.FCC_CTASALDOSVC/init = vDtSaldoAnt
+				retrieve/e "FCC_CTASALDOSVC"
+				if ($status >= 0)
+					vVlSaldoAnt = VL_SALDO.FCC_CTASALDOSVC
+					vVlSaldoConciAnt = VL_SALDOCONCI.FCC_CTASALDOSVC
+				else
+					$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Não foi possível obter o saldo do dia %%vDtSaldoAnt da conta %%vNrCtaPes!", "ADICIONAL=Operação->FCCSVCO002.alteraMovimento")
+					poCdErro = $xCdErro$
+					poCtxErro = $xCtxErro$
+					return(-1)
+				endif            
+			endif
+		endif       
+
+		clear/e "FCC_CTASALDOSVC"
+
+		creocc "FCC_CTASALDOSVC", -1
+		NR_CTAPES.FCC_CTASALDOSVC = vNrCtaPes
+		DT_MOVIM.FCC_CTASALDOSVC = vDtConci
+		retrieve/o "FCC_CTASALDOSVC"
+		if ($status = -7)
+			retrieve/x "FCC_CTASALDOSVC"
+
+			if (TP_OPERACAO.FCC_MOVSVC = "C")
+				VL_SALDOCONCI.FCC_CTASALDOSVC = VL_SALDOCONCI.FCC_CTASALDOSVC + VL_LANCTO.FCC_MOVSVC
+			else
+				VL_SALDOCONCI.FCC_CTASALDOSVC = VL_SALDOCONCI.FCC_CTASALDOSVC - VL_LANCTO.FCC_MOVSVC
+			endif
+		else
+			if (vTpOperacao = "C")
+				VL_SALDOCONCI.FCC_CTASALDOSVC =  vVlSaldoConciAnt + VL_LANCTO.FCC_MOVSVC
+			else
+				VL_SALDOCONCI.FCC_CTASALDOSVC = vVlSaldoConciAnt - VL_LANCTO.FCC_MOVSVC
+			endif
+
+			VL_SALDO.FCC_CTASALDOSVC = vVlSaldoAnt
+		endif
+
+		CD_OPERADOR.FCC_CTASALDOSVC = vCdOperador
+		;MTF(26/10/2007) - Projeto 078, tarefa 884.
+		;DT_CADASTRO.FCC_CTASALDOSVC = $date
+		dt_cadastro.fcc_ctasaldosvc = $datim
+		;
+		
+		$collhandle("FCC_CTASALDOSVC")->Salvar()
+		if ($procerror)
+			$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+			poCdErro = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return (-1)
+		elseif ($status < 0)
+			$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")    
+			poCdErro = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return (-1)
+		endif        
+
+		clear/e "FCC_CTASALDOSVC"
+		NR_CTAPES.FCC_CTASALDOSVC = vNrCtaPes
+		DT_MOVIM.FCC_CTASALDOSVC = "·>%%vDtConci"
+		retrieve/e "FCC_CTASALDOSVC"
+		if ($status >= 0)
+			setocc "FCC_CTASALDOSVC", 1
+			while ($status >= 0)
+				if (TP_OPERACAO.FCC_MOVSVC = "C")
+					VL_SALDOCONCI.FCC_CTASALDOSVC = VL_SALDOCONCI.FCC_CTASALDOSVC + VL_LANCTO.FCC_MOVSVC
+				else
+					VL_SALDOCONCI.FCC_CTASALDOSVC = VL_SALDOCONCI.FCC_CTASALDOSVC - VL_LANCTO.FCC_MOVSVC
+				endif    
+				CD_OPERADOR.FCC_CTASALDOSVC = vCdOperador
+				;MTF(26/10/2007) - Projeto 078, tarefa 884.
+				;DT_CADASTRO.FCC_CTASALDOSVC = $date
+				dt_cadastro.fcc_ctasaldosvc = $datim
+				;
+				setocc "FCC_CTASALDOSVC", $curocc("FCC_CTASALDOSVC") + 1
+			endwhile
+		
+			$collhandle("FCC_CTASALDOSVC")->Salvar()
+			if ($procerror)
+				$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+				poCdErro = $xCdErro$
+				poCtxErro = $xCtxErro$
+				return (-1)
+			elseif ($status < 0)
+				$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")    
+				poCdErro = $xCdErro$
+				poCtxErro = $xCtxErro$
+				return (-1)
+			endif
+		endif
+	endif 
+
+	vInAchou = <FALSE>
+	vVlSaldoAnt = 0
+	vVlSaldoConciAnt = 0
+	;busca a data do saldo anterior
+	vDtSaldoAnt = ""       
+
+	selectdb max(DT_MOVIM) %\
+	from "FCC_CTASALDOSVC" %\
+	u_where (NR_CTAPES.FCC_CTASALDOSVC = vNrCtaPes & %\
+	DT_MOVIM.FCC_CTASALDOSVC < vDtMovim) %\
+	to vDtSaldoAnt
+	if ($status < 0)
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return (-1)
+	else
+		if (vDtSaldoAnt != "")
+			clear/e "FCC_CTASALDOSVC"
+			NR_CTAPES.FCC_CTASALDOSVC/init = vNrCtaPes
+			DT_MOVIM.FCC_CTASALDOSVC/init = vDtSaldoAnt
+			retrieve/e "FCC_CTASALDOSVC"
+			if ($status >= 0)
+				vVlSaldoAnt = VL_SALDO.FCC_CTASALDOSVC
+				vVlSaldoConciAnt = VL_SALDOCONCI.FCC_CTASALDOSVC
+				vInAchou = <TRUE>
+			else
+				$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Não foi possível obter o saldo do dia %%vDtSaldoAnt da conta %%vNrCtaPes!", "ADICIONAL=Operação->FCCSVCO002.alteraMovimento")
+				poCdErro = $xCdErro$
+				poCtxErro = $xCtxErro$
+				return(-1)
+			endif            
+		endif
+	endif       
+
+	;gerar/atualizar o saldo na data do movimento
+	clear/e "FCC_CTASALDOSVC"
+
+	creocc "FCC_CTASALDOSVC", -1
+	NR_CTAPES.FCC_CTASALDOSVC = vNrCtaPes
+	DT_MOVIM.FCC_CTASALDOSVC = vDtMovim
+	retrieve/o "FCC_CTASALDOSVC"
+	if ($status = -7)
+		retrieve/x "FCC_CTASALDOSVC"
+		if (VL_CREDITOS.FCC_CTASALDOSVC = 0 & VL_DEBITOS.FCC_CTASALDOSVC = 0)
+			if (vTpOperacao = "C")
+				VL_SALDO.FCC_CTASALDOSVC =  vVlSaldoAnt + vVlLancto
+				VL_CREDITOS.FCC_CTASALDOSVC = vVlLancto
+			else
+				VL_SALDO.FCC_CTASALDOSVC = vVlSaldoAnt - vVlLancto
+				VL_DEBITOS.FCC_CTASALDOSVC = vVlLancto
+			endif        
+			if (vInAchou = <TRUE>)
+				IN_INICIAL.FCC_CTASALDOSVC = <FALSE>
+			else
+				IN_INICIAL.FCC_CTASALDOSVC = <TRUE>
+			endif
+		else
+			if (vTpOperacao = "C")
+				VL_SALDO.FCC_CTASALDOSVC = VL_SALDO.FCC_CTASALDOSVC + vVlLancto
+				VL_CREDITOS.FCC_CTASALDOSVC = VL_CREDITOS.FCC_CTASALDOSVC + vVlLancto
+			else
+				VL_SALDO.FCC_CTASALDOSVC = VL_SALDO.FCC_CTASALDOSVC - vVlLancto
+				VL_DEBITOS.FCC_CTASALDOSVC = VL_DEBITOS.FCC_CTASALDOSVC + vVlLancto
+			endif
+		endif
+	else
+		if (vTpOperacao = "C")
+			VL_SALDO.FCC_CTASALDOSVC =  vVlSaldoAnt + vVlLancto
+			VL_CREDITOS.FCC_CTASALDOSVC = vVlLancto
+		else
+			VL_SALDO.FCC_CTASALDOSVC = vVlSaldoAnt - vVlLancto
+			VL_DEBITOS.FCC_CTASALDOSVC = vVlLancto
+		endif        
+		if (vInAchou = <TRUE>)
+			IN_INICIAL.FCC_CTASALDOSVC = <FALSE>
+		else
+			IN_INICIAL.FCC_CTASALDOSVC = <TRUE>
+		endif
+		VL_SALDOCONCI.FCC_CTASALDOSVC = vVlSaldoConciAnt
+	endif
+	CD_OPERADOR.FCC_CTASALDOSVC = vCdOperador
+	;MTF(26/10/2007) - Projeto 078, tarefa 884.
+	;DT_CADASTRO.FCC_CTASALDOSVC = $date
+	dt_cadastro.fcc_ctasaldosvc = $datim
+	;
+
+	$collhandle("FCC_CTASALDOSVC")->Salvar()
+	if ($procerror)
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return (-1)
+	elseif ($status < 0)
+		$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")    
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return (-1)
+	endif
+
+	clear/e "FCC_CTASALDOSVC"
+	NR_CTAPES.FCC_CTASALDOSVC = vNrCtaPes
+	DT_MOVIM.FCC_CTASALDOSVC = "·>%%vDtMovim"
+	retrieve/e "FCC_CTASALDOSVC"
+	if ($status >= 0)
+		setocc "FCC_CTASALDOSVC", 1
+		while ($status >= 0)
+			if (vTpOperacao = "C")
+				VL_SALDO.FCC_CTASALDOSVC = VL_SALDO.FCC_CTASALDOSVC + vVlLancto
+				VL_CREDITOS.FCC_CTASALDOSVC = VL_CREDITOS.FCC_CTASALDOSVC + vVlLancto
+			else
+				VL_SALDO.FCC_CTASALDOSVC = VL_SALDO.FCC_CTASALDOSVC - vVlLancto
+				VL_DEBITOS.FCC_CTASALDOSVC = VL_DEBITOS.FCC_CTASALDOSVC + vVlLancto
+			endif                        
+			CD_OPERADOR.FCC_CTASALDOSVC = vCdOperador
+			;MTF(26/10/2007) - Projeto 078, tarefa 884.
+			;DT_CADASTRO.FCC_CTASALDOSVC = $date
+			dt_cadastro.fcc_ctasaldosvc = $datim
+			;
+			setocc "FCC_CTASALDOSVC", $curocc("FCC_CTASALDOSVC") + 1
+		endwhile
+
+		$collhandle("FCC_CTASALDOSVC")->Salvar()
+		if ($procerror)
+			$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+			poCdErro = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return (-1)
+		elseif ($status < 0)
+			$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")    
+			poCdErro = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return (-1)
+		endif
+	endif
+
+	;Grava saldo por tipo de documento
+	vInAchou = <FALSE>
+	vVlSaldoAnt = 0
+	;busca a data do saldo anterior
+	vDtSaldoAnt = ""
+	selectdb max(DT_MOVIM) %\
+	from "FCC_CTASALDORSVC" %\
+	u_where (NR_CTAPES.FCC_CTASALDORSVC = vNrCtaPes & %\
+	TP_DOCUMENTO.FCC_CTASALDORSVC = vTpDocumento & %\
+	NR_SEQHISTRELSUB.FCC_CTASALDORSVC = vNrSeqHistRelSub & %\
+	DT_MOVIM.FCC_CTASALDORSVC < vDtMovim) %\
+	to vDtSaldoAnt
+	if ($status < 0)
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return (-1)
+	else
+		if (vDtSaldoAnt = "")
+			clear/e "FCC_CTASALDORSVC"
+			creocc "FCC_CTASALDORSVC",-1
+			NR_CTAPES.FCC_CTASALDORSVC = NR_CTAPES.FCC_CTAPESSVC
+			TP_DOCUMENTO.FCC_CTASALDORSVC = vTpDocumento
+			NR_SEQHISTRELSUB.FCC_CTASALDORSVC = vNrSeqHistRelSub
+			DT_MOVIM.FCC_CTASALDORSVC = DT_ABERTURA.FCC_CTAPESSVC - 1
+			IN_INICIAL.FCC_CTASALDORSVC = <TRUE>
+			VL_SALDO.FCC_CTASALDORSVC = 0
+			VL_SALDOCONCI.FCC_CTASALDORSVC = 0
+			VL_CREDITOS.FCC_CTASALDORSVC = 0
+			VL_DEBITOS.FCC_CTASALDORSVC = 0
+			CD_OPERADOR.FCC_CTASALDORSVC = vCdOperador
+			;MTF(26/10/2007) - Projeto 078, tarefa 884.
+			;DT_CADASTRO.FCC_CTASALDORSVC = $date
+			dt_cadastro.fcc_ctasaldorsvc = $datim
+			;
+			$collhandle("FCC_CTASALDORSVC")->Salvar()
+			if ($procerror)
+				$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+				poCdErro = $xCdErro$
+				poCtxErro = $xCtxErro$
+				return (-1)
+			elseif ($status < 0)
+				$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")    
+				poCdErro = $xCdErro$
+				poCtxErro = $xCtxErro$
+				return (-1)
+			endif
+		else
+			clear/e "FCC_CTASALDORSVC"
+			NR_CTAPES.FCC_CTASALDORSVC/init = vNrCtaPes
+			TP_DOCUMENTO.FCC_CTASALDORSVC/init = vTpDocumento
+			NR_SEQHISTRELSUB.FCC_CTASALDORSVC/init = vNrSeqHistRelSub
+			DT_MOVIM.FCC_CTASALDORSVC/init = vDtSaldoAnt
+			retrieve/e "FCC_CTASALDORSVC"
+			if ($status >= 0)
+				vVlSaldoAnt = VL_SALDO.FCC_CTASALDORSVC
+				vInAchou = <TRUE>
+			else
+				$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Não foi possível obter o saldo do dia %%vDtSaldoAnt da conta %%vNrCtaPes!", "ADICIONAL=Operação->FCCSVCO002.alteraMovimento")
+				poCdErro = $xCdErro$
+				poCtxErro = $xCtxErro$
+				return(-1)
+			endif            
+		endif
+	endif
+
+	;gerar/atualizar o saldo na data do movimento
+	clear/e "FCC_CTASALDORSVC"
+
+	creocc "FCC_CTASALDORSVC", -1
+	NR_CTAPES.FCC_CTASALDORSVC = vNrCtaPes
+	TP_DOCUMENTO.FCC_CTASALDORSVC = vTpDocumento
+	NR_SEQHISTRELSUB.FCC_CTASALDORSVC = vNrSeqHistRelSub
+	DT_MOVIM.FCC_CTASALDORSVC = vDtMovim
+	retrieve/o "FCC_CTASALDORSVC"
+	if ($status = -7)
+		retrieve/x "FCC_CTASALDORSVC"
+
+		if (vTpOperacaoAnt = "C")
+			VL_SALDO.FCC_CTASALDORSVC = VL_SALDO.FCC_CTASALDORSVC - vVlLanctoAnt
+		else
+			VL_SALDO.FCC_CTASALDORSVC = VL_SALDO.FCC_CTASALDORSVC + vVlLanctoAnt
+		endif
+
+		if (vTpOperacao = "C")
+			VL_SALDO.FCC_CTASALDORSVC = VL_SALDO.FCC_CTASALDORSVC + vVlLancto
+			VL_CREDITOS.FCC_CTASALDORSVC = VL_CREDITOS.FCC_CTASALDORSVC + vVlLancto - vVlLanctoAnt
+		else
+			VL_SALDO.FCC_CTASALDORSVC = VL_SALDO.FCC_CTASALDORSVC - vVlLancto
+			VL_DEBITOS.FCC_CTASALDORSVC = VL_DEBITOS.FCC_CTASALDORSVC + vVlLancto - vVlLanctoAnt
+		endif        
+	else
+		if (vTpOperacaoAnt = "C")
+			VL_SALDO.FCC_CTASALDORSVC = VL_SALDO.FCC_CTASALDORSVC - vVlLanctoAnt
+		else
+			VL_SALDO.FCC_CTASALDORSVC = VL_SALDO.FCC_CTASALDORSVC + vVlLanctoAnt
+		endif
+
+		if (vTpOperacao = "C")
+			VL_SALDO.FCC_CTASALDORSVC =  vVlSaldoAnt + vVlLancto
+			VL_CREDITOS.FCC_CTASALDORSVC = vVlLancto - vVlLanctoAnt
+		else
+			VL_SALDO.FCC_CTASALDORSVC = vVlSaldoAnt - vVlLancto
+			VL_DEBITOS.FCC_CTASALDORSVC = vVlLancto - vVlLanctoAnt
+		endif        
+		if (vInAchou = <TRUE>)
+			IN_INICIAL.FCC_CTASALDORSVC = <FALSE>
+		else
+			IN_INICIAL.FCC_CTASALDORSVC = <TRUE>
+		endif
+	endif
+
+	;HAF - 12/09/05
+	;Em conversa com Fábio
+	;Não existe saldo conciliado por tipo de documento
+	VL_SALDOCONCI.FCC_CTASALDORSVC = 0
+	CD_OPERADOR.FCC_CTASALDORSVC = vCdOperador
+	;MTF(26/10/2007) - Projeto 078, tarefa 884.
+	;DT_CADASTRO.FCC_CTASALDORSVC = $date
+	dt_cadastro.fcc_ctasaldorsvc = $datim
+	;
+
+	$collhandle("FCC_CTASALDORSVC")->Salvar()
+	if ($procerror)
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return (-1)
+	elseif ($status < 0)
+		$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")    
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return (-1)
+	endif
+
+	clear/e "FCC_CTASALDORSVC"
+	NR_CTAPES.FCC_CTASALDORSVC = vNrCtaPes
+	TP_DOCUMENTO.FCC_CTASALDORSVC = vTpDocumento
+	NR_SEQHISTRELSUB.FCC_CTASALDORSVC = vNrSeqHistRelSub
+	DT_MOVIM.FCC_CTASALDORSVC = "·>%%vDtMovim"
+	retrieve/e "FCC_CTASALDORSVC"
+	if ($status >= 0)
+		setocc "FCC_CTASALDORSVC", 1
+		while ($status >= 0)
+			if (vTpOperacaoAnt = "C")
+				VL_SALDO.FCC_CTASALDORSVC = VL_SALDO.FCC_CTASALDORSVC - vVlLanctoAnt
+			else
+				VL_SALDO.FCC_CTASALDORSVC = VL_SALDO.FCC_CTASALDORSVC + vVlLanctoAnt
+			endif
+
+			if (vTpOperacao = "C")
+				VL_SALDO.FCC_CTASALDORSVC = VL_SALDO.FCC_CTASALDORSVC + vVlLancto
+				VL_CREDITOS.FCC_CTASALDORSVC = VL_CREDITOS.FCC_CTASALDORSVC + vVlLancto - vVlLanctoAnt
+			else
+				VL_SALDO.FCC_CTASALDORSVC = VL_SALDO.FCC_CTASALDORSVC - vVlLancto
+				VL_DEBITOS.FCC_CTASALDORSVC = VL_DEBITOS.FCC_CTASALDORSVC + vVlLancto - vVlLanctoAnt
+			endif
+
+			CD_OPERADOR.FCC_CTASALDORSVC = vCdOperador
+			;MTF(26/10/2007) - Projeto 078, tarefa 884.
+			;DT_CADASTRO.FCC_CTASALDORSVC = $date
+			dt_cadastro.fcc_ctasaldorsvc = $datim
+			;
+			setocc "FCC_CTASALDORSVC", $curocc("FCC_CTASALDORSVC") + 1
+		endwhile
+
+		$collhandle("FCC_CTASALDORSVC")->Salvar()
+		if ($procerror)
+			$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+			poCdErro = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return (-1)
+		elseif ($status < 0)
+			$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")    
+			poCdErro = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return (-1)
+		endif
+	endif
+
+	return(0)
+end ;alteraMovimento
+
+
+Public Operation AlteraMovAutocheque
+;Marcos R. Kuzminski
+;Data.....: 20/06/2006
+;Descrição: operation especifica para a prorrogação de movimento Chq, pagamento duplicata
+;           grava a chave do novo movimento no FCC_AUTOCHEQUE
+;Chamada..: 
+;----------------------------
+	params
+		string  $xlpg$    :IN
+		string  piParams  :IN
+		string  poParams  :OUT
+		string  poCdErro  :OUT
+		string  poCtxErro :OUT
+	endparams
+
+	Variables
+		numeric vNrCtapesAnt
+		date    vDtMovimAnt
+		numeric vNrSeqmovAnt
+
+		numeric vNrCtapesNovo
+		date    vDtMovimNovo
+		numeric vNrSeqmovNovo
+	EndVariables
+
+	vNrCtapesAnt   = $item("NR_CTAPESANT"  ,piParams)
+	vDtMovimAnt    = $item("DT_MOVIMANT"   ,piParams)
+	vNrSeqmovAnt   = $item("NR_SEQMOVANT"  ,piParams)
+
+	vNrCtapesNovo  = $item("NR_CTAPESNOVO" ,piParams)
+	vDtMovimNovo   = $item("DT_MOVIMNOVO"  ,piParams)
+	vNrSeqmovNovo  = $item("NR_SEQMOVNOVO" ,piParams)
+
+	;-----------------------------------------
+	if (vNrCtapesAnt = "")
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Conta não informada !", "ADICIONAL=Operação->FCCSVCO002.AlteraMovAutocheque")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return (-1)
+	endif
+	;-----------------------------------------
+	if (vDtMovimAnt = "")
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Data do movimento não informada !", "ADICIONAL=Operação->FCCSVCO002.AlteraMovAutocheque")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return (-1)
+	endif
+	;-----------------------------------------
+	if (vNrSeqmovAnt = "")
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Sequência do movimento não informada !", "ADICIONAL=Operação->FCCSVCO002.AlteraMovAutocheque")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return (-1)
+	endif
+	;-----------------------------------------------------------
+	;atualiza o movimento na autorização de cheque - FCC_AUTOCHEQUE
+	clear/e "F_FCC_AUTOCHEQUE"
+	NR_CTAPES.F_FCC_AUTOCHEQUE/init = vNrCtapesAnt
+	DT_MOVIM.F_FCC_AUTOCHEQUE/init  = vDtMovimAnt
+	NR_SEQMOV.F_FCC_AUTOCHEQUE/init = vNrSeqmovAnt
+	retrieve/e "F_FCC_AUTOCHEQUE"
+	if ($status >= 0)
+		NR_CTAPES.F_FCC_AUTOCHEQUE     = vNrCtaPesNovo
+		DT_MOVIM.F_FCC_AUTOCHEQUE      = vDtMovimNovo
+		NR_SEQMOV.F_FCC_AUTOCHEQUE     = vNrSeqMovNovo
+		DT_VENCIMENTO.F_FCC_AUTOCHEQUE = vDtMovimNovo ;--Douglas Ferreira - [Prj/Tarefa 186/0002] - 18/04/2011
+		$collhandle("F_FCC_AUTOCHEQUE")->Salvar()
+		if ($procerror)
+			$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+			poCdErro = $xCdErro$
+			poCtxErro = $xCtxErro$
+			rollback
+			commit
+			return (-1)
+		endif
+		if ($status < 0)
+			$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")    
+			poCdErro = $xCdErro$
+			poCtxErro = $xCtxErro$
+			rollback
+			commit
+			return (-1)
+		endif	
+	else
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Não foi possível encontrar a autorização para este movimento !", "ADICIONAL=Operação->FCCSVCO002.AlteraMovAutocheque")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return (-1)
+	endif
+	;-----------------------------------------------------------
+
+	return(0)
+
+end   ;AlteraMovAutocheque.
+
+;-----------------------------
+public operation BuscaUltimoSaldo
+;-----------------------------
+	params
+		string  piGlobal    :IN    
+		string  piParams    :IN
+		string  piValores   :IN
+		string  poParams    :OUT
+		string  poCdErro    :OUT
+		string  poCtxErro   :OUT
+	endparams
+	
+	variables
+		numeric vNrCtaPes, vVlSaldo, vVlSaldoConci, vVlCreditos, vVlDebitos
+		date vDtSaldo, vDtMovim
+	endvariables
+	
+	vNrCtaPes = $item("NR_CTAPES", piParams)
+	
+	if (vNrCtaPes = 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Conta não informada!", "ADICIONAL=Operação->FCCSVCO002.buscaSaldoConta")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	
+	vDtMovim = ""
+
+	selectdb max(DT_MOVIM) %\
+	from "FCC_CTASALDOSVC" %\
+	u_where (NR_CTAPES.FCC_CTASALDOSVC = vNrCtaPes  ) %\
+	to vDtMovim
+	if ($status < 0)
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return (-1)
+	endif     
+	
+	if (vDtMovim != "")    
+		clear/e "FCC_CTASALDOSVC"
+		NR_CTAPES.FCC_CTASALDOSVC = vNrCtaPes
+		DT_MOVIM.FCC_CTASALDOSVC = vDtMovim
+		retrieve/e "FCC_CTASALDOSVC"
+		if ($status >= 0)
+			vVlSaldo = vl_saldo.fcc_ctasaldosvc
+			vVlSaldoConci = vl_saldoconci.fcc_ctasaldosvc
+			vVlDebitos = vl_debitos.fcc_ctasaldosvc
+			vVlCreditos = vl_creditos.fcc_ctasaldosvc
+		endif            
+	endif
+	
+	poParams = ""
+	putitem/id poParams, "VL_SALDO", vVlSaldo
+	putitem/id poParams, "VL_SALDOCONCI", vVlSaldoConci
+	putitem/id poParams, "VL_DEBITOS", vVlDebitos
+	putitem/id poParams, "VL_CREDITOS", vVlCreditos
+	putitem/id poParams, "DT_SALDO", vDtMovim
+	
+	return(0)
+end; BuscaUltimoSaldo
+
+
+;------------------------------------------------;
+public operation gravarObsMovLista               ;
+;------------------------------------------------;
+; MTF    : 17/08/2007    Projeto 078, tarefa 731 ;
+; Funcao : Gravar varias linhas de observacao.   ;
+; Chamada:                                       ;
+;------------------------------------------------;
+;
+	params
+		string  piGlobal  :IN
+		string  piParams  :IN
+		string  poParams  :OUT
+		numeric poCdErro  :OUT
+		string  poCtxErro :OUT
+	endparams
+	variables
+		string  vpiParams, vpoParams, vDsObs, vLstObs, vDsDocumento, vDsProcesso, vDsMotivo
+		numeric vCdEmpresa, vCdCliente, vNrFat, vNrParcela, vTpDocumento
+	endvariables
+	
+	if ($item("NR_CTAPES", piParams) = "")
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Número da conta não informado para gravar observação.", "ADICIONAL=  /  FCCSVCO002.gravarObsMovLista()")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	if ($item("DT_MOVIM", piParams) = "")
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Data de movimento não informada para gravar observação.", "ADICIONAL=  /  FCCSVCO002.gravarObsMovLista()")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	if ($item("NR_SEQMOV", piParams) = "")
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Data de movimento não informada para gravar observação.", "ADICIONAL=  /  FCCSVCO002.gravarObsMovLista()")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	if ($item("CD_COMPONENTE", piParams) = "")
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Componente não informado para gravar observação.", "ADICIONAL=  /  FCCSVCO002.gravarObsMovLista()")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	vLstObs = $item("LST_OBS", piParams)
+	
+	if ($item("IN_FATURA", piParams) = <TRUE>)
+		vCdEmpresa  = $item("CD_EMPRESA", piParams)
+		vCdCliente  = $item("CD_CLIENTE", piParams)
+		vNrFat      = $item("NR_FAT", piParams)
+		vNrParcela  = $item("NR_PARCELA", piParams)
+		vDsProcesso = $item("DS_PROCESSO", piParams)
+		vDsMotivo   = $item("DS_MOTIVO", piParams)
+		
+		if (vCdEmpresa = "") | (vCdEmpresa = 0)
+			$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Empresa da fatura não informada para gravar observação.", "ADICIONAL=  /  FCCSVCO002.gravarObsMovLista()")
+			poCdErro  = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return(-1)
+		endif
+		if (vCdCliente = "") | (vCdCliente = 0)
+			$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Cliente da fatura não informado para gravar observação.", "ADICIONAL=  /  FCCSVCO002.gravarObsMovLista()")
+			poCdErro  = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return(-1)
+		endif
+		if (vNrFat = "") | (vNrFat = 0)
+			$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Número da fatura não informado para gravar observação.", "ADICIONAL=  /  FCCSVCO002.gravarObsMovLista()")
+			poCdErro  = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return(-1)
+		endif
+		if (vNrParcela = "") | (vNrParcela = 0)
+			$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Número da parcela não informado para gravar observação.", "ADICIONAL=  /  FCCSVCO002.gravarObsMovLista()")
+			poCdErro  = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return(-1)
+		endif
+		if ($item("CD_PESCOMIS", piParams) = "")
+			$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Comissionado não informado para gravar observação.", "ADICIONAL=  /  FCCSVCO002.gravarObsMovLista()")
+			poCdErro  = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return(-1)
+		endif
+		if (vDsProcesso = "")
+			$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Processo não informado para gravar observação.", "ADICIONAL=  /  FCCSVCO002.gravarObsMovLista()")
+			poCdErro  = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return(-1)
+		endif
+		if (vDsMotivo = "")
+			$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Motivo não informado para gravar observação.", "ADICIONAL=  /  FCCSVCO002.gravarObsMovLista()")
+			poCdErro  = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return(-1)
+		endif
+		
+		clear/e "FCR_FATURAISVC"
+		cd_empresa.fcr_faturaisvc/init = vCdEmpresa
+		cd_cliente.fcr_faturaisvc/init = vCdCliente
+		nr_fat.fcr_faturaisvc/init     = vNrFat
+		nr_parcela.fcr_faturaisvc/init = vNrParcela
+		retrieve/e "FCR_FATURAISVC"
+		if ($status < 0)
+			$instancehandle->setStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Fatura não encontrada para gravação de observação.%%^Emp.: %%vCdEmpresa  Cliente: %%vCdCliente  Fatura: %%vNrFat  Parcela: %%vNrParcela", "ADICIONAL=  /  FCCSVCO002.gravarObsMovLista()")
+			poCdErro  = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return(-1)
+		endif
+		vTpDocumento = tp_documento.fcr_faturaisvc
+		vDsDocumento = $valrep(tp_documento.fcr_faturaisvc)
+		vDsDocumento = $item("%%vTpDocumento", vDsDocumento)
+		
+		clear/e "PES_PESSOASVC"
+		cd_pessoa.pes_pessoasvc/init = vCdCliente
+		retrieve/e "PES_PESSOASVC"
+		if ($status < 0)
+			clear/e "PES_PESSOASVC"
+		endif
+		
+		clear/e "FCR_COMISSAOSVC"
+		cd_empresa.fcr_comissaosvc/init = vCdEmpresa
+		cd_cliente.fcr_comissaosvc/init = vCdCliente
+		nr_fatura.fcr_comissaosvc/init  = vNrFat
+		nr_parcela.fcr_comissaosvc/init = vNrParcela
+		cd_pescomis.fcr_comissaosvc/init = $item("CD_PESCOMIS", piParams)
+		retrieve/e "FCR_COMISSAOSVC"
+		if ($status < 0)
+			clear/e "FCR_COMISSAOSVC"
+		endif
+		
+		vDsObs = "Cliente : %%vCdCliente - %%nm_pessoa.pes_pessoasvc"
+		putitem vLstObs, -1, vDsObs
+		vDsObs = "Documento : %%vNrFat / %%vNrParcela - %%vDsDocumento"
+		putitem vLstObs, -1, vDsObs
+		vDsObs = "Valor de : %%vl_fatura.fcr_faturaisvc"
+		putitem vLstObs, -1, vDsObs
+		vDsObs = "Perc. comis. fat. : %%pr_comissaofat.fcr_comissaosvc"
+		putitem vLstObs, -1, vDsObs
+		vDsObs = "Perc. comis. rec. : %%pr_comissaorec.fcr_comissaosvc"
+		putitem vLstObs, -1, vDsObs
+		vDsObs = "Processo : %%vDsProcesso"
+		putitem vLstObs, -1, vDsObs
+		vDsObs = "Motivo : %%vDsMotivo"
+		putitem vLstObs, -1, vDsObs
+	endif
+	
+	if (vLstObs = "")
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Lista de observação não informada para gravação.", "ADICIONAL=  /  FCCSVCO002.gravarObsMovLista()")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	
+	repeat
+		getitem vDsObs, vLstObs, 1
+		
+		vpiParams = ""
+		putitem/id vpiParams, "NR_CTAPES",     $item("NR_CTAPES", piParams)
+		putitem/id vpiParams, "DT_MOVIM",      $item("DT_MOVIM", piParams)
+		putitem/id vpiParams, "NR_SEQMOV",     $item("NR_SEQMOV", piParams)
+		putitem/id vpiParams, "CD_COMPONENTE", $item("CD_COMPONENTE", piParams)
+		putitem/id vpiParams, "DS_OBS",        vDsObs
+		$instancehandle->gravaObsMov(piGlobal, vpiParams, vpoParams, $xCdErro$, $xCtxErro$)
+		if ($procerror)
+			$instancehandle->setStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+			poCdErro  = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return(-1)
+		elseif ($status < 0)
+			$instancehandle->setStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")
+			poCdErro  = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return(-1)
+		endif
+		
+		delitem vLstObs, 1
+	until (vLstObs = "")
+	
+	return(0)
+End ;operation gravarObsMovLista.

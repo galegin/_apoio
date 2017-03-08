@@ -54,6 +54,8 @@ $(LIB_ACBR)\Terceiros\ZLibExGZ;
 
 $(LIB_COMPS);
 $(LIB_COMPS)\classe;
+$(LIB_COMPS)\enum;
+$(LIB_COMPS)\model;
 $(LIB_COMPS)\report;
 $(LIB_COMPS)\repositorio;
 $(LIB_COMPS)\terceiro;

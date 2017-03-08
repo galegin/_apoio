@@ -1,8 +1,8 @@
 object FrmConverter: TFrmConverter
-  Left = 213
-  Top = 116
+  Left = 203
+  Top = 136
   Width = 726
-  Height = 685
+  Height = 544
   Caption = 'FrmConverter'
   Color = clBtnFace
   Font.Charset = DEFAULT_CHARSET
@@ -64,7 +64,7 @@ object FrmConverter: TFrmConverter
     Left = 0
     Top = 284
     Width = 710
-    Height = 363
+    Height = 222
     Align = alClient
     BevelInner = bvNone
     BorderStyle = bsNone

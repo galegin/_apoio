@@ -1,0 +1,1051 @@
+entry getParam
+	variables
+		numeric vCdEmpresa
+		string viGlobal, viParams, voParams
+	endvariables
+	
+	viParams = ""
+	putitem viParams, -1, "IN_SALDO_PRD_OFF"
+	activate "ADMSVCO001".GetLstParametro(viParams, voParams, $xCdErro$, $xCtxErro$)
+	if ($procerror)
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+		return(-1)
+	elseif ($xCdErro$)
+		$instancehandle->SetErroApl($xCtxErro$, $xCdErro$, $xCtxErro$)
+		return(-1)
+	endif
+
+	$inSaldoOFF$ = $item("IN_SALDO_PRD_OFF", voParams)
+
+	return(0)
+end
+
+;;------------------------------
+;public operation FaturamentoEnc
+;	;------------------------------
+;	params
+;		string  piGlobal    :In
+;		string  piParams    :In
+;		string  piLstFatura    :In
+;		string  poParams    :Out
+;		string  poCdErro    :Out
+;		string  poCtxErro    :Out
+;	endParams
+;	
+;	variables
+;		string  viParams,voParams,vNrNF,vSerie,vLstIn,vLstNF,vMenorNF
+;		Numeric vIx,vTotalFatura
+;		boolean vInRetiraEnc  
+;	endvariables
+;	
+;	call getParam()
+;	if ($procerror)
+;		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+;		poCdErro = $xCdErro$
+;		poCtxErro = $xCtxErro$
+;		exit(-1)
+;	endif                    
+;	if ($status < 0)
+;		$instancehandle->SetErroApl("ERRO=-1·;DESCRICAO=Erro ao carregar parâmetros!", $xCdErro$, $xCtxErro$)
+;		poCdErro = $xCdErro$
+;		poCtxErro = $xCtxErro$
+;		exit(-1)
+;	endif
+;	
+;	;    Transacao
+;	clear/e "TRA_TRANSACAOSVC"
+;	cd_empresa.tra_transacaosvc/init   = $item("CD_EMPRESA",piParams)
+;	nr_transacao.tra_transacaosvc/init = $item("NR_TRANSACAO",piParams)
+;	dt_transacao.tra_transacaosvc/init = $item("DT_TRANSACAO",piParams)
+;	retrieve/e "TRA_TRANSACAOSVC"
+;	if ($status < 0)
+;		$instancehandle->SetErroApl("ERRO=-1·;DESCRICAO=Transação não encontrada. Veirifique!",$xCdErro$,$xCtxErro$)
+;		exit (-1)
+;	endif
+;	
+;	setocc "TRA_TRANSITEMSVC",  -1
+;	setocc "TRA_ITEMIMPOSSVC",  -1
+;	setocc "TRA_ITEMCCSVC",     -1
+;	setocc "CMP_TRAMVTOSVC",    -1
+;	setocc "TRA_AGRUPARFASVC",  -1
+;	setocc "TRA_LIBERACAOSVC",  -1
+;	setocc "TRA_VENCIMENTSVC",  -1
+;	setocc "TRA_TRAIMPOSTSVC",  -1
+;	setocc "TRA_TRANSPORTSVC",  -1
+;	setocc "TRA_TRANSACNFSVC",  -1
+;	setocc "TRA_REMDESSVC",     -1
+;	setocc "OBS_TRANSACAOSVC",  -1
+;	
+;	release/e/mod "TRA_TRANSACAOSVC"
+;	
+;	clear/e "FIN_S_LANCAMESVC"
+;	;    Buscar a fatura 
+;	setocc "TRA_TRANSACNFSVC",1
+;	clear/e "FIN_FATURASVC"
+;	cd_empresa.fin_faturasvc/init      = cd_empresanf.tra_transacnfsvc
+;	nr_faturaorigem.fin_faturasvc/init = nr_nf.tra_transacnfsvc
+;	cd_pessoa.fin_faturasvc/init       = cd_pessoanf.tra_transacnfsvc
+;	dt_emissao.fin_faturasvc/init      = dt_emissao.tra_transacnfsvc
+;	retrieve/e "FIN_FATURASVC"
+;	if ($status >=0)
+;		setocc "FIN_FATURASVC", 1
+;		while ($status >= 0)
+;			clear/e "FIN_LANCAMENTSVC"
+;			cd_empresa.fin_lancamentsvc/init = cd_empresa.fin_faturasvc
+;			cd_fatura.fin_lancamentsvc/init  = cd_fatura.fin_faturasvc
+;			retrieve/e "FIN_LANCAMENTSVC"
+;			if ($status >= 0)
+;				setocc "FIN_LANCAMENTSVC", 1
+;				while ($status >= 0)
+;					creocc "FIN_S_LANCAMESVC", -1
+;					cd_empresa.fin_s_lancamesvc/init    = cd_empresa.fin_faturasvc
+;					cd_lancamento.fin_s_lancamesvc/init = cd_lancamento.fin_lancamentsvc
+;					retrieve/o "FIN_S_LANCAMESVC"
+;					if ($status = -7)
+;						retrieve/x "FIN_S_LANCAMESVC"
+;					endif
+;					setocc "FIN_LANCAMENTSVC",$curocc(FIN_LANCAMENTSVC)+1
+;				endwhile
+;			endif
+;			setocc "FIN_FATURASVC",$curocc(FIN_FATURASVC)+1
+;		endwhile
+;	endif
+;	clear/e "FIN_LANCAMENTO"
+;	
+;	;    Gerar nova transação
+;	viParams = ""
+;	putitem/id viParams, "NM_ENTIDADE", "TRA_TRANSACAO"
+;	;newinstance "GERSVCO031", "GERSVCO031", "TRANSACTION=TRUE"
+;	activate "GERSVCO031".getNumSeq($xlpg$, viParams, voParams, $xCdErro$, $xCtxerro$)
+;	if ($procerror)
+;		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+;		poCdErro = $xCdErro$
+;		poCtxErro = $xCtxErro$
+;		exit(-1)  
+;	elseif ($status < 0)
+;		$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")
+;		poCdErro = $xCdErro$
+;		poCtxErro = $xCtxErro$
+;		exit(-1)  
+;	endif    
+;	
+;	nr_transacao.tra_transacaosvc = $item("NR_SEQUENCIA", voParams)
+;	cd_operacao.tra_transacaosvc = $item("CD_OPER_ECF_REM",piGlobal);Nao pode gerar Financeiro
+;	dt_cadastro.tra_s_transacsvc = $datim
+;	cd_operador.tra_s_transacsvc = $item("cd_usuario",piglobal)
+;	
+;	setocc "TRA_TRANSITEMSVC", 1
+;	while ($Status >= 0)
+;		qt_saldo.tra_transitemsvc = qt_solicitada.tra_transitemsvc
+;		setocc "TRA_TRANSITEMSVC",$curocc(TRA_TRANSITEMSVC)+1
+;	endwhile
+;	
+;	;    Salvar transacao e filhos
+;	$collhandle("TRA_TRANSACAOSVC")->Salvar()
+;	if ($status < 0)
+;		$instancehandle->SetErroApl("ERRO=-1·;DESCRICAO=Não foi possível Salvar TRA_TRANSACAO. Veirifique!",$xCdErro$,$xCtxErro$)
+;		exit (-1)
+;	endif
+;	
+;	;    Lancar venda sem estoque
+;	putitem viParams, 1, "CD_EMPRESA=%%cd_empresa.tra_transacaosvc·;NR_TRANSACAO=%%nr_transacao.tra_transacaosvc·;DT_TRANSACAO=%%dt_transacao.tra_transacaosvc"
+;	activate "FISSVCO007".GerarNF(piGlobal,viParams,$item("MODELO_NF",piGlobal),voParams,$xcderro$,$xctxerro$)
+;	if ($procerror)
+;		$instancehandle->SetErroProc($procerrorcontext,$xcderro$,$xctxerro$)
+;		exit (-1)
+;	elseif ($xcderro$)
+;		$instancehandle->SetErroApl($xCtxErro$,$xCdErro$,$xCtxErro$)
+;		commit
+;		exit (-1)
+;	endif
+;	
+;	vLstNF   = voParams
+;	voParams = ""
+;	activate "FISSVCO005".GravaNF(piglobal,viParams,vLstNF,"",voParams,$xCdErro$,$xCtxErro$)
+;	if ($procerror)
+;		$instancehandle->SetErroProc($procerrorcontext,$xCdErro$,$xCtxErro$)
+;		exit (-1)
+;	elseif ($xCdErro$)
+;		$instancehandle->SetErroApl($xCtxErro$,$xCdErro$,$xCtxErro$) 
+;		exit (-1)    
+;	endif
+;	
+;	clear/e "FIN_FATURASVC"
+;	voParams = ""
+;	vIx = 0
+;	Repeat
+;		vIx = vIx + 1
+;		getitem voParams, vLstNF, vIx
+;		if (vIx = 1) & (voParams = "")
+;			$instancehandle->SetErroApl("ERRO=-1·;DESCRICAO=Impossível fazer atualizações. N.Fiscal(is) não encontrada",$xCdErro$,$xCtxErro$)
+;			exit (-1) 
+;		endif  
+;		if (voParams != "")        
+;			creocc "FIN_FATURASVC",-1
+;			newinstance "GERSVCO001","GERSVCO001","TRANSACTION=TRUE"
+;			activate "GERSVCO001".GetNumSeq(piglobal,"FIN_FATURA","CD_FATURA",999999999,cd_fatura.fin_faturasvc,$xCdErro$,$xCtxErro$)
+;			if ($procerror)
+;				$instancehandle->SetStatus(<STS_ERRO>,$procerror,$procerrorcontext)
+;				return (-1)
+;			elseif ($status < 0)
+;				$instancehandle->SetStatus(<STS_ERRO>,$xCdErro$,$xCtxErro$,"")
+;				return (-1)
+;			endif
+;			cd_empresa.fin_faturasvc        = $item("CD_EMPRESA",voParams)
+;			cd_pessoa.fin_faturasvc         = $item("CD_PESSOA",voParams)
+;			dt_emissao.fin_faturasvc        = $item("DT_EMISSAO",voParams)
+;			nr_faturaorigem.fin_faturasvc   = $item("NR_NF",voParams)
+;			dt_vencimento.fin_faturasvc     = dt_transacao.tra_transacaosvc
+;			tp_fatura.fin_faturasvc         = 1 ;receber
+;			vl_parcela.fin_faturasvc        = vl_total.tra_transacaosvc
+;			cd_moeda.fin_faturasvc          = $item("CD_MOEDA",piGlobal)
+;			nr_parcela.fin_faturasvc        = 1
+;			cd_condpgto.fin_faturasvc       = cd_condpgto.tra_transacaosvc
+;			tp_formapgto.fin_faturasvc      = 1
+;			cd_grupoempresa.fin_faturasvc   = cd_grupoempresa.tra_transacaosvc
+;			cd_historico.fin_faturasvc      = $item("CD_HIST_LAN_VDA_VISTA_FAT",piGlobal)
+;			dt_cadastro.fin_faturasvc       = $datim
+;			cd_operador.fin_faturasvc       = cd_operador.tra_transacaosvc
+;			$collhandle("FIN_FATURASVC")->Salvar()
+;			if ($status <= 0)
+;				$instancehandle->SetErroApl("ERRO=-1·;DESCRICAO=Não foi possível Salvar FIN_FATURA %%$xCdErro$",$xCdErro$,$xCtxErro$)
+;				exit (-1) 
+;			endif
+;		endif
+;	until (voParams = "")
+;	
+;	clear/e "FIN_LANCAMENTSVC"
+;	setocc "FIN_S_LANCAMESVC", 1
+;	if ($dbocc (FIN_S_LANCAMESVC))
+;		while ($Status >= 0)
+;			creocc "FIN_LANCAMENTSVC", -1
+;			vl_lancamento.fin_lancamentsvc   = vl_lancamento.fin_s_lancamesvc
+;			tp_formapgto.fin_lancamentsvc    = tp_formapgto.fin_s_lancamesvc
+;			cd_opercredito.fin_lancamentsvc  = cd_opercredito.fin_s_lancamesvc
+;			dt_vencimento.fin_lancamentsvc   = $item("DT_SISTEMA",piGlobal)
+;			cd_grupoempresa.fin_lancamentsvc = cd_grupoempresa.tra_transacaosvc
+;			dt_movimento.fin_lancamentsvc    = $item("DT_SISTEMA",piGlobal)
+;			cd_pessoa.fin_lancamentsvc       = cd_pessoa.fin_faturasvc
+;			cd_fatura.fin_lancamentsvc       = cd_fatura.fin_faturasvc
+;			cd_operador.fin_lancamentsvc     = cd_operador.tra_transacaosvc
+;			cd_empresa.fin_lancamentsvc      = cd_empresa.fin_faturasvc
+;			setocc "FIN_S_LANCAMESVC",$curocc(FIN_S_LANCAMESVC)+1
+;		endwhile
+;		;        Atualizar Recebimento
+;		setocc "FIN_LANCAMENTSVC", -1
+;		putitem/id piGlobal,"CD_USUCONTA",cd_operador.tra_transacaosvc
+;		activate "FINSVCO007".SalvarLancamento(piglobal,"FIN_FATURASVC.FIN","FIN_LANCAMENTSVC.FIN",$xcderro$,$xctxerro$)
+;		if ($procerror)
+;			$instancehandle->SetErroProc($procerrorcontext,$xcderro$,$xctxerro$)
+;			exit (-1)
+;		elseif ($xcderro$)
+;			$instancehandle->SetErroApl($xctxerro$,$xcderro$,$xctxerro$)
+;			exit (-1)
+;		endif
+;	endif
+;	
+;	;    Transacao (Cancela Transacao Antiga)
+;	clear/e "TRA_TRANSACAOSVC"
+;	cd_empresa.tra_transacaosvc/init   = $item("CD_EMPRESA",piParams)
+;	nr_transacao.tra_transacaosvc/init = $item("NR_TRANSACAO",piParams)
+;	dt_transacao.tra_transacaosvc/init = $item("DT_TRANSACAO",piParams)
+;	retrieve/e "TRA_TRANSACAOSVC"
+;	if ($status < 0)
+;		$instancehandle->SetErroApl("ERRO=-1·;DESCRICAO=Transação não encontrada. Veirifique!",$xCdErro$,$xCtxErro$)
+;		exit (-1)
+;	endif
+;	
+;	viParams = ""
+;	setocc "TRA_TRANSACNFSVC",1
+;	repeat
+;		putitem/id viParams,"CD_EMPRESA"        ,cd_empresanf.tra_transacnfsvc
+;		putitem/id viParams,"CD_PESSOA"         ,cd_pessoanf.tra_transacnfsvc
+;		putitem/id viParams,"NR_NF"             ,nr_nf.tra_transacnfsvc
+;		putitem/id viParams,"CD_SERIE"          ,cd_serie.tra_transacnfsvc
+;		putitem/id viParams,"DT_EMISSAO"        ,dt_emissao.tra_transacnfsvc
+;		putitem/id viParams,"TP_ORIGEMEMISSAO"  ,tp_origememissao.tra_transacnfsvc
+;		putitem/id viParams,"IN_CANCELTRANSACAO",<True>
+;		activate "FISSVCO005".CancelarNF(piglobal,viParams,voParams,$xCdErro$,$xCtxErro$)
+;		if ($procerror)
+;			$instancehandle->SetErroProc($procerrorcontext,$xCdErro$,$xCtxErro$)
+;			return(-1)    
+;		elseif ($xCdErro$)
+;			$instancehandle->SetErroApl($xCtxErro$,$xCdErro$,$xCtxErro$) 
+;			return(-1)    
+;		endif
+;		setocc "TRA_TRANSACNFSVC", $curocc(TRA_TRANSACNFSVC)+1
+;	until ($status < 0)
+;	
+;	tp_situacao.tra_transacaosvc = 6
+;	
+;	$collhandle("TRA_TRANSACAOSVC")->Salvar()
+;	if ($status <= 0)
+;		return (-1)
+;	endif
+;	
+;	exit (0)
+;	end; FaturamentoEnc
+;	
+;	;---------------------------
+;public operation Faturamento
+;	;---------------------------
+;	params
+;		string  piGlobal    :In
+;		string  piParams    :In
+;		string  piLstFatura    :In
+;		string  poParams    :Out
+;		numeric poCdErro    :Out
+;		string  poCtxErro    :Out
+;	endParams
+;	
+;	variables
+;		string  viParams,voParams,vNrNF,vSerie,vLstIn,vLstNF,vMenorNF
+;		Numeric vIx
+;		boolean vInRetiraEnc  
+;	endvariables
+;	
+;	;    Empresa de Saida
+;	if ($item("CD_EMPRESAOUT",piparams) = "")
+;		$instancehandle->SetErroApl("ERRO=-1·;DESCRICAO=Falta definir empresa de saida. Veirifique!",$xCdErro$,$xCtxErro$)
+;		exit (-1)
+;	endif
+;	
+;	;    Transacao
+;	clear/e "TRA_TRANSACAOSVC"
+;	cd_empresa.tra_transacaosvc/init   = $item("CD_EMPRESA",piParams)
+;	nr_transacao.tra_transacaosvc/init = $item("NR_TRANSACAO",piParams)
+;	dt_transacao.tra_transacaosvc/init = $item("DT_TRANSACAO",piParams)
+;	retrieve/e "TRA_TRANSACAOSVC"
+;	if ($Status < 0)
+;		$instancehandle->SetErroApl("ERRO=-1·;DESCRICAO=Transação não encontrada. Veirifique!",$xCdErro$,$xCtxErro$)
+;		exit (-1)
+;	endif
+;	
+;	setocc "*", -1
+;	;    Atualiza Nota Fiscal, filhos e estoque
+;	clear/e "FIS_NFSVC"
+;	setocc "TRA_TRANSACNFSVC", 1
+;	while ($status >= 0)
+;		creocc "FIS_NFSVC", -1
+;		cd_empresa.fis_nfsvc/init       = cd_empresa.tra_transacnfsvc
+;		cd_pessoa.fis_nfsvc/init        = cd_pessoanf.tra_transacnfsvc
+;		nr_nf.fis_nfsvc/init            = nr_nf.tra_transacnfsvc
+;		cd_serie.fis_nfsvc/init         = cd_serie.tra_transacnfsvc
+;		dt_emissao.fis_nfsvc/init       = dt_emissao.tra_transacnfsvc
+;		tp_origememissao.fis_nfsvc/init = tp_origememissao.tra_transacnfsvc
+;		retrieve/o "FIS_NFSVC"
+;		if ($status = -7)
+;			retrieve/x "FIS_NFSVC"
+;			setocc "FIS_NFITEMSVC", 1
+;			while ($status >= 0)
+;				setocc "FIS_NFITEMIMPSVC", -1
+;				setocc "FIS_NFITEMDEVSVC", -1
+;				setocc "FIS_NFITEMPROSVC",  1
+;				while ($status >= 0)
+;					clear/e "PRD_KARDEXSVC"
+;					TP_DCTOORIGEM.PRD_KARDEXSVC = 2
+;					NR_DCTOORIGEM.PRD_KARDEXSVC = NR_NF.FIS_NFSVC
+;					DT_MOVIMENTO.PRD_KARDEXSVC = DT_EMISSAO.FIS_NFSVC
+;					retrieve/e "PRD_KARDEXSVC"
+;					if ($status >= 0)
+;						if ($inSaldoOff$ = <TRUE>)
+;						else
+;							clear/e "PRD_PRDSALDOSVC"
+;							setocc "PRD_KARDEXSVC", 1
+;							while ($status >= 0)     
+;								creocc "PRD_PRDSALDOSVC"
+;								CD_EMPRESA.PRD_PRDSALDOSVC = CD_EMPRESA.PRD_KARDEXSVC
+;								CD_PRODUTO.PRD_PRDSALDOSVC = CD_PRODUTO.PRD_KARDEXSVC
+;								CD_EMPRESA.PRD_PRDSALDOSVC = CD_EMPRESA.PRD_KARDEXSVC
+;								CD_SALDO.PRD_PRDSALDOSVC = CD_SALDO.PRD_KARDEXSVC
+;								DT_SALDO.PRD_PRDSALDOSVC = DT_MOVIMENTO.PRD_KARDEXSVC
+;								retrieve/o "PRD_PRDSALDOSVC"
+;								if ($status = -7)
+;									retrieve/x "PRD_PRDSALDOSVC"
+;								endif
+;								QT_SALDO.PRD_PRDSALDOSVC = QT_SALDO.PRD_PRDSALDOSVC - QT_MOVIMENTADA.PRD_KARDEXSVC
+;								CD_GRUPOEMPRESA.PRD_PRDSALDOSVC = CD_GRUPOEMPRESA.PRD_KARDEXSVC
+;								CD_OPERADOR.PRD_PRDSALDOSVC = $item("CD_USUARIO", piGlobal)
+;								DT_CADASTRO.PRD_PRDSALDOSVC = $datim
+;								setocc "PRD_KARDEXSVC", $curocc("PRD_KARDEXSVC") + 1
+;							endwhile
+;							
+;							$collhandle("PRD_PRDSALDOSVC")->Salvar()
+;							if ($status < 0)
+;								$instancehandle->SetErroApl("ERRO=-1·;DESCRICAO=Não foi possível salvar PRD_SALDO. Veirifique!",$xCdErro$,$xCtxErro$)
+;								exit (-1)
+;							endif
+;						endif
+;						
+;						$collhandle("PRD_KARDEXSVC")->Excluir()
+;						if ($status < 0)
+;							$instancehandle->SetErroApl("ERRO=-1·;DESCRICAO=Não foi possível salvar PRD_KARDEX. Veirifique!",$xCdErro$,$xCtxErro$)
+;							exit (-1)
+;						endif                        
+;					endif                        
+;					setocc "FIS_NFITEMPROSVC", $curocc(FIS_NFITEMPROSVC)+1 
+;				endwhile
+;				setocc "FIS_NFITEMSVC", $curocc(FIS_NFITEMSVC)+1 
+;			endwhile            
+;		endif
+;		setocc "TRA_TRANSACNFSVC",$curocc(TRA_TRANSACNFSVC)+1
+;	endwhile
+;	
+;	release/e/mod "TRA_TRANSACAOSVC"
+;	release/e/mod "FIS_NFSVC"
+;	
+;	vLstIn = ""
+;	vIx    = 0
+;	
+;	setocc "FIS_NFSVC", 1
+;	while ($status >= 0)
+;		;        Definir Serie do Documento fiscal
+;		vSerie = "UN"
+;		clear/e "GER_OPERACAOSVC"
+;		cd_operacao.ger_operacaosvc/init = cd_operacao.tra_transacaosvc
+;		retrieve/o "GER_OPERACAOSVC"
+;		if ($status = -7)
+;			retrieve/x "GER_OPERACAOSVC"
+;			if (tp_docto.ger_operacaosvc = 2) | (tp_docto.ger_operacaosvc = 3)
+;				vSerie = "ECF"
+;			endif
+;		endif
+;		;        Relaciona nro de notas fiscais p/ retornar numeração
+;		vIx = vIx + 1
+;		putitem vLstIn,vIx,"NR_NF=%%nr_nf.fis_nfsvc"
+;		
+;		;        Criar Tabela de relacionamento de nro de notas
+;		creocc "TMP_NR09SVC", -1
+;		nr_geral.tmp_nr09svc = nr_nf.fis_nfsvc
+;		retrieve/o "TMP_NR09SVC"
+;		;        buscar novo número da nota fiscal
+;		newinstance "GERSVCO001","GERSVCO001","TRANSACTION=TRUE"
+;		activate "GERSVCO001".getNumSeqNF(piglobal,$item("CD_EMPRESAOUT",piparams),vSerie,999999999,nr_nf.fis_nfsvc,$xCdErro$,$xCtxErro$)
+;		if ($procerror)
+;			$instancehandle->SetErroProc($procerrorcontext,$xCdErro$,$xCtxErro$)
+;			exit (-1) 
+;		elseif ($xCdErro$)
+;			$instancehandle->SetErroApl($xCtxErro$,$xCdErro$,$xCtxErro$) 
+;			exit (-1)
+;		endif
+;		cd_empresa.fis_nfsvc = $item("CD_EMPRESAOUT",piparams)
+;		nr_nfatual.tmp_nr09svc = nr_nf.fis_nfsvc        
+;		setocc "FIS_NFSVC",$curocc(FIS_NFSVC)+1
+;	endwhile
+;	
+;	;    Retorna nro da nota fiscal para ser reaproveitada quando se retira o encargos
+;	if (vLstIn != "")
+;		;        Pega o Menor n?mero
+;		vIx = 0
+;		vMenorNF = ""
+;		repeat
+;			vIx = vIx + 1
+;			getitem vLstNF,vLstIn, vIx
+;			if (vLstNF != "")
+;				vNrNF = $item("NR_NF",vLstNF)
+;				if (vMenorNF = "")
+;					vMenorNF = vNrNF
+;				else
+;					if (vNrNF < vMenorNF)
+;						vMenorNF = vNrNF
+;					endif
+;				endif
+;			endif
+;		until (vLstNF = "")
+;		if (vMenorNF != "")
+;			newinstance "GERSVCO001","GERSVCO001","TRANSACTION=TRUE"
+;			activate "GERSVCO001".SetNumSeqNF(piglobal,$item("CD_EMPRESA",piParams),vSerie,999999999,vNrNF,$xCdErro$,$xCtxErro$)
+;			if ($procerror)
+;				$instancehandle->SetErroProc($procerrorcontext,$xCtxErro$,$xCdErro$)
+;				exit (-1) 
+;			elseif ($xCdErro$)
+;				$instancehandle->SetErroApl($xCtxErro$,$xCdErro$,$xCtxErro$) 
+;				exit (-1)
+;			endif
+;		endif
+;	endif
+;	
+;	;    Gera novo Estoque
+;	setocc "FIS_NFSVC", 1
+;	while ($status >= 0)
+;		setocc "FIS_NFITEMSVC", 1
+;		while ($status >= 0)
+;			setocc "FIS_NFITEMPROSVC", 1
+;			;            Gera estoque p/ nova empresa
+;			while ($status >= 0)
+;				putitem/id viParams, "CD_EMPRESA",cd_empresa.fis_nfsvc
+;				putitem/id viParams, "CD_PRODUTO",cd_produto.fis_nfitemprosvc
+;				putitem/id viParams, "CD_OPERACAO",cd_operacao.fis_nfsvc
+;				putitem/id viParams, "IN_ESTORNO",0
+;				putitem/id viParams, "QT_MOVIMENTO",qt_faturado.fis_nfitemprosvc
+;				putitem/id viParams, "TP_DCTOORIGEM", 2
+;				putitem/id viParams, "NR_DCTOORIGEM", nr_nf.fis_nfsvc
+;				putitem/id viParams, "DT_DCTOORIGEM", dt_emissao.fis_nfsvc
+;				putitem/id viParams, "VL_UNITLIQUIDO",vl_unitliquido.fis_nfitemprosvc
+;				activate "GERSVCO008".atualizaSaldoOperacao(piGlobal,viParams,voParams,$xCdErro$,$xCtxErro$)
+;				if ($procerror)
+;					$instancehandle->SetErroProc($procerrorcontext,$xCdErro$,$xCtxErro$)
+;					exit (-1) 
+;				elseif ($xCdErro$)
+;					$instancehandle->SetErroApl($xCtxErro$,$xCdErro$,$xCtxErro$)
+;					exit (-1)
+;				endif
+;				setocc "FIS_NFITEMPROSVC", $curocc(FIS_NFITEMPROSVC)+1 
+;			endwhile
+;			setocc "FIS_NFITEMSVC", $curocc(FIS_NFITEMSVC)+1 
+;		endwhile
+;		setocc "FIS_NFSVC",$curocc(FIS_NFSVC)+1
+;	endwhile
+;	
+;	cd_empresa.tra_transacaosvc = $item("CD_EMPRESAOUT",piParams)
+;	
+;	;    Salvar Nota Fiscal e filhos
+;	$collhandle("FIS_NFSVC")->Salvar()
+;	if ($status < 0)
+;		$instancehandle->SetErroApl("ERRO=-1·;DESCRICAO=Não foi possível salvar FIS_NF. Veirifique!",$xCdErro$,$xCtxErro$)
+;		exit (-1)
+;	endif
+;	
+;	;    atualizar as Chaves
+;	setocc "TRA_TRANSACNFSVC", 1
+;	while ($status >= 0)
+;		cd_empresanf.tra_transacnfsvc   = $item("CD_EMPRESAOUT",piparams)
+;		creocc "TMP_NR09SVC", -1
+;		nr_geral.tmp_nr09svc/init = nr_nf.tra_transacnfsvc
+;		retrieve/o "TMP_NR09SVC"
+;		if (nr_nfatual.tmp_nr09svc != "")
+;			nr_nf.tra_transacnfsvc  = nr_nfatual.tmp_nr09svc
+;		endif
+;		setocc "TRA_TRANSACNFSVC",$curocc(TRA_TRANSACNFSVC)+1
+;	endwhile
+;	
+;	;    Salvar transacao e filhos
+;	$collhandle("TRA_TRANSACAOSVC")->Salvar()
+;	if ($status < 0)
+;		$instancehandle->SetErroApl("ERRO=-1·;DESCRICAO=Não foi possível Salvar TRA_TRANSACAO. Veirifique!",$xCdErro$,$xCtxErro$)
+;		exit (-1)
+;	endif
+;	
+;	;    Excluir lançamento anterior
+;	clear/e "TRA_TRANSACAOSVC"
+;	cd_empresa.tra_transacaosvc/init   = $item("CD_EMPRESA",piParams)
+;	nr_transacao.tra_transacaosvc/init = $item("NR_TRANSACAO",piParams)
+;	dt_transacao.tra_transacaosvc/init = $item("DT_TRANSACAO",piParams)
+;	retrieve/e "TRA_TRANSACAOSVC"
+;	if ($status < 0)
+;		$instancehandle->SetErroApl("ERRO=-1·;DESCRICAO=Transacao não encontrada. Veirifique!",$xCdErro$,$xCtxErro$)
+;		exit (-1)
+;	endif
+;	
+;	clear/e "FIS_NFSVC"
+;	while ($status >= 0)
+;		creocc "FIS_NFSVC", -1
+;		cd_empresa.fis_nfsvc/init       = cd_empresa.tra_transacnfsvc
+;		cd_pessoa.fis_nfsvc/init        = cd_pessoanf.tra_transacnfsvc
+;		nr_nf.fis_nfsvc/init            = nr_nf.tra_transacnfsvc
+;		cd_serie.fis_nfsvc/init         = cd_serie.tra_transacnfsvc
+;		dt_emissao.fis_nfsvc/init       = dt_emissao.tra_transacnfsvc
+;		tp_origememissao.fis_nfsvc/init = tp_origememissao.tra_transacnfsvc
+;		retrieve/o "FIS_NFSVC"
+;		if ($status = -7)
+;			retrieve/x "FIS_NFSVC"
+;		endif
+;		setocc "TRA_TRANSACNFSVC",$curocc(TRA_TRANSACNFSVC)+1
+;	endwhile
+;	
+;	$collhandle("TRA_TRANSACNFSVC")->Excluir()
+;	if ($status < 0)
+;		$instancehandle->SetErroApl("ERRO=-1·;DESCRICAO=Não foi possível Salvar TRA_TRANSACNF. Veirifique!",$xCdErro$,$xCtxErro$)
+;		exit (-1)
+;	endif
+;	
+;	$collhandle("FIS_NFSVC")->Excluir()
+;	if ($status)
+;		$instancehandle->SetErroApl("ERRO=-1·;DESCRICAO=Não foi possível Salvar FIS_NF. Veirifique!",$xCdErro$,$xCtxErro$)
+;		exit (-1)
+;	endif
+;	
+;	$collhandle("TRA_TRANSACAOSVC")->Excluir()
+;	if ($status < 0)
+;		$instancehandle->SetErroApl("ERRO=-1·;DESCRICAO=Não foi possível excluir TRA_TRANSACAO. Veirifique!",$xCdErro$,$xCtxErro$)
+;		exit (-1)
+;	endif
+;	
+;	;    Atualiza Fatura
+;	clear/e "FIN_FATURASVC"
+;	cd_empresa.fin_faturasvc/init = $item("CD_EMPRESA",piParams)
+;	cd_fatura.fin_faturasvc/init  = piLstFatura
+;	retrieve/e "FIN_FATURASVC"
+;	if ($status < 0)
+;		$instancehandle->SetErroApl("ERRO=-1·;DESCRICAO=Não foi possível excluir FIN_FATURA. Veirifique!",$xCdErro$,$xCtxErro$)
+;		exit (-1)
+;	endif
+;	
+;	setocc "*", -1    
+;	release/e/mod "FIN_FATURASVC"
+;	
+;	setocc "FIN_FATURASVC", 1
+;	while ($status >= 0)
+;		cd_empresa.fin_faturasvc = $item("CD_EMPRESAOUT",piParams)
+;		creocc "TMP_NR09SVC", -1
+;		nr_geral.tmp_nr09svc/init = nr_faturaorigem.fin_faturasvc
+;		retrieve/o "TMP_NR09SVC"
+;		if (nr_nfatual.tmp_nr09svc != "")
+;			nr_faturaorigem.fin_faturasvc = nr_nfatual.tmp_nr09svc
+;		endif
+;		setocc "FIN_FATURASVC",$curocc(FIN_FATURASVC)+1
+;	endwhile
+;	
+;	$collhandle("FIN_FATURASVC")->Salvar()
+;	if ($status < 0)
+;		$instancehandle->SetErroApl("ERRO=-1·;DESCRICAO=Não foi possível salvar FIN_FATURA. Veirifique!",$xCdErro$,$xCtxErro$)
+;		exit (-1)
+;	endif
+;	
+;	clear/e "FIN_FATURASVC"
+;	cd_empresa.fin_faturasvc/init = $item("CD_EMPRESA",piParams)
+;	cd_fatura.fin_faturasvc/init  = piLstFatura
+;	retrieve/e "FIN_FATURASVC"
+;	if ($status >= 0)
+;		setocc "*", -1
+;		$collhandle("FIN_FATURASVC")->Excluir()
+;	endif
+;	
+;	exit (0)
+;	end; Faturamento
+;	
+;	
+;	;----------------------------------
+;public operation FaturamentoSimples
+;	;----------------------------------
+;	params
+;		string  piGlobal    :In
+;		string  piParams    :In
+;		string  piLstFatura    :In
+;		string  poParams    :Out
+;		numeric poCdErro    :Out
+;		string  poCtxErro    :Out
+;	endParams
+;	
+;	variables
+;		string  viParams,voParams,vNrNF,vSerie,vLstIn,vLstNF,vMenorNF
+;		Numeric vIx
+;		boolean vInRetiraEnc  
+;	endvariables
+;	
+;	;    Transacao
+;	clear/e "TRA_TRANSACAOSVC"
+;	cd_empresa.tra_transacaosvc/init   = $item("CD_EMPRESA",piParams)
+;	nr_transacao.tra_transacaosvc/init = $item("NR_TRANSACAO",piParams)
+;	dt_transacao.tra_transacaosvc/init = $item("DT_TRANSACAO",piParams)
+;	retrieve/e "TRA_TRANSACAOSVC"
+;	if ($Status < 0)
+;		$instancehandle->SetErroApl("ERRO=-1·;DESCRICAO=Transação não encontrada. Veirifique!",$xCdErro$,$xCtxErro$)
+;		exit (-1)
+;	endif
+;	
+;	setocc "*", -1
+;	release/e/mod "TRA_TRANSACAOSVC"
+;	cd_empresa.tra_transacaosvc = $item("CD_EMPRESAOUT",piParams)
+;	
+;	;    Salvar transacao e filhos
+;	$collhandle("TRA_TRANSACAOSVC")->Salvar()
+;	if ($status < 0)
+;		$instancehandle->SetErroApl("ERRO=-1·;DESCRICAO=Não foi possível Salvar TRA_TRANSACAO. Veirifique!",$xCdErro$,$xCtxErro$)
+;		exit (-1)
+;	endif
+;	
+;	;    Excluir lançamento anterior
+;	clear/e "TRA_TRANSACAOSVC"
+;	cd_empresa.tra_transacaosvc/init   = $item("CD_EMPRESA",piParams)
+;	nr_transacao.tra_transacaosvc/init = $item("NR_TRANSACAO",piParams)
+;	dt_transacao.tra_transacaosvc/init = $item("DT_TRANSACAO",piParams)
+;	retrieve/e "TRA_TRANSACAOSVC"
+;	if ($status < 0)
+;		$instancehandle->SetErroApl("ERRO=-1·;DESCRICAO=Transacao não encontrada. Veirifique!",$xCdErro$,$xCtxErro$)
+;		exit (-1)
+;	endif
+;	
+;	$collhandle("TRA_TRANSACAOSVC")->Excluir()
+;	if ($status < 0)
+;		$instancehandle->SetErroApl("ERRO=-1·;DESCRICAO=Não foi possível excluir TRA_TRANSACAO. Veirifique!",$xCdErro$,$xCtxErro$)
+;		exit (-1)
+;	endif
+;	
+;	;    Atualiza Fatura
+;	clear/e "FIN_FATURASVC"
+;	cd_empresa.fin_faturasvc/init = $item("CD_EMPRESA",piParams)
+;	cd_fatura.fin_faturasvc/init  = piLstFatura
+;	retrieve/e "FIN_FATURASVC"
+;	if ($status < 0)
+;		$instancehandle->SetErroApl("ERRO=-1·;DESCRICAO=Não foi possível excluir FIN_FATURA. Veirifique!",$xCdErro$,$xCtxErro$)
+;		exit (-1)
+;	endif
+;	
+;	setocc "*", -1    
+;	release/e/mod "FIN_FATURASVC"
+;	
+;	cd_empresa.fin_faturasvc = $item("CD_EMPRESAOUT",piParams)
+;	
+;	$collhandle("FIN_FATURASVC")->Salvar()
+;	if ($status < 0)
+;		$instancehandle->SetErroApl("ERRO=-1·;DESCRICAO=Não foi possível salvar FIN_FATURA. Veirifique!",$xCdErro$,$xCtxErro$)
+;		exit (-1)
+;	endif
+;	
+;	clear/e "FIN_FATURASVC"
+;	cd_empresa.fin_faturasvc/init = $item("CD_EMPRESA",piParams)
+;	cd_fatura.fin_faturasvc/init  = piLstFatura
+;	retrieve/e "FIN_FATURASVC"
+;	if ($status >= 0)
+;		setocc "*", -1
+;		$collhandle("FIN_FATURASVC")->Excluir()
+;	endif
+;	
+;	exit (0)
+;	end; FaturamentoSimples
+	
+	;---------------------------
+public Operation validaLocal
+	;---------------------------
+	Params
+		string  piGlobal    :IN
+		string  piParams    :IN
+		string  poParams    :OUT
+		string  poCdErro    :OUT
+		string  poCtxErro    :OUT
+	endParams
+	
+	variables
+		numeric vCdEmpValidacao, vCdPoolEmpresa
+		string vCdEmpresaIN, vCdEmpresaOUT, vTpValidacao
+		boolean vInCCusto, vInEmpresa
+	endvariables
+	
+	poParams = ""
+	
+	vCdEmpresaOUT = ""
+	
+	;Empresa pela qual irá fazer a validação
+	vCdEmpValidacao = $item("CD_EMPVALIDACAO", piParams)
+	;Lista de empresas a serem validadas
+	vCdEmpresaIN = $item("CD_EMPRESA", piParams)
+	;Este parametro só tem validas quando a empresa de validação for um CCusto
+	;Caso seja <TRUE>, irá retornar somentes as empreasas CCusto
+	;Caso seja <FALSE>, irá retornar todas as empresas da lista
+	vInCCusto = $item("IN_CCUSTO", piParams)
+	;Caso seja <TRUE>, irá retornar somentes as empresas sem CCusto
+	vInEmpresa = $item("IN_EMPRESA", piParams)
+	
+	if (vCdEmpValidacao = 0)
+		vCdEmpValidacao = $item("CD_EMPRESA", piGlobal)
+	endif
+	
+	if (vInEmpresa = <TRUE>)
+		vTpValidacao = "EMPRESA"
+	else
+		clear/e "GER_EMPRESASVC"
+		CD_EMPRESA.GER_EMPRESASVC/init = vCdEmpValidacao
+		retrieve/e "GER_EMPRESASVC"
+		if ($status >= 0)
+			if (CD_CCUSTO.GER_EMPRESASVC > 0)
+				if (vInCCusto = <TRUE>)
+					vTpValidacao = "CCUSTO"
+				else
+					vTpValidacao = "TOTAL"
+				endif
+			else
+				vTpValidacao = "EMPRESA"
+			endif
+		else
+			vTpValidacao = "EMPRESA"
+		endif
+	endif
+	
+	clear/e "GER_EMPRESASVC"
+	CD_EMPRESA.GER_EMPRESASVC/init = vCdEmpresaIN
+	retrieve/e "GER_EMPRESASVC"
+	if ($status >= 0)
+		setocc "GER_EMPRESASVC", 1
+		while ($Status >=0)
+			if (vTpValidacao = "EMPRESA")
+				if (CD_CCUSTO.GER_EMPRESASVC = 0)
+					putitem vCdEmpresaOUT, -1, CD_EMPRESA.GER_EMPRESASVC
+				endif
+			elseif (vTpValidacao = "CCUSTO")
+				if (CD_CCUSTO.GER_EMPRESASVC > 0)
+					putitem vCdEmpresaOUT, -1, CD_EMPRESA.GER_EMPRESASVC
+				endif
+			elseif (vTpValidacao = "TOTAL")
+				putitem vCdEmpresaOUT, -1, CD_EMPRESA.GER_EMPRESASVC
+			endif
+			setocc "GER_EMPRESASVC", $curocc("GER_EMPRESASVC") + 1
+		endwhile        
+	endif
+
+	if ($item("IN_CONS_POOL", piParams) != <TRUE>)
+		
+		vCdPoolEmpresa = $item("CD_POOLEMPRESA", piGlobal)	
+		
+		;Diogenes - 03/11/2009 - Proj. 078 - Tarefa 2887 (A PEDIDO DO FORNAROLI 19/11/2009)
+		if ($item("CD_POOLEMPRESA",piParams) != "")
+			vCdPoolEmpresa = $item("CD_POOLEMPRESA",piParams)
+		endif;;
+
+		clear/e "TMP_NR09SVC"
+		getlistitems vCdEmpresaOUT, NR_GERAL.TMP_NR09SVC
+
+		if (vCdPoolEmpresa > 0)
+			setocc "TMP_NR09SVC"
+			while ($status >= 0)
+				clear/e "GER_EMPRESASVC"
+				CD_EMPRESA.GER_EMPRESASVC = NR_GERAL.TMP_NR09SVC
+				retrieve/e "GER_EMPRESASVC"
+				if ($status >= 0)
+					clear/e "GER_POOLGRUPOSVC"
+					CD_POOLEMPRESA.GER_POOLGRUPOSVC = vCdPoolEmpresa
+					CD_GRUPOEMPRESA.GER_POOLGRUPOSVC = CD_GRUPOEMPRESA.GER_EMPRESASVC
+					retrieve/e "GER_POOLGRUPOSVC"
+					if ($status >= 0)
+						setocc "TMP_NR09SVC", $curocc("TMP_NR09SVC") + 1
+					else
+						discard "TMP_NR09SVC"
+						if ($status = 0)
+							$status = -1
+						endif
+					endif
+				else
+					discard "TMP_NR09SVC"
+					if ($status = 0)
+						$status = -1
+					endif
+				endif
+			endwhile
+		endif
+
+		sort/e "TMP_NR09SVC", "NR_GERAL.TMP_NR09SVC"
+		putlistitems vCdEmpresaOUT, NR_GERAL.TMP_NR09SVC	
+	endif
+	
+	poParams = ""
+	putitem/id poParams, "CD_EMPRESA", vCdEmpresaOUT
+
+	return(0)
+end
+	
+;------------------------------
+public operation validaTerminal
+;------------------------------
+	Params
+		string  piGlobal    :IN
+		string  piParams    :IN
+		string  poParams    :OUT
+		string  poCdErro    :OUT
+		string  poCtxErro    :OUT
+	endParams
+	
+	variables
+		numeric vCdEmpresa, vCdTerminal, vCdEmpresaCC
+	endvariables  
+	
+	
+	;Verifica ser exite terminal cadastrado na empresa associada
+	
+	vCdEmpresa = $item("CD_EMPRESA", piParams)
+	vCdTerminal = $item("CD_TERMINAL", piParams)
+	
+	if (vCdEmpresa = 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Empresa não informada!", "ADICIONAL=Operação->SICSVCO002.validaTerminal")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		exit(-1)
+	endif
+	
+	if (vCdTerminal = 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Terminal não informado!", "ADICIONAL=Operação->SICSVCO002.validaTerminal")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		exit(-1)
+	endif
+	
+	vCdEmpresaCC = 0
+	
+	clear/e "GER_EMPRESASVC"
+	CD_EMPRESA.GER_EMPRESASVC/init = vCdEmpresa
+	retrieve/e "GER_EMPRESASVC"
+	if ($status < 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Empresa %%vCdEmpresa não cadastrada!", "ADICIONAL=Operação->SICSVCO002.validaTerminal")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		exit(-1)
+	endif
+	
+	if (CD_CCUSTO.GER_EMPRESASVC > 0)
+		vCdEmpresaCC = CD_CCUSTO.GER_EMPRESASVC
+	else
+		clear/e "GER_EMPRESASVC"
+		CD_CCUSTO.GER_EMPRESASVC/init = vCdEmpresa
+		retrieve/e "GER_EMPRESASVC"
+		if ($status >= 0)
+			vCdEmpresaCC = CD_EMPRESA.GER_EMPRESASVC
+		else
+			exit(0)
+		endif
+	endif
+	
+	clear/e "GER_TERMINALSVC"
+	CD_EMPRESA.GER_TERMINALSVC/init = vCdEmpresaCC
+	CD_TERMINAL.GER_TERMINALSVC/init = vCdTerminal
+	retrieve/e "GER_TERMINALSVC"
+	if ($status < 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Terminal %%vCdTerminal não cadastrado na empresa %%vCdEmpresa%%%!", "ADICIONAL=Operação->SICSVCO002.validaTerminal")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		exit(-1)
+	endif
+	
+	exit(0)
+end
+
+;----------------------------------
+public operation validaNivelEmpresa
+	;----------------------------------
+	params
+		string  $xlpg$      :IN    
+		string  piParams    :IN
+		string  poParams    :OUT
+		string  poCdErro    :OUT
+		string  poCtxErro   :OUT
+	endparams
+	
+	variables
+		string viParams, voParams, vDsLstEmpresa, vTpValidacao
+		numeric vCdEmpresa        
+	endvariables  
+	
+	;Recebe uma empresa e retorna uma lista com as empresas associadas 
+	
+	vDsLstEmpresa = ""
+	vCdEmpresa  = $item("CD_EMPRESA", piParams)
+	
+	if (vCdEmpresa = 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Empresa não informada!", "ADICIONAL=Operação->SICSVCO002.validaNivelEmpresa")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		exit(-1)
+	endif
+	
+	clear/e "GER_EMPRESASVC"
+	CD_EMPRESA.GER_EMPRESASVC/init = vCdEmpresa
+	retrieve/e "GER_EMPRESASVC"
+	if ($status < 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Empresa %%vCdEmpresa não cadastrada!", "ADICIONAL=Operação->SICSVCO002.validaNivelEmpresa")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		exit(-1)
+	endif
+	
+	putitem vDsLstEmpresa, -1, CD_EMPRESA.GER_EMPRESASVC
+	
+	if (CD_CCUSTO.GER_EMPRESASVC > 0)
+		putitem vDsLstEmpresa, -1, CD_CCUSTO.GER_EMPRESASVC
+	endif
+	
+	viParams = ""
+	putitem/id viParams, "CD_EMPRESA", vDsLstEmpresa    
+	newinstance "SICSVCO002", "SICSVCO002X", "TRANSACTION=FALSE"
+	activate "SICSVCO002X".validaLocal($$gParamGlb, viParams, voParams, $xCdErro$, $xCtxErro$)
+	if ($procerror)       
+		$instancehandle->SetStatus(-1, $procerror, $procerrorcontext, "")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	elseif ($status < 0)
+		$instancehandle->SetStatus(-1, $xCdErro$, $xCtxErro$, "")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	
+	poParams = voParams
+	
+	exit(0)
+end
+
+;---------------------------
+public operation validaLogin
+;---------------------------
+	params
+		string  $xlpg$      :IN    
+		string  piParams    :IN
+		string  poParams    :OUT
+		string  poCdErro    :OUT
+		string  poCtxErro   :OUT
+	endparams
+	
+	variables
+		string viParams, voParams, vDsLstEmpresa
+		numeric vCdEmpresa, vCdEmpresaLogin
+		boolean vInCC
+	endvariables
+	
+	;Verifica que se empresa associada e empresa de login esta com data difetente
+	
+	vCdEmpresaLogin = $item("CD_EMPRESA", $xlpg$)
+	$dtSistema$ = $item("DT_SISTEMA", $xlpg$)
+	vInCC = <FALSE>
+	clear/e "GER_EMPRESASVC"
+	CD_EMPRESA.GER_EMPRESASVC/init = vCdEmpresaLogin
+	retrieve/e "GER_EMPRESASVC"
+	if ($status < 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Empresa %%vCdEmpresa não cadastrada!", "ADICIONAL=Operação->SICSVCO002.validaLogin")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		exit(-1)
+	else
+		if (CD_CCUSTO.GER_EMPRESASVC > 0)
+			vCdEmpresa = CD_CCUSTO.GER_EMPRESASVC
+			vInCC = <TRUE>
+		else
+			clear/e "GER_EMPRESASVC"
+			CD_CCUSTO.GER_EMPRESASVC/init = vCdEmpresaLogin
+			retrieve/e "GER_EMPRESASVC"
+			if ($status >= 0)
+				vCdEmpresa = CD_EMPRESA.GER_EMPRESASVC
+			else
+				exit(0)
+			endif
+		endif    
+	endif
+	
+	viParams = ""
+	putitem viParams, -1, "DT_SISTEMA"
+	activate "ADMSVCO001".GetParamEmpresa(vCdEmpresa, viParams, voParams, $xCdErro$, $xCtxerro$)
+	if ($procerror)
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		exit(-1)
+	elseif ($xCdErro$)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=%%$item("DESCRICAO", $xCtxErro$)", "")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		exit(-1)
+	endif
+	
+	$dtEmpresa$ = $item("DT_SISTEMA", voParams)
+	
+	if ($dtEmpresa$ != $dtSistema$)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Data da empresa %%$dtSistema$ incompativel com a data do grupo empresa %%$dtEmpresa$!", "ADICIONAL=Operação->SICSVCO002.validaLogin")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		if (vInCC = <TRUE>)
+			exit(-2)
+		else
+			exit(-1)
+		endif
+	endif	
+	
+	exit(0)
+end
+

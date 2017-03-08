@@ -1,0 +1,60 @@
+;-----------------------
+public operation retornaImposto
+;-----------------------
+
+	params
+        string  piGlobal    :IN
+        string  piParams    :IN
+        string  poParams    :OUT
+        numeric poCdErro    :OUT
+        string  poCtxErro   :OUT
+   endparams
+
+	variables
+		numeric vCdImposto
+		date    vDtVigencia
+	endvariables
+
+	vCdImposto  = $item("CD_IMPOSTO", piParams)
+	vDtVigencia = $item("DT_INIVIGENCIA", piParams)
+
+	;-- MSOUZA (18/11/2011) [PRJ 192/TAR 19]
+	if(vDtVigencia = "")
+		vDtVigencia = $item("DT_SISTEMA", piGlobal)
+	endif
+	;--
+
+	if(vCdImposto = "")
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Imposto não informado!", "ADICIONAL=Operação->FISSVCO069.retornaImposto")
+		poCdErro		= $xCdErro$
+		poCtxErro	= $xCtxErro$
+		return(-1)
+	endif
+
+	if(vDtVigencia = "")
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Data de início da vigência não informada!", "ADICIONAL=Operação->FISSVCO069.retornaImposto")
+		poCdErro		= $xCdErro$
+		poCtxErro	= $xCtxErro$
+		return(-1)
+	endif
+
+	clear/e "FIS_IMPOSTOSVC"
+	CD_IMPOSTO.FIS_IMPOSTOSVC/init 		= vCdImposto
+	DT_INIVIGENCIA.FIS_IMPOSTOSVC/init	= "·<·=%%vDtVigencia"
+	TP_SITUACAO.FIS_IMPOSTOSVC/init		= 1
+	retrieve/e "FIS_IMPOSTOSVC"
+	if($status >= 0)
+		setocc "FIS_IMPOSTOSVC", -1
+		sort/e "FIS_IMPOSTOSVC", "DT_INIVIGENCIA.FIS_IMPOSTOSVC"
+		setocc "FIS_IMPOSTOSVC", -1
+		putlistitems/occ poParams, "FIS_IMPOSTOSVC"
+	else
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Nenhum registro ativo encontrado para esta vigência!", "ADICIONAL=Operação->FISSVCO069.retornaImposto")
+		poCdErro		= $xCdErro$
+		poCtxErro	= $xCtxErro$
+		return(-1)
+	endif
+
+	return(0)
+
+End ; retornaImposto

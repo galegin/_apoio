@@ -1,0 +1,4487 @@
+entry getParam
+	params
+		numeric piCdEmpresa : IN
+	endparams
+
+	variables
+		string viParams, voParams
+	endvariables
+
+	if (piCdEmpresa = 0)
+		$instancehandle->SetErroApl("ERRO=-1·;DESCRICAO=Empresa para busca de parâmetros não infomada!", $xCdErro$, $xCtxErro$)
+		return(-1)
+	endif
+	
+	viParams = ""
+	putitem viParams, -1, "CD_DESPESAITEM_JUROS"
+	activate "ADMSVCO001".GetParamEmpresa(piCdEmpresa, viParams, voParams, $xCdErro$, $xCtxErro$)
+	if ($procerror)
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+		return(-1)
+	elseif ($xCdErro$)
+		$instancehandle->SetErroApl($xCtxErro$, $xCdErro$, $xCtxErro$)
+		return(-1)
+	endif
+
+	$cdDespesaItemJuros$ = $item("CD_DESPESAITEM_JUROS", voParams)
+
+	return(0)
+end
+
+;----------------------------------------------------
+public operation geraLiquidacao
+;----------------------------------------------------
+;Projeto 078 - 3195 - Aloisio Gargantini - 01/03/2010
+;lógica refeita
+;
+	params
+		string piGlobal  :IN
+		string piParams  :IN
+		string poParams  :OUT
+		numeric poCdErro :OUT
+		string poCtxErro :OUT
+	endparams
+	variables
+		date    vDtMovim, vDtLiq
+		string  vpiParams, vpoParams, vDsRegDesp, vDsRegImp, vDupOriginal, vDsDespesa, vDsImposto, vVlMultaCalc
+		numeric vNrCtapes, vNrSeqMov, vNrSeqLiq, vCdEmpresa, vVlDuplicata, vVlCheque, vNrSeqItem, vVlMulta
+		numeric vTpLiquidacao, vNrParcela, vVlDif, vVlJuros, vDupEmpresa, vDupFornecedor, vDupDuplicata, vDupParcela
+		numeric vVlDesconto, vVlDesctoTot, vVlJurosTot, vVlJurosCalc, vVlDesctoCalc, vPercentual, vVlTotalDup
+	endvariables
+	
+	vDtLiq = $item("DT_LIQ", piParams)
+	if ($item("DT_LIQ", piParams) = "")
+		vDtLiq = $item("DT_SISTEMA", piGlobal)
+	endif
+	
+	vNrCtaPes = $item("NR_CTAPES", piParams)
+	if ($item("NR_CTAPES", piParams) = "")
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Número da conta corrente não informado para gerar liquidação.", "ADICIONAL=Operação->FGRSVCO001.geraLiquidacao")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	
+	vDtMovim = $item("DT_MOVIM", piParams)
+	if ($item("DT_MOVIM", piParams) = "")
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Data do movimento não informado para gerar liquidação.", "ADICIONAL=Operação->FGRSVCO001.geraLiquidacao")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	
+	vNrSeqMov = $item("NR_SEQMOV", piParams)
+	if ($item("NR_SEQMOV", piParams) = "")
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Número de sequência do movimento não informado para gerar liquidação.", "ADICIONAL=Operação->FGRSVCO001.geraLiquidacao")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	
+	vTpLiquidacao = $item("TP_LIQUIDACAO", piParams)
+	if ($item("TP_LIQUIDACAO", piParams) = "")
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Tipo de liquidação não informado para gerar liquidação.", "ADICIONAL=Operação->FGRSVCO001.geraLiquidacao")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	
+	;== BY BIANCHINI [PRJ/TAREFA 78/3994] 08/12/2010 ==;
+	;vCdEmpresa = $item("CD_EMPRESA", piGlobal)
+	clear/e "F_FCC_CTAPES"
+	NR_CTAPES.F_FCC_CTAPES/init = vNrCtaPes
+	retrieve/e "F_FCC_CTAPES"
+	if ($status >=0)
+		vCdEmpresa = CD_EMPRESA.F_FCC_CTAPES
+	else
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Conta corrente inválida para gerar liquidação de conciliação de cheque.", "ADICIONAL=Operação->FGRSVCO001.geraLiquidacao")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	;if ($item("CD_EMPRESA", piGlobal) = "")
+	if (vCdEmpresa = "")
+	;==
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Empresa não informada para gerar liquidação.", "ADICIONAL=Operação->FGRSVCO001.geraLiquidacao")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	
+	clear/e "GER_EMPRESASVC"
+	CD_EMPRESA.GER_EMPRESASVC = vCdEmpresa
+	retrieve/e "GER_EMPRESASVC"
+	if ($status < 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Empresa para gerar liquidação não cadastrada.", "ADICIONAL=Operação->FGRSVCO001.geraLiquidacao")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+
+	vNrSeqItem = 1
+	vVlCheque = 0
+	
+	clear/e "FCC_MOVSVC"
+	NR_CTAPES.FCC_MOVSVC/init = vNrCtaPes
+	DT_MOVIM.FCC_MOVSVC/init  = vDtMovim
+	NR_SEQMOV.FCC_MOVSVC/init = vNrSeqMov
+	retrieve/e "FCC_MOVSVC"
+	if ($status < 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Movimentação de conta corrente não encontrada para gerar liquidação.", "ADICIONAL=Operação->FGRSVCO001.geraLiquidacao")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+
+	clear/e "FCC_AUTOCHEQSVC"
+	NR_CTAPES.FCC_AUTOCHEQSVC/init = vNrCtaPes
+	DT_MOVIM.FCC_AUTOCHEQSVC/init  = vDtMovim
+	NR_SEQMOV.FCC_AUTOCHEQSVC/init = vNrSeqMov
+	retrieve/e "FCC_AUTOCHEQSVC"
+	if ($status < 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Movimento de conta corrente não encontrado na autorização de cheque para gerar liquidação.", "ADICIONAL=Operação->FGRSVCO001.geraLiquidacao")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	else
+		vVlCheque = VL_CHEQUE.FCC_AUTOCHEQSVC
+	endif
+	
+	clear/e "FCC_AUTORIZACSVC"
+	DT_AUTORIZACAO.FCC_AUTORIZACSVC/init = DT_AUTORIZACAO.FCC_AUTOCHEQSVC
+	NR_SEQAUTO.FCC_AUTORIZACSVC/init     = NR_SEQAUTO.FCC_AUTOCHEQSVC
+	retrieve/e "FCC_AUTORIZACSVC"
+	if ($status < 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Autorização de cheque não encontrada para gerar liquidação.", "ADICIONAL=Operação->FGRSVCO001.geraLiquidacao")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	
+	call getParam(vCdEmpresa)
+	if ($procerror)
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	elseif ($status < 0)
+		$instancehandle->SetErroApl(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	
+	vpiParams = ""
+	putitem/id vpiParams, "NM_ENTIDADE", "FGR_LIQ"
+	newinstance "GERSVCO031", "GERSVCO031", "TRANSACTION=TRUE";Evj (04/03/05)
+	activate "GERSVCO031".getNumSeq(piGlobal, vpiParams, vpoParams, $xCdErro$, $xCtxErro$)	
+	if ($procerror)
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)  
+	elseif ($status < 0)
+		$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif    
+	vNrSeqLiq = $item("NR_SEQUENCIA", vpoParams)
+	
+	if ($item("NR_SEQUENCIA", vpoParams) = "")
+		$instancehandle->setStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Sequência de liquidação não gerada para autorização de cheque.", "")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	;Projeto 078 - Tarefa 3316 - Aloisio Gargantini - 14/04/2010
+	clear/e "FCC_AUTOPAGSVC"
+	DT_AUTORIZACAO.FCC_AUTOPAGSVC/init = DT_AUTORIZACAO.FCC_AUTOCHEQSVC
+	NR_SEQAUTO.FCC_AUTOPAGSVC/init     = NR_SEQAUTO.FCC_AUTOCHEQSVC
+	if (TP_RATEIO.FCC_AUTORIZACSVC = 1) | (TP_RATEIO.FCC_AUTORIZACSVC = 2) ;1-Rateio individual  2-Rateio por fornecedor.
+		NR_SEQCHEQUE.FCC_AUTOPAGSVC/init = NR_SEQCHEQUE.FCC_AUTOCHEQSVC
+	endif
+	retrieve/e "FCC_AUTOPAGSVC"
+	if ($status < 0)
+		clear/e "FCC_AUTOPAGSVC"
+	endif
+	;	
+	;Liquidação para Cheques emitidos através da Transferencia de Conta.
+	if (NR_DUPLICATA.FCC_AUTOPAGSVC = 0) & (NR_CTAPES.FCC_AUTOPAGSVC != 0)
+		vpiParams = ""
+		putitem/id vpiParams, "CD_EMPRESA",    vCdEmpresa
+		putitem/id vpiParams, "NR_SEQLIQ",     vNrSeqLiq
+		putitem/id vpiParams, "NR_SEQITEM",    vNrSeqItem
+		putitem/id vpiParams, "NR_CTAPES",     NR_CTAPES.FCC_AUTORIZACSVC
+		putitem/id vpiParams, "TP_LIQUIDACAO", vTpLiquidacao
+		putitem/id vpiParams, "VL_PAGAMENTO",  VL_CHEQUE.FCC_AUTOCHEQSVC
+		putitem/id vpiParams, "VL_TOTAL",      VL_CHEQUE.FCC_AUTOCHEQSVC
+		;-Douglas Ferreira - [Prj/Tarefa 180/155] - 14/04/2011
+		if (CD_FORNECEDOR.FCC_AUTOPAGSVC > 0)
+			putitem/id vpiParams, "CD_FORNECEDOR", CD_FORNECEDOR.FCC_AUTOPAGSVC
+		else
+		;
+			putitem/id vpiParams, "CD_FORNECEDOR", CD_PESSOA.FCC_CTAPESSVC
+		endif
+		putitem/id vpiParams, "TP_PAGAMENTO",  4
+		putitem/id vpiParams, "DT_LIQ",        vDtLiq
+		$instancehandle->gravaLiquidacao(piGlobal, vpiParams, vpoParams,$xCdErro$,$xCtxerro$)
+		if ($procerror)
+			$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+			poCdErro  = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return (-1)
+		elseif ($status < 0)
+			$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")    
+			poCdErro  = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return (-1)
+		endif
+		
+		;Grava liquidação em movimento de Débito.
+		CD_EMPLIQ.FCC_MOVSVC = vCdEmpresa
+		DT_LIQ.FCC_MOVSVC    = vDtLiq
+		NR_SEQLIQ.FCC_MOVSVC = vNrSeqLiq
+		
+		$collhandle("FCC_MOVSVC")->Salvar()
+		if ($procerror)
+			$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+			poCdErro  = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return (-1)
+		elseif ($status < 0)
+			$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")    
+			poCdErro  = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return (-1)
+		endif					
+		
+		;Grava liquidação em autorização de cheque.
+		CD_EMPLIQ.FCC_AUTOCHEQSVC = vCdEmpresa
+		DT_LIQ.FCC_AUTOCHEQSVC    = vDtLiq
+		NR_SEQLIQ.FCC_AUTOCHEQSVC = vNrSeqLiq
+		$collhandle("FCC_AUTOCHEQSVC")->Salvar()
+		if ($procerror)
+			$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+			poCdErro  = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return (-1)
+		elseif ($status < 0)
+			$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")
+			poCdErro  = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return (-1)
+		endif
+	endif
+	
+	;Liquidação de Cheque para pagamento de Duplicata.
+	if (NR_DUPLICATA.FCC_AUTOPAGSVC != 0) & (NR_CTAPES.FCC_AUTOPAGSVC = 0)
+		setocc "FCC_AUTOPAGSVC", 1
+		while ($status >= 0)
+			
+			clear/e "FCP_DUPLICATISVC"
+			CD_EMPRESA.FCP_DUPLICATISVC/init    = CD_EMPRESA.FCC_AUTOPAGSVC
+			CD_FORNECEDOR.FCP_DUPLICATISVC/init = CD_FORNECEDOR.FCC_AUTOPAGSVC
+			NR_DUPLICATA.FCP_DUPLICATISVC/init  = NR_DUPLICATA.FCC_AUTOPAGSVC
+			NR_PARCELA.FCP_DUPLICATISVC/init    = NR_PARCELA.FCC_AUTOPAGSVC
+			retrieve/e "FCP_DUPLICATISVC"
+			if ($status < 0)
+				$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Duplicata vinculada ao cheque não encontrada.%%^%%^Empresa: %%cd_empresa.fcc_autopagsvc  Fornecedor: %%cd_fornecedor.fcc_autopagsvc  Duplicata: %%nr_duplicata.fcc_autopagsvc  Parcela: %%nr_parcela.fcc_autopagsvc", "ADICIONAL=Operação->FGRSVCO001.geraLiquidacao")
+				poCdErro  = $xCdErro$
+				poCtxErro = $xCtxErro$
+				return(-1)
+			endif
+			
+			clear/e "FCP_DUPDESPESSVC"
+			CD_EMPRESA.FCP_DUPDESPESSVC/init    = CD_EMPRESA.FCP_DUPLICATISVC
+			CD_FORNECEDOR.FCP_DUPDESPESSVC/init = CD_FORNECEDOR.FCP_DUPLICATISVC
+			NR_DUPLICATA.FCP_DUPDESPESSVC/init  = NR_DUPLICATA.FCP_DUPLICATISVC
+			NR_PARCELA.FCP_DUPDESPESSVC/init    = NR_PARCELA.FCP_DUPLICATISVC
+			retrieve/e "FCP_DUPDESPESSVC"
+			if ($status < 0)
+				$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Duplicata vinculada ao cheque sem despesa.%%^%%^Empresa: %%cd_empresa.fcc_autopagsvc  Fornecedor: %%cd_fornecedor.fcc_autopagsvc  Duplicata: %%nr_duplicata.fcc_autopagsvc  Parcela: %%nr_parcela.fcc_autopagsvc", "ADICIONAL=Operação->FGRSVCO001.geraLiquidacao")
+				poCdErro  = $xCdErro$
+				poCtxErro = $xCtxErro$
+				return(-1)
+			endif
+			clear/e "FCP_DUPIMPOSTSVC"
+			CD_EMPRESA.FCP_DUPIMPOSTSVC/init    = CD_EMPRESA.FCP_DUPLICATISVC
+			CD_FORNECEDOR.FCP_DUPIMPOSTSVC/init = CD_FORNECEDOR.FCP_DUPLICATISVC
+			NR_DUPLICATA.FCP_DUPIMPOSTSVC/init  = NR_DUPLICATA.FCP_DUPLICATISVC
+			NR_PARCELA.FCP_DUPIMPOSTSVC/init    = NR_PARCELA.FCP_DUPLICATISVC
+			retrieve/e "FCP_DUPIMPOSTSVC"
+			if ($status < 0)
+				clear/e "FCP_DUPIMPOSTSVC"
+			endif
+			;HANDREO: 11/03/05 - Não precisa testar status - existem duplicatas sem imposto vinculado
+			
+			;Gerar liquidação.
+			;---------------------------------
+			vpiParams = ""
+			putitem/id vpiParams, "CD_EMPRESA",      vCdEmpresa
+			putitem/id vpiParams, "DT_LIQ",          vDtLiq
+			putitem/id vpiParams, "NR_SEQLIQ",       vNrSeqLiq
+			putitem/id vpiParams, "NR_SEQITEM",      vNrSeqItem
+			putitem/id vpiParams, "NR_CTAPES",       NR_CTAPES.FCC_AUTORIZACSVC
+			putitem/id vpiParams, "TP_LIQUIDACAO",   vTpLiquidacao
+			putitem/id vpiParams, "VL_PAGAMENTO",    VL_PAGAMENTO.FCC_AUTOPAGSVC
+			putitem/id vpiParams, "VL_TOTAL",        VL_CHEQUE.FCC_AUTOCHEQSVC
+			putitem/id vpiParams, "CD_EMPRESADUP",   CD_EMPRESA.FCP_DUPLICATISVC
+			putitem/id vpiParams, "CD_FORNECDUP",    CD_FORNECEDOR.FCP_DUPLICATISVC
+			putitem/id vpiParams, "NR_DUPLICATADUP", NR_DUPLICATA.FCP_DUPLICATISVC
+			putitem/id vpiParams, "NR_PARCELADUP",   NR_PARCELA.FCP_DUPLICATISVC
+			putitem/id vpiParams, "TP_PAGAMENTO",    2
+			$instancehandle->gravaLiquidacao(piGlobal, vpiParams, vpoParams, $xCdErro$, $xCtxErro$)
+			if ($procerror)
+				$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+				poCdErro  = $xCdErro$
+				poCtxErro = $xCtxErro$
+				return (-1)
+			elseif ($status < 0)
+				$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")    
+				poCdErro  = $xCdErro$
+				poCtxErro = $xCtxErro$
+				return (-1)
+			endif
+			;Projeto 078 - Tarefa 3316 - Aloisio Gargantini - 14/04/2010
+			if (DT_LIQ.FCP_DUPLICATISVC = "") & ((NR_SEQLIQ.FCP_DUPLICATISVC = "") | (NR_SEQLIQ.FCP_DUPLICATISVC = 0))
+			;
+				vDupOriginal = ""
+				putlistitems/occ vDupOriginal, "FCP_DUPLICATISVC" ;armazena em vDupOrigem o registro contendo a Parcela Original que poderá ser dividida
+
+				;Recalcular o valor do titulo na data de baixa.
+				vpiParams = ""
+				putitem/id vpiParams, "CD_EMPRESA",           CD_EMPRESA.FCP_DUPLICATISVC
+				putitem/id vpiParams, "CD_FORNECEDOR",        CD_FORNECEDOR.FCP_DUPLICATISVC
+				putitem/id vpiParams, "NR_DUPLICATA",         NR_DUPLICATA.FCP_DUPLICATISVC
+				putitem/id vpiParams, "NR_PARCELA",           NR_PARCELA.FCP_DUPLICATISVC
+				putitem/id vpiParams, "VL_DUPLICATA",         VL_DUPLICATA.FCP_DUPLICATISVC
+				putitem/id vpiParams, "DT_PAGAMENTO",         vDtLiq
+				putitem/id vpiParams, "IN_AUTORIZACAOCHEQUE", <TRUE>
+				activate "FCPSVCO004".calculaValorDuplicata($$gParamGlb, vpiParams, vpoParams, $xCdErro$, $xCtxErro$)
+				if ($procerror)
+					$instancehandle->SetStatus(<STS_ERRO>,$procerror,$procerrorcontext,"")
+					poCdErro  = $xCdErro$
+					poCtxErro = $xCtxErro$
+					return(-1)
+				elseif ($status < 0)
+					$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")
+					poCdErro  = $xCdErro$
+					poCtxErro = $xCtxErro$
+					return (-1)
+				endif
+				vVlJurosTot  = $item("VL_JUROS",     vpoParams)
+				VVlDesctoTot = $item("VL_DESCONTOS", vpoParams)
+				vVlTotalDup  = $item("VL_CALCULADO", vpoParams)
+				;Projeto 078 - Tarefa 3707 - Aloisio Gargantini - 03/09/2010
+				vVlMulta     = $item("VL_MULTA",     vpoParams)
+				;
+				vPercentual = (vl_pagamento.fcc_autopagsvc / vVlTotalDup) * 100
+				vPercentual = vPercentual[round,6]
+			
+				vVlJuros    = vVlJurosTot - vl_despfin.fcp_duplicatisvc - vl_acrescimo.fcp_duplicatisvc - vl_outroacr.fcp_duplicatisvc
+				vVlDesconto = vVlDesctoTot - vl_abatimento.fcp_duplicatisvc - vl_outrosdesc.fcp_duplicatisvc - vl_indenizacao.fcp_duplicatisvc
+			
+				if (vl_imposto.fcp_duplicatisvc > 0) & (in_imposto.fcp_duplicatisvc = <TRUE>)
+					;<ANO Pjt78 Trf3412 - 18/05/2010>	
+					vVlTotalDup = vVlTotalDup - vl_imposto.fcp_duplicatisvc
+					vPercentual = (vl_pagamento.fcc_autopagsvc / vVlTotalDup) * 100
+					vPercentual = vPercentual[round,6]
+					;</ANO Pjt78 Trf3412 - 18/05/2010>	
+
+					vVlDesctoTot = vVlDesctoTot + vl_imposto.fcp_duplicatisvc
+				endif
+				
+				vVlJurosCalc  = vVlJuros * vPercentual / 100
+				vVlJurosCalc  = vVlJurosCalc[round, 2]
+				vVlDesctoCalc = vVlDesconto * vPercentual / 100
+				vVlDesctoCalc = vVlDesctoCalc[round, 2]
+				;Projeto 078 - Tarefa 3707 - Aloisio Gargantini - 03/09/2010
+				vVlMultaCalc  = vVlMulta * vPercentual / 100
+				vVlMultaCalc  = vVlMultaCalc[round, 2]
+				;
+				vVlJurosTot   = vVlJurosTot - vVlJuros + vVlJurosCalc
+				vVlDesctoTot  = vVlDesctoTot - vVlDesconto + vVlDesctoCalc
+				vVlDif        = vl_duplicata.fcp_duplicatisvc - (vl_pagamento.fcc_autopagsvc + vVlDesctoTot - vVlJurosTot)
+				
+				vl_duplicata.fcp_duplicatisvc = vl_pagamento.fcc_autopagsvc + vVlDesctoTot - vVlJurosTot
+				VL_PAGO.FCP_DUPLICATISVC      = VL_PAGAMENTO.FCC_AUTOPAGSVC
+				VL_DESCONTO.FCP_DUPLICATISVC  = vVlDesctoTot
+				VL_JUROS.FCP_DUPLICATISVC     = vVlJurosTot
+				;Projeto 078 - Tarefa 3707 - Aloisio Gargantini - 03/09/2010
+				VL_PGTOMULTA.FCP_DUPLICATISVC = vVlMultaCalc
+				;
+				DT_BAIXA.FCP_DUPLICATISVC     = vDtLiq
+				TP_BAIXA.FCP_DUPLICATISVC     = 1
+				CD_OPERBAIXA.FCP_DUPLICATISVC = $item("CD_USUARIO", piGlobal)
+				CD_EMPLIQ.FCP_DUPLICATISVC    = vCdEmpresa
+				DT_LIQ.FCP_DUPLICATISVC       = vDtLiq
+				NR_SEQLIQ.FCP_DUPLICATISVC    = vNrSeqLiq
+				CD_OPERADOR.FCP_DUPLICATISVC  = $item("CD_USUARIO", piGlobal)
+				DT_CADASTRO.FCP_DUPLICATISVC  = $datim
+			
+				vpiParams = ""
+				$instancehandle->gravaDuplicata(vpiParams, vpoParams, $xCdErro$, $xCtxErro$)
+				if ($procerror)
+					$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+					poCdErro  = $xCdErro$
+					poCtxErro = $xCtxErro$
+					return (-1)
+				elseif ($status < 0)
+					$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+					poCdErro  = $xCdErro$
+					poCtxErro = $xCtxErro$
+					return (-1)
+				endif
+				vDsRegDesp = $item("DS_REGDESP", vpoParams)
+				vDsRegImp  = $item("DS_REGIMP",  vpoParams)
+			
+				vpiParams = ""
+				putitem/id vpiParams, "CD_EMPRESA",    CD_EMPRESA.FCP_DUPLICATISVC
+				putitem/id vpiParams, "CD_FORNECEDOR", CD_FORNECEDOR.FCP_DUPLICATISVC
+				putitem/id vpiParams, "NR_DUPLICATA",  NR_DUPLICATA.FCP_DUPLICATISVC
+				putitem/id vpiParams, "NR_PARCELA",    NR_PARCELA.FCP_DUPLICATISVC
+				putitem/id vpiParams, "TP_ESTAGIO",    90
+				putitem/id vpiParams, "TP_BAIXA",      1
+				activate "FCPSVCO005".alteraEstagioDuplicata($$gParamGlb, vpiParams, vpoParams, $xCdErro$, $xCtxErro$)
+				if ($procerror)       
+					$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+					poCdErro  = $xCdErro$
+					poCtxErro = $xCtxErro$
+					return (-1)
+				elseif ($status < 0)
+					$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")
+					poCdErro  = $xCdErro$
+					poCtxErro = $xCtxErro$
+					return (-1)
+				endif
+			
+				vpiParams = ""
+				putitem/id vpiParams, "CD_EMPRESA",    CD_EMPRESA.FCP_DUPLICATISVC
+				putitem/id vpiParams, "CD_FORNECEDOR", CD_FORNECEDOR.FCP_DUPLICATISVC
+				putitem/id vpiParams, "NR_DUPLICATA",  NR_DUPLICATA.FCP_DUPLICATISVC
+				putitem/id vpiParams, "NR_PARCELA",    NR_PARCELA.FCP_DUPLICATISVC
+				putitem/id vpiParams, "TP_LOGDUP",     5
+				putitem/id vpiParams, "DS_COMPONENTE", "FGRSVCO001"
+				putitem/id vpiParams, "DS_OBS",        "LIQUIDACAO DA DUPLICATA"
+				activate "FCPSVCO001".gravaLogDuplicata(piGlobal, vpiParams, vpoParams, $xCdErro$, $xCtxErro$)
+				if ($procerror)
+					$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+					poCdErro  = $xCdErro$
+					poCtxErro = $xCtxErro$
+					return (-1)
+				elseif ($status < 0)
+					$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+					poCdErro  = $xCdErro$
+					poCtxErro = $xCtxErro$
+					return (-1)
+				endif
+			
+				if (vVlDif > 0) ;Se houver diferença de valor entre cheque e duplicata gera uma nova duplicata a partir dessa diferença
+					clear/e "FCP_DUPLICATISVC"
+					clear/e "FCP_DUPDESPESSVC"
+					clear/e "FCP_DUPIMPOSTSVC"
+					
+					creocc "FCP_DUPLICATISVC", -1
+					getlistitems/occ vDupOriginal, "FCP_DUPLICATISVC"
+					
+					vpiParams = ""
+					putitem/id vpiParams, "TP_PARCELA", 2
+					$instancehandle->geraSeqParcela(vpiParams, vpoParams, $xCdErro$, $xCtxErro$)
+					if ($procerror)
+						$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+						poCdErro  = $xCdErro$
+						poCtxErro = $xCtxErro$
+						return (-1)
+					elseif ($status < 0)
+						$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+						poCdErro  = $xCdErro$
+						poCtxErro = $xCtxErro$
+						return (-1)
+					endif
+					vNrParcela = $item("NR_PARCELA", vpoParams)
+					;Projeto 078 - Tarefa 3904 - Aloisio Gargantini - 08/11/2010
+					if (vNrParcela > 999)
+						vpiParams = ""
+						putitem/id vpiParams, "CD_EMPRESA",    CD_EMPRESA.FCP_DUPLICATISVC
+						putitem/id vpiParams, "CD_FORNECEDOR", CD_FORNECEDOR.FCP_DUPLICATISVC
+						putitem/id vpiParams, "NR_DUPLICATA",  NR_DUPLICATA.FCP_DUPLICATISVC
+						putitem/id vpiParams, "NR_PARCELA",    NR_PARCELA.FCP_DUPLICATISVC
+						activate "FCPSVCO051".buscarSeqParcelaDupParcial(piGlobal, vpiParams, vpoParams, $xCdErro$, $xCtxErro$)
+						if ($procerror)
+							$instancehandle->setStatus(<STS_ERRO>, $procerror, $procerrorcontext, "ADICIONAL=  / FGRSVCO001.GeraLiquidacao() chamando FCPSVCO051.buscarSeqParcelaDupParcial()")
+							poCdErro  = $xCdErro$
+							poCtxErro = $xCtxErro$
+							return(-1)
+						elseif ($status < 0)
+							$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "ADICIONAL=  / FGRSVCO001.GeraLiquidacao() chamando FCPSVCO051.buscarSeqParcelaDupParcial()")
+							poCdErro  = $xCdErro$
+							poCtxErro = $xCtxErro$
+							return(-1)
+						endif
+						if ($item("NR_PARCELA", vpoParams) > 0)
+							vNrParcela = $item("NR_PARCELA", vpoParams)
+						endif
+					endif
+					;
+					VL_DUPLICATA.FCP_DUPLICATISVC   = vVlDif
+					;Projeto 078 - Tarefa 3861 - Aloisio Gargantini - 23/10/2010
+					VL_ORIGINAL.FCP_DUPLICATISVC    = vVlDif
+					;
+					DT_CADASTRO.FCP_DUPLICATISVC    = $datim
+					CD_OPERADOR.FCP_DUPLICATISVC    = $item("CD_USUARIO", piGlobal)
+					;MARTINEZ - PRJ/TAR 186/237 - 20/09/2011
+					TP_INCLUSAO.FCP_DUPLICATISVC    = 2 ;Automático
+					;TP_INCLUSAO.FCP_DUPLICATISVC   = 1
+					;
+					NR_PARORIGINAL.FCP_DUPLICATISVC = NR_PARCELA.FCP_DUPLICATISVC
+					NR_PARCELA.FCP_DUPLICATISVC     = vNrParcela
+					VL_DESPFIN.FCP_DUPLICATISVC     = ""
+					VL_ABATIMENTO.FCP_DUPLICATISVC  = ""
+					VL_ACRESCIMO.FCP_DUPLICATISVC   = ""
+					VL_OUTROSDESC.FCP_DUPLICATISVC  = ""
+					VL_OUTROACR.FCP_DUPLICATISVC    = ""
+					VL_JUROS.FCP_DUPLICATISVC       = ""
+					VL_DESCONTO.FCP_DUPLICATISVC    = ""
+					TP_ESTAGIO.FCP_DUPLICATISVC     = 2 ;Liberado para pagamento
+					VL_INDENIZACAO.FCP_DUPLICATISVC = ""
+					if (vDsRegDesp != "")
+						repeat
+							getitem vDsDespesa, vDsRegDesp, 1
+							creocc "FCP_DUPDESPESSVC", -1
+							getlistitems/occ vDsDespesa, "FCP_DUPDESPESSVC"
+							NR_PARCELA.FCP_DUPDESPESSVC = vNrParcela
+							delitem vDsRegDesp, 1
+						until (vDsRegDesp = "")    
+					endif
+					if (vDsRegImp != "")
+						repeat
+							getitem vDsImposto, vDsRegImp, 1
+							creocc "FCP_DUPIMPOSTSVC", -1
+							getlistitems/occ vDsImposto, "FCP_DUPIMPOSTSVC"
+							NR_PARCELA.FCP_DUPIMPOSTSVC = vNrParcela
+							delitem vDsRegImp, 1
+						until (vDsRegImp = "")    
+					endif
+					
+					vpiParams = ""
+					$instancehandle->gravaDuplicata(vpiParams, vpoParams, $xCdErro$, $xCtxErro$)
+					if ($procerror)
+						$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+						poCdErro  = $xCdErro$
+						poCtxErro = $xCtxErro$
+						return (-1)
+					elseif ($status < 0)
+						$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+						poCdErro  = $xCdErro$
+						poCtxErro = $xCtxErro$
+						return (-1)
+					endif
+				endif
+				;Projeto 078 - Tarefa 3316 - Aloisio Gargantini - 23/04/2010
+				;vNrSeqItem = vNrSeqItem + 1
+				;					
+			endif
+			;Projeto 078 - Tarefa 3316 - Aloisio Gargantini - 23/04/2010
+			vNrSeqItem = vNrSeqItem + 1
+			;
+			setocc "FCC_AUTOPAGSVC", $curocc("FCC_AUTOPAGSVC") + 1
+		endwhile
+	endif
+
+	poParams = ""
+	putitem/id poParams, "CD_EMPLIQ", vCdEmpresa
+	putitem/id poParams, "DT_LIQ",    vDtLiq
+	putitem/id poParams, "NR_SEQLIQ", vNrSeqLiq
+
+	return (0)
+end ;geraLiquidacao
+
+;;-----------------------
+;public operation geraLiquidacao
+;;-----------------------
+;	params
+;		string piGlobal :IN
+;		string piParams :IN
+;		string poParams :OUT
+;		numeric poCdErro :OUT
+;		string poCtxErro :OUT
+;	endparams
+;	
+;	variables
+;		date vDtSistema, vDtMovim, vDtLiq, vDtLiquidacao
+;		string viParams, voParams, viValores
+;		string vDsRegDesp, vDsRegImp, vDupOriginal, vDsDespesa, vDsImposto
+;		numeric vNrCtapes, vNrSeqMov, vNrSeqLiq, vCdEmpresa, vVlDuplicata
+;		numeric vVlCheque, vNrSeqItem, vTpLiquidacao, vNrParcela, vVlDif, vVlJuros
+;		numeric vDupEmpresa, vDupFornecedor, vDupDuplicata, vDupParcela, vVlJuros2
+;	endvariables
+;	
+;	;-----------------------------------------------------
+;	;Validação dos Parametros-----------------------------
+;	;-----------------------------------------------------
+;	vNrCtaPes = $item("NR_CTAPES", piParams)
+;	vDtMovim = $item("DT_MOVIM", piParams)
+;	vNrSeqMov = $item("NR_SEQMOV", piParams)
+;	vTpLiquidacao = $item("TP_LIQUIDACAO", piParams)
+;	vCdEmpresa = $item("CD_EMPRESA", piGlobal)
+;	vDtSistema = $item("DT_SISTEMA", piGlobal)
+;	vDtLiq = $item("DT_LIQ", piParams)
+;
+;	if (vNrCtaPes = 0)
+;		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Número da conta não informada!", "ADICIONAL=Operação->FGRSVCO001.geraLiquidacao")
+;		poCdErro = $xCdErro$
+;		poCtxErro = $xCtxErro$
+;		return(-1)
+;	endif
+;	
+;	if (vDtMovim = 0)
+;		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Data do movimento não informada!", "ADICIONAL=Operação->FGRSVCO001.geraLiquidacao")
+;		poCdErro = $xCdErro$
+;		poCtxErro = $xCtxErro$
+;		return(-1)
+;	endif
+;	
+;	if (vNrSeqMov = 0)
+;		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Sequencia do movimento não informada!", "ADICIONAL=Operação->FGRSVCO001.geraLiquidacao")
+;		poCdErro = $xCdErro$
+;		poCtxErro = $xCtxErro$
+;		return(-1)
+;	endif
+;	
+;	if (vTpLiquidacao = 0)
+;		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Tipo de liquidação não informada!", "ADICIONAL=Operação->FGRSVCO001.geraLiquidacao")
+;		poCdErro = $xCdErro$
+;		poCtxErro = $xCtxErro$
+;		return(-1)
+;	endif
+;	
+;	if (vCdEmpresa = 0)
+;		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Empresa não informada!", "ADICIONAL=Operação->FGRSVCO001.geraLiquidacao")
+;		poCdErro = $xCdErro$
+;		poCtxErro = $xCtxErro$
+;		return(-1)
+;	endif
+;
+;	clear/e "GER_EMPRESASVC"
+;	CD_EMPRESA.GER_EMPRESASVC = vCdEmpresa
+;	retrieve/e "GER_EMPRESASVC"
+;	if ($status < 0)
+;		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Empresa não cadastrada!", "ADICIONAL=Operação->FGRSVCO001.geraLiquidacao")
+;		poCdErro = $xCdErro$
+;		poCtxErro = $xCtxErro$
+;		return(-1)
+;	endif
+;
+;	vNrSeqItem = 1
+;	vVlCheque = 0
+;
+;	clear/e "FCC_MOVSVC"
+;	NR_CTAPES.FCC_MOVSVC = vNrCtaPes
+;	DT_MOVIM.FCC_MOVSVC = vDtMovim
+;	NR_SEQMOV.FCC_MOVSVC = vNrSeqMov
+;	retrieve/e "FCC_MOVSVC"
+;	if ($status < 0)
+;		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Movimentação não encontrada!", "ADICIONAL=Operação->FGRSVCO001.geraLiquidacao")
+;		poCdErro = $xCdErro$
+;		poCtxErro = $xCtxErro$
+;		return(-1)
+;	endif
+;
+;	clear/e "FCC_AUTOCHEQSVC"
+;	NR_CTAPES.FCC_AUTOCHEQSVC = vNrCtaPes
+;	DT_MOVIM.FCC_AUTOCHEQSVC = vDtMovim
+;	NR_SEQMOV.FCC_AUTOCHEQSVC = vNrSeqMov
+;	retrieve/e "FCC_AUTOCHEQSVC"
+;	if ($status < 0)
+;		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Autorização de cheque não encontrada para a movimentação informada!", "ADICIONAL=Operação->FGRSVCO001.geraLiquidacao")
+;		poCdErro = $xCdErro$
+;		poCtxErro = $xCtxErro$
+;		return(-1)
+;	else
+;		vVlCheque = VL_CHEQUE.FCC_AUTOCHEQSVC
+;	endif
+;	
+;	clear/e "FCC_AUTORIZACSVC"
+;	DT_AUTORIZACAO.FCC_AUTORIZACSVC = DT_AUTORIZACAO.FCC_AUTOCHEQSVC
+;	NR_SEQAUTO.FCC_AUTORIZACSVC = NR_SEQAUTO.FCC_AUTOCHEQSVC
+;	retrieve/e "FCC_AUTORIZACSVC"
+;	if ($status < 0)
+;		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Autorização não encontrada para a movimentação informada!", "ADICIONAL=Operação->FGRSVCO001.geraLiquidacao")
+;		poCdErro = $xCdErro$
+;		poCtxErro = $xCtxErro$
+;		return(-1)
+;	endif
+;	;-----------------------------------------------------
+;	;Fim da validação dos Parametros----------------------
+;	;-----------------------------------------------------
+;
+;	;------------------------------------
+;	;Pega parametros---------------------
+;	;------------------------------------
+;	call getParam(vCdEmpresa)
+;	if ($procerror)
+;		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+;		poCdErro = $xCdErro$
+;		poCtxErro = $xCtxErro$
+;		return(-1)
+;	endif                    
+;	if ($status < 0)
+;		$instancehandle->SetErroApl("ERRO=-1·;DESCRICAO=Erro ao carregar parâmetros!", $xCdErro$, $xCtxErro$)
+;		poCdErro = $xCdErro$
+;		poCtxErro = $xCtxErro$
+;		return(-1)
+;	endif
+;	;------------------------------------
+;	;Fim pega parametros-----------------
+;	;------------------------------------
+;	
+;	; MFGALEGO - 01/04/2009 ; SM 22383
+;	;if ($cdDespesaItemJuros$ = 0)
+;	;	$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Seta o Parâmetro por Empresa: CD_DESPESAITEM_JUROS!", "ADICIONAL=Operação->FGRSVCO001.geraLiquidacao")
+;	;	poCdErro = $xCdErro$
+;	;	poCtxErro = $xCtxErro$
+;	;	return(-1)
+;	;endif
+;
+;	;newinstance "GERSVCO011", "GERSVCO011", "TRANSACTION=TRUE"
+;	;activate "GERSVCO011".getNumSeq($xlpg$, "FGR_LIQ", "NR_SEQLIQ", vDtSistema, 999999999, vNrSeqLiq, $xCdErro$, $xCtxerro$)
+;	viParams = ""
+;	putitem/id viParams, "NM_ENTIDADE", "FGR_LIQ"
+;	newinstance "GERSVCO031", "GERSVCO031", "TRANSACTION=TRUE";Evj (04/03/05)
+;	activate "GERSVCO031".getNumSeq($xlpg$, viParams, voParams, $xCdErro$, $xCtxerro$)	
+;	if ($procerror)
+;		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+;		poCdErro = $xCdErro$
+;		poCtxErro = $xCtxErro$
+;		return(-1)  
+;	elseif ($status < 0)
+;		$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")
+;		poCdErro = $xCdErro$
+;		poCtxErro = $xCtxErro$
+;		return(-1)
+;	endif    
+;		
+;	vNrSeqLiq = $item("NR_SEQUENCIA", voParams)
+;	;---------------------------------------------------------------------------------------
+;	;Liquidação para Cheques emitidos através da Transferencia de Conta---------------------
+;	;---------------------------------------------------------------------------------------
+;	if (NR_DUPLICATA.FCC_AUTOPAGSVC = 0) & (NR_CTAPES.FCC_AUTOPAGSVC != 0)
+;		viParams = ""
+;		putitem/id viParams, "CD_EMPRESA", vCdEmpresa
+;		putitem/id viParams, "NR_SEQLIQ", vNrSeqLiq
+;		putitem/id viParams, "NR_SEQITEM", vNrSeqItem
+;		putitem/id viParams, "NR_CTAPES", NR_CTAPES.FCC_AUTORIZACSVC
+;		putitem/id viParams, "TP_LIQUIDACAO", vTpLiquidacao
+;		putitem/id viParams, "VL_PAGAMENTO", VL_CHEQUE.FCC_AUTOCHEQSVC
+;		putitem/id viParams, "VL_TOTAL", VL_CHEQUE.FCC_AUTOCHEQSVC
+;		putitem/id viParams, "CD_FORNECEDOR", CD_PESSOA.FCC_CTAPESSVC
+;		putitem/id viParams, "TP_PAGAMENTO", 4
+;		putitem/id viParams, "DT_LIQ", vDtLiq
+;		$instancehandle->gravaLiquidacao(piGlobal,viParams,voParams,$xCdErro$,$xCtxerro$)
+;		if ($procerror)
+;			$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+;			poCdErro = $xCdErro$
+;			poCtxErro = $xCtxErro$
+;			return (-1)
+;		elseif ($status < 0)
+;			$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")    
+;			poCdErro = $xCdErro$
+;			poCtxErro = $xCtxErro$
+;			return (-1)
+;		endif
+;		vDtLiquidacao = $item("DT_LIQ", voParams)
+;
+;		;-------------------------------------------------------
+;		;Grava liquidação em movimento de Débito ---------------
+;		;-------------------------------------------------------
+;		CD_EMPLIQ.FCC_MOVSVC = $item("CD_EMPLIQ", voParams)
+;		DT_LIQ.FCC_MOVSVC = vDtLiquidacao
+;		NR_SEQLIQ.FCC_MOVSVC = $item("NR_SEQLIQ", voParams)
+;		$collhandle("FCC_MOVSVC")->Salvar()
+;		if ($procerror)
+;			$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+;			poCdErro = $xCdErro$
+;			poCtxErro = $xCtxErro$
+;			return (-1)
+;		elseif ($status < 0)
+;			$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")    
+;			poCdErro = $xCdErro$
+;			poCtxErro = $xCtxErro$
+;			return (-1)
+;		endif					
+;
+;		;-------------------------------------------------------
+;		;Grava liquidação em autorização de cheque -------------
+;		;-------------------------------------------------------
+;		CD_EMPLIQ.FCC_AUTOCHEQSVC = $item("CD_EMPLIQ", voParams)
+;		DT_LIQ.FCC_AUTOCHEQSVC = vDtLiquidacao
+;		NR_SEQLIQ.FCC_AUTOCHEQSVC = $item("NR_SEQLIQ", voParams)
+;		$collhandle("FCC_AUTOCHEQSVC")->Salvar()
+;		if ($procerror)
+;			$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+;			poCdErro = $xCdErro$
+;			poCtxErro = $xCtxErro$
+;			return (-1)
+;		elseif ($status < 0)
+;			$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")
+;			poCdErro = $xCdErro$
+;			poCtxErro = $xCtxErro$
+;			return (-1)
+;		endif
+;	endif
+;	;---------------------------------------------------------------------------------------
+;	;Fim da Liquidação para Cheques emitidos através da Transferencia de Conta--------------
+;	;---------------------------------------------------------------------------------------
+;
+;	;-------------------------------------------------------------
+;	;Liquidação de Cheque para pagamento de Duplicata-------------
+;	;-------------------------------------------------------------
+;	if (NR_DUPLICATA.FCC_AUTOPAGSVC != 0) & (NR_CTAPES.FCC_AUTOPAGSVC = 0)
+;		setocc "FCC_AUTOPAGSVC", 1
+;		while ($status >= 0)
+;			clear/e "FCP_DUPLICATCSVC"
+;			CD_EMPRESA.FCP_DUPLICATCSVC = CD_EMPRESA.FCC_AUTOPAGSVC
+;			CD_FORNECEDOR.FCP_DUPLICATCSVC = CD_FORNECEDOR.FCC_AUTOPAGSVC
+;			NR_DUPLICATA.FCP_DUPLICATCSVC = NR_DUPLICATA.FCC_AUTOPAGSVC
+;			retrieve/e "FCP_DUPLICATCSVC"
+;			if ($status < 0)
+;				$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Duplicata vinculada ao cheque não encontrada!", "ADICIONAL=Operação->FGRSVCO001.geraLiquidacao")
+;				poCdErro = $xCdErro$
+;				poCtxErro = $xCtxErro$
+;				return(-1)
+;			endif
+;
+;			clear/e "FCP_DUPLICATISVC"
+;			CD_EMPRESA.FCP_DUPLICATISVC = CD_EMPRESA.FCC_AUTOPAGSVC
+;			CD_FORNECEDOR.FCP_DUPLICATISVC = CD_FORNECEDOR.FCC_AUTOPAGSVC
+;			NR_DUPLICATA.FCP_DUPLICATISVC = NR_DUPLICATA.FCC_AUTOPAGSVC
+;			NR_PARCELA.FCP_DUPLICATISVC = NR_PARCELA.FCC_AUTOPAGSVC
+;			retrieve/e "FCP_DUPLICATISVC"
+;			if ($status < 0)
+;				$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Parcela da duplicata vinculada ao cheque não encontrada!", "ADICIONAL=Operação->FGRSVCO001.geraLiquidacao")
+;				poCdErro = $xCdErro$
+;				poCtxErro = $xCtxErro$
+;				return(-1)
+;			endif
+;
+;			;while (VL_PAGO.FCP_DUPLICATISVC > 0)
+;			;	vDupEmpresa = CD_EMPRESA.FCP_DUPLICATISVC
+;			;	vDupFornecedor = CD_FORNECEDOR.FCP_DUPLICATISVC
+;			;	vDupDuplicata = NR_DUPLICATA.FCP_DUPLICATISVC
+;			;	vDupParcela	= NR_PARCELA.FCP_DUPLICATISVC
+;			;	clear/e "FCP_DUPLICATISVC"
+;			;	CD_EMPRESA.FCP_DUPLICATISVC = vDupEmpresa
+;			;	CD_FORNECEDOR.FCP_DUPLICATISVC = vDupFornecedor
+;			;	NR_DUPLICATA.FCP_DUPLICATISVC = vDupDuplicata
+;			;	NR_PARORIGINAL.FCP_DUPLICATISVC = vDupParcela
+;			;	retrieve/e "FCP_DUPLICATISVC"
+;			;	if ($status < 0)
+;			;		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Duplicata vinculada ao cheque não encontrada ou tentativa de liquidar uma duplicata já liquidada!", "ADICIONAL=Operação->FGRSVCO001.geraLiquidacao")
+;			;		poCdErro = $xCdErro$
+;			;		poCtxErro = $xCtxErro$
+;			;		return(-1)
+;			;	endif
+;			;endwhile
+;
+;			clear/e "FCP_DUPDESPESSVC"
+;			CD_EMPRESA.FCP_DUPDESPESSVC = CD_EMPRESA.FCP_DUPLICATISVC
+;			CD_FORNECEDOR.FCP_DUPDESPESSVC = CD_FORNECEDOR.FCP_DUPLICATISVC
+;			NR_DUPLICATA.FCP_DUPDESPESSVC = NR_DUPLICATA.FCP_DUPLICATISVC
+;			NR_PARCELA.FCP_DUPDESPESSVC = NR_PARCELA.FCP_DUPLICATISVC
+;			retrieve/e "FCP_DUPDESPESSVC"
+;			if ($status < 0)
+;				$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Duplicata vinculada ao cheque sem despesa!", "ADICIONAL=Operação->FGRSVCO001.geraLiquidacao")
+;				poCdErro = $xCdErro$
+;				poCtxErro = $xCtxErro$
+;				return(-1)
+;			endif
+;			clear/e "FCP_DUPIMPOSTSVC"
+;			CD_EMPRESA.FCP_DUPIMPOSTSVC = CD_EMPRESA.FCP_DUPLICATISVC
+;			CD_FORNECEDOR.FCP_DUPIMPOSTSVC = CD_FORNECEDOR.FCP_DUPLICATISVC
+;			NR_DUPLICATA.FCP_DUPIMPOSTSVC = NR_DUPLICATA.FCP_DUPLICATISVC
+;			NR_PARCELA.FCP_DUPIMPOSTSVC = NR_PARCELA.FCP_DUPLICATISVC
+;			retrieve/e "FCP_DUPIMPOSTSVC"
+;			;HANDREO: 11/03/05 - Não precisa testar status - existem duplicatas sem imposto vinculado
+;
+;			;---------------------------------
+;			;Gera liquidação------------------
+;			;---------------------------------
+;			viParams = ""
+;			putitem/id viParams, "CD_EMPRESA", vCdEmpresa
+;			putitem/id viParams, "NR_SEQLIQ", vNrSeqLiq
+;			putitem/id viParams, "NR_SEQITEM", vNrSeqItem
+;			putitem/id viParams, "NR_CTAPES", NR_CTAPES.FCC_AUTORIZACSVC
+;			putitem/id viParams, "TP_LIQUIDACAO", vTpLiquidacao
+;			putitem/id viParams, "VL_PAGAMENTO", VL_PAGAMENTO.FCC_AUTOPAGSVC
+;			putitem/id viParams, "VL_TOTAL", VL_CHEQUE.FCC_AUTOCHEQSVC
+;			putitem/id viParams, "CD_EMPRESADUP", CD_EMPRESA.FCP_DUPLICATISVC
+;			putitem/id viParams, "CD_FORNECDUP", CD_FORNECEDOR.FCP_DUPLICATISVC
+;			putitem/id viParams, "NR_DUPLICATADUP", NR_DUPLICATA.FCP_DUPLICATISVC
+;			putitem/id viParams, "NR_PARCELADUP", NR_PARCELA.FCP_DUPLICATISVC
+;			putitem/id viParams, "TP_PAGAMENTO", 2
+;			putitem/id viParams, "DT_LIQ", vDtLiq
+;			$instancehandle->gravaLiquidacao(piGlobal,viParams,voParams,$xCdErro$,$xCtxerro$)
+;			if ($procerror)
+;				$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+;				poCdErro = $xCdErro$
+;				poCtxErro = $xCtxErro$
+;				return (-1)
+;			elseif ($status < 0)
+;				$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")    
+;				poCdErro = $xCdErro$
+;				poCtxErro = $xCtxErro$
+;				return (-1)
+;			endif
+;
+;			vDtLiquidacao = $item("DT_LIQ", voParams)
+;
+;			;---------------------------------
+;			;Fim gera liquidação--------------
+;			;---------------------------------
+;
+;			putlistitems/occ vDupOriginal, "FCP_DUPLICATISVC" ;armazena em vDupOrigem o registro contendo a Parcela Original que poderá ser dividida
+;
+;			vVlDif = 0
+;			vVlJuros2 = 0
+;			vDsRegDesp = ""
+;			vDsRegImp = ""
+;
+;			vVlJuros = VL_JUROS.FCC_AUTOPAGSVC
+;;			vVlDuplicata = VL_DUPLICATA.FCP_DUPLICATISVC - VL_DESCONTO.FCC_AUTOPAGSVC + vVlJuros
+;			vVlDuplicata = VL_DUPLICATA.FCP_DUPLICATISVC - VL_DESCONTO.FCC_AUTOPAGSVC	
+;
+;			vVlDif = vVlDuplicata - VL_PAGAMENTO.FCC_AUTOPAGSVC
+;			;MTF(08/04/2008) - Projeto 078, tarefa 1008.
+;			if (vl_imposto.fcp_duplicatisvc > 0) & (in_imposto.fcp_duplicatisvc = <TRUE>)
+;				vVlDif = vVlDuplicata - vl_pagamento.fcc_autopagsvc - vl_imposto.fcp_duplicatisvc
+;			endif
+;			;
+;			if (vVlDif < 0)
+;				vVlJuros2 = vVlDif * (-1)
+;				vVlDif = 0
+;			endif
+;
+;			CD_EMPLIQ.FCP_DUPLICATISVC = vCdEmpresa
+;			DT_LIQ.FCP_DUPLICATISVC = vDtLiquidacao
+;			NR_SEQLIQ.FCP_DUPLICATISVC = vNrSeqLiq
+;			if (vVlDif != 0)
+;				;Projeto 118 - Tarefa 295 - Aloisio + Fornaroli - 24/03/2009
+;				if (vl_imposto.fcp_duplicatisvc > 0) & (in_imposto.fcp_duplicatisvc = <TRUE>) & (vl_duplicata.fcp_duplicatisvc > (vl_pagamento.fcc_autopagsvc + vl_imposto.fcp_duplicatisvc))
+;					vl_duplicata.fcp_duplicatisvc = vl_pagamento.fcc_autopagsvc + vl_imposto.fcp_duplicatisvc
+;				else
+;					VL_DUPLICATA.FCP_DUPLICATISVC = VL_PAGAMENTO.FCC_AUTOPAGSVC
+;				endif
+;			endif
+;				;
+;			VL_PAGO.FCP_DUPLICATISVC = VL_PAGAMENTO.FCC_AUTOPAGSVC
+;			DT_BAIXA.FCP_DUPLICATISVC = $datim
+;			TP_BAIXA.FCP_DUPLICATISVC = 1
+;			CD_OPERBAIXA.FCP_DUPLICATISVC = $item("CD_USUARIO", piGlobal)
+;
+;			if (vVlDif != 0)
+;				VL_DESCONTO.FCP_DUPLICATISVC = 0
+;				VL_JUROS.FCP_DUPLICATISVC = 0
+;			else
+;				VL_DESCONTO.FCP_DUPLICATISVC = VL_DESCONTO.FCC_AUTOPAGSVC
+;				VL_JUROS.FCP_DUPLICATISVC = vVlJuros
+;			endif
+;
+;			if (vVlJuros2 > 0)
+;				VL_JUROS.FCP_DUPLICATISVC = vVlJuros2
+;			endif
+;
+;			viParams = ""
+;			$instancehandle->gravaDuplicata(viParams,voParams,$xCdErro$,$xCtxerro$)
+;			if ($procerror)
+;				$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+;				poCdErro = $xCdErro$
+;				poCtxErro = $xCtxErro$
+;				return (-1)
+;			endif
+;			if ($status < 0)
+;				$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+;				poCdErro = $xCdErro$
+;				poCtxErro = $xCtxErro$
+;				return (-1)
+;			endif
+;			vDsRegDesp = $item("DS_REGDESP", voParams)
+;			vDsRegImp = $item("DS_REGIMP", voParams)
+;
+;			viParams = ""
+;			putitem/id viParams, "CD_EMPRESA", CD_EMPRESA.FCP_DUPLICATISVC
+;			putitem/id viParams, "CD_FORNECEDOR", CD_FORNECEDOR.FCP_DUPLICATISVC
+;			putitem/id viParams, "NR_DUPLICATA", NR_DUPLICATA.FCP_DUPLICATISVC
+;			putitem/id viParams, "NR_PARCELA", NR_PARCELA.FCP_DUPLICATISVC
+;			putitem/id viParams, "TP_ESTAGIO", 90
+;			putitem/id viParams, "TP_BAIXA", 1
+;			activate "FCPSVCO005".alteraEstagioDuplicata($$gParamGlb, viParams, voParams, $xCdErro$, $xCtxErro$)
+;			if ($procerror)       
+;				$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+;				poCdErro = $xCdErro$
+;				poCtxErro = $xCtxErro$
+;				return (-1)
+;			elseif ($status < 0)
+;				$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")
+;				poCdErro = $xCdErro$
+;				poCtxErro = $xCtxErro$
+;				return (-1)
+;			endif
+;
+;			;----------------------------------------
+;			;Grava log duplicata---------------------
+;			;----------------------------------------
+;			viParams = ""
+;			putitem/id viParams, "CD_EMPRESA", CD_EMPRESA.FCP_DUPLICATISVC
+;			putitem/id viParams, "CD_FORNECEDOR", CD_FORNECEDOR.FCP_DUPLICATISVC
+;			putitem/id viParams, "NR_DUPLICATA", NR_DUPLICATA.FCP_DUPLICATISVC
+;			putitem/id viParams, "NR_PARCELA", NR_PARCELA.FCP_DUPLICATISVC
+;			putitem/id viParams, "TP_LOGDUP", 5
+;			putitem/id viParams, "DS_COMPONENTE", "FGRSVCO001"
+;			putitem/id viParams, "DS_OBS", "LIQUIDACAO DA DUPLICATA"
+;			activate "FCPSVCO001".gravaLogDuplicata(piGlobal,viParams,voParams,$xCdErro$,$xCtxErro$)
+;			if ($procerror)
+;				$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+;				poCdErro = $xCdErro$
+;				poCtxErro = $xCtxErro$
+;				return (-1)
+;			endif
+;			if ($status < 0)
+;				$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+;				poCdErro = $xCdErro$
+;				poCtxErro = $xCtxErro$
+;				return (-1)
+;			endif
+;			;----------------------------------------
+;			;Fim grava log duplicata-----------------
+;			;----------------------------------------
+;
+;;			vVlJuros = vVlJuros - VL_OUTROACR.FCP_DUPLICATISVC - VL_ACRESCIMO.FCP_DUPLICATISVC - VL_DESPFIN.FCP_DUPLICATISVC
+;;
+;;			if (vVlDif = 0)
+;;				vVlJuros = 0
+;;			else
+;;				if (vVlDif <= vVlJuros)
+;;					vVlJuros = vVlDif
+;;					vVlDif = 0
+;;				else
+;;					vVlDif = vVlDif - vVlJuros
+;;				endif
+;;			endif
+;
+;			if (vVlDif > 0) ;Se houver diferença de valor entre cheque e duplicata gera uma nova duplicata a partir dessa diferença
+;				clear/e "FCP_DUPLICATISVC"
+;				clear/e "FCP_DUPDESPESSVC"
+;				clear/e "FCP_DUPIMPOSTSVC"
+;
+;				creocc "FCP_DUPLICATISVC", -1
+;				getlistitems/occ vDupOriginal, "FCP_DUPLICATISVC"
+;
+;				viParams = ""
+;				; Projeto 078 - Tarefa 410 - Aloisio Gargantini - 30/04/2007
+;				putitem/id viParams, "TP_PARCELA", 2
+;				;
+;				$instancehandle->geraSeqParcela(viParams,voParams,$xCdErro$,$xCtxerro$)
+;				if ($procerror)
+;					$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+;					poCdErro = $xCdErro$
+;					poCtxErro = $xCtxErro$
+;					return (-1)
+;				endif
+;				vNrParcela = $item("NR_PARCELA", voParams)
+;
+;				VL_DUPLICATA.FCP_DUPLICATISVC = vVlDif
+;				DT_CADASTRO.FCP_DUPLICATISVC = $datim
+;				CD_OPERADOR.FCP_DUPLICATISVC = $item("CD_USUARIO", piGlobal)
+;				TP_INCLUSAO.FCP_DUPLICATISVC = 1
+;				NR_PARORIGINAL.FCP_DUPLICATISVC = NR_PARCELA.FCP_DUPLICATISVC
+;				NR_PARCELA.FCP_DUPLICATISVC = vNrParcela
+;				VL_DESPFIN.FCP_DUPLICATISVC = ""
+;				VL_ABATIMENTO.FCP_DUPLICATISVC = ""
+;				VL_ACRESCIMO.FCP_DUPLICATISVC = ""
+;				VL_OUTROSDESC.FCP_DUPLICATISVC = ""
+;				VL_OUTROACR.FCP_DUPLICATISVC = ""
+;				VL_JUROS.FCP_DUPLICATISVC = ""
+;				VL_DESCONTO.FCP_DUPLICATISVC = ""
+;				TP_ESTAGIO.FCP_DUPLICATISVC = 2 ;Liberado para pagamento
+;
+;				if (vDsRegDesp != "")
+;					repeat
+;						getitem vDsDespesa, vDsRegDesp, 1
+;						creocc "FCP_DUPDESPESSVC", -1
+;						getlistitems/occ vDsDespesa, "FCP_DUPDESPESSVC"
+;						NR_PARCELA.FCP_DUPDESPESSVC = vNrParcela
+;						delitem vDsRegDesp, 1
+;					until (vDsRegDesp = "")    
+;				endif
+;
+;				if (vDsRegImp != "")
+;					repeat
+;						getitem vDsImposto, vDsRegImp, 1
+;						creocc "FCP_DUPIMPOSTSVC", -1
+;						getlistitems/occ vDsImposto, "FCP_DUPIMPOSTSVC"
+;						NR_PARCELA.FCP_DUPIMPOSTSVC = vNrParcela
+;						delitem vDsRegImp, 1
+;					until (vDsRegImp = "")    
+;				endif
+;
+;				viParams = ""
+;				$instancehandle->gravaDuplicata(viParams,voParams,$xCdErro$,$xCtxerro$)
+;				if ($procerror)
+;					$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+;					poCdErro = $xCdErro$
+;					poCtxErro = $xCtxErro$
+;					return (-1)
+;				endif
+;				if ($status < 0)
+;					$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+;					poCdErro = $xCdErro$
+;					poCtxErro = $xCtxErro$
+;					return (-1)
+;				endif
+;			endif
+;
+;			vVlDuplicata = vVlDuplicata + vVlJuros - VL_PAGAMENTO.FCC_AUTOPAGSVC
+;
+;			if (vVlDuplicata = 0)
+;				vVlJuros = 0
+;			endif
+;
+;			if (vVlJuros > 0) ;Se houver valor de juros para o pagamento da Duplicata gera uma nova duplicata a partir desse valor
+;
+;				; MFGALEGO - 01/04/2009 ; SM 22383
+;				if ($cdDespesaItemJuros$ = 0) | ($cdDespesaItemJuros$ = "")
+;					$instancehandle->BuscaDespesa($cdDespesaItemJuros$)
+;					if ($procerror)
+;						$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+;						return(-1)
+;					endif
+;				endif
+;				if ($cdDespesaItemJuros$ = 0)
+;					$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Seta o Parâmetro por Empresa: CD_DESPESAITEM_JUROS!", "ADICIONAL=Operação->FGRSVCO001.geraLiquidacao")
+;					poCdErro = $xCdErro$
+;					poCtxErro = $xCtxErro$
+;					return(-1)
+;				endif
+;				;
+;
+;				clear/e "FCP_DUPLICATISVC"
+;				clear/e "FCP_DUPDESPESSVC"
+;				clear/e "FCP_DUPIMPOSTSVC"
+;
+;				creocc "FCP_DUPLICATISVC", -1
+;				getlistitems/occ vDupOriginal, "FCP_DUPLICATISVC"
+;
+;				viParams = ""
+;				; Projeto 078 - Tarefa 410 - Aloisio Gargantini - 30/04/2007
+;				putitem/id viParams, "TP_PARCELA", 3	
+;				;
+;				$instancehandle->geraSeqParcela(viParams,voParams,$xCdErro$,$xCtxerro$)
+;				if ($procerror)
+;					$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+;					poCdErro = $xCdErro$
+;					poCtxErro = $xCtxErro$
+;					return (-1)
+;				endif
+;				vNrParcela = $item("NR_PARCELA", voParams)
+;
+;				TP_DOCUMENTO.FCP_DUPLICATISVC = 10 ;Juro
+;				VL_DUPLICATA.FCP_DUPLICATISVC = vVlJuros
+;				DT_VENCIMENTO.FCP_DUPLICATISVC = $item("DT_SISTEMA", piGlobal)
+;				DT_CADASTRO.FCP_DUPLICATISVC = $datim
+;				CD_OPERADOR.FCP_DUPLICATISVC = $item("CD_USUARIO", piGlobal)
+;				TP_INCLUSAO.FCP_DUPLICATISVC = 1
+;				NR_PARORIGINAL.FCP_DUPLICATISVC = NR_PARCELA.FCP_DUPLICATISVC
+;				NR_PARCELA.FCP_DUPLICATISVC = vNrParcela
+;				VL_DESPFIN.FCP_DUPLICATISVC = ""
+;				VL_ABATIMENTO.FCP_DUPLICATISVC = ""
+;				VL_ACRESCIMO.FCP_DUPLICATISVC = ""
+;				VL_OUTROSDESC.FCP_DUPLICATISVC = ""
+;				VL_OUTROACR.FCP_DUPLICATISVC = ""
+;				VL_JUROS.FCP_DUPLICATISVC = ""
+;				VL_DESCONTO.FCP_DUPLICATISVC = ""		
+;				VL_MULTA.FCP_DUPLICATISVC = ""
+;				PR_MULTA.FCP_DUPLICATISVC = ""
+;				DT_MULTA.FCP_DUPLICATISVC = ""
+;				TP_ESTAGIO.FCP_DUPLICATISVC = 2 ;Liberado para pagamento
+;
+;				;gerar uma despesa referente ao juros da duplicata que foi paga
+;				creocc "FCP_DUPDESPESSVC", -1
+;				CD_EMPRESA.FCP_DUPDESPESSVC = CD_EMPRESA.FCP_DUPLICATISVC
+;				CD_FORNECEDOR.FCP_DUPDESPESSVC = CD_FORNECEDOR.FCP_DUPLICATISVC
+;				NR_DUPLICATA.FCP_DUPDESPESSVC = NR_DUPLICATA.FCP_DUPLICATISVC
+;				NR_PARCELA.FCP_DUPDESPESSVC = vNrParcela
+;				CD_DESPESAITEM.FCP_DUPDESPESSVC = $cdDespesaItemJuros$
+;				CD_OPERADOR.FCP_DUPDESPESSVC = $item("CD_USUARIO", piGlobal)
+;				DT_CADASTRO.FCP_DUPDESPESSVC = $datim
+;
+;				viParams = ""
+;				$instancehandle->gravaDuplicata(viParams,voParams,$xCdErro$,$xCtxerro$)
+;				if ($procerror)
+;					$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+;					poCdErro = $xCdErro$
+;					poCtxErro = $xCtxErro$
+;					return (-1)
+;				endif
+;				if ($status < 0)
+;					$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+;					poCdErro = $xCdErro$
+;					poCtxErro = $xCtxErro$
+;					return (-1)
+;				endif
+;			endif
+;			vNrSeqItem = vNrSeqItem + 1
+;
+;			setocc "FCC_AUTOPAGSVC", $curocc("FCC_AUTOPAGSVC") + 1
+;		endwhile
+;	endif
+;
+;	poParams = ""
+;	putitem/id poParams, "CD_EMPLIQ", vCdEmpresa
+;	putitem/id poParams, "DT_LIQ", vDtLiquidacao
+;	putitem/id poParams, "NR_SEQLIQ", vNrSeqLiq
+;
+;	return (0)
+;end ;geraLiquidacao
+;
+;-------------------------------
+public operation gravaLiquidacao
+;-------------------------------
+	params
+		string  piGlobal  :IN
+		string  piParams  :IN
+		string  poParams  :OUT
+		numeric poCdErro  :OUT
+		string  poCtxErro :OUT
+	endparams
+
+	variables
+		numeric vCdEmpresa, vNrSeqLiq, vVlPagamento, vVlTotal, vNrSeqItem, vNrCtaPes
+		numeric vCdEmpresaDup, vCdFornecDup, vNrDuplicataDup, vNrParcelaDup, vTpLiquidacao
+		numeric vCdFornecedor, vTpPagamento
+		date vDtSistema
+	endvariables
+
+	vCdEmpresa      = $item("CD_EMPRESA",      piParams)
+	vNrSeqLiq       = $item("NR_SEQLIQ",       piParams)
+	vVlPagamento    = $item("VL_PAGAMENTO",    piParams)
+	vCdEmpresaDup   = $item("CD_EMPRESADUP",   piParams)
+	vCdFornecDup    = $item("CD_FORNECDUP",    piParams)
+	vNrDuplicataDup = $item("NR_DUPLICATADUP", piParams)
+	vNrParcelaDup   = $item("NR_PARCELADUP",   piParams)
+	vNrSeqItem      = $item("NR_SEQITEM",      piParams)
+	vNrCtaPes       = $item("NR_CTAPES",       piParams)
+	vVlTotal        = $item("VL_TOTAL",        piParams)
+	vTpLiquidacao   = $item("TP_LIQUIDACAO",   piParams)
+	vCdFornecedor   = $item("CD_FORNECEDOR",   piParams)
+	vTpPagamento    = $item("TP_PAGAMENTO",    piParams)
+	vDtSistema      = $item("DT_LIQ",          piParams)
+	if (vDtSistema = "")
+		vDtSistema   = $item("DT_SISTEMA",      piGlobal)
+	endif
+
+	;--------------------------------------------
+	;Gravação de Itens da Liquidação e Liquidação
+	;--------------------------------------------
+	creocc "FGR_LIQSVC", -1
+	CD_EMPLIQ.FGR_LIQSVC = vCdEmpresa
+	DT_LIQ.FGR_LIQSVC    = vDtSistema
+	NR_SEQLIQ.FGR_LIQSVC = vNrSeqLiq
+	retrieve/o "FGR_LIQSVC"
+	if ($status = -7)
+		retrieve/x "FGR_LIQSVC"
+	endif
+	CD_OPERADOR.FGR_LIQSVC     = $item("CD_USUARIO", piGlobal)
+	DT_CADASTRO.FGR_LIQSVC     = $datim
+	VL_TOTAL.FGR_LIQSVC        = vVlTotal
+	TP_LIQUIDACAO.FGR_LIQSVC   = vTpLiquidacao
+	CD_GRUPOEMPRESA.FGR_LIQSVC = CD_GRUPOEMPRESA.GER_EMPRESASVC
+	;--Douglas Ferreira - [Prj/Tarefa 180/155] - 14/04/2011
+	if (CD_PESSOA.FGR_LIQSVC = "") & (vCdFornecedor > 0)
+		CD_PESSOA.FGR_LIQSVC = vCdFornecedor
+	endif
+	;
+	creocc "FGR_LIQITEMCCSVC", -1
+	NR_SEQITEM.FGR_LIQITEMCCSVC = vNrSeqItem
+	retrieve/o "FGR_LIQITEMCCSVC"
+	if ($status = -7)
+		retrieve/x "FGR_LIQITEMCCSVC"
+	endif
+
+	NR_CTAPES.FGR_LIQITEMCCSVC = vNrCtaPes
+	if (NR_CTAPES.FGR_LIQITEMCCSVC = "")
+		NR_CTAPES.FGR_LIQITEMCCSVC = '999999999'
+	endif
+
+	VL_PAGAMENTO.FGR_LIQITEMCCSVC = vVlPagamento
+	if (vCdEmpresaDup != 0)
+		CD_EMPRESADUP.FGR_LIQITEMCCSVC   = vCdEmpresaDup
+		CD_FORNECDUP.FGR_LIQITEMCCSVC    = vCdFornecDup
+		NR_DUPLICATADUP.FGR_LIQITEMCCSVC = vNrDuplicataDup
+		NR_PARCELADUP.FGR_LIQITEMCCSVC   = vNrParcelaDup
+	else
+		CD_FORNECEDOR.FGR_LIQITEMCCSVC   = vCdFornecedor
+	endif
+	CD_OPERADOR.FGR_LIQITEMCCSVC        = $item("CD_USUARIO", piGlobal)
+	DT_CADASTRO.FGR_LIQITEMCCSVC        = $datim
+
+	creocc "FGR_LIQITEMCPSVC", -1
+	NR_SEQITEM.FGR_LIQITEMCPSVC = 1
+	retrieve/o "FGR_LIQITEMCPSVC"
+	if ($status = -7)
+		retrieve/x "FGR_LIQITEMCPSVC"
+	endif
+	TP_LIQITEMCP.FGR_LIQITEMCPSVC   = vTpPagamento
+	VL_PAGO.FGR_LIQITEMCPSVC        = vVlTotal
+	NR_CTAPES.FGR_LIQITEMCPSVC      = vNrCtaPes
+	DT_AUTORIZACAO.FGR_LIQITEMCPSVC = DT_AUTORIZACAO.FCC_AUTOCHEQSVC
+	NR_SEQAUTO.FGR_LIQITEMCPSVC     = NR_SEQAUTO.FCC_AUTOCHEQSVC
+	NR_SEQCHEQUE.FGR_LIQITEMCPSVC   = NR_SEQCHEQUE.FCC_AUTOCHEQSVC
+	CD_OPERADOR.FGR_LIQITEMCPSVC    = $item("CD_USUARIO", piGlobal)
+	DT_CADASTRO.FGR_LIQITEMCPSVC    = $datim
+	
+	;BAM - 01/02/05
+	;clear/e "FGR_LIQITEMCRSVC"
+	creocc "FGR_LIQITEMCRSVC", -1
+	nr_seqitem.fgr_liqitemcrsvc  = 1
+	retrieve/o "FGR_LIQITEMCRSVC"
+	if ($status = -7)
+		retrieve/x "FGR_LIQITEMCRSVC"
+	endif
+
+	cd_operador.fgr_liqitemcrsvc = $item("CD_USUARIO", piglobal)
+	dt_cadastro.fgr_liqitemcrsvc = $datim
+
+	$collhandle("FGR_LIQSVC")->Salvar()
+	if ($procerror)
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return (-1)
+	elseif ($status < 0)
+		$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")    
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return (-1)
+	endif									
+
+	;--------------------------------------------
+	;Grava no autocheque a liquidação gerada
+	;--------------------------------------------
+	CD_EMPLIQ.FCC_AUTOCHEQSVC = vCdEmpresa
+	DT_LIQ.FCC_AUTOCHEQSVC    = vDtSistema
+	NR_SEQLIQ.FCC_AUTOCHEQSVC = vNrSeqLiq
+	$collhandle("FCC_AUTOCHEQSVC")->Salvar()
+	if ($procerror)
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return (-1)
+	elseif ($status < 0)
+		$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")    
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return (-1)
+	endif			
+
+	putitem/id poParams, "CD_EMPLIQ", vCdEmpresa
+	putitem/id poParams, "DT_LIQ",    vDtSistema
+	putitem/id poParams, "NR_SEQLIQ", vNrSeqLiq
+
+	return (0)						
+end ;gravaLiquidacao
+;------------------------------
+public operation gravaLiqCartao
+;------------------------------
+;	BAM - 06/04/05
+; 	Utilizando uma liq já existente gerar:
+;	- 01 liqitemcc 
+;	- 01 liqitemcp
+;	Recebe as informações de uma duplicata
+;	Utilizado na baixa de cartão de crédito - chamada FCRFP026
+;-------------------------------------------------------------
+	params
+		string piGlobal : IN
+		string piParams : IN
+		string poParams : OUT
+		numeric poCdErro :OUT
+		string poCtxErro :OUT
+	endparams
+	variables
+		numeric vCdEmpresa, vNrSeqLiq, vVlPagamento, vVlTotal, vNrSeqItem, vNrCtaPes,vCdEmpLiq
+		numeric vCdEmpresaDup, vCdFornecDup, vNrDuplicataDup, vNrParcelaDup, vTpLiquidacao
+		numeric vCdFornecedor, vTpPagamento
+		date vDtSistema, vDtLiq
+	endvariables
+	vCdEmpresa 		= $item("CD_EMPRESA", piParams)
+	vCdEmpLiq 		= $item("CD_EMPLIQ", piParams)
+	vDtLiq 			= $item("DT_LIQ", piParams)
+	vNrSeqLiq 		= $item("NR_SEQLIQ", piParams)
+	vVlPagamento 	= $item("VL_PAGAMENTO", piParams)
+	vCdEmpresaDup 	= $item("CD_EMPRESADUP", piParams)
+	vCdFornecDup 	= $item("CD_FORNECDUP", piParams)
+	vNrDuplicataDup = $item("NR_DUPLICATADUP", piParams)
+	vNrParcelaDup 	= $item("NR_PARCELADUP", piParams)
+	vNrSeqItem 		= $item("NR_SEQITEM", piParams)
+	vNrCtaPes 		= $item("NR_CTAPES", piParams)
+	vVlTotal 		= $item("VL_TOTAL", piParams)
+	vTpLiquidacao 	= $item("TP_LIQUIDACAO", piParams)
+	vCdFornecedor 	= $item("CD_FORNECEDOR", piParams)
+	vTpPagamento 	= $item("TP_PAGAMENTO", piParams)
+	vDtSistema 		= $item("DT_SISTEMA", piGlobal)
+	;BAM - 10/06/05 não gerar nova liq. usar a mesma ja existente
+	clear/e "FGR_LIQSVC"
+	cd_empliq.fgr_liqsvc/init  	= vCdEmpLiq 
+	dt_liq.fgr_liqsvc/init  	= vDtLiq
+	nr_seqliq.fgr_liqsvc/init  	= vNrSeqLiq
+	retrieve/e "FGR_LIQSVC" 
+	
+	creocc "FGR_LIQITEMCCSVC", -1
+	NR_SEQITEM.FGR_LIQITEMCCSVC 		= vNrSeqItem
+	retrieve/o "FGR_LIQITEMCCSVC"
+	if ($status = -7)
+		retrieve/x "FGR_LIQITEMCCSVC"
+	endif
+	NR_CTAPES.FGR_LIQITEMCCSVC 			= vNrCtaPes
+	VL_PAGAMENTO.FGR_LIQITEMCCSVC 		= vVlPagamento
+	if (vCdEmpresaDup != 0)
+		CD_EMPRESADUP.FGR_LIQITEMCCSVC 	= vCdEmpresaDup
+		CD_FORNECDUP.FGR_LIQITEMCCSVC	= vCdFornecDup
+		NR_DUPLICATADUP.FGR_LIQITEMCCSVC = vNrDuplicataDup
+		NR_PARCELADUP.FGR_LIQITEMCCSVC 	= vNrParcelaDup
+	else
+		CD_FORNECEDOR.FGR_LIQITEMCCSVC 	= vCdFornecedor
+	endif
+	CD_OPERADOR.FGR_LIQITEMCCSVC 		= $item("CD_USUARIO", piGlobal)
+	DT_CADASTRO.FGR_LIQITEMCCSVC 		= $datim
+
+	creocc "FGR_LIQITEMCPSVC", -1
+	NR_SEQITEM.FGR_LIQITEMCPSVC 		= vNrSeqItem
+	retrieve/o "FGR_LIQITEMCPSVC"
+	if ($status = -7)
+		retrieve/x "FGR_LIQITEMCPSVC"
+	endif
+	TP_LIQITEMCP.FGR_LIQITEMCPSVC 		= vTpPagamento
+	VL_PAGO.FGR_LIQITEMCPSVC 			= vVlTotal
+	NR_CTAPES.FGR_LIQITEMCPSVC 			= vNrCtaPes
+	DT_AUTORIZACAO.FGR_LIQITEMCPSVC 	= DT_AUTORIZACAO.FCC_AUTOCHEQSVC
+	NR_SEQAUTO.FGR_LIQITEMCPSVC 		= NR_SEQAUTO.FCC_AUTOCHEQSVC
+	NR_SEQCHEQUE.FGR_LIQITEMCPSVC 		= NR_SEQCHEQUE.FCC_AUTOCHEQSVC
+	CD_OPERADOR.FGR_LIQITEMCPSVC		= $item("CD_USUARIO", piGlobal)
+	DT_CADASTRO.FGR_LIQITEMCPSVC 		= $datim
+	
+	$collhandle("FGR_LIQSVC")->Salvar()
+	if ($procerror)
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return (-1)
+	elseif ($status < 0)
+		$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")    
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return (-1)
+	endif									
+	return (0)						
+end ;gravaLiqCartao
+
+
+;------------------------------
+public operation calculaDespImp
+;------------------------------
+	params
+		string  piParams  :IN
+		string  poParams  :OUT
+		numeric poCdErro  :OUT
+		string  poCtxErro :OUT
+	endparams
+	variables
+		numeric vValor, vVlTotal, vVlDif, vVlBaseCalcImp
+		string  viParams, voParams
+	endvariables
+	vValor = VL_DUPLICATA.FCP_DUPLICATISVC - vl_abatimento.fcp_duplicatisvc - vl_indenizacao.fcp_duplicatisvc
+	
+	;----------------------------------
+	;Recalcula Despesa
+	;----------------------------------
+	vVlTotal = 0
+	if ($empty (FCP_DUPDESPESSVC) = 0)
+		setocc "FCP_DUPDESPESSVC", -1
+		setocc "FCP_DUPDESPESSVC", 1
+		
+		while ($status >= 0) & (cd_despesaitem.fcp_dupdespessvc > 0)
+			VL_RATEIO.FCP_DUPDESPESSVC = (vValor * PR_RATEIO.FCP_DUPDESPESSVC) / 100
+			VL_RATEIO.FCP_DUPDESPESSVC = VL_RATEIO.FCP_DUPDESPESSVC[round, 2]
+			vVlTotal = vVlTotal + vl_rateio.fcp_dupdespessvc
+			;pr_rateio.fcp_dupdespessvc = (vl_rateio.fcp_dupdespessvc[round, 2] / vl_duplicata.fcp_duplicatisvc) * 100  ;
+			
+			setocc "FCP_DUPDESPESSVC", $curocc("FCP_DUPDESPESSVC") + 1
+		endwhile
+		
+		if (vValor != vVlTotal)
+			vVlDif = vValor - vVlTotal
+			setocc "FCP_DUPDESPESSVC", -1
+			vl_rateio.fcp_dupdespessvc = vl_rateio.fcp_dupdespessvc + vVlDif
+			pr_rateio.fcp_dupdespessvc = (vl_rateio.fcp_dupdespessvc[round, 2] / vl_duplicata.fcp_duplicatisvc) * 100
+		endif
+		;
+	endif
+	
+	;----------------------------------
+	;Recalcula Imposto
+	;----------------------------------
+
+	;MARTINEZ - PRJ/TAR 186/220 - 11/10/2011
+	;vVlBaseCalcImp = ((VL_DUPLICATA.FCP_DUPLICATISVC - VL_ABATIMENTO.FCP_DUPLICATISVC) * PR_BASECALCIMP.FCP_DUPLICATISVC) / 100
+
+	viParams = ""
+	putitem/id viParams, "CD_EMPRESA",    CD_EMPRESA.FCP_DUPLICATISVC
+	putitem/id viParams, "CD_FORNECEDOR", CD_FORNECEDOR.FCP_DUPLICATISVC
+	putitem/id viParams, "NR_DUPLICATA",  NR_DUPLICATA.FCP_DUPLICATISVC
+	putitem/id viParams, "NR_PARCELA",    NR_PARCELA.FCP_DUPLICATISVC
+	activate "FCPSVCO003".calculaBaseCalcImp($$gParamGlb, viParams, voParams, $xCdErro$, $xCtxErro$)
+	if ($procerror)
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	elseif ($status < 0)
+		$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")    
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	vVlBaseCalcImp = ($item("VL_BASECALCIMP", voParams) * PR_BASECALCIMP.FCP_DUPLICATISVC) / 100
+	vVlBaseCalcImp = vVlBaseCalcImp[round, 2]
+	;
+	if ($empty (FCP_DUPIMPOSTSVC) = 0)
+		setocc "FCP_DUPIMPOSTSVC", -1
+		setocc "FCP_DUPIMPOSTSVC", 1
+		while ($status >= 0) & (cd_imposto.fcp_dupimpostsvc > 0)
+			if (TP_SITUACAO.FCP_DUPIMPOSTSVC = 0) ;MARTINEZ - PRJ/TAR 186/188 - 17/08/2011
+				VL_IMPOSTO.FCP_DUPIMPOSTSVC = (vVlBaseCalcImp * PR_ALIQUOTA.FCP_DUPIMPOSTSVC) / 100
+				VL_IMPOSTO.FCP_DUPIMPOSTSVC = VL_IMPOSTO.FCP_DUPIMPOSTSVC[round, 2]
+			endif
+			
+			setocc "FCP_DUPIMPOSTSVC", $curocc("FCP_DUPIMPOSTSVC") + 1
+		endwhile
+	endif
+	
+	return (0)
+end ;calculaDespImp
+
+
+;------------------------------
+public operation geraSeqParcela
+;------------------------------
+	params
+		string  piParams  :IN
+		string  poParams  :OUT
+		numeric poCdErro  :OUT
+		string  poCtxErro :OUT
+	endparams
+	
+	variables
+		numeric vCdEmpresa, vCdFornecedor, vNrDuplicata, vNrParcela, vNrParcelaIni, vNrParcelaFim, vTpParcela
+	endvariables
+
+
+	vCdEmpresa = CD_EMPRESA.FCP_DUPLICATISVC
+	vCdFornecedor = CD_FORNECEDOR.FCP_DUPLICATISVC
+	vNrDuplicata = NR_DUPLICATA.FCP_DUPLICATISVC
+	selectdb max(NR_PARCELA) %\
+		from "FCP_DUPLICATISVC" %\
+		u_where (CD_EMPRESA.FCP_DUPLICATISVC = vCdEmpresa & %\
+		CD_FORNECEDOR.FCP_DUPLICATISVC = vCdFornecedor & %\
+		NR_DUPLICATA.FCP_DUPLICATISVC = vNrDuplicata) %\
+		to vNrParcela
+	
+	if (vNrParcela >= 200)
+		vNrParcela = vNrParcela + 1
+	else
+		vNrParcela = 200
+	endif
+
+	poParams = ""
+	putitem/id poParams, "NR_PARCELA", vNrParcela
+
+	return (0)
+
+	; Projeto 078 - Tarefa 410 - Aloisio Gargantini - 30/04/2007
+;	vTpParcela = $item("TP_PARCELA", piParams)
+;	if (vTpParcela = "")
+;		vTpParcela = 1
+;	endif
+	
+	; vTpParcela
+	; 1 - Normal
+	; 2 - Parcela parcial
+	; 3 - Juros
+	; 4 - Despesas cartorio
+	; 5 - Desconto
+
+;	selectcase vTpParcela
+;	   	case 1
+;			vNrParcelaIni = 001
+;			vNrParcelaFim = 099
+;	   	case 2
+;			vNrParcelaIni = 100
+;			vNrParcelaFim = 199
+;	   	case 3
+;			vNrParcelaIni = 200
+;			vNrParcelaFim = 299
+;	   	case 4
+;			vNrParcelaIni = 300
+;			vNrParcelaFim = 399
+;	   	case 5
+;			vNrParcelaIni = 400
+;			vNrParcelaFim = 499
+;		elsecase
+;			vNrParcelaIni = 001
+;			vNrParcelaFim = 099
+;	endselectcase
+	;
+	
+;	vCdEmpresa = CD_EMPRESA.FCP_DUPLICATISVC
+;	vCdFornecedor = CD_FORNECEDOR.FCP_DUPLICATISVC
+;	vNrDuplicata = NR_DUPLICATA.FCP_DUPLICATISVC
+;	selectdb max(NR_PARCELA) %\
+;		from "FCP_DUPLICATISVC" %\
+;		u_where (CD_EMPRESA.FCP_DUPLICATISVC = vCdEmpresa & %\
+;		CD_FORNECEDOR.FCP_DUPLICATISVC = vCdFornecedor    & %\
+;		NR_DUPLICATA.FCP_DUPLICATISVC  = vNrDuplicata     & %\
+;       NR_PARCELA.FCP_DUPLICATISVC   >= vNrParcelaIni    & %\
+;       NR_PARCELA.FCP_DUPLICATISVC   <= vNrParcelaFim )    %\
+;		to vNrParcela
+	
+;	poParams = ""
+;	putitem/id poParams, "NR_PARCELA", vNrParcela
+
+;	return (0)
+end ;geraSeqParcela
+
+;------------------------------
+public operation gravaDuplicata
+;------------------------------
+	params
+		string piParams : IN
+		string poParams : OUT
+		numeric poCdErro :OUT
+		string poCtxErro :OUT
+	endparams
+
+	variables
+		string viParams, voParams
+		string vDsLinha, vDsRegImp, vDsRegDesp, vDsLinhaDesp, vDsLinhaImp
+		numeric vVlTotalRateio, vPrTotalRateio, vVlValor, vVlDiferenca
+	endvariables
+
+	viParams = ""
+	$instancehandle->calculaDespImp(viParams,voParams,$xCdErro$,$xCtxerro$)
+	if ($procerror)
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return (-1)
+	endif
+
+	vDsLinha = ""
+	vDsRegDesp = ""
+	vDsRegImp = ""
+	vDsLinha = ""
+	putlistitems/occ vDsLinha, "FCP_DUPLICATISVC"
+
+	;Projeto 078 - Tarefa 3487 - Aloisio Gargantini - 11/06/2010
+	;arredondamento valor e percentual de despesa.
+	if (!$empty(FCP_DUPDESPESSVC))
+		vVlValor = VL_DUPLICATA.FCP_DUPLICATISVC - VL_ABATIMENTO.FCP_DUPLICATISVC - VL_INDENIZACAO.FCP_DUPLICATISVC
+		setocc "FCP_DUPDESPESSVC", 1
+		while ($status >= 0)
+			if (PR_RATEIO.FCP_DUPDESPESSVC != "")
+				VL_RATEIO.FCP_DUPDESPESSVC = (vVlValor * PR_RATEIO.FCP_DUPDESPESSVC) / 100
+				VL_RATEIO.FCP_DUPDESPESSVC = VL_RATEIO.FCP_DUPDESPESSVC[round,2]
+				vVlTotalRateio = vVlTotalRateio + VL_RATEIO.FCP_DUPDESPESSVC
+				vPrTotalRateio = vPrTotalRateio + PR_RATEIO.FCP_DUPDESPESSVC
+			endif
+			setocc "FCP_DUPDESPESSVC", $curocc("FCP_DUPDESPESSVC") + 1
+		endwhile
+		;acerto valor
+		if (vVlTotalRateio > vVlValor)
+			vVlDiferenca = vVlTotalRateio - vVlValor
+			VL_RATEIO.FCP_DUPDESPESSVC = VL_RATEIO.FCP_DUPDESPESSVC - vVlDiferenca
+		endif
+		if (vVlTotalRateio < vVlValor)
+			vVlDiferenca = vVlValor - vVlTotalRateio
+			VL_RATEIO.FCP_DUPDESPESSVC = VL_RATEIO.FCP_DUPDESPESSVC + vVlDiferenca
+		endif
+		;acerto percentual permite uma variação de 0,000002 %
+		if (vPrTotalRateio > 100)
+			vVlDiferenca = vPrTotalRateio - 100
+			PR_RATEIO.FCP_DUPDESPESSVC = PR_RATEIO.FCP_DUPDESPESSVC - vVlDiferenca
+		endif
+		if (vPrTotalRateio < 100)
+			vVlDiferenca = 100 - vPrTotalRateio
+			PR_RATEIO.FCP_DUPDESPESSVC = PR_RATEIO.FCP_DUPDESPESSVC + vVlDiferenca
+		endif		
+	endif
+	;
+	setocc "FCP_DUPDESPESSVC", -1            
+	setocc "FCP_DUPDESPESSVC", 1            
+	if ($empty (FCP_DUPDESPESSVC) = 0) ;entrar somente se houver despesa relacionada evj (04/03/05)
+		while ($status >= 0) & (cd_despesaitem.fcp_dupdespessvc > 0)
+			putlistitems/occ vDsLinhaDesp, "FCP_DUPDESPESSVC"
+			putitem vDsRegDesp, -1, vDsLinhaDesp
+			setocc "FCP_DUPDESPESSVC", $curocc("FCP_DUPDESPESSVC") + 1
+		endwhile
+	endif
+
+	setocc "FCP_DUPIMPOSTSVC", -1            
+	setocc "FCP_DUPIMPOSTSVC", 1            
+	if ($empty (FCP_DUPIMPOSTSVC) = 0) ;entrar somente se houver imposto relacionado evj (04/03/05)
+		while ($status >= 0) & (CD_IMPOSTO.FCP_DUPIMPOSTSVC != 0)
+			putlistitems/occ vDsLinhaImp, "FCP_DUPIMPOSTSVC"
+			putitem vDsRegImp, -1, vDsLinhaImp
+			setocc "FCP_DUPIMPOSTSVC", $curocc("FCP_DUPIMPOSTSVC") + 1
+		endwhile
+	endif
+
+	putitem/id vDsLinha, "DS_DUPDESPESA", vDsRegDesp
+	putitem/id vDsLinha, "DS_DUPIMPOSTO", vDsRegImp
+
+	viParams = ""
+	putitem/id viParams, "DS_DUPLICATAI", vDsLinha
+	putitem/id viParams, "DS_COMPONENTE", "FGRSVCO001"
+	activate "FCPSVCO001".geraDuplicata($$gParamGlb, viParams, voParams, $xCdErro$, $xCtxErro$)
+	if ($procerror)       
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return (-1)
+	elseif ($status < 0)
+		$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return (-1)
+	endif
+
+	putitem/id poParams, "DS_REGDESP", vDsRegDesp
+	putitem/id poParams, "DS_REGIMP", vDsRegImp
+
+	return (0)
+end ;gravaDuplicata
+
+;---------------------------------
+public operation cancelaLiquidacao
+;---------------------------------
+	params
+		string piGlobal :IN
+		string piParams :IN
+		string poParams :OUT
+		numeric poCdErro :OUT
+		string poCtxErro :OUT
+	endparams
+	variables
+		date vDtLiq
+		numeric vCdEmpLiq, vNrSeqLiq, vTpEstagio
+		string  vpiParams, vpoParams
+	endvariables
+
+	vCdEmpLiq = $item("CD_EMPLIQ", piParams)
+	vDtLiq = $item("DT_LIQ", piParams)
+	vNrSeqLiq = $item("NR_SEQLIQ", piParams)
+	vTpEstagio = $item("TP_ESTAGIO", piParams)
+
+	if (vCdEmpLiq = 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Empresa da liquidação não informada!", "ADICIONAL=Operação->FGRSVCO001.geraLiquidacao")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+
+	if (vDtLiq = "")
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Data da liquidação não informada!", "ADICIONAL=Operação->FGRSVCO001.geraLiquidacao")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+
+	if (vNrSeqLiq = 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Sequência da liquidação não informada!", "ADICIONAL=Operação->FGRSVCO001.geraLiquidacao")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+
+	clear/e "FGR_LIQSVC"
+	CD_EMPLIQ.FGR_LIQSVC = vCdEmpLiq
+	DT_LIQ.FGR_LIQSVC = vDtLiq
+	NR_SEQLIQ.FGR_LIQSVC = vNrSeqLiq
+	retrieve/e "FGR_LIQSVC"
+	if ($status < 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Liquidação não encontrada!", "ADICIONAL=Operação->FGRSVCO001.geraLiquidacao")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+
+	DT_CANCELAMENTO.FGR_LIQSVC = $datim
+	CD_OPERCANCEL.FGR_LIQSVC = $item("CD_USUARIO", piGlobal)
+
+	$collhandle("FGR_LIQSVC")->Salvar()
+	if ($procerror)
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return (-1)
+	elseif ($status < 0)
+		$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")    
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return (-1)
+	endif									
+
+	clear/e "FCP_DUPLICATISVC"
+	CD_EMPLIQ.FCP_DUPLICATISVC/init = vCdEmpLiq
+	DT_LIQ.FCP_DUPLICATISVC/init    = vDtLiq
+	NR_SEQLIQ.FCP_DUPLICATISVC/init = vNrSeqLiq
+	retrieve/e "FCP_DUPLICATISVC"
+	if ($status >= 0)
+		setocc "FCP_DUPLICATISVC", 1
+		while ($status >= 0)
+			
+			;Projeto 078 - Tarefa 3323 - Aloisio Gargantini - 16/04/2010
+			vpiParams = ""
+			putitem/id vpiParams, "CD_EMPRESA",     CD_EMPRESA.FCP_DUPLICATISVC
+			putitem/id vpiParams, "CD_FORNECEDOR",  CD_FORNECEDOR.FCP_DUPLICATISVC
+			putitem/id vpiParams, "NR_DUPLICATA",   NR_DUPLICATA.FCP_DUPLICATISVC
+			putitem/id vpiParams, "NR_PARCELA",     NR_PARCELA.FCP_DUPLICATISVC
+			putitem/id vpiParams, "IN_CANCELARDUP", <TRUE>
+			$instancehandle->validarParcial(piGlobal, vpiParams, vpoParams, $xCdErro$, $xCtxErro$)
+			if ($procerror)
+				$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+				poCdErro = $xCdErro$
+				poCtxErro = $xCtxErro$
+				return (-1)
+			elseif ($status < 0)
+				$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")
+				poCdErro = $xCdErro$
+				poCtxErro = $xCtxErro$
+				return (-1)
+			endif
+			;
+			if ($item("VL_DUPLICATA", vpoParams) > 0)
+				VL_DUPLICATA.FCP_DUPLICATISVC = VL_DUPLICATA.FCP_DUPLICATISVC + $item("VL_DUPLICATA", vpoParams)
+			endif
+			CD_EMPLIQ.FCP_DUPLICATISVC 		= 0
+
+			; MFGALEGO / 12/02/2009
+			if ($status = -10) | ($status = -11)
+				$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Registro da duplicata bloqueado por outro usuário!", "ADICIONAL=Operação->FGRSVCO001.cancelaLiquidacao / FCP_DUPLICATAI")
+				poCdErro = $xCdErro$
+				poCtxErro = $xCtxErro$
+				rollback
+				return(-1)
+			endif
+			;
+
+			;Projeto 078 - Tarefa 3316 - Aloisio Gargantini - 20/04/2010
+			CD_EMPLIQ.FCP_DUPLICATISVC     = ""
+			DT_LIQ.FCP_DUPLICATISVC        = ""	
+			;NR_SEQLIQ.FCP_DUPLICATISVC     = 0
+			NR_SEQLIQ.FCP_DUPLICATISVC     = ""
+			;
+			IN_AUTORIZADO.FCP_DUPLICATISVC = <false>
+			TP_ESTAGIO.FCP_DUPLICATISVC    = vTpEstagio
+			TP_SITUACAO.FCP_DUPLICATISVC   = "N"
+			TP_BAIXA.FCP_DUPLICATISVC      = 0
+			CD_OPERBAIXA.FCP_DUPLICATISVC  = ""
+			DT_BAIXA.FCP_DUPLICATISVC      = ""
+			VL_PAGO.FCP_DUPLICATISVC       = 0
+			VL_JUROS.FCP_DUPLICATISVC      = 0
+			VL_DESCONTO.FCP_DUPLICATISVC   = 0
+			CD_OPERADOR.FCP_DUPLICATISVC   = $item("CD_USUARIO", piGlobal)
+			DT_CADASTRO.FCP_DUPLICATISVC   = $datim
+			;Projeto 078 - Tarefa 3707 - Aloisio Gargantini - 06/09/2010
+			VL_PGTOMULTA.FCP_DUPLICATISVC  = ""
+			;
+			$collhandle("FCP_DUPLICATISVC")->Salvar()
+			if ($procerror)
+				$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+				poCdErro = $xCdErro$
+				poCtxErro = $xCtxErro$
+				return (-1)
+			elseif ($status < 0)
+				$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")    
+				poCdErro = $xCdErro$
+				poCtxErro = $xCtxErro$
+				return (-1)
+			endif
+			
+			vpiParams = ""
+			putitem/id vpiParams, "CD_EMPRESA",    CD_EMPRESA.FCP_DUPLICATISVC
+			putitem/id vpiParams, "CD_FORNECEDOR", CD_FORNECEDOR.FCP_DUPLICATISVC
+			putitem/id vpiParams, "NR_DUPLICATA",  NR_DUPLICATA.FCP_DUPLICATISVC
+			putitem/id vpiParams, "NR_PARCELA",    NR_PARCELA.FCP_DUPLICATISVC
+			activate "FCPSVCO005".calculaValorDespesa(piGlobal, vpiParams, vpoParams, $xCdErro$, $xCtxErro$)
+			if ($procerror)
+				$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+				poCdErro = $xCdErro$
+				poCtxErro = $xCtxErro$
+				return (-1)
+			elseif ($status < 0)
+				$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")    
+				poCdErro = $xCdErro$
+				poCtxErro = $xCtxErro$
+				return (-1)
+			endif
+			
+			setocc "FCP_DUPLICATISVC", $curocc("FCP_DUPLICATISVC") + 1
+		endwhile
+	endif
+
+	return (0)
+end ;cancelaLiquidacao
+
+
+;-------------------------------------
+public operation cancelaAutorizacaoDup
+;-------------------------------------------------------------------------
+; BAM - 06/07/05 cancela a autorizacao da duplicata que não foi liquidada
+;-------------------------------------------------------------------------
+	params
+		string piGlobal :IN
+		string piParams :IN
+		string poParams :OUT
+		numeric poCdErro :OUT
+		string poCtxErro :OUT
+	endparams
+	variables
+		numeric vCdEmpresa, vCdFornecedor, vNrDuplicata, vNrParcela, vTpEstagio
+		string  vpiParams, vpoParams
+	endvariables
+
+	vCdEmpresa 		= $item("CD_EMPRESA", piParams)
+	vCdFornecedor 	= $item("CD_FORNECEDOR", piParams)
+	vNrDuplicata 	= $item("NR_DUPLICATA", piParams)
+	vNrParcela 		= $item("NR_PARCELA", piParams)
+	vTpEstagio 		= $item("TP_ESTAGIO", piParams)
+	if (vCdEmpresa = 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Empresa da duplicata não informada!", "ADICIONAL=Operação->FGRSVCO001.cancelaAutorizacaoDup")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	if (vCdFornecedor = "")
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Fornecedor da duplicata não informado!", "ADICIONAL=Operação->FGRSVCO001.cancelaAutorizacaoDup")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	if (vNrDuplicata = 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Número da duplicata não informado!", "ADICIONAL=Operação->FGRSVCO001.cancelaAutorizacaoDup")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	if (vNrParcela = 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Número da parcela não informado!", "ADICIONAL=Operação->FGRSVCO001.cancelaAutorizacaoDup")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	clear/e "FCP_DUPLICATISVC"
+	cd_empresa.fcp_duplicatisvc/init    = vCdEmpresa
+	cd_fornecedor.fcp_duplicatisvc/init = vCdFornecedor
+	nr_duplicata.fcp_duplicatisvc/init  = vNrDuplicata
+	nr_parcela.fcp_duplicatisvc/init    = vNrParcela
+	retrieve/e "FCP_DUPLICATISVC"
+	if ($status >= 0)
+		;Projeto 078 - Tarefa 3323 - Aloisio Gargantini - 16/04/2010
+		vpiParams = ""
+		putitem/id vpiParams, "CD_EMPRESA",     CD_EMPRESA.FCP_DUPLICATISVC
+		putitem/id vpiParams, "CD_FORNECEDOR",  CD_FORNECEDOR.FCP_DUPLICATISVC
+		putitem/id vpiParams, "NR_DUPLICATA",   NR_DUPLICATA.FCP_DUPLICATISVC
+		putitem/id vpiParams, "NR_PARCELA",     NR_PARCELA.FCP_DUPLICATISVC
+		putitem/id vpiParams, "IN_CANCELARDUP", <TRUE>
+		$instancehandle->validarParcial(piGlobal, vpiParams, vpoParams, $xCdErro$, $xCtxErro$)
+		if ($procerror)
+			$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+			poCdErro = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return (-1)
+		elseif ($status < 0)
+			$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")
+			poCdErro = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return (-1)
+		endif
+		;
+		CD_EMPLIQ.FCP_DUPLICATISVC 		= 0
+		DT_LIQ.FCP_DUPLICATISVC 		= ""
+		NR_SEQLIQ.FCP_DUPLICATISVC 		= 0
+		IN_AUTORIZADO.FCP_DUPLICATISVC 	= <false>
+		TP_ESTAGIO.FCP_DUPLICATISVC 	= vTpEstagio
+		TP_SITUACAO.FCP_DUPLICATISVC 	= "N"
+		TP_BAIXA.FCP_DUPLICATISVC 		= 0
+		CD_OPERBAIXA.FCP_DUPLICATISVC 	= ""
+		DT_BAIXA.FCP_DUPLICATISVC 		= ""
+		VL_PAGO.FCP_DUPLICATISVC 		= 0
+		VL_JUROS.FCP_DUPLICATISVC 		= 0
+		VL_DESCONTO.FCP_DUPLICATISVC 	= 0
+		CD_OPERADOR.FCP_DUPLICATISVC    = $item("CD_USUARIO", piGlobal)
+		DT_CADASTRO.FCP_DUPLICATISVC    = $datim
+		;Projeto 078 - Tarefa 3707 - Aloisio Gargantini - 06/09/2010
+		VL_PGTOMULTA.FCP_DUPLICATISVC   = ""
+		;
+		$collhandle("FCP_DUPLICATISVC")->Salvar()
+		if ($procerror)
+			$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+			poCdErro = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return (-1)
+		elseif ($status < 0)
+			$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")    
+			poCdErro = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return (-1)
+		endif
+		
+		vpiParams = ""
+		putitem/id vpiParams, "CD_EMPRESA",    CD_EMPRESA.FCP_DUPLICATISVC
+		putitem/id vpiParams, "CD_FORNECEDOR", CD_FORNECEDOR.FCP_DUPLICATISVC
+		putitem/id vpiParams, "NR_DUPLICATA",  NR_DUPLICATA.FCP_DUPLICATISVC
+		putitem/id vpiParams, "NR_PARCELA",    NR_PARCELA.FCP_DUPLICATISVC
+		activate "FCPSVCO005".calculaValorDespesa(piGlobal, vpiParams, vpoParams, $xCdErro$, $xCtxErro$)
+		if ($procerror)
+			$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+			poCdErro = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return (-1)
+		elseif ($status < 0)
+			$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")    
+			poCdErro = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return (-1)
+		endif
+	else
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Duplicata não localizada!", "ADICIONAL=Operação->FGRSVCO001.cancelaAutorizacaoDup")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	
+	return (0)
+end ;cancelaAutorizacaoDup
+
+
+;------------------------------------
+public operation autorizacaoDeCheque
+;------------------------------------
+	params
+		string  piGlobal  :IN
+		string  piParams  :IN
+		string  poParams  :OUT
+		numeric poCdErro  :OUT
+		string  poCtxErro :OUT
+	endparams
+	variables
+		date    vDtAutorizacao, vDtCheque
+		string  vpiParams, vpoParams, viValores, vDuplicatas, vDsLinha, vNrCtaPes
+		string  vDsTitular, vDsNominal, vDsChequeAutorizacao
+		Numeric vCont, vNrSeqAuto, vVlJuros, vVlDesconto, vPosAux, vNrOrdem, vNrSeqCheque, vVlCheque, vNrSeqItem
+	endvariables
+	
+	vDsChequeAutorizacao = $item("DS_CHEQUEAUTORIZACAO", piParams)
+	vDuplicatas          = $item("DS_DUPLICATAS", piParams)
+	vNrOrdem             = $item("NR_ORDEM", piParams)
+	vDsTitular           = ""
+	
+	if ($item("NR_CTAPESCHE", piParams) = "")
+		$instancehandle->setStatus(<STS_ERRO>, "GEN001", "Descricao=Número da conta banco p/ emissão de cheques não informado", "")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	
+	putitem/id vpiParams, "CD_PESSOA",   $item("CD_FORNECEDOR", piParams)
+	putitem/id vpiParams, "TP_CONTA",    "F"
+	putitem/id vpiParams, "IN_NATUREZA", "C"
+	
+	activate "FCCSVCO002".criaContaPessoa($$gParamGlb, vpiParams, vpoParams, $xCdErro$, $xCtxErro$)
+	if ($procerror)
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$	
+		return(-1)
+	elseif ($status < 0)
+		$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	
+	vNrCtaPes = $item("NR_CTAPES", vpoParams)
+	vDsTitular = $item("DS_TITULAR", vpoParams)
+	
+	if (vDsTitular = "")
+		clear/e "PES_PESSOASVC"
+		cd_pessoa.pes_pessoasvc/init = $item("CD_FORNECEDOR", piParams)
+		retrieve/e "PES_PESSOASVC"
+		if ($status >= 0)
+			vDsTitular = nm_pessoa.pes_pessoasvc
+		endif
+	endif
+	
+	vpiParams = ""
+	vCont     = 1
+	;existe uma conta selecionada
+	putitem/id vpiParams, "NR_CTAPES",         $item("NR_CTAPESCHE", piParams)
+	putitem/id vpiParams, "NR_CTAPESC",        vNrCtaPes
+	putitem/id vpiParams, "TP_AUTORIZACAO",    4 ;Endosso.
+	if ($item("IN_VARIOSCHEQUES", piParams) = <TRUE>)
+		
+		repeat
+			vDsLinha = ""
+			getitem vDsLinha, vDsChequeAutorizacao, 1
+			putitem/id vpiParams, "NR_ORDEM%%vCont",  $item("NR_ORDEM%%vCont", vDsLinha)
+			putitem/id vpiParams, "VL_CHEQUE%%vCont", $item("VL_CHEQUE%%vCont", vDsLinha)
+			putitem/id vpiParams, "DT_CHEQUE%%vCont", $item("DT_CHEQUE%%vCont", vDsLinha)
+			if ($item("DS_NOMINAL%%vCont", vDsLinha) = "")
+				putitem/id vpiParams, "DS_NOMINAL%%vCont", vDsTitular
+			else
+				putitem/id vpiParams, "DS_NOMINAL%%vCont", $item("DS_NOMINAL%%vCont", vDsLinha)
+			endif
+			
+			delitem vDsChequeAutorizacao, 1
+			vCont = vCont + 1
+		until(vDsChequeAutorizacao = "")
+	else
+		putitem/id vpiParams, "NR_ORDEM%%vCont",   $item("NR_ORDEM", piParams)
+		putitem/id vpiParams, "VL_CHEQUE%%vCont",  $item("VL_PAGO", piParams)
+		putitem/id vpiParams, "DT_CHEQUE%%vCont",  $item("DT_CHEQUE", piParams)
+		putitem/id vpiParams, "DS_NOMINAL%%vCont", vDsTitular
+	endif
+	
+	vCont = 1
+	if (vDuplicatas != "")	
+		repeat
+			
+			getitem    vDsLinha,  vDuplicatas,            1
+			putitem/id vpiParams, "CD_EMPRESA%%vCont",    $item("CD_EMPRESA", vDsLinha)
+			putitem/id vpiParams, "NR_CTAPESC%%vCont",    vNrCtaPes
+			putitem/id vpiParams, "CD_FORNECEDOR%%vCont", $item("CD_FORNECEDOR", vDsLinha)
+			putitem/id vpiParams, "NR_DUPLICATA%%vCont",  $item("NR_DUPLICATA", vDsLinha)
+			putitem/id vpiParams, "NR_PARCELA%%vCont",    $item("NR_PARCELA", vDslinha)
+			putitem/id vpiParams, "VL_PAGAMENTO%%vCont",  $item("VL_PAGAMENTO", vDsLinha)
+			putitem/id vpiParams, "VL_JUROS%%vCont",      $item("VL_JUROS", vDsLinha)
+			putitem/id vpiParams, "VL_DESCONTO%%vCont",   $item("VL_DESCONTOS", vDsLinha)
+			putitem/id vpiParams, "DS_DOC%%vCont",        ""
+			putitem/id vpiParams, "DS_AUX%%vCont",        ""
+			vCont = vCont + 1
+	
+			delitem vDuplicatas, 1
+		until (vDuplicatas = "")	
+	endif
+	
+	;gera a autorizacao dos cheques
+	activate "FCCSVCO007".AutorizaCheque($$gParamGlb, vpiParams, vpoParams, $xCdErro$, $xCtxErro$)
+	if ($procerror)
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$	
+		return(-1)
+	elseif ($status < 0)
+		$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$	
+		return(-1)
+	else
+		getitem/id vDtAutorizacao, vpoParams, "DT_AUTORIZACAO"
+		getitem/id vNrSeqAuto,     vpoParams, "NR_SEQAUTO"
+		getitem/id vNrSeqCheque,   vpoParams, "NR_SEQCHEQUE"
+	endif
+	
+	vpiParams = ""
+	vpiParams = piParams
+	putitem/id vpiParams, "NR_CTAPES",      vNrCtaPes
+	putitem/id vpiParams, "DT_AUTORIZACAO", vDtAutorizacao
+	putitem/id vpiParams, "NR_SEQAUTO",     vNrSeqAuto
+	putitem/id vpiParams, "NR_SEQCHEQUE",   vNrSeqCheque
+	if (vNrSeqCheque = 1) ;somente 1 cheque autorizado.
+		$instancehandle->atualizaLiq($$gParamGlb, vpiParams, vpoParams, $xCdErro$, $xCtxErro$)
+		if ($procerror)
+			$instancehandle->setStatus(<STS_ERRO>, $procerror, $procerrorcontext, "ADICIONAL=  chamada operation -> atualizaLiq()")
+			poCdErro  = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return(-1)
+		elseif ($status < 0)
+			$instancehandle->setStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "ADICIONAL=  chamada operation -> atualizaLiq()")
+			poCdErro  = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return(-1)
+		endif
+	else
+		;Mais de 1 cheque autorizado.
+		vCont      = 1
+		vNrSeqItem = 6
+		vDsChequeAutorizacao = $item("DS_CHEQUEAUTORIZACAO", piParams)
+		
+		repeat
+			vDsLinha   = ""
+			getitem vDsLinha, vDsChequeAutorizacao, 1
+			vpiParams  = ""
+			vpiParams  = piParams
+			putitem/id vpiParams, "NR_CTAPES",      vNrCtaPes
+			putitem/id vpiParams, "DT_AUTORIZACAO", vDtAutorizacao
+			putitem/id vpiParams, "NR_SEQAUTO",     vNrSeqAuto
+			putitem/id vpiParams, "NR_SEQCHEQUE",   vCont
+			putitem/id vpiParams, "NR_SEQITEM",     vNrSeqItem
+			putitem/id vpiParams, "VL_PAGO",        $item("VL_CHEQUE%%vCont", vDsLinha)
+			$instancehandle->atualizaLiq($$gParamGlb, vpiParams, vpoParams, $xCdErro$, $xCtxErro$)
+			if ($procerror)
+				$instancehandle->setStatus(<STS_ERRO>, $procerror, $procerrorcontext, "ADICIONAL=  chamada operation -> atualizaLiq()")
+				poCdErro  = $xCdErro$
+				poCtxErro = $xCtxErro$
+				return(-1)
+			elseif ($status < 0)
+				$instancehandle->setStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "ADICIONAL=  chamada operation -> atualizaLiq()")
+				poCdErro  = $xCdErro$
+				poCtxErro = $xCtxErro$
+				return(-1)
+			endif
+			
+			vCont      = vCont + 1
+			vNrSeqItem = vNrSeqItem + 1
+			delitem vDsChequeautorizacao, 1
+		until(vCont > vNrSeqCheque)
+	endif
+		
+	if ($item("DS_DUPLICATAS", piParams) != "")
+		getitem/id vDtAutorizacao, vpoParams, "DT_AUTORIZACAO"
+		getitem/id vNrSeqAuto,     vpoParams, "NR_SEQAUTO"
+		
+		;anotar as duplicatas como autorizadas
+		vCont       = 1
+		vpiParams   = ""
+		vDuplicatas = $item("DS_DUPLICATAS", piParams)
+		repeat
+			
+			getitem vDsLinha, vDuplicatas, 1
+			
+			;localizar a duplicatai e anotar o in_autorizado como <true>
+			clear/e "FCP_DUPLICATISVC"
+			cd_empresa.fcp_duplicatisvc/init    = $item("CD_EMPRESA", vDsLinha)
+			cd_fornecedor.fcp_duplicatisvc/init = $item("CD_FORNECEDOR", vDsLinha)
+			nr_duplicata.fcp_duplicatisvc/init  = $item("NR_DUPLICATA", vDsLinha)
+			nr_parcela.fcp_duplicatisvc/init    = $item("NR_PARCELA", vDsLinha)
+			retrieve/e "FCP_DUPLICATISVC"
+			if ($status >= 0)
+				in_autorizado.fcp_duplicatisvc = <TRUE>
+				tp_baixa.fcp_duplicatisvc      = 2
+				tp_estagio.fcp_duplicatisvc    = 10
+				$collhandle(FCP_DUPLICATISVC)->Salvar()
+				if ($procerror)
+					poCdErro  = $xCdErro$
+					poCtxErro = $xCtxErro$
+					return(-1)
+				elseif ($status < 0)
+					poCdErro  = $xCdErro$
+					poCtxErro = $xCtxErro$
+					return(-1)
+				endif
+			endif
+			vCont = vCont + 1
+			
+			delitem vDuplicatas, 1
+		until (vDuplicatas = "")			
+	endif
+	
+	return(0)
+End ;operation autorizacaoDeCheque.
+
+;;------------------------------------
+;public operation AutorizacaoDeCheque
+;;------------------------------------
+;;Estrutura antiga - nao apagar por favor. Fornaroli - 18/08/2005.
+;	params
+;		string  piGlobal  :IN
+;		string  piParams  :IN
+;		string  poParams  :OUT
+;		numeric poCdErro  :OUT
+;		string  poCtxErro :OUT
+;	endparams
+;	variables
+;		Numeric vCont, vNrSeqAuto, vVlJuros, vVlDesconto, vPosAux, vNrOrdem, vNrSeqCheque
+;		string  vpiParams, vpoParams, viValores, vDuplicatas, vDsLinha, vNrCtaPes, vDsTitular
+;		date    vDtAutorizacao
+;	endvariables
+;	
+;	vDuplicatas = $item("DS_DUPLICATAS", piParams)
+;	vNrOrdem    = $item("NR_ORDEM", piParams)
+;	vDsTitular  = ""
+;	
+;	if ($item("NR_CTAPESCHE", piParams) = "")
+;		$instancehandle->setStatus(<STS_ERRO>, "GEN001", "Descricao=Número da conta banco p/ emissão de cheques não informado", "")
+;		poCdErro  = $xCdErro$
+;		poCtxErro = $xCtxErro$
+;		return(-1)
+;	endif
+;	
+;	putitem/id vpiParams, "CD_PESSOA",   $item("CD_FORNECEDOR", piParams)
+;	putitem/id vpiParams, "TP_CONTA",    "F"
+;	putitem/id vpiParams, "IN_NATUREZA", "C"
+;	
+;	activate "FCCSVCO002".criaContaPessoa($$gParamGlb, vpiParams, vpoParams, $xCdErro$, $xCtxErro$)
+;	if ($procerror)
+;		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+;		poCdErro  = $xCdErro$
+;		poCtxErro = $xCtxErro$	
+;		return(-1)
+;	elseif ($status < 0)
+;		$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")
+;		poCdErro  = $xCdErro$
+;		poCtxErro = $xCtxErro$
+;		return(-1)
+;	endif
+;	
+;	vNrCtaPes = $item("NR_CTAPES", vpoParams)
+;	vDsTitular = $item("DS_TITULAR", vpoParams)
+;	
+;	if (vDsTitular = "")
+;		clear/e "PES_PESSOASVC"
+;		cd_pessoa.pes_pessoasvc/init = $item("CD_FORNECEDOR", piParams)
+;		retrieve/e "PES_PESSOASVC"
+;		if ($status >= 0)
+;			vDsTitular = nm_pessoa.pes_pessoasvc
+;		endif
+;	endif
+;	
+;	vpiParams = ""
+;	vCont     = 1
+;	;existe uma conta selecionada
+;	putitem/id vpiParams, "NR_CTAPES",         $item("NR_CTAPESCHE", piParams)
+;	putitem/id vpiParams, "NR_CTAPESC",        vNrCtaPes
+;	putitem/id vpiParams, "TP_AUTORIZACAO",    4 ;Endosso.
+;	putitem/id vpiParams, "NR_ORDEM%%vCont",   $item("NR_ORDEM", piParams)
+;	putitem/id vpiParams, "VL_CHEQUE%%vCont",  $item("VL_PAGO", piParams)
+;	putitem/id vpiParams, "DT_CHEQUE%%vCont",  $item("DT_CHEQUE", piParams)
+;	putitem/id vpiParams, "DS_NOMINAL%%vCont", vDsTitular
+;	
+;	if (vDuplicatas != "")	
+;		repeat
+;			
+;			getitem    vDsLinha,  vDuplicatas,            1
+;			putitem/id vpiParams, "CD_EMPRESA%%vCont",    $item("CD_EMPRESA", vDsLinha)
+;			putitem/id vpiParams, "NR_CTAPESC%%vCont",    vNrCtaPes
+;			putitem/id vpiParams, "CD_FORNECEDOR%%vCont", $item("CD_FORNECEDOR", vDsLinha)
+;			putitem/id vpiParams, "NR_DUPLICATA%%vCont",  $item("NR_DUPLICATA", vDsLinha)
+;			putitem/id vpiParams, "NR_PARCELA%%vCont",    $item("NR_PARCELA", vDslinha)
+;			putitem/id vpiParams, "VL_PAGAMENTO%%vCont",  $item("VL_PAGAMENTO", vDsLinha)
+;			putitem/id vpiParams, "VL_JUROS%%vCont",      $item("VL_JUROS", vDsLinha)
+;			putitem/id vpiParams, "VL_DESCONTO%%vCont",   $item("VL_DESCONTOS", vDsLinha)
+;			putitem/id vpiParams, "DS_DOC%%vCont",        ""
+;			putitem/id vpiParams, "DS_AUX%%vCont",        ""
+;			vCont = vCont + 1
+;	
+;			delitem vDuplicatas, 1
+;		until (vDuplicatas = "")	
+;	endif
+;	
+;	;gera a autorizacao dos cheques
+;	activate "FCCSVCO007".AutorizaCheque($$gParamGlb, vpiParams, vpoParams, $xCdErro$, $xCtxErro$)
+;	if ($procerror)
+;		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+;		poCdErro  = $xCdErro$
+;		poCtxErro = $xCtxErro$	
+;		return(-1)
+;	elseif ($status < 0)
+;		$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")
+;		poCdErro  = $xCdErro$
+;		poCtxErro = $xCtxErro$	
+;		return(-1)
+;	else
+;		getitem/id vDtAutorizacao, vpoParams, "DT_AUTORIZACAO"
+;		getitem/id vNrSeqAuto,     vpoParams, "NR_SEQAUTO"
+;		getitem/id vNrSeqCheque,   vpoParams, "NR_SEQCHEQUE"
+;	endif
+;	
+;	vpiParams = ""
+;	vpiParams = piParams
+;	putitem/id vpiParams, "NR_CTAPES",      vNrCtaPes
+;	putitem/id vpiParams, "DT_AUTORIZACAO", vDtAutorizacao
+;	putitem/id vpiParams, "NR_SEQAUTO",     vNrSeqAuto
+;	putitem/id vpiParams, "NR_SEQCHEQUE",   vNrSeqCheque
+;	$instancehandle->atualizaLiq($$gParamGlb, vpiParams, vpoParams, $xCdErro$, $xCtxErro$)
+;	if ($procerror)
+;		$instancehandle->setStatus(<STS_ERRO>, $procerror, $procerrorcontext, "ADICIONAL=  chamada operation -> atualizaAli()")
+;		poCdErro  = $xCdErro$
+;		poCtxErro = $xCtxErro$
+;		return(-1)
+;	elseif ($status < 0)
+;		$instancehandle->setStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "ADICIONAL=  chamada operation -> atualizaAli()")
+;		poCdErro  = $xCdErro$
+;		poCtxErro = $xCtxErro$
+;		return(-1)
+;	endif
+;		
+;	if ($item("DS_DUPLICATAS", piParams) != "")
+;		getitem/id vDtAutorizacao, vpoParams, "DT_AUTORIZACAO"
+;		getitem/id vNrSeqAuto,     vpoParams, "NR_SEQAUTO"
+;		
+;		;anotar as duplicatas como autorizadas
+;		vCont       = 1
+;		vpiParams   = ""
+;		vDuplicatas = $item("DS_DUPLICATAS", piParams)
+;		repeat
+;			
+;			getitem vDsLinha, vDuplicatas, 1
+;			
+;			;localizar a duplicatai e anotar o in_autorizado como <true>
+;			clear/e "FCP_DUPLICATISVC"
+;			cd_empresa.fcp_duplicatisvc/init    = $item("CD_EMPRESA", vDsLinha)
+;			cd_fornecedor.fcp_duplicatisvc/init = $item("CD_FORNECEDOR", vDsLinha)
+;			nr_duplicata.fcp_duplicatisvc/init  = $item("NR_DUPLICATA", vDsLinha)
+;			nr_parcela.fcp_duplicatisvc/init    = $item("NR_PARCELA", vDsLinha)
+;			retrieve/e "FCP_DUPLICATISVC"
+;			if ($status >= 0)
+;				in_autorizado.fcp_duplicatisvc = <TRUE>
+;				tp_baixa.fcp_duplicatisvc      = 2
+;				tp_estagio.fcp_duplicatisvc    = 10
+;				$collhandle(FCP_DUPLICATISVC)->Salvar()
+;				if ($procerror)
+;					poCdErro  = $xCdErro$
+;					poCtxErro = $xCtxErro$
+;					return(-1)
+;				elseif ($status < 0)
+;					poCdErro  = $xCdErro$
+;					poCtxErro = $xCtxErro$
+;					return(-1)
+;				endif
+;			endif
+;			vCont = vCont + 1
+;			
+;			delitem vDuplicatas, 1
+;		until (vDuplicatas = "")			
+;	endif
+;	
+;	return(0)
+;End ;operation autorizacaoDeCheque.
+
+;----------------------------------------------------;
+public operation atualizaLiq                         ;
+;----------------------------------------------------;
+; MTF - 24/12/2004                                   ;
+; Funcao : Atualiza o arquivo de FCR_LIQ p/ endosso. ;
+; Chamada: operation - atualizaDuplicataEndosso      ;
+;                      atualizaDifDuplicataEndosso   ;
+;          FCRFP007  - verificaDuplicataFatura       ;
+;          FCRFP008  - atualizaDuplicataFatura       ;
+;----------------------------------------------------;
+;
+	params
+		string  piGlobal  :IN
+		string  piParams  :IN
+		string  poParams  :OUT
+		numeric poCdErro  :OUT
+		string  poCtxErro :OUT
+	endparams
+	variables
+		string  vInAtualiza
+		numeric vVlPago
+	endvariables
+	
+	if ($item("CD_EMPLIQ", piParams) = "")
+		$instancehandle->setStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Falta o código da empresa da liquidação", "")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	if ($item("DT_LIQ", piParams) = "")
+		$instancehandle->setStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Falta a data da liquidação", "")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	if ($item("NR_SEQLIQ", piParams) = "")
+		$instancehandle->setStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Falta a sequencia da liquidação", "")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	if ($item("NR_SEQITEM", piParams) = "")
+		$instancehandle->setStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Falta a sequencia do item da liquidação", "")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	vInAtualiza = $item("IN_ATUALIZA", piParams)
+	vVlPago     = $item("VL_PAGO", piParams)
+	
+	clear/e "FGR_LIQSVC"
+	cd_empliq.fgr_liqsvc/init = $item("CD_EMPLIQ", piParams)
+	dt_liq.fgr_liqsvc/init    = $item("DT_LIQ", piParams)
+	nr_seqliq.fgr_liqsvc/init = $item("NR_SEQLIQ", piParams)
+	retrieve/e "FGR_LIQSVC"
+	if ($status < 0)
+		if ($status = -2)
+			clear/e "FGR_LIQSVC"
+			creocc "FGR_LIQSVC", -1
+			cd_empliq.fgr_liqsvc       = $item("CD_EMPLIQ", piParams)
+			dt_liq.fgr_liqsvc          = $item("DT_LIQ", piParams)
+			nr_seqliq.fgr_liqsvc       = $item("NR_SEQLIQ", piParams)
+			cd_grupoempresa.fgr_liqsvc = $item("CD_GRUPOEMPRESA", piGlobal)
+			tp_liquidacao.fgr_liqsvc   = $item("TP_LIQUIDACAO", piParams)
+			
+			creocc "FGR_LIQITEMCPSVC", -1
+			cd_empliq.fgr_liqitemcpsvc      = $item("CD_EMPLIQ", piParams)
+			dt_liq.fgr_liqitemcpsvc         = $item("DT_LIQ", piParams)
+			nr_seqliq.fgr_liqitemcpsvc      = $item("NR_SEQLIQ", piParams)
+			nr_seqitem.fgr_liqitemcpsvc     = $item("NR_SEQITEM", piParams)
+			tp_liqitemcp.fgr_liqitemcpsvc   = $item("TP_LIQITEMCP", piParams)
+			cd_empendosso.fgr_liqitemcpsvc  = $item("CD_EMPENDOSSO", piParams)
+			nr_ano.fgr_liqitemcpsvc         = $item("NR_ANO", piParams)
+			nr_endosso.fgr_liqitemcpsvc     = $item("NR_ENDOSSO", piParams)
+			nr_seqauto.fgr_liqitemcpsvc     = $item("NR_SEQAUTO", piParams)
+			dt_autorizacao.fgr_liqitemcpsvc = $item("DT_AUTORIZACAO", piParams)
+			nr_seqcheque.fgr_liqitemcpsvc   = $item("NR_SEQCHEQUE", piParams)
+			nr_ctapes.fgr_liqitemcpsvc      = $item("NR_CTAPES", piParams)
+			nr_seqfor.fgr_liqitemcpsvc      = $item("NR_SEQFOR", piParams)
+		else
+			$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Liquidação não encontrada!", "ADICIONAL=  Operation -> atualizaDuplicataFatura")
+			poCdErro = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return(-1)
+		endif
+	else
+		clear/e "FGR_LIQITEMCPSVC"	
+		cd_empliq.fgr_liqitemcpsvc  = $item("CD_EMPLIQ", piParams)
+		dt_liq.fgr_liqitemcpsvc     = $item("DT_LIQ", piParams)
+		nr_seqliq.fgr_liqitemcpsvc  = $item("NR_SEQLIQ", piParams)
+		nr_seqitem.fgr_liqitemcpsvc = $item("NR_SEQITEM", piParams)
+		retrieve/e "FGR_LIQITEMCPSVC"
+		if ($status < 0)
+			if ($status = -2)
+				clear/e "FGR_LIQITEMCPSVC"
+				creocc "FGR_LIQITEMCPSVC", -1
+				cd_empliq.fgr_liqitemcpsvc      = $item("CD_EMPLIQ", piParams)
+				dt_liq.fgr_liqitemcpsvc         = $item("DT_LIQ", piParams)
+				nr_seqliq.fgr_liqitemcpsvc      = $item("NR_SEQLIQ", piParams)
+				nr_seqitem.fgr_liqitemcpsvc     = $item("NR_SEQITEM", piParams)
+				tp_liqitemcp.fgr_liqitemcpsvc   = $item("TP_LIQITEMCP", piParams)
+				cd_empendosso.fgr_liqitemcpsvc  = $item("CD_EMPENDOSSO", piParams)
+				nr_ano.fgr_liqitemcpsvc         = $item("NR_ANO", piParams)
+				nr_endosso.fgr_liqitemcpsvc     = $item("NR_ENDOSSO", piParams)
+				nr_seqauto.fgr_liqitemcpsvc     = $item("NR_SEQAUTO", piParams)
+				dt_autorizacao.fgr_liqitemcpsvc = $item("DT_AUTORIZACAO", piParams)
+				nr_seqcheque.fgr_liqitemcpsvc   = $item("NR_SEQCHEQUE", piParams)
+				nr_ctapes.fgr_liqitemcpsvc      = $item("NR_CTAPES", piParams)
+				nr_seqfor.fgr_liqitemcpsvc      = $item("NR_SEQFOR", piParams)
+			else
+				$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Itens da liquidação não encontrada!", "ADICIONAL=  Operation -> atualizaLiquidacao()")
+				poCdErro = $xCdErro$
+				poCtxErro = $xCtxErro$
+				return(-1)
+			endif
+		endif
+	endif
+	
+	if (vInAtualiza != "N")
+		vl_total.fgr_liqsvc         = vl_total.fgr_liqsvc + vVlPago ;item("VL_PAGO", piParams)
+	endif
+	cd_operador.fgr_liqsvc          = $item("CD_USUARIO", piGlobal)
+	dt_cadastro.fgr_liqsvc          = $datim
+	nr_seqauto.fgr_liqitemcpsvc     = $item("NR_SEQAUTO", piParams)
+	dt_autorizacao.fgr_liqitemcpsvc = $item("DT_AUTORIZACAO", piParams)
+	nr_seqcheque.fgr_liqitemcpsvc   = $item("NR_SEQCHEQUE", piParams)
+	nr_ctapes.fgr_liqitemcpsvc      = $item("NR_CTAPES", piParams)
+	vl_pago.fgr_liqitemcpsvc        = vl_pago.fgr_liqitemcpsvc + vVlPago ;item("VL_PAGO", piParams)
+	nr_seqfor.fgr_liqitemcpsvc      = $item("NR_SEQFOR", piParams)
+	cd_operador.fgr_liqitemcpsvc    = $item("CD_USUARIO", piGlobal)
+	dt_cadastro.fgr_liqitemcpsvc    = $datim
+	
+	$collhandle("FGR_LIQSVC")->salvar()
+	if ($procerror)
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "ADICIONAL=  FGR_LIQSVC -> salvar()")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return (-1)
+	elseif ($status < 0)
+		$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "ADICIONAL=  FGR_LIQSVC -> salvar()")    
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return (-1)
+	endif	
+									
+	return(0)
+end ;operation atualizaLiq.
+
+;-------------------------------------------------------------------------------;
+public operation atualizaLiqCC                                                  ;
+;-------------------------------------------------------------------------------;
+; MTF - 15/03/2005                                                              ;
+; Funcao : Atualiza o arquivo de FCR_LIQITEMCC, duplicatas baixadas no endosso. ;
+; Chamada: operation - atualizaDuplicataEndosso                                 ;
+;          FCPFP016  - atualizaDuplicata                                        ;
+;-------------------------------------------------------------------------------;
+;
+	params
+		string  piGlobal  :IN
+		string  piParams  :IN
+		string  poParams  :OUT
+		numeric poCdErro  :OUT
+		string  poCtxErro :OUT
+	endparams
+	
+	if ($item("CD_EMPLIQ", piParams) = "")
+		$instancehandle->setStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Falta o código da empresa da liquidação", "")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	if ($item("DT_LIQ", piParams) = "")
+		$instancehandle->setStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Falta a data da liquidação", "")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	if ($item("NR_SEQLIQ", piParams) = "")
+		$instancehandle->setStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Falta a sequencia da liquidação", "")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	if ($item("NR_SEQDUPLICATA", piParams) = "")
+		$instancehandle->setStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Falta a sequencia da duplicata", "")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	
+	clear/e "FGR_LIQITEMCCSVC"	
+	cd_empliq.fgr_liqitemccsvc  = $item("CD_EMPLIQ", piParams)
+	dt_liq.fgr_liqitemccsvc     = $item("DT_LIQ", piParams)
+	nr_seqliq.fgr_liqitemccsvc  = $item("NR_SEQLIQ", piParams)
+	nr_seqitem.fgr_liqitemccsvc = $item("NR_SEQDUPLICATA", piParams)
+	retrieve/e "FGR_LIQITEMCCSVC"
+	if ($status < 0)
+		if ($status = -2)
+			clear/e "FGR_LIQITEMCCSVC"
+			creocc "FGR_LIQITEMCCSVC", -1
+			cd_empliq.fgr_liqitemccsvc       = $item("CD_EMPLIQ", piParams)
+			dt_liq.fgr_liqitemccsvc          = $item("DT_LIQ", piParams)
+			nr_seqliq.fgr_liqitemccsvc       = $item("NR_SEQLIQ", piParams)
+			nr_seqitem.fgr_liqitemccsvc      = $item("NR_SEQDUPLICATA", piParams)
+			tp_subliq.fgr_liqitemccsvc       = $item("TP_SUBLIQ", piParams)
+			cd_empresadup.fgr_liqitemccsvc   = $item("CD_EMPRESADUP", piParams)
+			cd_fornecdup.fgr_liqitemccsvc    = $item("CD_FORNECDUP", piParams)
+			nr_duplicatadup.fgr_liqitemccsvc = $item("NR_DUPLICATADUP", piParams)
+			nr_parceladup.fgr_liqitemccsvc   = $item("NR_PARCELADUP", piParams)
+			vl_pagamento.fgr_liqitemccsvc    = $item("VL_PAGO", piParams)
+			dt_cadastro.fgr_liqitemccsvc     = $datim
+			cd_operador.fgr_liqitemccsvc     = $item("CD_USUARIO", piGlobal)
+		else
+			$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Itens da liquidação não encontrada!", "ADICIONAL=  Operation -> atualizaLiquidacao()")
+			poCdErro = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return(-1)
+		endif
+	endif
+	
+	$collhandle("FGR_LIQITEMCCSVC")->salvar()
+	if ($procerror)
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "ADICIONAL=  FGR_LIQITEMCCSVC -> salvar()")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return (-1)
+	elseif ($status < 0)
+		$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "ADICIONAL=  FGR_LIQITEMCCSVC -> salvar()")    
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return (-1)
+	endif	
+									
+	return(0)
+end ;operation atualizaLiqCC.
+
+;---------------------------------------------------------------;
+public operation atualizaAdiantSobras                           ;
+;---------------------------------------------------------------;
+; MTF - 17/03/2005                                              ;
+; Funcao : Atualiza o arquivo de FCR_LIQITEMCP, com relacao aos ; 
+;          adiantamentos utilizados e sobras de adiantamentos.  ;
+; Chamada: FCPFP008 - atualizaDuplicataFatura                   ;
+;---------------------------------------------------------------;
+;
+	params
+		string  piGlobal  :IN
+		string  piParams  :IN
+		string  poParams  :OUT
+		numeric poCdErro  :OUT
+		string  poCtxErro :OUT
+	endparams
+	
+	if ($item("CD_EMPLIQ", piParams) = "")
+		$instancehandle->setStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Falta o código da empresa da liquidação", "")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	if ($item("DT_LIQ", piParams) = "")
+		$instancehandle->setStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Falta a data da liquidação", "")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	if ($item("NR_SEQLIQ", piParams) = "")
+		$instancehandle->setStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Falta a sequencia da liquidação", "")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	
+	if ($item("IN_EXCLUIR", piParams) = <TRUE>)
+		clear/e "FGR_LIQITEMCPSVC"
+		cd_empliq.fgr_liqitemcpsvc  = $item("CD_EMPLIQ", piParams)
+		dt_liq.fgr_liqitemcpsvc     = $item("DT_LIQ", piParams)
+		nr_seqliq.fgr_liqitemcpsvc  = $item("NR_SEQLIQ", piParams)
+		nr_seqitem.fgr_liqitemcpsvc = $item("NR_SEQEXCLUIR", piParams)
+		retrieve/e "FGR_LIQITEMCPSVC"
+		if ($status < 0)
+			$instancehandle->setStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Lançamento de adiantamento não encontrado", "")
+			return(-1)
+		endif
+		$collhandle ("FGR_LIQITEMCPSVC")->excluir()
+		if ($procerror)
+			$instancehandle->setStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+			poCdErro  = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return(-1)
+		elseif ($status < 0)
+			$instancehandle->setStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")
+			poCdErro  = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return(-1)
+		endif
+	endif
+	
+	;clear/e "FGR_LIQITEMCPSVC"
+	creocc "FGR_LIQITEMCPSVC", -1
+	cd_empliq.fgr_liqitemcpsvc      = $item("CD_EMPLIQ", piParams)
+	dt_liq.fgr_liqitemcpsvc         = $item("DT_LIQ", piParams)
+	nr_seqliq.fgr_liqitemcpsvc      = $item("NR_SEQLIQ", piParams)
+	nr_seqitem.fgr_liqitemcpsvc     = $item("NR_SEQITEM", piParams)
+	tp_liqitemcp.fgr_liqitemcpsvc   = $item("TP_LIQITEMCP", piParams)
+	cd_empendosso.fgr_liqitemcpsvc  = $item("CD_EMPENDOSSO", piParams)
+	nr_ano.fgr_liqitemcpsvc         = $item("NR_ANO", piParams)
+	nr_endosso.fgr_liqitemcpsvc     = $item("NR_ENDOSSO", piParams)
+	nr_ctapes.fgr_liqitemcpsvc      = $item("NR_CTAPES", piParams)
+	nr_seqfor.fgr_liqitemcpsvc      = $item("NR_SEQFOR", piParams)
+	vl_pago.fgr_liqitemcpsvc        = $item("VL_PAGO", piParams)
+	cd_operador.fgr_liqitemcpsvc    = $item("CD_USUARIO", piGlobal)
+	dt_cadastro.fgr_liqitemcpsvc    = $datim
+	
+	$collhandle("FGR_LIQITEMCPSVC")->salvar()
+	if ($procerror)
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "ADICIONAL=  FGR_LIQITEMCPSVC -> salvar()")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return (-1)
+	elseif ($status < 0)
+		$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "ADICIONAL=  FGR_LIQSVC -> salvar()")    
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return (-1)
+	endif	
+	
+	return(0)
+end ;operation atualizaAdiantSobras.
+
+;----------------------------------------------------------------------;
+public operation pagamentoEmDinheiro                                   ;
+;----------------------------------------------------------------------;
+; MTF - 05/01/2005                                                     ;
+; Funcao : Faz a baixa das duplicatas pagas em dinheiro pelo endosso.  ;
+; Chamada: Componente FCRFP004 - operation -> verificaDuplicataFatura. ;
+;----------------------------------------------------------------------;
+;
+	params
+		string  piGlobal  :IN
+		string  piParams  :IN
+		string  poParams  :OUT
+		numeric poCdErro  :OUT
+		string  poCtxErro :OUT
+	endparams
+	variables
+		string  vDuplicatas, vpiParams, vpoParams, vDsLinha
+		numeric vCont, vNrSeqDuplicata
+	endvariables
+	
+	vDuplicatas     = $item("DS_DUPLICATAS", piParams)
+	vNrSeqDuplicata = $item("NR_SEQDUPLICATA", piParams)
+	vpiParams       = piParams
+	$instancehandle->atualizaLiq($$gParamGlb, vpiParams, vpoParams, $xCdErro$, $xCtxErro$)
+	if ($procerror)
+		$instancehandle->setStatus(<STS_ERRO>, $procerror, $procerrorcontext, "ADICIONAL=  chamada operation -> atualizaAli()")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	elseif ($status < 0)
+			$instancehandle->setStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "ADICIONAL=  chamada operation -> atualizaAli()")
+			poCdErro  = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return(-1)
+	endif
+	
+	if (vDuplicatas != "")
+		
+		;anotar as duplicatas como pagas.
+		vCont       = 1
+		vpiParams   = ""
+		
+		repeat
+			
+			getitem vDsLinha, vDuplicatas, 1
+			;localizar a duplicatai e anotar o in_autorizado como <true>
+			clear/e "FCP_DUPLICATISVC"
+			cd_empresa.fcp_duplicatisvc/init    = $item("CD_EMPRESA", vDsLinha)
+			cd_fornecedor.fcp_duplicatisvc/init = $item("CD_FORNECEDOR", vDsLinha)
+			nr_duplicata.fcp_duplicatisvc/init  = $item("NR_DUPLICATA", vDsLinha)
+			nr_parcela.fcp_duplicatisvc/init    = $item("NR_PARCELA", vDsLinha)
+			retrieve/e "FCP_DUPLICATISVC"
+			if ($status >= 0)
+				message/hint "Baixando duplicatas pagas em dinheiro: %%nr_duplicata.fcp_duplicatisvc / %%nr_parcela.fcp_duplicatisvc"
+				vl_pago.fcp_duplicatisvc      = $item("VL_PAGAMENTO", vDsLinha)
+				vl_desconto.fcp_duplicatisvc  = $item("VL_DESCONTOS", vDsLinha)
+				dt_baixa.fcp_duplicatisvc     = $item("DT_SISTEMA", piGlobal)
+				cd_operbaixa.fcp_duplicatisvc = $item("CD_USUARIO", piGlobal)
+				cd_empliq.fcp_duplicatisvc    = $item("CD_EMPLIQ", piParams)
+				dt_liq.fcp_duplicatisvc       = $item("DT_LIQ", piParams)
+				nr_seqliq.fcp_duplicatisvc    = $item("NR_SEQLIQ", piParams)
+				tp_estagio.fcp_duplicatisvc   = 10 ;Endossado.
+				
+				$collhandle(FCP_DUPLICATISVC)->Salvar()
+				if ($procerror)
+					poCdErro  = $xCdErro$
+					poCtxErro = $xCtxErro$
+					return(-1)
+				elseif ($status < 0)
+					poCdErro  = $xCdErro$
+					poCtxErro = $xCtxErro$
+					return(-1)
+				else
+					vpiParams = ""
+					putitem/id vpiParams, "CD_EMPLIQ",       $item("CD_EMPLIQ", piParams)
+					putitem/id vpiParams, "DT_LIQ",          $item("DT_LIQ", piParams)
+					putitem/id vpiParams, "NR_SEQLIQ",       $item("NR_SEQLIQ", piParams)
+					putitem/id vpiParams, "NR_SEQDUPLICATA", vNrSeqDuplicata
+					putitem/id vpiParams, "TP_SUBLIQ",       2 ;Contas a pagar.
+					putitem/id vpiParams, "NR_SEQFOR",       cd_fornecedor.fcp_duplicatisvc
+					putitem/id vpiParams, "CD_EMPRESADUP",   cd_empresa.fcp_duplicatisvc
+					putitem/id vpiParams, "CD_FORNECDUP",    cd_fornecedor.fcp_duplicatisvc
+					putitem/id vpiParams, "NR_DUPLICATADUP", nr_duplicata.fcp_duplicatisvc
+					putitem/id vpiParams, "NR_PARCELADUP",   nr_parcela.fcp_duplicatisvc
+					putitem/id vpiParams, "VL_PAGO",         vl_pago.fcp_duplicatisvc
+					$instancehandle->atualizaLiqCC(piGlobal, vpiParams, vpoParams, $xCdErro$, $xCtxErro$)
+					if ($procerror)
+						$instancehandle->setStatus(<STS_ERRO>, $procerror, $procerrorcontext, "ADICIONAL=  FGRSVCO001 operation atualizaDifDuplicataEndossoTeste chamando operation -> atualizaLiqCC")
+						poCdErro  = $xCdErro$
+						poCtxErro = $xCtxErro$
+						return(-1)
+					elseif ($status < 0)
+						$instancehandle->setStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "ADICIONAL=  FGRSVCO001 operation atualizaDifDuplicataEndossoTeste chamando operation -> atualizaLiqCC")
+						poCdErro  = $xCdErro$
+						poCtxErro = $xCtxErro$
+						return(-1)
+					endif
+					vNrSeqDuplicata = vNrSeqDuplicata + 1
+				endif
+			endif
+			vCont = vCont + 1
+			
+			delitem vDuplicatas, 1
+		until (vDuplicatas = "")			
+	endif    
+	message/hint ""
+	
+	return(0)
+end ;operation pagamentoEmDinheiro.
+
+;----------------------------------------------------------------------------;
+public operation atualizaFaturasCheques                                      ;
+;----------------------------------------------------------------------------;
+; MTF - 07/01/2004                                                           ;
+; Funcao : Atualiza as faturas que foram utilizadas p/ pagamento do endosso. ;
+; Chamada: FCRFp003 - operation -> processaDuplicatasFaturas.                ;
+;----------------------------------------------------------------------------;
+;
+	params
+		string  piGlobal  :IN
+		string  piParams  :IN
+		string  poParams  :OUT
+		numeric poCdErro  :OUT
+		string  poCtxErro :OUT
+	endparams
+	variables
+		string  vFaturasCheques, vDsLinha
+		numeric vCont, vContAtu
+	endvariables
+	
+	vFaturasCheques = $item("FATURASCHEQUES", piParams)
+	vCont           = 1
+	VContAtu        = $item("NR_SEQCHEQUES", piParams)
+	repeat
+	
+		getitem vDsLinha, vFaturasCheques, 1
+		
+		;Atualiza faturas(cheques) como descontada.
+		clear/e "FCR_FATURAISVC"
+		cd_empresa.fcr_faturaisvc/init = $item("CD_EMPRESA", vDsLinha)
+		cd_cliente.fcr_faturaisvc/init = $item("CD_CLIENTE", vDsLinha)
+		nr_fat.fcr_faturaisvc/init     = $item("NR_FAT", vDsLinha)
+		nr_parcela.fcr_faturaisvc/init = $item("NR_PARCELA", vDsLinha)
+		retrieve/e "FCR_FATURAISVC"
+		if ($status >= 0)
+			message/hint "Gravando cheques do endosso: %%nr_fat.fcr_faturaisvc / %%nr_parcela.fcr_faturaisvc"
+			;Desabilitar essa opcao p/ poder baixar as faturas. (nao esquecer).
+			nr_portador.fcr_faturaisvc = $item("NEW_PORTADOR", piParams)
+			tp_cobranca.fcr_faturaisvc = 13 ;Endossado.
+			cd_operador.fcr_faturaisvc = $item("CD_USUARIO", piGlobal)
+			dt_cadastro.fcr_faturaisvc = $datim
+			
+			$collhandle(FCR_FATURAISVC)->Salvar()
+			if ($procerror)
+				poCdErro  = $xCdErro$
+				poCtxErro = $xCtxErro$
+				return(-1)
+			elseif ($status < 0)
+				poCdErro  = $xCdErro$
+				poCtxErro = $xCtxErro$
+				return(-1)
+			else
+				creocc "FGR_LIQITEMCRSVC",  -1
+				cd_empliq.fgr_liqitemcrsvc     = $item("CD_EMPLIQ", piParams)
+				dt_liq.fgr_liqitemcrsvc        = $item("DT_LIQ", piParams)
+				nr_seqliq.fgr_liqitemcrsvc     = $item("NR_SEQLIQ", piParams)
+				nr_seqitem.fgr_liqitemcrsvc    = vContAtu
+				tp_tiporeg.fgr_liqitemcrsvc    = 1
+				cd_empfat.fgr_liqitemcrsvc     = $item("CD_EMPRESA", vDsLinha)
+				cd_cliente.fgr_liqitemcrsvc    = $item("CD_CLIENTE", vDsLinha)
+				nr_fat.fgr_liqitemcrsvc        = $item("NR_FAT", vDsLinha)
+				nr_parcela.fgr_liqitemcrsvc    = $item("NR_PARCELA", vDsLinha)
+				cd_empendosso.fgr_liqitemcrsvc = $item("CD_EMPENDOSSO", piParams)
+				nr_ano.fgr_liqitemcrsvc        = $item("NR_ANO", piParams)
+				nr_endosso.fgr_liqitemcrsvc    = $item("NR_ENDOSSO", piParams)
+				tp_documento.fgr_liqitemcrsvc  = $item("TP_DOCUMENTO", piParams)
+				cd_operador.fgr_liqitemcrsvc   = $item("CD_USUARIO", piGlobal)
+				dt_cadastro.fgr_liqitemcrsvc   = $datim
+
+				
+				$collhandle("FGR_LIQITEMCRSVC")->salvar()
+				if ($procerror)
+					poCdErro  = $xCdErro$
+					poCtxErro = $xCtxErro$
+					return(-1)
+				elseif ($status < 0)
+						poCdErro  = $xCdErro$
+						poCtxErro = $xCtxErro$
+						return(-1)
+				endif
+			endif
+		endif
+		vCont    = vCont + 1
+		vContAtu = vContAtu + 1
+		
+		delitem vFaturasCheques, 1
+	until (vFaturasCheques = "")		
+	putitem/id poParams, "NR_SEQCHEQUES", vContAtu
+	message/hint ""
+	
+	return(0)
+end ;operation atualizaFaturasCheques.
+
+;-------------------------------------------------------------------------;
+public operation atualizaDuplicataEndosso                                 ;
+;-------------------------------------------------------------------------;
+; MTF - 14/01/2005                                                        ;
+; Funcao : Grava FGR_LIQ e faz a baixa parcial da duplicata selecionada   ;
+;          p/ endosso e gera uma nova duplicata com o valor da diferenca. ;
+; Chamada: FCRFP004 - verificaDuplicataFatura                             ;
+;-------------------------------------------------------------------------;
+;
+	params
+		string  piGlobal  :IN
+		string  piParams  :IN
+		string  poParams  :OUT
+		numeric poCdErro  :OUT
+		string  poCtxErro :OUT
+	endparams
+	variables
+		string  vpiParams, vpoParams, vDupOriginal, vDsDuplicatas, vpiValores
+ 		string  vDsLinha, vDsRegImp, vDsRegDesp, vDsLinhaDesp, vDsLinhaImp, vDsDespesa, vDsImposto
+		numeric vVlAdiantamento, vVlDuplicatas, vVlFaturas, vVlDup, vVlDiferencaDup, vNrParcela, vNrParcelaAux
+		numeric vVlPagoemDinheiro, vVlPagoemChequeTer, vVlPagoemAdiantamento, vVlPagoemChequePro, vNrSeqDuplicata
+		numeric vVlPago, vVlMaximoDin, vVlMinimoChe
+		boolean vInGerouQuebra
+	endvariables
+	
+	vVlAdiantamento       = $item("VL_ADIANTAMENTO", piParams)	
+	vVlDuplicatas         = $item("VL_DUPLICATAS", piParams)
+	vVlFaturas            = $item("VL_FATURAS", piParams)
+	vDsDuplicatas         = $item("DS_DUPLICATAS", piParams)
+	vVlPagoemAdiantamento = $item("VL_PAGOEMADIANTAMENTO", piParams)
+	vVlPagoemDinheiro     = $item("VL_PAGOEMDINHEIRO", piParams)
+	vVlPagoemChequeTer    = $item("VL_PAGOEMCHEQUETER", piParams)
+	vVlPagoemChequePro    = $item("VL_PAGOEMCHEQUEPRO", piParams)
+	vInGerouQuebra        = <FALSE>
+	$cdctapescxfilial$    = $item("CD_CTAPESCXFILIAL", piParams)
+	vNrSeqDuplicata       = $item("NR_SEQDUPLICATA", piParams)
+	
+	vVlPago               = $item("VL_PAGO", piParams)
+	vVlMaximoDin          = $item("VL_MAXIMODIN", piParams)
+	vVlMinimoChe          = $item("VL_MINIMOCHE", piParams)
+	
+	clear/e "FCP_DUPLICATISVC"
+	cd_empresa.fcp_duplicatisvc/init    = $item("CD_EMPRESA", piParams)
+	cd_fornecedor.fcp_duplicatisvc/init = $item("CD_FORNECEDOR", piParams)
+	nr_duplicata.fcp_duplicatisvc/init  = $item("NR_DUPLICATA", piParams)
+	nr_parcela.fcp_duplicatisvc/init    = $item("NR_PARCELA", piParams)
+	retrieve/e "FCP_DUPLICATISVC"
+	if ($status < 0)
+		$instancehandle->setStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Duplicata não encontrada", "")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return (-1)
+	endif 
+	
+	message/hint "Gravando duplicatas do endosso: %%nr_duplicata.fcp_duplicatisvc / %%nr_parcela.fcp_duplicatisvc"
+	if ((vVlAdiantamento + vVlFaturas) >= vVlPago) ;item("VL_PAGO", piParams))
+		
+		cd_empliq.fcp_duplicatisvc    = $item("CD_EMPLIQ", piParams)
+		dt_liq.fcp_duplicatisvc       = $item("DT_LIQ", piParams)
+		nr_seqliq.fcp_duplicatisvc    = $item("NR_SEQLIQ", piParams)
+		vl_pago.fcp_duplicatisvc      = $item("VL_PAGO", piParams)
+		vl_juros.fcp_duplicatisvc     = $item("VL_JUROS", piParams)
+		vl_desconto.fcp_duplicatisvc  = $item("VL_DESCONTOS", piParams)
+		dt_baixa.fcp_duplicatisvc     = $item("DT_SISTEMA", piGlobal)
+		cd_operbaixa.fcp_duplicatisvc = $item("CD_USUARIO", piGlobal)
+		tp_baixa.fcp_duplicatisvc     = 2
+		tp_estagio.fcp_duplicatisvc   = 10 ;Endossado.
+		
+		$collhandle ("FCP_DUPLICATISVC")->salvar()
+		if ($procerror)
+			$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "ADICIONAL=  FCR_DUPLICATISVC -> salvar()")
+			poCdErro = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return (-1)
+		elseif ($status < 0)
+			$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "ADICIONAL=  FCR_DUPLICATISVC -> salvar()")
+			poCdErro = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return (-1)
+		endif
+		
+		vVlDup = $item("VL_PAGO", piParams)
+		;Atualiza Adiantamento.
+		if (vVlAdiantamento > 0)
+			vpiParams = ""
+			putitem/id vpiParams, "CD_EMPLIQ",     $item("CD_EMPLIQ", piParams)
+			putitem/id vpiParams, "DT_LIQ",        $item("DT_LIQ", piParams)
+			putitem/id vpiParams, "NR_SEQLIQ",     $item("NR_SEQLIQ", piParams)
+			putitem/id vpiParams, "NR_SEQFOR",     $item("NR_SEQFOR", piParams)
+			putitem/id vpiParams, "TP_LIQUIDACAO", 8 ;Endosso. ;1-anteriormente estava com 1.
+			putitem/id vpiParams, "NR_SEQITEM",    1
+			putitem/id vpiParams, "TP_LIQITEMCP",  4  ;tp_liqitemcp = 4 (adiantamento a fornecedor)
+			putitem/id vpiParams, "NR_CTAPES",     $item("NR_CTAPES", piParams)
+			putitem/id vpiParams, "CD_EMPENDOSSO", $item("CD_EMPENDOSSO", piParams)
+			putitem/id vpiParams, "NR_ANO",        $item("NR_ANO", piParams)
+			putitem/id vpiParams, "NR_ENDOSSO",    $item("NR_ENDOSSO", piParams)
+			
+			if (vVlAdiantamento <= vVlDup)
+				putitem/id vpiParams, "VL_PAGO", vVlAdiantamento
+				vVlDup = vVlDup - vVlAdiantamento
+				vVlAdiantamento = 0
+			else
+				putitem/id vpiParams, "VL_PAGO", vVlDup
+				vVlAdiantamento = vVlAdiantamento - vVlDup
+				vVlDup = 0
+			endif
+			vVlPagoemAdiantamento = vVlPagoemAdiantamento + $item("VL_PAGO", vpiParams)
+			
+			$instancehandle->atualizaLiq(piGlobal, vpiParams, vpoParams, $xCdErro$, $xCtxErro$)
+			if ($procerror)
+				$instancehandle->setStatus(<STS_ERRO>, $procerror, $procerrorcontext, "ADICIONAL=  FGRSVCO001 operation atualizaDifDuplicataEndossoTeste chamando operation -> atualizaLiq")
+				poCdErro  = $xCdErro$
+				poCtxErro = $xCtxErro$
+				return(-1)
+			elseif ($status < 0)
+				$instancehandle->setStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "ADICIONAL=  FGRSVCO001 operation atualizaDifDuplicataEndossoTeste chamando operation -> atualizaLiq")
+				poCdErro  = $xCdErro$
+				poCtxErro = $xCtxErro$
+				return(-1)
+			endif
+		endif
+		if (vVldup > 0)
+			
+			vpiParams = ""
+			putitem/id vpiParams, "CD_EMPLIQ",     $item("CD_EMPLIQ", piParams)
+			putitem/id vpiParams, "DT_LIQ",        $item("DT_LIQ", piParams)
+			putitem/id vpiParams, "NR_SEQLIQ",     $item("NR_SEQLIQ", piParams)
+			putitem/id vpiParams, "NR_SEQFOR",     $item("NR_SEQFOR", piParams)
+			putitem/id vpiParams, "TP_LIQUIDACAO", 8 ;Endosso.
+			putitem/id vpiParams, "NR_SEQITEM",    2
+			putitem/id vpiParams, "TP_LIQITEMCP",  3 ;tp_liqitemcp = 3(cheque terceiro).
+			putitem/id vpiParams, "CD_EMPENDOSSO", $item("CD_EMPENDOSSO", piParams)
+			putitem/id vpiParams, "NR_ANO",        $item("NR_ANO", piParams)
+			putitem/id vpiParams, "NR_ENDOSSO",    $item("NR_ENDOSSO", piParams)
+			putitem/id vpiParams, "VL_PAGO", vVlDup
+			
+			if (vVlFaturas <= vVlDup)
+				putitem/id vpiParams, "VL_PAGO", vVlFaturas
+				vVlDup = vVlDup - vVlFaturas
+				vVlFaturas = 0
+			else
+				putitem/id vpiParams, "VL_PAGO", vVlDup
+				vVlFaturas = vVlFaturas - vVlDup
+			endif
+			vVlPagoemChequeTer = vVlPagoemChequeTer + $item("VL_PAGO", vpiParams)
+			
+			$instancehandle->atualizaLiq(piGlobal, vpiParams, vpoParams, $xCdErro$, $xCtxErro$)
+			if ($procerror)
+				$instancehandle->setStatus(<STS_ERRO>, $procerror, $procerrorcontext, "ADICIONAL=  FGRSVCO001 operation atualizaDifDuplicataEndossoTeste chamando operation -> atualizaLiq")
+				poCdErro  = $xCdErro$
+				poCtxErro = $xCtxErro$
+				return(-1)
+			elseif ($status < 0)
+				$instancehandle->setStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "ADICIONAL=  FGRSVCO001 operation atualizaDifDuplicataEndossoTeste chamando operation -> atualizaLiq")
+				poCdErro  = $xCdErro$
+				poCtxErro = $xCtxErro$
+				return(-1)
+			endif
+		endif
+		;Neste ponto atualizo fgr_liqitemcc.
+		vpiParams = ""
+		putitem/id vpiParams, "CD_EMPLIQ",       $item("CD_EMPLIQ", piParams)
+		putitem/id vpiParams, "DT_LIQ",          $item("DT_LIQ", piParams)
+		putitem/id vpiParams, "NR_SEQLIQ",       $item("NR_SEQLIQ", piParams)
+		putitem/id vpiParams, "NR_SEQDUPLICATA", $item("NR_SEQDUPLICATA", piParams)
+		putitem/id vpiParams, "TP_SUBLIQ",       2 ;Contas a pagar.
+		putitem/id vpiParams, "NR_SEQFOR",       $item("NR_SEQFOR", piParams)
+		putitem/id vpiParams, "CD_EMPRESADUP",   cd_empresa.fcp_duplicatisvc
+		putitem/id vpiParams, "CD_FORNECDUP",    cd_fornecedor.fcp_duplicatisvc
+		putitem/id vpiParams, "NR_DUPLICATADUP", nr_duplicata.fcp_duplicatisvc
+		putitem/id vpiParams, "NR_PARCELADUP",   nr_parcela.fcp_duplicatisvc
+		putitem/id vpiParams, "VL_PAGO",         vl_pago.fcp_duplicatisvc
+		$instancehandle->atualizaLiqCC(piGlobal, vpiParams, vpoParams, $xCdErro$, $xCtxErro$)
+		if ($procerror)
+			$instancehandle->setStatus(<STS_ERRO>, $procerror, $procerrorcontext, "ADICIONAL=  FGRSVCO001 operation atualizaDifDuplicataEndossoTeste chamando operation -> atualizaLiqCC")
+			poCdErro  = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return(-1)
+		elseif ($status < 0)
+			$instancehandle->setStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "ADICIONAL=  FGRSVCO001 operation atualizaDifDuplicataEndossoTeste chamando operation -> atualizaLiqCC")
+			poCdErro  = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return(-1)
+		endif
+		vNrSeqDuplicata = vNrSeqDuplicata + 1
+	else
+		vVlDup = $item("VL_PAGO", piParams)
+		if (vVlAdiantamento > 0)
+			vpiParams = ""
+			putitem/id vpiParams, "CD_EMPLIQ",     $item("CD_EMPLIQ", piParams)
+			putitem/id vpiParams, "DT_LIQ",        $item("DT_LIQ", piParams)
+			putitem/id vpiParams, "NR_SEQLIQ",     $item("NR_SEQLIQ", piParams)
+			putitem/id vpiParams, "NR_SEQFOR",     $item("NR_SEQFOR", piParams)
+			putitem/id vpiParams, "TP_LIQUIDACAO", 8
+			putitem/id vpiParams, "NR_SEQITEM",    1
+			putitem/id vpiParams, "TP_LIQITEMCP",  4  ;tp_liqitemcp = 4 (adiantamento a fornecedor)
+			putitem/id vpiParams, "NR_CTAPES",     $item("NR_CTAPES", piParams)
+			putitem/id vpiParams, "CD_EMPENDOSSO", $item("CD_EMPENDOSSO", piParams)
+			putitem/id vpiParams, "NR_ANO",        $item("NR_ANO", piParams)
+			putitem/id vpiParams, "NR_ENDOSSO",    $item("NR_ENDOSSO", piParams)
+			
+			if (vVlAdiantamento <= vVlDup)
+				putitem/id vpiParams, "VL_PAGO", vVlAdiantamento
+				vVlDup = vVlDup - vVlAdiantamento
+				vVlAdiantamento = 0
+			else
+				putitem/id vpiParams, "VL_PAGO", vVlDup
+				vVlAdiantamento = vVlAdiantamento - vVlDup
+			endif
+			vVlPagoemAdiantamento = vVlPagoemAdiantamento + $item("VL_PAGO", vpiParams)
+			
+			$instancehandle->atualizaLiq(piGlobal, vpiParams, vpoParams, $xCdErro$, $xCtxErro$)
+			if ($procerror)
+				$instancehandle->setStatus(<STS_ERRO>, $procerror, $procerrorcontext, "ADICIONAL=  FGRSVCO001 operation atualizaDifDuplicataEndossoTeste chamando operation -> atualizaLiq")
+				poCdErro  = $xCdErro$
+				poCtxErro = $xCtxErro$
+				return(-1)
+			elseif ($status < 0)
+				$instancehandle->setStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "ADICIONAL=  FGRSVCO001 operation atualizaDifDuplicataEndossoTeste chamando operation -> atualizaLiq")
+				poCdErro  = $xCdErro$
+				poCtxErro = $xCtxErro$
+				return(-1)
+			endif
+		endif
+		
+		if (vVldup > 0)
+			
+			if (vVlFaturas > 0)	
+				vpiParams = ""
+				putitem/id vpiParams, "CD_EMPLIQ",     $item("CD_EMPLIQ", piParams)
+				putitem/id vpiParams, "DT_LIQ",        $item("DT_LIQ", piParams)
+				putitem/id vpiParams, "NR_SEQLIQ",     $item("NR_SEQLIQ", piParams)
+				putitem/id vpiParams, "NR_SEQFOR",     $item("NR_SEQFOR", piParams)
+				putitem/id vpiParams, "TP_LIQUIDACAO", 8
+				putitem/id vpiParams, "NR_SEQITEM",    2
+				putitem/id vpiParams, "TP_LIQITEMCP",  3 ;tp_liqitemcp = 3(cheque terceiro).
+				putitem/id vpiParams, "CD_EMPENDOSSO", $item("CD_EMPENDOSSO", piParams)
+				putitem/id vpiParams, "NR_ANO",        $item("NR_ANO", piParams)
+				putitem/id vpiParams, "NR_ENDOSSO",    $item("NR_ENDOSSO", piParams)
+				
+				if (vVlFaturas <= vVlDup)
+					putitem/id vpiParams, "VL_PAGO", vVlFaturas
+					vVlDup = vVlDup - vVlFaturas
+					vVlFaturas = 0
+				else
+					putitem/id vpiParams, "VL_PAGO", vVlDup
+					vVlFaturas = vVlFaturas - vVlDup
+				endif
+				
+				$instancehandle->atualizaLiq(piGlobal, vpiParams, vpoParams, $xCdErro$, $xCtxErro$)
+				if ($procerror)
+					$instancehandle->setStatus(<STS_ERRO>, $procerror, $procerrorcontext, "ADICIONAL=  FGRSVCO001 operation atualizaDifDuplicataEndossoTeste chamando operation -> atualizaLiq")
+					poCdErro  = $xCdErro$
+					poCtxErro = $xCtxErro$
+					return(-1)
+				elseif ($status < 0)
+					$instancehandle->setStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "ADICIONAL=  FGRSVCO001 operation atualizaDifDuplicataEndossoTeste chamando operation -> atualizaLiq")
+					poCdErro  = $xCdErro$
+					poCtxErro = $xCtxErro$
+					return(-1)
+				endif
+				vVlPagoemChequeTer = vVlPagoemChequeTer + $item("VL_PAGO", vpiParams)
+			endif	
+		endif
+		
+		if (vVlDup = 0)
+			
+			cd_empliq.fcp_duplicatisvc    = $item("CD_EMPLIQ", piParams)
+			dt_liq.fcp_duplicatisvc       = $item("DT_LIQ", piParams)
+			nr_seqliq.fcp_duplicatisvc    = $item("NR_SEQLIQ", piParams)
+			vl_pago.fcp_duplicatisvc      = $item("VL_PAGO", piParams)
+			vl_juros.fcp_duplicatisvc     = $item("VL_JUROS", piParams)
+			vl_desconto.fcp_duplicatisvc  = $item("VL_DESCONTOS", piParams)
+			dt_baixa.fcp_duplicatisvc     = $item("DT_SISTEMA", piGlobal)
+			cd_operbaixa.fcp_duplicatisvc = $item("CD_USUARIO", piGlobal)
+			tp_baixa.fcp_duplicatisvc     = 2
+			tp_estagio.fcp_duplicatisvc   = 10 ;Endossado.
+			
+			$collhandle ("FCP_DUPLICATISVC")->salvar()
+			if ($procerror)
+				$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "ADICIONAL=  FCR_DUPLICATISVC -> salvar()")
+				poCdErro = $xCdErro$
+				poCtxErro = $xCtxErro$
+				return (-1)
+			elseif ($status < 0)
+				$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "ADICIONAL=  FCR_DUPLICATISVC -> salvar()")
+				poCdErro = $xCdErro$
+				poCtxErro = $xCtxErro$
+				return (-1)
+			endif
+			
+			;Neste ponto atualizo fgr_liqitemcc.
+			vpiParams = ""
+			putitem/id vpiParams, "CD_EMPLIQ",       $item("CD_EMPLIQ", piParams)
+			putitem/id vpiParams, "DT_LIQ",          $item("DT_LIQ", piParams)
+			putitem/id vpiParams, "NR_SEQLIQ",       $item("NR_SEQLIQ", piParams)
+			putitem/id vpiParams, "NR_SEQDUPLICATA", $item("NR_SEQDUPLICATA", piParams)
+			putitem/id vpiParams, "TP_SUBLIQ",       2 ;Contas a pagar.
+			putitem/id vpiParams, "NR_SEQFOR",       $item("NR_SEQFOR", piParams)
+			putitem/id vpiParams, "CD_EMPRESADUP",   cd_empresa.fcp_duplicatisvc
+			putitem/id vpiParams, "CD_FORNECDUP",    cd_fornecedor.fcp_duplicatisvc
+			putitem/id vpiParams, "NR_DUPLICATADUP", nr_duplicata.fcp_duplicatisvc
+			putitem/id vpiParams, "NR_PARCELADUP",   nr_parcela.fcp_duplicatisvc
+			putitem/id vpiParams, "VL_PAGO",         vl_pago.fcp_duplicatisvc
+			$instancehandle->atualizaLiqCC(piGlobal, vpiParams, vpoParams, $xCdErro$, $xCtxErro$)
+			if ($procerror)
+				$instancehandle->setStatus(<STS_ERRO>, $procerror, $procerrorcontext, "ADICIONAL=  FGRSVCO001 operation atualizaDifDuplicataEndossoTeste chamando operation -> atualizaLiqCC")
+				poCdErro  = $xCdErro$
+				poCtxErro = $xCtxErro$
+				return(-1)
+			elseif ($status < 0)
+				$instancehandle->setStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "ADICIONAL=  FGRSVCO001 operation atualizaDifDuplicataEndossoTeste chamando operation -> atualizaLiqCC")
+				poCdErro  = $xCdErro$
+				poCtxErro = $xCtxErro$
+				return(-1)
+			endif
+			vNrSeqDuplicata = vNrSeqDuplicata + 1
+		else
+			;verifica se sera pago em dinheiro ou cheque proprio.
+			if (vVlDup != vVlPago)
+				
+				vpiParams = ""
+				vVlDiferencaDup = vVlPago - vVlDup
+				vNrParcelaAux   = nr_parcela.fcp_duplicatisvc
+				putitem/id vpiParams, "CD_EMPLIQ",    $item("CD_EMPLIQ", piParams)
+				putitem/id vpiParams, "DT_LIQ",       $item("DT_LIQ", piParams)
+				putitem/id vpiParams, "NR_SEQLIQ",    $item("NR_SEQLIQ", piParams)
+				putitem/id vpiParams, "VL_JUROS",     $item("VL_JUROS", piParams)
+				putitem/id vpiParams, "VL_DESCONTOS", $item("VL_DESCONTOS", piParams)
+				putitem/id vpiParams, "VL_PAGO",      vVlDiferencaDup
+				putitem/id vpiParams, "VL_RESTANTE",  vVlDup
+				putitem/id vpiParams, "IN_DINHEIRO",  $item("IN_DINHEIRO", piParams)
+				putitem/id vpiParams, "VL_MAXIMODIN", $item("VL_MAXIMODIN", piParams)
+				
+				$instancehandle->baixaDuplicataParcial(piGlobal, vpiParams, vpoParams, $xCdErro$, $xCtxErro$)
+				if ($procerror)
+					$instancehandle->setStatus(<STS_ERRO>, $procerror, $procerrorcontext, "ADICIONAL=  FGRSVCO001 operation -> atualizaDifDuplicataEndossoTeste chamando operation -> baixaParcialDuplicata")
+					poCdErro  = $xCdErro$
+					poCtxErro = $xCtxErro$
+					return(-1)
+				elseif ($status < 0)
+					$instancehandle->setStatus(<STS_ERRO>, $procerror, $procerrorcontext, "ADICIONAL=  FGRSVCO001 operation -> atualizaDifDuplicataEndossoTeste chamando operation -> baixaParcialDuplicata")
+					poCdErro  = $xCdErro$
+					poCtxErro = $xCtxErro$
+					return(-1)
+				else
+					vInGerouQuebra = <TRUE>
+					vNrParcela     = $item("NR_PARCELA", vpoParams)
+				endif
+				
+				;Neste ponto atualizo fgr_liqitemcc.
+				vpiParams = ""
+				putitem/id vpiParams, "CD_EMPLIQ",       $item("CD_EMPLIQ", piParams)
+				putitem/id vpiParams, "DT_LIQ",          $item("DT_LIQ", piParams)
+				putitem/id vpiParams, "NR_SEQLIQ",       $item("NR_SEQLIQ", piParams)
+				putitem/id vpiParams, "NR_SEQDUPLICATA", $item("NR_SEQDUPLICATA", piParams)
+				putitem/id vpiParams, "TP_SUBLIQ",       2 ;Contas a pagar.
+				putitem/id vpiParams, "NR_SEQFOR",       $item("NR_SEQFOR", piParams)
+				putitem/id vpiParams, "CD_EMPRESADUP",   cd_empresa.fcp_duplicatisvc
+				putitem/id vpiParams, "CD_FORNECDUP",    cd_fornecedor.fcp_duplicatisvc
+				putitem/id vpiParams, "NR_DUPLICATADUP", nr_duplicata.fcp_duplicatisvc
+				putitem/id vpiParams, "NR_PARCELADUP",   vNrParcelaAux ;nr_parcela.fcp_duplicatisvc
+				putitem/id vpiParams, "VL_PAGO",         vVlDiferencaDup
+				$instancehandle->atualizaLiqCC(piGlobal, vpiParams, vpoParams, $xCdErro$, $xCtxErro$)
+				if ($procerror)
+					$instancehandle->setStatus(<STS_ERRO>, $procerror, $procerrorcontext, "ADICIONAL=  FGRSVCO001 operation atualizaDifDuplicataEndossoTeste chamando operation -> atualizaLiqCC")
+					poCdErro  = $xCdErro$
+					poCtxErro = $xCtxErro$
+					return(-1)
+				elseif ($status < 0)
+					$instancehandle->setStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "ADICIONAL=  FGRSVCO001 operation atualizaDifDuplicataEndossoTeste chamando operation -> atualizaLiqCC")
+					poCdErro  = $xCdErro$
+					poCtxErro = $xCtxErro$
+					return(-1)
+				endif
+				
+				;Guarda as duplicatas p/ baixar com pagamento em dinheiro ou cheque.
+				vDsLinha = ""
+				putitem/id vDsLinha,   "CD_EMPRESA",    cd_empresa.fcp_duplicatisvc
+				putitem/id vDslinha,   "CD_FORNECEDOR", cd_fornecedor.fcp_duplicatisvc
+				putitem/id vDsLinha,   "NR_DUPLICATA",  nr_duplicata.fcp_duplicatisvc
+				putitem/id vDsLinha,   "NR_PARCELA",    vNrParcela
+				putitem/id vDsLinha,   "VL_PAGAMENTO",  vVlDup
+				putitem/id vDsLinha,   "VL_DESCONTOS",  $item("VL_DESCONTOS", piParams)
+				putitem/id vDsLinha,   "VL_JUROS",      $item("VL_JUROS", piParams)
+				putitem vDsDuplicatas, -1,              vDsLinha
+				
+				if ($item("IN_DINHEIRO", piParams) = <TRUE>)
+					if (vVlDup <= vVlMaximoDin)
+						vpiParams = ""
+						putitem/id vpiParams, "CD_EMPRESA",       $item("CD_EMPRESA", $$gParamGlb)
+						putitem/id vpiParams, "NR_CTAPES",        $cdctapescxfilial$
+						putitem/id vpiParams, "DT_MOVIMENTO",     $item("DT_SISTEMA", $$gParamGlb)
+						putitem/id vpiParams, "TP_DOCUMENTO",     3 ;Dinheiro.
+						putitem/id vpiParams, "NR_SEQHISTRELSUB", 1
+						putitem/id vpiParams, "CD_HISTORICO",     904 ;Pagto. endosso com dinheiro.
+						putitem/id vpiParams, "VL_LANCTO",        vVlDup
+						putitem/id vpiParams, "IN_ESTORNO",       "N"
+						putitem/id vpiParams, "DS_AUX",           "Pagamento de endosso com dinheiro"
+						activate "FCCSVCO002".movimentaConta($$gParamGlb, vpiParams, vpiValores, vpoParams, $xCdErro$, $xCtxerro$)
+						if ($procerror)       
+							$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "ADICIONAL=  FGRSVCO001 operation -> atualizaDifDuplicataEndossoTeste chamando FCCSVCO002->movimentaConta()")
+							poCdErro  = $xCdErro$
+							poCtxErro = $xCtxErro$
+							return(-1)
+						elseif ($status < 0)
+							$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "ADICIONAL=  FGRSVCO001 operation -> atualizaDifDuplicataEndossoTeste chamando FCCSVCO002->movimentaConta(")
+							poCdErro  = $xCdErro$
+							poCtxErro = $xCtxErro$
+							return(-1)
+						else
+							vVlPagoemDinheiro = vVlPagoemDinheiro + vVlDup
+						endif
+					endif
+				endif
+				if ($item("IN_CHEQUE", piParams) = <TRUE>)
+					if (vVlDup >= vVlMinimoChe)
+						vVlPagoemChequePro = vVlPagoemChequePro + vVlDup
+					endif
+				endif
+				vNrSeqDuplicata = vNrSeqDuplicata + 1
+			else
+				if ($item("IN_DINHEIRO", piParams) = <TRUE>)
+					if (vVlPago <= vVlMaximoDin)
+						vpiParams = ""
+						putitem/id vpiParams, "CD_EMPRESA",       $item("CD_EMPRESA", $$gParamGlb)
+						putitem/id vpiParams, "NR_CTAPES",        $cdctapescxfilial$
+						putitem/id vpiParams, "DT_MOVIMENTO",     $item("DT_SISTEMA", $$gParamGlb)
+						putitem/id vpiParams, "TP_DOCUMENTO",     3 ;Dinheiro.
+						putitem/id vpiParams, "NR_SEQHISTRELSUB", 1
+						putitem/id vpiParams, "CD_HISTORICO",     904 ;Pagto endosso com dinheiro.
+						putitem/id vpiParams, "VL_LANCTO",        $item("VL_PAGO", piParams)
+						putitem/id vpiParams, "IN_ESTORNO",       "N"
+						putitem/id vpiParams, "DS_AUX",           "Pagamento de endosso com dinheiro"
+						activate "FCCSVCO002".movimentaConta($$gParamGlb, vpiParams, vpiValores, vpoParams, $xCdErro$, $xCtxerro$)
+						if ($procerror)       
+							$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "ADICIONAL=  FGRSVCO001 operation -> atualizaDifDuplicataEndossoTeste chamando FCCSVCO002->movimentaConta()")
+							poCdErro  = $xCdErro$
+							poCtxErro = $xCtxErro$
+							return(-1)
+						elseif ($status < 0)
+							$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "ADICIONAL=  FGRSVCO001 operation -> atualizaDifDuplicataEndossoTeste chamando FCCSVCO002->movimentaConta(")
+							poCdErro  = $xCdErro$
+							poCtxErro = $xCtxErro$
+							return(-1)
+						else
+							vVlPagoemDinheiro = vVlPagoemDinheiro + vVlPago ;item("VL_PAGO", piParams)
+						endif
+					endif
+				endif
+				if ($item("IN_CHEQUE", piParams) = <TRUE>)
+					if (vVlPago >= vVlMinimoChe)
+						vVlPagoemChequePro = vVlPagoemChequePro + vVlPago ;item("VL_PAGO", piParams)
+					endif
+				endif
+				
+				;Guarda as duplicatas p/ gerar a autorizacao de cheques.
+				vDsLinha = ""
+				putitem/id vDsLinha,   "CD_EMPRESA",    cd_empresa.fcp_duplicatisvc
+				putitem/id vDslinha,   "CD_FORNECEDOR", cd_fornecedor.fcp_duplicatisvc
+				putitem/id vDsLinha,   "NR_DUPLICATA",  nr_duplicata.fcp_duplicatisvc
+				putitem/id vDsLinha,   "NR_PARCELA",    nr_parcela.fcp_duplicatisvc
+				putitem/id vDsLinha,   "VL_PAGAMENTO",  $item("VL_PAGO", piParams)
+				putitem/id vDsLinha,   "VL_DESCONTOS",  $item("VL_DESCONTOS", piParams)
+				putitem/id vDsLinha,   "VL_JUROS",      $item("VL_JUROS", piParams)
+				putitem vDsDuplicatas, -1,              vDsLinha
+			endif
+		endif 
+	endif
+	
+	vpoParams = ""
+	putitem/id poParams, "VL_ADIANTAMENTO",       vVlAdiantamento
+	putitem/id poParams, "VL_FATURAS",            vVlFaturas
+	putitem/id poParams, "DS_DUPLICATAS",         vDsDuplicatas
+	putitem/id poParams, "VL_PAGOEMDINHEIRO",     vVlPagoemDinheiro
+	putitem/id poParams, "VL_PAGOEMCHEQUETER",    vVlPagoemChequeTer
+	putitem/id poParams, "VL_PAGOEMCHEQUEPRO",    vVlPagoemChequePro
+	putitem/id poParams, "VL_PAGOEMADIANTAMENTO", vVlPagoemAdiantamento
+	putitem/id poParams, "NR_SEQDUPLICATA",       vNrSeqDuplicata
+	
+	if (vInGerouQuebra = <TRUE>)
+		putitem/id poParams, "IN_GEROUQUEBRA", <TRUE>
+		putitem/id poParams, "VL_PAGO",        vVlDiferencaDup
+		putitem/id poParams, "VL_RESTANTE",    vVlDup
+		putitem/id poParams, "NR_PARCELA",     vNrParcela
+	endif
+	message/hint ""
+	
+	return (0)
+end ;operation atualizaDuplicataEndosso.
+
+;-------------------------------------------------------------------------;
+public operation baixaDuplicataParcial                                    ;
+;-------------------------------------------------------------------------;
+; MTF - 21/12/2004                                                        ;
+; Funcao : Grava FGR_LIQ e faz a baixa parcial da duplicata selecionada   ;
+;          p/ endosso e gera uma nova duplicata com o valor da diferenca. ;
+; Chamada: FCRFP004 - verificaDuplicataFatura                             ;
+;-------------------------------------------------------------------------;
+;
+	params
+		string  piGlobal  :IN
+		string  piParams  :IN
+		string  poParams  :OUT
+		numeric poCdErro  :OUT
+		string  poCtxErro :OUT
+	endparams
+	variables
+		string  vpiParams, vpoParams, vDupOriginal
+ 		string  vDsLinha, vDsRegImp, vDsRegDesp, vDsLinhaDesp, vDsLinhaImp, vDsDespesa, vDsImposto
+		numeric vNrParcela, vVlDuplicataOrig, vVlDiferenca, vVlMaximoDin, vVlMinimoChe
+	endvariables
+	vpiParams = ""
+	vpoParams = ""
+	vVlMaximoDin = $item("VL_MAXIMODIN", piParams)
+	vVlMinimoChe = $item("VL_MINIMOCHE", piParams)
+	
+	clear/e "FCP_DUPDESPESSVC"
+	cd_empresa.fcp_dupdespessvc/init    = cd_empresa.fcp_duplicatisvc
+	cd_fornecedor.fcp_dupdespessvc/init = cd_fornecedor.fcp_duplicatisvc
+	nr_duplicata.fcp_dupdespessvc/init  = nr_duplicata.fcp_duplicatisvc
+	nr_parcela.fcp_dupdespessvc/init    = nr_parcela.fcp_duplicatisvc
+	retrieve/e "FCP_DUPDESPESSVC"
+	if ($status < 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Duplicata vinculada ao cheque sem despesa!", "ADICIONAL=Operação->FGRSVCO001.geraLiquidacao")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	
+	clear/e "FCP_DUPIMPOSTSVC"
+	cd_empresa.fcp_dupimpostsvc/init    = cd_empresa.fcp_duplicatisvc
+	cd_fornecedor.fcp_dupimpostsvc/init = cd_fornecedor.fcp_duplicatisvc
+	nr_duplicata.fcp_dupimpostsvc/init  = nr_duplicata.fcp_duplicatisvc
+	nr_parcela.fcp_dupimpostsvc/init    = nr_parcela.fcp_duplicatisvc
+	retrieve/e "FCP_DUPIMPOSTSVC"
+
+	putlistitems/occ vDupOriginal, "FCP_DUPLICATISVC" ;armazena em vDupOrigem o registro contendo a Parcela Original que poderá ser dividida
+	
+	vDsRegDesp = ""
+	vDsRegImp = ""
+	
+	cd_empliq.fcp_duplicatisvc    = $item("CD_EMPLIQ", piParams)
+	dt_liq.fcp_duplicatisvc       = $item("DT_LIQ", piParams)
+	nr_seqliq.fcp_duplicatisvc    = $item("NR_SEQLIQ", piParams)
+	vl_duplicata.fcp_duplicatisvc = $item("VL_PAGO", piParams)
+	vl_pago.fcp_duplicatisvc      = $item("VL_PAGO", piParams)
+	dt_baixa.fcp_duplicatisvc     = $datim
+	cd_operbaixa.fcp_duplicatisvc = $item("CD_USUARIO", piGlobal)
+	tp_baixa.fcp_duplicatisvc     = 2
+	tp_estagio.fcp_duplicatisvc   = 10 ;Endossado.
+	
+	vpiParams = ""
+	$instancehandle->gravaDuplicata(vpiParams,vpoParams,$xCdErro$,$xCtxerro$)
+	if ($procerror)
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return (-1)
+	elseif ($status < 0)
+			$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+			poCdErro = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return (-1)
+	endif
+	vDsRegDesp = $item("DS_REGDESP", vpoParams)
+	vDsRegImp = $item("DS_REGIMP", vpoParams)
+	
+	;----------------------------------------
+	;Grava log duplicata---------------------
+	;----------------------------------------
+	vpiParams = ""
+	putitem/id vpiParams, "CD_EMPRESA",    cd_empresa.fcp_duplicatisvc
+	putitem/id vpiParams, "CD_FORNECEDOR", cd_fornecedor.fcp_duplicatisvc
+	putitem/id vpiParams, "NR_DUPLICATA",  nr_duplicata.fcp_duplicatisvc
+	putitem/id vpiParams, "NR_PARCELA",    nr_parcela.fcp_duplicatisvc
+	putitem/id vpiParams, "TP_LOGDUP",     5
+	putitem/id vpiParams, "DS_COMPONENTE", "FGRSVCO001"
+	putitem/id vpiParams, "DS_OBS",        "LIQUIDACAO DA DUPLICATA"
+	activate "FCPSVCO001".gravaLogDuplicata(piGlobal,vpiParams,vpoParams,$xCdErro$,$xCtxErro$)
+	if ($procerror)
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return (-1)
+	elseif ($status < 0)
+			$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+			poCdErro = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return (-1)
+	endif
+			
+	if ($item("VL_RESTANTE", piParams) > 0)
+		clear/e "FCP_DUPLICATISVC"
+		clear/e "FCP_DUPDESPESSVC"
+		clear/e "FCP_DUPIMPOSTSVC"
+		
+		creocc "FCP_DUPLICATISVC", -1
+		getlistitems/occ vDupOriginal, "FCP_DUPLICATISVC"
+		
+		vpiParams = ""
+		; Projeto 078 - Tarefa 410 - Aloisio Gargantini - 30/04/2007
+		putitem/id vpiParams, "TP_PARCELA", 2	
+		;
+		$instancehandle->geraSeqParcela(vpiParams,vpoParams,$xCdErro$,$xCtxerro$)
+		if ($procerror)
+			$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+			poCdErro = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return (-1)
+		elseif ($xcdErro$)
+			poCdErro  = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return(-1)
+		endif
+		vNrParcela = $item("NR_PARCELA", vpoParams)
+		vl_duplicata.fcp_duplicatisvc   = $item("VL_RESTANTE", piParams)
+		vl_juros.fcp_duplicatisvc       = $item("VL_JUROS", piParams)
+		vl_desconto.fcp_duplicatisvc    = $item("VL_DESCONTOS", piParams)
+		dt_cadastro.fcp_duplicatisvc    = $datim
+		cd_operador.fcp_duplicatisvc    = $item("CD_USUARIO", piGlobal)
+		tp_inclusao.fcp_duplicatisvc    = 1
+		nr_paroriginal.fcp_duplicatisvc = nr_parcela.fcp_duplicatisvc
+		nr_parcela.fcp_duplicatisvc     = vNrParcela
+		tp_baixa.fcp_duplicatisvc       = 2
+		tp_estagio.fcp_duplicatisvc     = 10 ;Endossado.
+		
+		if ($item("IN_DINHEIRO", piParams) = <TRUE>)
+			;if (vl_duplicata.fcp_duplicatisvc <= $item("VL_MAXIMODIN", piParams))
+			if (vl_duplicata.fcp_duplicatisvc <= vVlMaximoDin)
+				vl_pago.fcp_duplicatisvc      = $item("VL_RESTANTE", piParams)
+				vl_pago.fcp_duplicatisvc      = vl_pago.fcp_duplicatisvc + $item("VL_JUROS", piParams) - $item("VL_DESCONTOS", piParams)
+				cd_operbaixa.fcp_duplicatisvc = $item("CD_USUARIO", piGlobal)
+				dt_baixa.fcp_duplicatisvc     = $item("DT_SISTEMA", piGlobal)
+			endif
+		endif
+		
+		if (vDsRegDesp != "")
+			repeat
+				
+				getitem vDsDespesa, vDsRegDesp, 1
+				creocc "FCP_DUPDESPESSVC", -1
+				getlistitems/occ vDsDespesa, "FCP_DUPDESPESSVC"
+				nr_parcela.fcp_dupdespessvc = vNrParcela
+				
+				delitem vDsRegDesp, 1
+			until (vDsRegDesp = "")    
+		endif
+		
+		if (vDsRegImp != "")
+			repeat
+				
+				getitem vDsImposto, vDsRegImp, 1
+				creocc "FCP_DUPIMPOSTSVC", -1
+				getlistitems/occ vDsImposto, "FCP_DUPIMPOSTSVC"
+				nr_parcela.fcp_dupimpostsvc = vNrParcela
+				
+				delitem vDsRegImp, 1
+			until (vDsRegImp = "")    
+		endif
+		
+		vpiParams = ""
+		$instancehandle->gravaDuplicata(vpiParams, vpoParams, $xCdErro$, $xCtxerro$)
+		if ($procerror)
+			$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+			poCdErro = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return (-1)
+		elseif ($status < 0)
+				$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+				poCdErro = $xCdErro$
+				poCtxErro = $xCtxErro$
+				return (-1)
+		endif
+	endif
+	putitem/id poParams, "NR_PARCELA", vNrParcela
+	putitem/id poParams, "VL_PARCELA", vl_duplicata.fcp_duplicatisvc
+	
+	return (0)
+end ;operation baixaDuplicataParcial.
+
+;--------------------------------------------------------------------------------------------------
+public operation atualizaLiqPagAut                   
+
+; Funcao : Atualiza o arquivo de FCR_LIQ p/ Pagamento Automático 
+; Chamada: FCPFP016  - Retorno de Pagamento Automático
+;--------------------------------------------------------------------------------------------------
+;
+	params
+		string  piGlobal  :IN
+		string  piParams  :IN
+		string  poParams  :OUT
+		numeric poCdErro  :OUT
+		string  poCtxErro :OUT
+	endparams
+	variables
+		string vInAtualiza
+	endvariables
+	
+	if ($item("CD_EMPLIQ", piParams) = "")
+		$instancehandle->setStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Falta o código da empresa da liquidação", "")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	if ($item("DT_LIQ", piParams) = "")
+		$instancehandle->setStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Falta a data da liquidação", "")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	if ($item("NR_SEQLIQ", piParams) = "")
+		$instancehandle->setStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Falta a sequencia da liquidação", "")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	if ($item("NR_SEQITEM", piParams) = "")
+		$instancehandle->setStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Falta a sequencia do item da liquidação", "")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	vInAtualiza = $item("IN_ATUALIZA", piParams)
+	
+	clear/e "FGR_LIQSVC"
+	cd_empliq.fgr_liqsvc/init = $item("CD_EMPLIQ", piParams)
+	dt_liq.fgr_liqsvc/init    = $item("DT_LIQ", piParams)
+	nr_seqliq.fgr_liqsvc/init = $item("NR_SEQLIQ", piParams)
+	retrieve/e "FGR_LIQSVC"
+	if ($status < 0)
+		if ($status = -2)
+			clear/e "FGR_LIQSVC"
+			creocc "FGR_LIQSVC", -1
+			cd_empliq.fgr_liqsvc       = $item("CD_EMPLIQ", piParams)
+			dt_liq.fgr_liqsvc          = $item("DT_LIQ", piParams)
+			nr_seqliq.fgr_liqsvc       = $item("NR_SEQLIQ", piParams)
+			cd_grupoempresa.fgr_liqsvc = $item("CD_GRUPOEMPRESA", piGlobal)
+			tp_liquidacao.fgr_liqsvc   = $item("TP_LIQUIDACAO", piParams)
+			
+			creocc "FGR_LIQITEMCPSVC", -1
+			cd_empliq.fgr_liqitemcpsvc      = $item("CD_EMPLIQ", piParams)
+			dt_liq.fgr_liqitemcpsvc         = $item("DT_LIQ", piParams)
+			nr_seqliq.fgr_liqitemcpsvc      = $item("NR_SEQLIQ", piParams)
+			nr_seqitem.fgr_liqitemcpsvc     = $item("NR_SEQITEM", piParams)
+			tp_liqitemcp.fgr_liqitemcpsvc   = $item("TP_LIQITEMCP", piParams)
+			nr_ano.fgr_liqitemcpsvc         = $item("NR_ANO", piParams)
+			nr_seqauto.fgr_liqitemcpsvc     = $item("NR_SEQAUTO", piParams)
+;			dt_autorizacao.fgr_liqitemcpsvc = $item("DT_AUTORIZACAO", piParams)
+			nr_ctapes.fgr_liqitemcpsvc      = $item("NR_CTAPES", piParams)
+		else
+			$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Liquidação não encontrada!", "ADICIONAL=  Operation -> atualizaDuplicataFatura")
+			poCdErro = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return(-1)
+		endif
+	else
+		clear/e "FGR_LIQITEMCPSVC"	
+		cd_empliq.fgr_liqitemcpsvc  = $item("CD_EMPLIQ", piParams)
+		dt_liq.fgr_liqitemcpsvc     = $item("DT_LIQ", piParams)
+		nr_seqliq.fgr_liqitemcpsvc  = $item("NR_SEQLIQ", piParams)
+		nr_seqitem.fgr_liqitemcpsvc = $item("NR_SEQITEM", piParams)
+		retrieve/e "FGR_LIQITEMCPSVC"
+		if ($status < 0)
+			if ($status = -2)
+				clear/e "FGR_LIQITEMCPSVC"
+				creocc "FGR_LIQITEMCPSVC", -1
+				cd_empliq.fgr_liqitemcpsvc      = $item("CD_EMPLIQ", piParams)
+				dt_liq.fgr_liqitemcpsvc         = $item("DT_LIQ", piParams)
+				nr_seqliq.fgr_liqitemcpsvc      = $item("NR_SEQLIQ", piParams)
+				nr_seqitem.fgr_liqitemcpsvc     = $item("NR_SEQITEM", piParams)
+				tp_liqitemcp.fgr_liqitemcpsvc   = $item("TP_LIQITEMCP", piParams)
+				nr_ano.fgr_liqitemcpsvc         = $item("NR_ANO", piParams)
+				nr_seqauto.fgr_liqitemcpsvc     = $item("NR_SEQAUTO", piParams)
+;				dt_autorizacao.fgr_liqitemcpsvc = $item("DT_AUTORIZACAO", piParams)
+				nr_ctapes.fgr_liqitemcpsvc      = $item("NR_CTAPES", piParams)
+			else
+				$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Itens da liquidação não encontrada!", "ADICIONAL=  Operation -> atualizaLiquidacao()")
+				poCdErro = $xCdErro$
+				poCtxErro = $xCtxErro$
+				return(-1)
+			endif
+		endif
+	endif
+	
+	if (vInAtualiza != "N")
+		vl_total.fgr_liqsvc         = vl_total.fgr_liqsvc + $item("VL_PAGO", piParams)
+	endif
+	cd_operador.fgr_liqsvc          = $item("CD_USUARIO", piGlobal)
+	dt_cadastro.fgr_liqsvc          = $datim
+	nr_seqauto.fgr_liqitemcpsvc     = $item("NR_SEQAUTO", piParams)
+	dt_autorizacao.fgr_liqitemcpsvc = $item("DT_AUTORIZACAO", piParams)
+	nr_seqcheque.fgr_liqitemcpsvc   = $item("NR_SEQCHEQUE", piParams)
+	nr_ctapes.fgr_liqitemcpsvc      = $item("NR_CTAPES", piParams)
+	vl_pago.fgr_liqitemcpsvc        = vl_pago.fgr_liqitemcpsvc + $item("VL_PAGO", piParams)
+	cd_operador.fgr_liqitemcpsvc    = $item("CD_USUARIO", piGlobal)
+	dt_cadastro.fgr_liqitemcpsvc    = $datim
+	
+	$collhandle("FGR_LIQSVC")->salvar()
+	if ($procerror)
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "ADICIONAL=  FGR_LIQSVC -> salvar()")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return (-1)
+	elseif ($status < 0)
+		$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "ADICIONAL=  FGR_LIQSVC -> salvar()")    
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return (-1)
+	endif	
+									
+	return(0)
+end ;operation atualizaLiqPagAut.
+
+;--------------------
+public operation validarEmpresa
+;--------------------
+	params
+		 string piGlobal  : IN
+		 string piParams  : IN
+		 string poParams  : OUT
+		numeric poCdErro  : OUT
+		 string poCtxErro : OUT
+	endparams
+
+	variables
+		 string vCdPoolEmpresa, vCdGrupoEmpresa, vCdEmpresa, vpiParams, vpoParams, vLstEmpresa, vDsMsg
+		boolean vInCCusto, vInValidaPool
+		numeric vCd
+	endvariables
+
+	poParams = ""
+
+	vDsMsg = "ADICIONAL=  / FGRSVCO001.validarEmpresa()"
+
+	vCdPoolEmpresa = $item("CD_POOLEMPRESA",piParams)
+	if (vCdPoolEmpresa = "")
+		vCdPoolEmpresa = $$gCdPoolEmpresa
+	endif
+
+	vCdGrupoEmpresa = $item("CD_GRUPOEMPRESA",piParams)
+	if (vCdGrupoEmpresa = "")
+		vCdGrupoEmpresa = $$gCdGrupoEmpresa
+	endif
+
+	vCdEmpresa = $item("CD_EMPRESA",piParams)
+	if (vCdEmpresa = "")
+		$instancehandle->setStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Codigo da empresa nao informado.", "%%vDsMsg")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)		
+	endif
+
+	vInCCusto = $item("IN_CCUSTO",piParams)
+	if (vInCCusto = "")
+		vInCCusto = <FALSE>
+	endif
+
+	vInValidaPool = $item("IN_VALIDAPOOL",piParams)
+	if (vInValidaPool = "")
+		vInValidaPool = <TRUE>	
+	endif
+
+	clear/e "GER_EMPRESASVC"
+	CD_EMPRESA.GER_EMPRESASVC/init = vCdEmpresa
+	retrieve/e "GER_EMPRESASVC"
+	if ($status < 0)
+		$instancehandle->setStatus(<STS_INFO>, "GEN001", "DESCRICAO=Empresa não existe.", "%%vDsMsg")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+
+	if ($item("CD_EMPVALIDACAO",piParams) != "")
+		vpiParams = ""
+		putitem/id vpiParams, "CD_EMPRESA"     , vCdEmpresa
+		putitem/id vpiParams, "IN_CCUSTO"      , vInCCusto
+		putitem/id vpiParams, "CD_EMPVALIDACAO", $item("CD_EMPVALIDACAO",piParams)
+		activate "SICSVCO002".validaLocal($$gParamGlb, vpiParams, vpoParams, $xCdErro$, $xCtxErro$)
+		if ($procerror)       
+			$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "%%vDsMsg")
+			poCdErro = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return(-1)
+		elseif ($status < 0)
+			$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "%%vDsMsg")
+			poCdErro = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return(-1)
+		endif
+		vCdEmpresa = $item("CD_EMPRESA", vpoParams)
+	endif
+
+	vpiParams = ""
+	putitem/id vpiParams, "CD_EMPRESA",     vCdEmpresa
+	putitem/id vpiParams, "IN_CCUSTO",      vInCCusto
+	putitem/id vpiParams, "IN_VALIDAPOOL",  vInValidaPool
+	putitem/id vpiParams, "CD_POOLEMPRESA", vCdPoolEmpresa
+	if ($item("CD_COMPONENTE",piParams) != "")
+		putitem/id vpiParams, "CD_COMPONENTE", $item("CD_COMPONENTE",piParams)
+	endif
+	if ($item("CD_EMPRESALOG",piParams) != "")
+		putitem/id vpiParams, "CD_EMPRESALOG", $item("CD_EMPRESALOG",piParams)
+	endif
+	activate "SICSVCO004".validaEmpresa($$gParamGlb, vpiParams, vpoParams, $xCdErro$, $xCtxErro$)
+	if ($procerror)
+		$instancehandle->setStatus(<STS_ERRO>, $procerror, $procerrorcontext, "%%vDsMsg")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	elseif ($status < 0)
+		$instancehandle->setStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "%%vDsMsg")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+
+	vLstEmpresa = $item("LST_EMPRESA", vpoParams)
+	if (vLstEmpresa = "")
+		if ($$gCdPoolEmpresa > 0)
+			$instancehandle->setStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Empresa não pertence ao Pool de Empresa.", "%%vDsMsg")
+		else
+			$instancehandle->setStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Empresa não pertence ao Grupo Empresa.", "%%vDsMsg")
+		endif
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+
+	clear/e "GER_EMPRESASVC"
+	CD_EMPRESA.GER_EMPRESASVC = vLstEmpresa
+	retrieve/e "GER_EMPRESASVC"
+	if ($status >= 0)
+		vLstEmpresa = ""
+		sort/e "GER_EMPRESASVC", "CD_EMPRESA.GER_EMPRESASVC"
+		setocc "GER_EMPRESASVC", 1
+		while ($status >= 0)
+			vCd = CD_EMPRESA.GER_EMPRESASVC
+
+			if (vLstEmpresa = "")
+				vLstEmpresa = vCd
+			else
+				vLstEmpresa = "%%vLstEmpresa·;%%vCd"
+			endif
+
+			setocc "GER_EMPRESASVC", $curocc("GER_EMPRESASVC") + 1
+		endwhile
+	endif
+
+	poParams = ""
+	putitem/id poParams, "LST_EMPRESA", vLstEmpresa
+
+	return(0)
+end ;validaEmpresa
+
+;--------------------
+public operation listarEmpresa
+;--------------------
+	params
+		 string piGlobal  : IN
+		 string piParams  : IN
+		 string poParams  : OUT
+		numeric poCdErro  : OUT
+		 string poCtxErro : OUT
+	endparams
+
+	variables
+		 string vCdPoolEmpresa, vCdGrupoEmpresa, vCdEmpresa, vpiParams, vpoParams, vLstGrupoEmpresa, vLstEmpresa, vDsMsg
+		boolean vInCCusto, vInValidaPool
+		numeric vCd
+	endvariables
+
+	poParams = ""
+	
+	vDsMsg = "ADICIONAL=  / FGRSVCO001.listaEmpresa()"
+
+	vCdPoolEmpresa = $item("CD_POOLEMPRESA",piParams)
+	if (vCdPoolEmpresa = "")
+		vCdPoolEmpresa = $$gCdPoolEmpresa
+	endif
+
+	vCdGrupoEmpresa = $item("CD_GRUPOEMPRESA",piParams)
+	if (vCdGrupoEmpresa = "") & ($$gCdGrupoEmpresa > 0)
+		vCdGrupoEmpresa = $$gCdGrupoEmpresa
+	endif
+
+	vInCCusto = $item("IN_CCUSTO",piParams)
+	if (vInCCusto = "")
+		vInCCusto = <FALSE>
+	endif
+	vLstGrupoEmpresa = vCdGrupoEmpresa
+
+	vInValidaPool = $item("IN_VALIDAPOOL",piParams)
+	if (vInValidaPool = "")
+		vInValidaPool = <TRUE>	
+	endif
+
+	if (vCdPoolEmpresa != "") & ($$gCdPoolEmpresa > 0)
+	
+		vLstGrupoEmpresa = ""	
+
+		clear/e "GER_POOLGRUPOSVC"
+		CD_POOLEMPRESA.GER_POOLGRUPOSVC = vCdPoolEmpresa
+		CD_GRUPOEMPRESA.GER_POOLGRUPOSVC = vCdGrupoEmpresa
+		retrieve/e "GER_POOLGRUPOSVC"
+		if ($status >= 0)
+			setocc "GER_POOLGRUPOSVC", 1
+			while ($status >= 0)
+
+				vCd = CD_GRUPOEMPRESA.GER_POOLGRUPOSVC
+				if (vLstGrupoEmpresa = "")
+					vLstGrupoEmpresa = vCd
+				else
+					vLstGrupoEmpresa = "%%vLstGrupoEmpresa·;%%vCd"
+				endif
+
+				setocc "GER_POOLGRUPOSVC", $curocc("GER_POOLGRUPOSVC") + 1
+			endwhile
+		endif
+
+	endif
+
+	if (vLstGrupoEmpresa = "")
+		$instancehandle->setStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Grupo de empresa não informado.", "%%vDsMsg")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)		
+	endif
+
+	vLstEmpresa = ""
+		
+	clear/e "GER_EMPRESASVC"
+	CD_GRUPOEMPRESA.GER_EMPRESASVC = vLstGrupoEmpresa
+	retrieve/e "GER_EMPRESASVC"
+	if ($status >= 0)
+		sort/e "GER_EMPRESASVC", "CD_EMPRESA.GER_EMPRESASVC"
+		setocc "GER_EMPRESASVC", 1
+		while ($status >= 0)
+			vCd = CD_EMPRESA.GER_EMPRESASVC
+
+			if (vLstEmpresa = "")
+				vLstEmpresa = vCd
+			else
+				vLstEmpresa = "%%vLstEmpresa·;%%vCd"
+			endif
+
+			setocc "GER_EMPRESASVC", $curocc("GER_EMPRESASVC") + 1
+		endwhile
+	endif
+
+	vpiParams = ""
+	putitem/id vpiParams, "CD_POOLEMPRESA" , vCdPoolEmpresa
+	putitem/id vpiParams, "CD_GRUPOEMPRESA", vCdGrupoEmpresa
+	putitem/id vpiParams, "CD_EMPRESA"     , vLstEmpresa
+	putitem/id vpiParams, "IN_CCUSTO"      , vInCCusto
+	putitem/id vpiParams, "IN_VALIDAPOOL"  , vInValidaPool
+	if ($item("CD_COMPONENTE",piParams) != "")
+		putitem/id vpiParams, "CD_COMPONENTE"  , $item("CD_COMPONENTE",piParams)
+	endif
+	if ($item("CD_EMPVALIDACAO",piParams) != "")
+		putitem/id vpiParams, "CD_EMPVALIDACAO"  , $item("CD_EMPVALIDACAO",piParams)
+	endif
+	if ($item("CD_EMPRESALOG",piParams) != "")
+		putitem/id vpiParams, "CD_EMPRESALOG"  , $item("CD_EMPRESALOG",piParams)
+	endif
+	activate "FGRSVCO001".validarEmpresa($$gParamGlb, vpiParams, vpoParams, $xCdErro$, $xCtxErro$)
+	if ($procerror)
+		$instancehandle->setStatus(<STS_ERRO>, $procerror, $procerrorcontext, "%%vDsMsg")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	elseif ($status < 0)
+		$instancehandle->setStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "%%vDsMsg")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	vLstEmpresa = $item("LST_EMPRESA",vpoParams)
+
+	poParams = ""
+	putitem/id poParams, "LST_EMPRESA", vLstEmpresa
+
+	return(0)
+end ;listaEmpresa
+
+;--------------------
+public operation listarEmpresaEnvSerasa
+; MFGALEGO - 13/02/2009 ; SM 22113
+;--------------------
+	params
+		string piGlobal  : IN
+		string piParams  : IN
+		string poParams  : OUT
+		string poCdErro  : OUT
+		string poCtxErro : OUT
+	endparams
+
+	variables
+		 string vCdEmpresa, vpiParams, vpoParams, vLstEmpresa
+		boolean vInContemCfg
+		numeric vCd
+	endvariables
+
+	;--------------------------------------------
+	poParams = ""
+	;--------------------------------------------
+
+	;--------------------------------------------
+	vCdEmpresa = $item("CD_EMPRESA",piParams)
+	if (vCdEmpresa = "")
+		vCdEmpresa = $$gCdEmpresa
+	endif
+	;--------------------------------------------
+
+	;--------------------------------------------
+	vLstEmpresa = ""
+	;--------------------------------------------
+		
+	;--------------------------------------------
+	vInContemCfg = <FALSE>
+	clear/e "FGR_EMPENVSERSVC"
+	retrieve/e "FGR_EMPENVSERSVC"
+	if ($status >= 0)
+		vInContemCfg = <TRUE>
+	endif
+	clear/e "FGR_EMPENVSERSVC"
+	;--------------------------------------------
+
+	;--------------------------------------------
+	clear/e "FGR_EMPENVSERSVC"
+	CD_EMPENVIO.FGR_EMPENVSERSVC = vCdEmpresa
+	retrieve/e "FGR_EMPENVSERSVC"
+	if ($status >= 0)
+		sort/e "FGR_EMPENVSERSVC", "CD_EMPRESA.FGR_EMPENVSERSVC"
+		setocc "FGR_EMPENVSERSVC", 1
+		while ($status >= 0)
+			vCd = CD_EMPRESA.FGR_EMPENVSERSVC
+			if (vLstEmpresa = "")
+				vLstEmpresa = vCd
+			else
+				vLstEmpresa = "%%vLstEmpresa·;%%vCd"
+			endif
+			setocc "FGR_EMPENVSERSVC" $curocc("FGR_EMPENVSERSVC") + 1
+		endwhile
+	endif
+	clear/e "FGR_EMPENVSERSVC"
+	;--------------------------------------------
+
+	;--------------------------------------------
+	if (vLstEmpresa != "")
+		vpiParams = ""
+		putitem/id vpiParams, "CD_EMPRESA"   , "%%vLstEmpresa·;%%vCdEmpresa"
+		putitem/id vpiParams, "CD_COMPONENTE", $item("CD_COMPONENTE",piParams)
+		activate "FGRSVCO001".validarEmpresa($$gParamGlb, vpiParams, vpoParams, $xCdErro$, $xCtxErro$)
+		if ($procerror)
+			$instancehandle->setStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+			poCdErro = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return(-1)
+		elseif ($status < 0)
+			$instancehandle->setStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")
+			poCdErro = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return(-1)
+		endif
+		vLstEmpresa = $item("LST_EMPRESA",vpoParams)
+	else
+		if (vInContemCfg = <TRUE>)
+			$instancehandle->setStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Empresa não configurada para envio PEFIN - Serasa.", "ADICIONAL=  / FGRSVCO001.listaEmpresaEnvSerasa()")
+			poCdErro = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return(-1)
+		endif
+	endif
+	;--------------------------------------------
+
+	;--------------------------------------------
+	putitem/id poParams, "LST_EMPRESA", vLstEmpresa
+	;--------------------------------------------
+
+	;--------------------------------------------
+	return(0)
+	;--------------------------------------------
+end ;listarEmpresaEnvSerasa
+
+;--------------------
+public operation buscaDespesa
+; MFGALEGO - 01/04/2009 ; SM 22383
+;--------------------
+	params
+		string piCdDespesaItemJuros : INOUT
+	endparams
+
+	variables
+		string viParams, voParams, vDsDespesa, vDsRegistro
+	endvariables
+
+	;--------------------------------------------
+	if (piCdDespesaItemJuros != 0) & (piCdDespesaItemJuros != "")
+		return(0)
+	endif
+	;--------------------------------------------
+
+	;--------------------------------------------
+	activate "FCPFL020".exec(viParams,voParams,$xCdErro$,$xCtxErro$)
+	if ($procerror)
+		$instancehandle->SetStatus(<sts_erro>,$procerror,$procerrorcontext,"")
+		return(-1)
+	endif
+	;--------------------------------------------
+
+	;--------------------------------------------
+	vDsDespesa = $item("DS_DESPESAITEM", voParams)
+	;--------------------------------------------
+
+	;--------------------------------------------
+	if (vDsDespesa != "")
+		getitem vDsRegistro, vDsDespesa, 1
+		piCdDespesaItemJuros = $item("CD_DESPESAITEM", vDsRegistro)
+	endif
+	;--------------------------------------------
+
+	;--------------------------------------------
+	return(0)
+	;--------------------------------------------
+end ;BuscaDespesa
+
+;------------------------------
+public operation validarParcial
+;------------------------------
+;Projeto 078 - Tarefa 3323 - Aloisio Gargantini - 16/04/2010
+	params
+		string  $xlpg$  :IN;Devair 168/0051 - 05/08/2010 [troca do nome da variável $PIGLOBAL$ para $XLPG$]
+		string  piParams  :IN
+		string  poParams  :OUT
+		numeric poCdErro  :OUT
+		string  poCtxErro :OUT
+	endparams
+	variables
+		numeric vVlDuplicata, vCdEmpDup, vCdFornecedor, vNrDuplicata, vNrParcela
+		string  viParams, voParams
+	endvariables
+	
+	vCdEmpDup = $item("CD_EMPRESA", piParams)
+	if ($item("CD_EMPRESA", piParams) = "")
+		$instancehandle->setStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Empresa da duplicata não informada para validar parcial.", "")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	vCdFornecedor = $item("CD_FORNECEDOR", piParams)
+	if ($item("CD_FORNECEDOR", piParams) = "")
+		$instancehandle->setStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Fornecedor da duplicata não informado para validar parcial.", "")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	vNrDuplicata = $item("NR_DUPLICATA", piParams)
+	if ($item("NR_DUPLICATA", piParams) = "")
+		$instancehandle->setStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Número da duplicata não informado para validar parcial.", "")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	vNrParcela = $item("NR_PARCELA", piParams)
+	if ($item("NR_PARCELA", piParams) = "")
+		$instancehandle->setStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Parcela da duplicata não informada para validar parcial.", "")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	
+	;validar parcial
+	clear/e "F_FCP_DUPLISVC"
+	CD_EMPRESA.F_FCP_DUPLISVC/init     = vCdEmpDup
+	CD_FORNECEDOR.F_FCP_DUPLISVC/init  = vCdFornecedor
+	NR_DUPLICATA.F_FCP_DUPLISVC/init   = vNrDuplicata
+	NR_PARORIGINAL.F_FCP_DUPLISVC/init = vNrParcela
+	NR_PARCELA.F_FCP_DUPLISVC/init     = "·!·=%%vNrParcela"
+	TP_SITUACAO.F_FCP_DUPLISVC/init    = "N"
+	retrieve/e "F_FCP_DUPLISVC"
+	if ($status >=0)
+		setocc "F_FCP_DUPLISVC", 1
+		while ($status >= 0)
+			if (NR_SEQLIQ.F_FCP_DUPLISVC != "") & (NR_SEQLIQ.F_FCP_DUPLISVC > 0)
+				$instancehandle->setStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Cancelamento não permitido.%%^Duplicata parcial já liquidada por outro processo.%%^%%^Empresa: %%CD_EMPRESA.F_FCP_DUPLISVC  Fornecedor:  %%CD_FORNECEDOR.F_FCP_DUPLISVC  Duplicata: %%NR_DUPLICATA.F_FCP_DUPLISVC  Parcela: %%NR_PARCELA.F_FCP_DUPLISVC %%^%%^Liquidação : Emp.: %%CD_EMPLIQ.F_FCP_DUPLISVC  Data: %%DT_LIQ.F_FCP_DUPLISVC  Liquidação: %%NR_SEQLIQ.F_FCP_DUPLISVC", "")
+				poCdErro = $xCdErro$
+				poCtxErro = $xCtxErro$
+				return(-1)						
+			endif
+			;validar se parcial está em outra autorização. Se o estágio da parcial for igual a 3-Cheque autorizado.
+			if (TP_ESTAGIO.F_FCP_DUPLISVC = 3) | (TP_ESTAGIO.F_FCP_DUPLISVC = 4) ;Cheque autorizado.
+				clear/e "F_FCC_AUTOPAGSVC"
+				CD_EMPRESA.F_FCC_AUTOPAGSVC/init    = CD_EMPRESA.F_FCP_DUPLISVC
+				CD_FORNECEDOR.F_FCC_AUTOPAGSVC/init = CD_FORNECEDOR.F_FCP_DUPLISVC
+				NR_DUPLICATA.F_FCC_AUTOPAGSVC/init  = NR_DUPLICATA.F_FCP_DUPLISVC
+				NR_PARCELA.F_FCC_AUTOPAGSVC/init    = NR_PARCELA.F_FCP_DUPLISVC
+				retrieve/e "F_FCC_AUTOPAGSVC"
+				if ($status < 0)
+					$instancehandle->setStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Cheque com estágio de autorizado para pagamento com cheque próprio, mas autorização não encontrada.", "")
+					poCdErro = $xCdErro$
+					poCtxErro = $xCtxErro$
+					return(-1)
+				endif
+				
+				setocc "F_FCC_AUTOPAGSVC", 1
+				while ($status >= 1)
+					clear/e "F_FCC_AUTOCHESVC"
+					DT_AUTORIZACAO.F_FCC_AUTOCHESVC/init = DT_AUTORIZACAO.F_FCC_AUTOPAGSVC
+					NR_SEQAUTO.F_FCC_AUTOCHESVC/init     = NR_SEQAUTO.F_FCC_AUTOPAGSVC
+					NR_SEQCHEQUE.F_FCC_AUTOCHESVC/init   = NR_SEQCHEQUE.F_FCC_AUTOPAGSVC
+					retrieve/e "F_FCC_AUTOCHESVC"
+					if ($status >= 0) & (DT_CANCELADO.F_FCC_AUTOCHESVC = "") & (DT_AUTORIZACAO.F_FCC_AUTOPAGSVC != DT_AUTORIZACAO.FCC_AUTOPAGSVC) & (NR_SEQAUTO.F_FCC_AUTOPAGSVC != NR_SEQAUTO.FCC_AUTOPAGSVC)
+						clear/e "F_FCC_AUTORIZSVC"
+						DT_AUTORIZACAO.F_FCC_AUTORIZSVC/init = DT_AUTORIZACAO.F_FCC_AUTOPAGSVC
+						NR_SEQAUTO.F_FCC_AUTORIZSVC/init     = NR_SEQAUTO.F_FCC_AUTOPAGSVC
+						retrieve/e "F_FCC_AUTORIZSVC"
+						if ($status >= 0) & (TP_EMITIDO.F_FCC_AUTORIZSVC != "C") ;Cancelado.
+							$instancehandle->setStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Cancelamento não permitido.%%^Duplicata com autorização de cheque gerada.%%^%%^Emp.: %%CD_EMPRESA.F_FCP_DUPLISVC  Fornec.:  %%CD_FORNECEDOR.F_FCP_DUPLISVC  Duplic.: %%NR_DUPLICATA.F_FCP_DUPLISVC  Parc.: %%NR_PARCELA.F_FCP_DUPLISVC %%^%%^Data: %%DT_AUTORIZACAO.F_FCC_AUTORIZSVC  Seq.: %%NR_SEQAUTO.F_FCC_AUTORIZSVC", "")
+							poCdErro = $xCdErro$
+							poCtxErro = $xCtxErro$
+							return(-1)
+						endif							
+					endif
+					
+					setocc "F_FCC_AUTOPAGSVC", $curocc(F_FCC_AUTOPAGSVC) + 1
+				endwhile
+				;Devair 168/0051 - 05/08/2010
+;				;cancelar duplicata parcial
+;				if ($item("IN_CANCELARDUP", piParams) = <TRUE>)
+;					viParams = ""
+;					putitem/id viParams, "CD_EMPRESA",      CD_EMPRESA.F_FCP_DUPLISVC
+;					putitem/id viParams, "CD_FORNECEDOR",   CD_FORNECEDOR.F_FCP_DUPLISVC
+;					putitem/id viParams, "NR_DUPLICATA",    NR_DUPLICATA.F_FCP_DUPLISVC
+;					putitem/id viParams, "NR_PARCELA",      NR_PARCELA.F_FCP_DUPLISVC
+;					putitem/id viParams, "CD_COMPONENTE",   $componentname
+;					putitem/id viParams, "DS_OBS",          ""
+;					putitem/id viParams, "DS_LOG",          "Duplicata cancelada"
+;					putitem/id viParams, "TP_CANCELAMENTO", "C"
+;					activate "FCPSVCO005".cancelaDuplicata($xlpg$, viParams, voParams, $xCdErro$, $xCtxerro$)
+;					if ($procerror)       
+;						$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+;						poCdErro = $xCdErro$
+;						poCtxErro = $xCtxErro$
+;						return(-1)
+;					elseif ($status < 0)
+;						$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")
+;						poCdErro = $xCdErro$
+;						poCtxErro = $xCtxErro$
+;						return(-1)
+;					endif
+;				endif
+;				
+;				;soma valor da duplicata	
+;				vVlDuplicata = vVlDuplicata + VL_DUPLICATA.F_FCP_DUPLISVC
+				;
+			endif
+			;Devair 168/0051 - 05/08/2010 
+			;cancelar duplicata parcial
+			if ($item("IN_CANCELARDUP", piParams) = <TRUE>)
+				viParams = ""
+				putitem/id viParams, "CD_EMPRESA",      CD_EMPRESA.F_FCP_DUPLISVC
+				putitem/id viParams, "CD_FORNECEDOR",   CD_FORNECEDOR.F_FCP_DUPLISVC
+				putitem/id viParams, "NR_DUPLICATA",    NR_DUPLICATA.F_FCP_DUPLISVC
+				putitem/id viParams, "NR_PARCELA",      NR_PARCELA.F_FCP_DUPLISVC
+				putitem/id viParams, "CD_COMPONENTE",   $componentname
+				putitem/id viParams, "DS_OBS",          ""
+				putitem/id viParams, "DS_LOG",          "Duplicata cancelada"
+				putitem/id viParams, "TP_CANCELAMENTO", "C"
+				activate "FCPSVCO005".cancelaDuplicata($xlpg$, viParams, voParams, $xCdErro$, $xCtxerro$)
+				if ($procerror)       
+					$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+					poCdErro = $xCdErro$
+					poCtxErro = $xCtxErro$
+					return(-1)
+				elseif ($status < 0)
+					$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")
+					poCdErro = $xCdErro$
+					poCtxErro = $xCtxErro$
+					return(-1)
+				endif
+			endif				
+			;soma valor da duplicata	
+			vVlDuplicata = vVlDuplicata + VL_DUPLICATA.F_FCP_DUPLISVC
+			;
+			setocc "F_FCP_DUPLISVC", $curocc(F_FCP_DUPLISVC) + 1
+		endwhile
+		clear/e "F_FCC_AUTORIZSVC"
+		clear/e "F_FCC_AUTOCHESVC"
+		clear/e "F_FCC_AUTOPAGSVC"
+		clear/e "F_FCP_DUPLISVC"
+	endif
+	poParams = ""
+	putitem/id poParams, "VL_DUPLICATA", vVlDuplicata
+
+	return(0)
+end ;operation validarParcial
+
+
+;-----------------------------------------------------------;
+public operation validarEmpEnvioSerasa                      ;
+;-----------------------------------------------------------;
+;Projeto 078 - Tarefa 3452 - Aloisio Gargantini - 08/06/2010
+	params
+		string piGlobal  :IN
+		string piParams  :IN
+		string poParams  :OUT
+		string poCdErro  :OUT
+		string poCtxErro :OUT
+	endparams
+	variables
+		string  vLstEmpresa, vpiParams, vpoParams, vCdComponente
+		numeric vCdEmpLogada, vCdEmpresa
+	endvariables
+	
+	poParams = ""
+	vCdEmpLogada = $item("CD_EMPLOGADA",piParams)
+	if (vCdEmpLogada = "")
+		vCdEmpLogada = $$gCdEmpresa
+	endif
+	vCdComponente = $item("CD_COMPONENTE", piParams)
+	if (vCdComponente = "")
+		$instancehandle->setStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Componente não informado para validação de empresa de envio PEFIN/SERASA", "")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	vLstEmpresa  = $item("LST_EMPRESA",piParams)
+	if (vLstEmpresa = "")
+		$instancehandle->setStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Lista de empresa não informada.", "ADICIONAL=  / FGRSVCO001.validarEmpEnvioSerasa()")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	
+	clear/e "FGR_EMPENVSERSVC"
+	cd_empresa.fgr_empenvsersvc/init = vLstEmpresa
+	retrieve/e "FGR_EMPENVSERSVC"
+	if ($status < 0)
+		putitem/id poParams, "LST_EMPRESA", ""
+		return(0)
+	endif
+	
+	vLstEmpresa = ""
+	setocc "FGR_EMPENVSERSVC", 1
+	while ($status >= 0)
+		if (cd_empenvio.fgr_empenvsersvc = vCdEmpLogada)
+			if (vLstEmpresa = "")
+				vLstEmpresa = cd_empresa.fgr_empenvsersvc
+			else
+				vCdEmpresa  = cd_empresa.fgr_empenvsersvc
+				vLstEmpresa = "%%vLstEmpresa·;%%vCdEmpresa"
+			endif
+		endif
+		setocc "FGR_EMPENVSERSVC" $curocc("FGR_EMPENVSERSVC") + 1
+	endwhile
+	clear/e "FGR_EMPENVSERSVC"
+	
+	vpiParams = ""
+	putitem/id vpiParams, "CD_EMPRESA",    vLstEmpresa
+	putitem/id vpiParams, "IN_CCUSTO",     <TRUE>
+	putitem/id vpiParams, "CD_COMPONENTE", vCdComponente
+	activate "FGRSVCO001".validarEmpresa(piGlobal, vpiParams, vpoParams, $xCdErro$, $xCtxErro$)
+	if ($procerror)
+		$instancehandle->setStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	elseif ($status < 0)
+		$instancehandle->setStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	vLstEmpresa = $item("LST_EMPRESA", vpoParams)
+	
+	if (vLstEmpresa = "")
+		$instancehandle->setStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Empresa não configurada para envio PEFIN - Serasa.", "ADICIONAL=  / FGRSVCO001.validarEmpEnvioSerasa()")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	putitem/id poParams, "LST_EMPRESA", vLstEmpresa
+	
+	return(0)
+End ;validarEmpEnvioSerasa.

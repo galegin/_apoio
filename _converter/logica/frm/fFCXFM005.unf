@@ -1,0 +1,1034 @@
+;------------------------
+entry preEDIT 
+;------------------------
+	variables
+		numeric vCdGrpEmp, vCdUsu
+	endvariables
+	
+	;Buscar as empresas autorizadas para o usuario
+	$LstEmpresa$ = ""	
+	vCdGrpEmp = $item("CD_GRUPOEMPRESA",$$gParamEmp)
+	vCdUsu = $item("CD_USUARIO",$$gParamGlb)
+	newinstance "GERSVCO001","GERSVCO001","TRANSACTION=TRUE"
+	activate "ADMSVCO006".GetPerfil($$gParamGlb, vCdUsu, $componentName, vCdGrpEmp, $LstEmpresa$, vCdGrpEmp, $xCdErro$, $xCtxErro$)
+	if ($procerror)
+		$instancehandle->SetStatus(<STS_ERRO>,$procerror,$procerrorcontext,"")
+		return(-1)
+	elseif ($status < 0)
+		$instancehandle->SetStatus(<STS_ERRO>,$xCdErro$,$xCtxErro$,"")
+		return(-1)
+	endif
+	
+	$instancehandle->valorPadrao()
+	if ($procerror)
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+	endif    
+
+	return(0)
+
+End ; operation preEDIT
+
+;------------------------------------
+entry ConverterString
+;------------------------------------
+    params
+        string piString :In
+        string poString :Out
+    endparams
+    variables
+        string viParams,voParams
+    endvariables
+
+    putitem/id viParams,"DS_STRING",piString
+    putitem/id viParams,"IN_MAIUSCULA",<True>
+    putitem/id viParams,"IN_NUMERO",<True>
+    putitem/id viParams,"IN_ESPACO",<True>
+    putitem/id viParams,"IN_ESPECIAL",<False>
+    putitem/id viParams,"IN_MANTERPONTO",<False>
+    activate "EDISVCO020".limparCampo($$gParamGlb,viParams,voParams,$xCdErro$,$xCtxErro$)
+    poString = $item("DS_STRING",voParams)
+    return (0)
+end;
+
+;---------------------
+partner operation INIT 
+;---------------------
+	;;Retire o comentário das linhas abaixo para carregar os parâmetros locais
+	;;Parametros gerais  
+	$xlpl$ = ""
+	putitem $xlpl$, -1, "NR_PORTADOR_CARTEIRA"
+	putitem $xlpl$, -1, "IN_SENHA_LANCTO_CX"
+	;Projeto 078 - Tarefa 3602 - Aloisio Gargantini - 06/08/2010
+	putitem $xlpl$, -1, "IN_LOG_MOV_CTAPES"
+	;
+	activate "ADMSVCO001".GetLstParametro($xlpl$, $xlpl$, $xcderro$, $xctxerro$)
+	if ($procerror)
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+	elseif ($xcdErro$)
+		$instancehandle->SetErroApl($xCtxErro$, $xCdErro$, $xCtxErro$)
+	endif
+	$InSenhaLanctoCx$ = $item("IN_SENHA_LANCTO_CX", $xlpl$)
+	;Projeto 078 - Tarefa 3602 - Aloisio Gargantini - 06/08/2010
+	$inLogMovCtaPes$ = $item("IN_LOG_MOV_CTAPES", $xlpl$)
+	;
+	;;Parametros por empresa
+	$xlplemp$ = ""
+	putitem $xlplemp$, -1, "CD_RECIBO_PGTODESP"
+	putitem $xlplemp$, -1, "CD_CTAPES_CXFILIAL"
+	putitem $xlplemp$, -1, "CD_CTAPES_CXMATRIZ"
+	putitem $xlplemp$, -1, "CD_PESSOA_DESPESA"
+	putitem $xlplemp$, -1, "CD_CONTA_DESPESA"
+	putitem $xlplemp$, -1, "IN_PDV_OTIMIZADO"
+	putitem $xlplemp$, -1, "TP_LANCDESP_FCP"
+	putitem $xlplemp$, -1, "CD_CCUSTOPADRAO_FCP"
+	;Projeto 180 - Tarefa 0058 - Aloisio Gargantini - 20/01/2011
+	putitem $xlplemp$, -1, "TP_DUPLICATA_LANCDESP_CX"
+	;
+	activate "ADMSVCO001".GetParamEmpresa($item("CD_EMPRESA", $$gParamGlb), $xlplemp$, $xlplemp$, $xcderro$, $xctxerro$)
+	if ($procerror)
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+	elseif ($xcdErro$)
+		$instancehandle->SetErroApl($xCtxErro$, $xCdErro$, $xCtxErro$)
+	endif
+	$inPdvOtimizado$        = $item("IN_PDV_OTIMIZADO", $xlplemp$)
+	$tpLancdespFcp$         = $item("TP_LANCDESP_FCP", $xlplemp$)
+	$cdCCustoPadraoFcp$     = $item("CD_CCUSTOPADRAO_FCP", $xlplemp$)
+	;Projeto 180 - Tarefa 0058 - Aloisio Gargantini - 20/01/2011
+	$tpDuplicataLancDespCx$ = $item("TP_DUPLICATA_LANCDESP_CX", $xlplemp$)
+	;
+	$formtitle = "%%$componentname - Lançamento de Despesa no Caixa"
+End ; operation INIT
+
+;------------------------
+partner operation CLEANUP 
+;------------------------
+	
+End ; operation CLEANUP
+
+;---------------------------------
+partner operation recalculaValores
+;---------------------------------
+	; Projeto 078 - Tarefa 3213 - Aloisio Gargantini - 09/03/2010
+	if ($empty("FCP_DESPESAITEM"))
+		if (CD_FORNECEDOR.V_PES_FORNECEDOR > 0) & (NR_DUPLICATA.FCP_DUPLICATAC > 0) & (VL_DUPLICATA.FCP_DUPLICATAI)
+			$instancehandle->carregaDespesaFornecedor()
+			if ($procerror)
+				$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")        
+			endif	
+		endif
+	endif
+	;
+	if (VL_DUPLICATA.FCP_DUPLICATAI != "")
+		VL_TOTDESPESA.FCP_DUPLICATAI = ""
+		PR_TOTDESPESA.FCP_DUPLICATAI = ""
+		VL_RESTDESPESA.FCP_DUPLICATAI = ""
+		PR_RESTDESPESA.FCP_DUPLICATAI = ""
+		if ($empty("FCP_DUPDESPESA") = 0)
+			setocc "FCP_DUPDESPESA", 1
+			while ($status >= 0)
+				if (PR_RATEIO.FCP_DUPDESPESA != "")
+					VL_RATEIO.FCP_DUPDESPESA = (VL_DUPLICATA.FCP_DUPLICATAI * PR_RATEIO.FCP_DUPDESPESA) / 100
+					VL_TOTDESPESA.FCP_DUPLICATAI = VL_TOTDESPESA.FCP_DUPLICATAI + VL_RATEIO.FCP_DUPDESPESA
+					PR_TOTDESPESA.FCP_DUPLICATAI = PR_TOTDESPESA.FCP_DUPLICATAI + PR_RATEIO.FCP_DUPDESPESA
+				endif
+				setocc "FCP_DUPDESPESA", $curocc("FCP_DUPDESPESA") + 1
+			endwhile
+			setocc "FCP_DUPDESPESA", 1
+		endif
+		PR_RESTDESPESA.FCP_DUPLICATAI = 100 - PR_TOTDESPESA.FCP_DUPLICATAI
+		VL_RESTDESPESA.FCP_DUPLICATAI = VL_DUPLICATA.FCP_DUPLICATAI - VL_TOTDESPESA.FCP_DUPLICATAI
+	endif
+
+	return (0)
+end ;recalculaValores
+
+;--------------------------------
+partner operation totalizaDespesa
+;--------------------------------
+	variables
+		numeric vReg
+	endvariables
+
+	vReg = $curocc("FCP_DUPDESPESA")
+	PR_TOTDESPESA.FCP_DUPLICATAI = 0
+	VL_TOTDESPESA.FCP_DUPLICATAI = 0
+	PR_RESTDESPESA.FCP_DUPLICATAI = 0
+	VL_RESTDESPESA.FCP_DUPLICATAI = 0
+
+	setocc "FCP_DUPDESPESA", 1
+	while ($status >= 0)
+		PR_TOTDESPESA.FCP_DUPLICATAI = PR_TOTDESPESA.FCP_DUPLICATAI + PR_RATEIO.FCP_DUPDESPESA
+		VL_TOTDESPESA.FCP_DUPLICATAI = VL_TOTDESPESA.FCP_DUPLICATAI + VL_RATEIO.FCP_DUPDESPESA
+		setocc "FCP_DUPDESPESA", $curocc("FCP_DUPDESPESA") + 1
+	endwhile
+	PR_RESTDESPESA.FCP_DUPLICATAI = 100 - PR_TOTDESPESA.FCP_DUPLICATAI
+	VL_RESTDESPESA.FCP_DUPLICATAI = VL_DUPLICATA.FCP_DUPLICATAI - VL_TOTDESPESA.FCP_DUPLICATAI
+	setocc "FCP_DUPDESPESA", vReg
+
+	return (0)
+end ;totalizaDespesa
+
+;-------------------------------
+partner operation gravaDuplicata
+;-------------------------------
+	variables
+		string vDsRegDesp, vDsLinha, viParams, voParams
+		boolean vInErro, vInSalva
+		string vDsLinhaDesp, vDsLinhaImp, vDsAltera
+		numeric vCdEmpresa, vCdFornecedor, vNrDuplicata
+		numeric vNrParcela
+	endvariables
+	
+	;MTF(13/09/2006) - Projeto 078, tarefa 023.
+	$instancehandle->validaContaUsuario()
+	if ($procerror)
+		$instancehandle->setStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+		return(-1)
+	elseif ($status < 0)
+		return(-1)
+	endif
+	;
+	
+; Projeto 55 - Tarefa 10 - Aloisio Gargantini - 17/03/2006
+	viParams = ""
+	putitem/id viParams, "IN_USULOGADO" , <TRUE>
+	putitem/id viParams, "CD_USUARIO"   , $item("CD_USUARIO",$$gParamGlb)
+	putitem/id viParams, "DS_COMPONENTE", "FCXFM005"
+	activate "ADMFM020".exec(viParams, voParams, $xCdErro$, $xCtxerro$)
+	if ($procerror)       
+		exit(0)
+	elseif ($status < 0)
+		exit(0)
+	endif
+; Projeto 55 - Tarefa 10 - Aloisio Gargantini - 17/03/2006
+	vInErro = <FALSE>
+
+	if ($InSenhaLanctoCx$ = <TRUE>)
+		; Usar parametro para chamar a restrição IN_SENHA_LANCTO_CX
+;		viParams = ""
+;		putitem/id viParams, "IN_USULOGADO" , <FALSE>
+;		putitem/id viParams, "CD_USUARIO"   , "";item("CD_USUARIO",$$gParamGlb)
+;		putitem/id viParams, "DS_COMPONENTE", "FCXFM005"
+;		activate "ADMFM020".exec(viParams, voParams, $xCdErro$, $xCtxerro$)
+;		if ($procerror)       
+;			$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+;			return(-1)
+;		elseif ($status < 0)
+;			return($status)
+;		endif
+;		$CdUsuEscolhido$ = $item("CD_USUARIO",voParams)
+
+		viParams = ""
+		putitem/id viParams, "CD_COMPONENTE", $componentname
+		putitem/id viParams, "DS_CAMPO"     , "APROVA_LANCTO_CX"
+		putitem/id viParams, "CD_EMPRESA"   , $$gCdEmpresa
+		putitem/id viParams, "CD_USUARIO"   , $$gCdUsuario
+		putitem/id viParams, "VL_VALOR"     , ""
+		activate "ADMSVCO009".VerificaRestricao(viParams, voParams, $xCdErro$, $xCtxerro$)
+		if ($procerror)       
+			$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+			return(-1)
+		elseif ($status < 0)
+			$instancehandle->SetStatus(<STS_AVISO>, "GEN001", "DESCRICAO=Usuário não possui permissão para lançamento de despesa no caixa.%%^Comunique a administração a restrição APROVA_LANCTO_CX para liberação de lançamento de despesa.")
+			return(-1)
+		endif
+		$CdUsuEscolhido$ = $item("CD_USUARIO",voParams)
+; 		if ($item("DS_PERMITE", voParams) = "NAO")
+;			$instancehandle->SetStatus(<STS_AVISO>, "GEN001", "DESCRICAO=Usuário não possui permissão para lançamento de despesa no caixa.%%^Comunique a administração a restrição APROVA_LANCTO_CX para liberação de lançamento de despesa.")
+;			return(-1)
+;		endif
+	endif
+
+	DT_CHEGADA.FCP_DUPLICATAI = DT_EMISSAO.FCP_DUPLICATAI
+	NR_PORTADOR.FCP_DUPLICATAI = $item("NR_PORTADOR_CARTEIRA", $xlpl$)
+	TP_SITUACAO.FCP_DUPLICATAI = "N"
+	TP_DOCUMENTO.FCP_DUPLICATAI = 1 ;Duplicata
+	;Projeto 078 - Tarefa 0058 - Aloisio Gargantini - 20/11/2011
+	if ($tpDuplicataLancDespCx$ = 1) 
+		TP_DOCUMENTO.FCP_DUPLICATAI = 15 ;Recibo
+	endif
+	;
+	TP_BAIXA.FCP_DUPLICATAI = 3 ;Registro
+	TP_INCLUSAO.FCP_DUPLICATAI = 3 ;Automatico via caixa
+	TP_PREVISAOREAL.FCP_DUPLICATAI = 2 ;Real
+	TP_ESTAGIO.FCP_DUPLICATAI = 90 ;Liquidada
+
+	vDsRegDesp = ""
+	vDsLinha = ""
+	putlistitems/occ vDsLinha, "FCP_DUPLICATAI"
+
+	if ($empty("FCP_DUPDESPESA") = 0)
+		setocc "FCP_DUPDESPESA", 1            
+		while ($status >= 0)
+			if (CD_DESPESAITEM.FCP_DUPDESPESA != 0)
+				putlistitems/occ vDsLinhaDesp, "FCP_DUPDESPESA"
+				putitem vDsRegDesp, -1, vDsLinhaDesp
+			endif
+
+			setocc "FCP_DUPDESPESA", $curocc("FCP_DUPDESPESA") + 1
+		endwhile
+	endif
+
+	putitem/id vDsLinha, "DS_DUPDESPESA", vDsRegDesp
+	putitem/id vDsLinha, "DS_DUPIMPOSTO", ""
+
+	viParams = ""
+	putitem/id viParams, "DS_DUPLICATAI", vDsLinha
+	putitem/id viParams, "DS_COMPONENTE", "FCXFM005"
+	activate "FCPSVCO001".geraDuplicata($$gParamGlb, viParams, voParams, $xCdErro$, $xCtxErro$)
+	if ($procerror)       
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+		vInErro = <TRUE>
+	elseif ($status < 0)
+		$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")
+		vInErro = <TRUE>
+	endif
+
+	NR_PARCELA.FCP_DUPLICATAI = $item("NR_PARCELA", voParams)
+
+	; Projeto 078 - Tarefa 3965 - Aloisio Gargantini - 30/11/2010
+	if (!$empty("SIS_OBSERVACAO"))
+		$instancehandle->gravaObservacaoDuplicata()
+		if ($procerror)
+			$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+			vInErro = <TRUE>
+		elseif ($status < 0)
+			$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")
+			vInErro = <TRUE>
+		endif
+	endif
+	;
+	if (vInErro = <FALSE>)
+		$instancehandle->geraLiquidacao()
+		if ($procerror)
+			$instancehandle->SetStatus(<STS_ERRO>,$procerror,$procerrorcontext,"")
+			vInErro = <TRUE>
+		endif
+		if ($status < 0)
+			$instancehandle->SetStatus(<STS_ERRO>,$xCdErro$,$xCtxErro$,"")
+			vInErro = <TRUE>
+		endif
+	endif
+	if (vInErro = <FALSE>)
+		$instancehandle->geraMovimentoDebito()
+		if ($procerror)
+			$instancehandle->SetStatus(<STS_ERRO>,$procerror,$procerrorcontext,"")
+			vInErro = <TRUE>
+		endif
+		if ($status < 0)
+			$instancehandle->SetStatus(<STS_ERRO>,$xCdErro$,$xCtxErro$,"")
+			vInErro = <TRUE>
+		endif
+	endif
+	
+	if (vInErro = <FALSE>)
+		commit
+		if ($status < 0)
+			rollback
+			return (-1) 
+		endif
+	else
+		rollback
+		return (-1)
+	endif
+
+	message/info "Lançamento de despesa no caixa efetuada com sucesso!"
+
+	if (vInErro = <FALSE>)
+		if($inPdvOtimizado$ != <TRUE>)
+			askmess "Deseja dar manutenção nas observações da duplicata gerada?","Sim,Não"
+			if ($status = 1) 
+				$instancehandle->chamaObservacao()
+				if ($procerror)
+					$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+				endif
+			endif
+		else
+			$instancehandle->chamaObservacao()
+			if ($procerror)
+				$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+			endif
+		endif
+
+		if($inPdvOtimizado$ != <TRUE>)
+			askmess "Deseja imprimir recibo?","Sim,Não"
+			if ($status = 1) 
+				$instancehandle->geraRecibo()
+				if ($procerror)
+					$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+				endif
+			endif
+		else
+			$instancehandle->geraRecibo()
+			if ($procerror)
+				$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+			endif
+		endif
+	endif
+
+	return (0)
+
+end ;gravaDuplicata
+
+;--------------------------------
+partner operation chamaObservacao
+;--------------------------------
+	variables
+		string viParams, voParams
+	endvariables
+
+	viParams = ""
+	putitem/id viParams, "CD_EMPRESA", CD_EMPRESA.FCP_DUPLICATAI
+	putitem/id viParams, "CD_FORNECEDOR", CD_FORNECEDOR.FCP_DUPLICATAI
+	putitem/id viParams, "NR_DUPLICATA", NR_DUPLICATA.FCP_DUPLICATAI
+	putitem/id viParams, "NR_PARCELA", NR_PARCELA.FCP_DUPLICATAI
+	activate "FCPFL003".exec(viParams,voParams, $xCdErro$, $xCtxerro$)
+	if ($procerror)       
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+		return (-1)
+	endif
+
+	return (0)
+end ;chamaObservacao
+
+;------------------------------------
+partner operation geraMovimentoDebito
+;------------------------------------
+	variables
+		numeric vCdEmpresa, vNrCtaPesFCC, vNrSeqMovFCC
+		numeric vCdTerminal, vNrSeq, vVlSaldoAnt, vVlSaldoAtualDoc, vVlSaldoAtual, vVlSaldo, vVlSaldoAntDoc
+		string viParams, voParams, viValores, vDsLstObservacao, vDsAux
+		date vDtAbertura, vDtMovimFCC
+	endvariables
+
+	if (NR_CAIXA.DUMMY = 1)
+		viParams = ""
+		activate "FCXSVCO001".buscaCaixa($$gParamGlb, viParams, voParams, $xCdErro$, $xCtxErro$)
+		if ($procerror)
+			$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+			exit(-1)
+		elseif ($status < 0)
+			$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")
+			exit(-1)
+		endif
+
+		vCdTerminal = $item("CD_TERMINAL", voParams)
+		vDtAbertura = $item("DT_ABERTURA", voParams)
+		vNrSeq = $item("NR_SEQ", voParams)
+	endif
+
+	;Projeto 078 - Tarefa 3602 - Aloisio Gargantini - 06/08/2010
+	if ($inLogMovCtaPes$ = <TRUE>)
+		;buscar saldo Cta.
+		viParams = ""
+		putitem/id viParams, "NR_CTAPES", NR_CTA.DUMMY
+		putitem/id viParams, "DT_SALDO",  $item("DT_SISTEMA", $$gParamGlb)
+		activate "FCCSVCO002".buscaSaldoConta($$gParamGlb, viParams, "", voParams, $xCdErro$, $xCtxerro$)
+		if ($procerror)       
+			$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+			return(-1)
+		elseif ($status < 0)
+			$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")
+			return(-1)
+		endif
+		vVlSaldoAnt = $item("VL_SALDO", voParams)
+
+		;buscar saldo Cta. por tipo de documento
+		viParams = ""
+		putitem/id viParams, "NR_CTAPES",        NR_CTA.DUMMY
+		putitem/id viParams, "TP_DOCUMENTO",     3 ;dinheiro
+		putitem/id viParams, "NR_SEQHISTRELSUB", 1 
+		putitem/id viParams, "DT_SALDO",         $item("DT_SISTEMA", $$gParamGlb)
+		activate "FCCSVCO002".buscaSaldoCtaTp($$gParamGlb, viParams, "", voParams, $xCdErro$, $xCtxerro$)
+		if ($procerror)       
+			$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+			return(-1)
+		elseif ($status < 0)
+			$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")
+			return(-1)
+		endif
+		vVlSaldoAntDoc = $item("VL_SALDO", voParams)
+	endif
+	;
+	;Projeto 180 - Tarefa 0127 - Aloisio Gargantini - 23/03/2011
+	vDsLstObservacao = ""
+	setocc ("SIS_OBSERVACAO"), 1
+	while ($status >=0)
+		if (DS_OBSERVACAO.SIS_OBSERVACAO != "")
+			putitem vDsLstObservacao, -1, DS_OBSERVACAO.SIS_OBSERVACAO
+		endif
+
+		setocc ("SIS_OBSERVACAO"), $curocc("SIS_OBSERVACAO")+1
+	endwhile
+	vDsAux = "%%CD_FORNECEDOR.FCP_DUPLICATAI %%% - %%NM_PESSOA.V_PES_FORNECEDOR"
+	Call ConverterString(vDsAux,vDsAux)
+	if ($procerror)
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+		return (-1)
+	endif
+	vDsAux = vDsAux[1:60]
+	;
+	;Movimentação de Débito
+	viParams = ""
+	putitem/id viParams, "CD_EMPRESA", CD_EMPRESA.GER_EMPRESA
+	putitem/id viParams, "NR_CTAPES", NR_CTA.DUMMY
+	putitem/id viParams, "DT_MOVIMENTO", $item("DT_SISTEMA",$$gParamGlb)
+	putitem/id viParams, "CD_HISTORICO", 839
+	putitem/id viParams, "TP_DOCUMENTO", 3 ;Dinheiro
+	putitem/id viParams, "NR_SEQHISTRELSUB", 1 ;Padrao para todos os TP_DOCUMENTO
+	putitem/id viParams, "VL_LANCTO", VL_DUPLICATA.FCP_DUPLICATAI
+	putitem/id viParams, "IN_ESTORNO", <FALSE>
+	putitem/id viParams, "DS_DOC", "%%NR_DUPLICATA.FCP_DUPLICATAI%%%/%%NR_PARCELA.FCP_DUPLICATAI"
+	;Projeto 180 - Tarefa 0127 - Aloisio Gargantini - 23/03/2011
+	;putitem/id viParams, "DS_AUX", "PGTO DESP NO CAIXA"
+	putitem/id viParams, "DS_AUX", vDsAux
+	;
+	putitem/id viParams, "CD_EMPLIQ", $cdempliq$
+	putitem/id viParams, "DT_LIQ", $dtliq$
+	putitem/id viParams, "NR_SEQLIQ", $nrseqliq$
+	if (NR_CAIXA.DUMMY = 1)
+		putitem/id viParams, "IN_CAIXA", <TRUE>
+		putitem/id viParams, "CD_TERMINAL", vCdTerminal
+		putitem/id viParams, "DT_ABERTURA", vDtAbertura
+		putitem/id viParams, "NR_SEQCAIXA", vNrSeq
+	else
+		putitem/id viParams, "IN_CAIXA", <FALSE>
+	endif
+	;Projeto 180 - Tarefa 0127 - Aloisio Gargantini - 23/03/2011
+	putitem/id viParams, "CD_COMPONENTE", $componentname
+	putitem/id viParams, "LST_OBS"      , vDsLstObservacao
+	;
+	activate "FCCSVCO002".movimentaConta($$gParamGlb,viParams,viValores,voParams,$xCdErro$,$xCtxerro$)
+	if ($procerror)
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+		return(-1)
+	elseif ($status < 0)
+		$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")
+		return(-1)
+	endif
+	;Projeto 078 - Tarefa 3602 - Aloisio Gargantini - 06/08/2010
+	if ($inLogMovCtaPes$ = <TRUE>)
+		vNrCtaPesFCC = $item("NR_CTAPES", voParams)
+		vDtMovimFCC  = $item("DT_MOVIM", voParams)
+		vNrSeqMovFCC = $item("NR_SEQMOV", voParams)
+
+		;buscar saldo Cta.
+		viParams = ""
+		putitem/id viParams, "NR_CTAPES", NR_CTA.DUMMY
+		putitem/id viParams, "DT_SALDO",  $item("DT_SISTEMA", $$gParamGlb)
+		activate "FCCSVCO002".buscaSaldoConta($$gParamGlb, viParams, "", voParams, $xCdErro$, $xCtxerro$)
+		if ($procerror)       
+			$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+			return(-1)
+		elseif ($status < 0)
+			$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")
+			return(-1)
+		endif
+		vVlSaldoAtual = $item("VL_SALDO", voParams)
+
+		;buscar saldo Cta. por tipo de documento
+		viParams = ""
+		putitem/id viParams, "NR_CTAPES",        NR_CTA.DUMMY
+		putitem/id viParams, "TP_DOCUMENTO",     3 ;dinheiro
+		putitem/id viParams, "NR_SEQHISTRELSUB", 1 
+		putitem/id viParams, "DT_SALDO",         $item("DT_SISTEMA", $$gParamGlb)
+		activate "FCCSVCO002".buscaSaldoCtaTp($$gParamGlb, viParams, "", voParams, $xCdErro$, $xCtxerro$)
+		if ($procerror)       
+			$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+			return(-1)
+		elseif ($status < 0)
+			$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")
+			return(-1)
+		endif
+		vVlSaldoAtualDoc = $item("VL_SALDO", voParams)
+
+		;gravação do log
+		viParams = ""
+		putitem/id viParams, "TP_PROCESSO",     1 ;despesa caixa
+		putitem/id viParams, "TP_DOCUMENTO",    3 ;dinheiro
+		putitem/id viParams, "NR_CTAPES",       NR_CTA.DUMMY
+		putitem/id viParams, "VL_LANCAMENTO",   VL_DUPLICATA.FCP_DUPLICATAI
+		putitem/id viParams, "VL_SALDODOC",     vVlSaldoAtualDoc
+		putitem/id viParams, "VL_SALDOCTA",     vVlSaldoAtual
+		putitem/id viParams, "VL_SALDOANTDOC",  vVlSaldoAntDoc
+		putitem/id viParams, "VL_SALDOANTCTA",  vVlSaldoAnt
+		putitem/id viParams, "NR_CTAPESFCC",    vNrCtaPesFCC
+		putitem/id viParams, "DT_MOVIMFCC",     vDtMovimFCC
+		putitem/id viParams, "NR_SEQMOVFCC",    vNrSeqMovFCC
+		activate "FCCSVCO018".gravarLogMovtoCtaPes($$gParamGlb, viParams, voParams, $xCdErro$, $xCtxErro$)
+		if ($procerror)
+			$instancehandle->setStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+			return(-1)
+		elseif ($status < 0)
+			$instancehandle->setStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")
+			return(-1)
+		endif
+	endif
+	;
+	return(0)
+end ;geraMovimentoDebito
+
+;-------------------------------
+partner operation geraLiquidacao
+;-------------------------------
+	variables
+		string viParams, voParams
+	endvariables
+
+	$cdempliq$ = ""
+	$dtliq$    = ""
+	$nrseqliq$ = ""
+	viParams   = ""
+	putitem/id viParams, "NR_CTAPES", NR_CTA.DUMMY
+	putitem/id viParams, "CD_EMPRESA", CD_EMPRESA.FCP_DUPLICATAI
+	putitem/id viParams, "CD_FORNECEDOR", CD_FORNECEDOR.FCP_DUPLICATAI
+	putitem/id viParams, "NR_DUPLICATA", NR_DUPLICATA.FCP_DUPLICATAI
+	putitem/id viParams, "NR_PARCELA", NR_PARCELA.FCP_DUPLICATAI
+	putitem/id viParams, "VL_PAGAMENTO", VL_DUPLICATA.FCP_DUPLICATAI
+	putitem/id viParams, "VL_DESCONTO", 0
+	putitem/id viParams, "VL_JUROS", 0
+	putitem/id viParams, "TP_BAIXA", 3
+	putitem/id viParams, "CD_PESSOA", CD_FORNECEDOR.FCP_DUPLICATAI
+	putitem/id viParams, "VL_TOTAL", VL_DUPLICATA.FCP_DUPLICATAI
+	putitem/id viParams, "TP_LIQUIDACAO", 26 ;Lancamento despesa no caixa.
+	;Projeto 078 - Tarefa 1448 - Aloisio Gargantini - 23/04/2008
+	putitem/id viParams, "TP_PAGAMENTO", 1 ; Dinheiro
+	;
+	activate "FGRSVCO008".geraLiquidacao($$gParamGlb, viParams, voParams, $xCdErro$, $xCtxErro$)
+	if ($procerror)
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+		return(-1)
+	elseif ($status < 0)
+		$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")
+		return(-1)
+	endif
+	
+	$cdempliq$ = $item("CD_EMPLIQ", voParams)
+	$dtliq$    = $item("DT_LIQ", voParams)
+	$nrseqliq$ = $item("NR_SEQLIQ", voParams)
+	
+	return(0)
+end; geraLiquidacao
+
+;---------------------------
+partner operation geraRecibo
+;---------------------------
+	variables
+		string vFiltro, viParams, voParams, vDsConteudo, vDsRegistro, vDsLstDespesa
+		numeric vTpObservacao
+		boolean vInObsDia
+	endvariables
+	
+	vDsConteudo = ""
+	if (vl_duplicata.fcp_duplicatai = 0) & (cd_fornecedor.fcp_duplicatai = 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Nada a imprimir!", "")
+		return(-1)
+	endif
+
+	;buscar o modelo de recibo
+	clear/e "GER_MODFINC"
+	nr_modfinc.ger_modfinc/init = $item("CD_RECIBO_PGTODESP", $xlplemp$)
+	retrieve/e "GER_MODFINC"
+	if ($status < 0)
+		$instancehandle->SetStatus(<STS_ERRO>,"GEN001","DESCRICAO=Modelo de recibo informado não encontrado.","")
+		return(-1)
+	endif
+	;gerar o recibo
+	vFiltro = ""
+	viParams = ""
+
+	;------------------------------------------
+	;Autor..: Miguel Franco Galego - 09/04/2006
+	;Projeto: 062 - Implantacao do Lojao
+	;Tarefa.: 003
+	vDsLstDespesa = ""
+	setocc "FCP_DUPDESPESA", 1
+	while ($status >= 0)
+		vDsRegistro = ""
+		putitem/id vDsRegistro, "CD_DESPESA", CD_DESPESAITEM.FCP_DESPESAITEM
+		putitem/id vDsRegistro, "DS_DESPESA", DS_DESPESAITEM.FCP_DESPESAITEM
+		putitem vDsLstDespesa, -1, vDsRegistro
+		setocc "FCP_DUPDESPESA", $curocc("FCP_DUPDESPESA") + 1
+	endwhile
+	;------------------------------------------ MFG
+
+	;------------------------------------------
+	;Autor..: Miguel Franco Galego - 07/02/2006
+	;Projeto: 043 - Melhoria no Financeiro
+	;Tarefa.: 010
+	vInObsDia = <FALSE>
+	clear/e "GER_MODFINI"
+	nr_modfinc.ger_modfini/init = nr_modfinc.ger_modfinc
+	cd_campo.ger_modfini/init = "·>·= 301 & ·<·= 305" ; 301 a 305 - Campo para as linhas de observacao da duplicata
+	retrieve/e "GER_MODFINI"
+	if ($status >= 0)
+		clear/e "OBS_DUPI"
+		cd_empresa.obs_dupi/init = cd_empresa.fcp_duplicatai
+		cd_fornecedor.obs_dupi/init = cd_fornecedor.fcp_duplicatai
+		nr_duplicata.obs_dupi/init = nr_duplicata.fcp_duplicatai
+		nr_parcela.obs_dupi/init = nr_parcela.fcp_duplicatai
+		retrieve/e "OBS_DUPI"
+		if ($status >= 0)
+			if($inPDvOtimizado$ != <TRUE>);oda
+				askmess "Imprimir observação somente do dia?","Sim,Não"
+				if ($status = 1)
+					vInObsDia = <TRUE>
+				endif
+			else
+				vInObsDia = <TRUE>
+			endif
+		endif
+	endif
+	;------------------------------------------ MFG
+
+	putitem/id viParams, "NR_MODFIN",     nr_modfinc.ger_modfinc
+	putitem/id viParams, "DT_EMISSAO",    $item("DT_SISTEMA", $$gParamGlb)
+	putitem/id viParams, "CD_EMPRESA",    cd_empresa.fcp_duplicatai
+	putitem/id viParams, "CD_FORNECEDOR", cd_fornecedor.fcp_duplicatai
+	putitem/id viParams, "NR_DUPLICATA",  nr_duplicata.fcp_duplicatai
+	putitem/id viParams, "NR_PARCELA",    nr_parcela.fcp_duplicatai
+	putitem/id viParams, "VL_RECIBO",     vl_duplicata.fcp_duplicatai
+	putitem/id viParams, "CD_PESSOA",     cd_fornecedor.fcp_duplicatai
+	putitem/id viParams, "IN_OBSDIA",     vInObsDia ; MFG - 07/02/2006 Prj 43/Trf 10
+
+	; MFG - 07/04/2006 Prj 62 / Trf 3 Implantacao do Lojao
+	putitem/id viParams, "CD_USULOGADO"   , $item("CD_USUARIO", $$gParamGLB)
+	putitem/id viParams, "CD_USUESCOLHIDO", $CdUsuEscolhido$
+	putitem/id viParams, "NR_CTAPES"      , NR_CTA.DUMMY
+	putitem/id viParams, "DT_SISTEMA"     , $item("DT_SISTEMA", $$gParamGlb)
+	putitem/id viParams, "DS_LSTDESPESA"  , vDsLstDespesa
+	;
+
+	activate "GERSVCO028".geraReciboAvulso($$gParamGlb,viParams,voParams,$xCdErro$,$xCtxErro$)
+	if ($procerror)       
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+		return (-1)
+	elseif ($status < 0)
+		$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")
+		return (-1)
+	endif
+	;retornou o script de impressao, imprimir
+	vDsConteudo = $item("DS_CONTEUDO", voParams)
+	
+	;MTF - 13/12/2005 - Proj. 35, tarefa 2.
+	if (nm_job.ger_modfinc = "P_LPT1") | (nm_job.ger_modfinc = "P_LN03")
+		filedump vDsConteudo, "LPT1"
+		if ($status < 0)
+			$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Erro %%$status ao imprimir por cópia na LPT1!", "")
+			return(-1)
+		endif
+	elseif (nm_job.ger_modfinc = "P_LPT2") | (nm_job.ger_modfinc = "P_PORT2")
+		filedump vDsConteudo, "LPT2"
+		if ($status < 0)
+			$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Erro %%$status ao imprimir por cópia na LPT2!", "")
+			return(-1)
+		endif
+	elseif (nm_job.ger_modfinc = "P_LPT3")
+		filedump vDsConteudo, "LPT3"
+		if ($status < 0)
+			$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Erro %%$status ao imprimir por cópia na LPT3!", "")
+			return(-1)
+		endif
+	elseif (nm_job.ger_modfinc = "P_LPT4")
+		filedump vDsConteudo, "LPT4"
+		if ($status < 0)
+			$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Erro %%$status ao imprimir por cópia na LPT4!", "")
+			return(-1)
+		endif
+	elseif (nm_job.ger_modfinc = "P_LPT5")
+		filedump vDsConteudo, "LPT5"
+		if ($status < 0)
+			$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Erro %%$status ao imprimir por cópia na LPT5!", "")
+			return(-1)
+		endif
+	elseif (nm_job.ger_modfinc = "P_LPT6")
+		filedump vDsConteudo, "LPT6"
+		if ($status < 0)
+			$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Erro %%$status ao imprimir por cópia na LPT6!", "")
+			return(-1)
+		endif
+	elseif (nm_job.ger_modfinc = "P_LPT7")
+		filedump vDsConteudo, "LPT7"
+		if ($status < 0)
+			$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Erro %%$status ao imprimir por cópia na LPT7!", "")
+			return(-1)
+		endif
+	elseif (nm_job.ger_modfinc = "P_LPT8")
+		filedump vDsConteudo, "LPT8"
+		if ($status < 0)
+			$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Erro %%$status ao imprimir por cópia na LPT8!", "")
+			return(-1)
+		endif
+	elseif (nm_job.ger_modfinc = "P_LPT9")
+		filedump vDsConteudo, "LPT9"
+		if ($status < 0)
+			$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Erro %%$status ao imprimir por cópia na LPT9!", "")
+			return(-1)
+		endif
+	else
+		viParams = ""
+		putitem/id viParams, "DS_CHEQUE",  vDsConteudo
+		putitem/id viParams, "NM_JOB",     nm_job.ger_modfinc
+		putitem/id viParams, "IN_PREVIEW", <TRUE>
+		activate "FCCR002".exec($$gParamGlb, viParams, voParams, $xCdErro$, $xCtxErro$)
+		if ($procerror)       
+			$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+			return (-1)
+		elseif ($status < 0)
+			$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")
+			return (-1)
+		endif
+	endif
+	
+	return(0)
+End ;geraRecibo.
+
+;-------------------------------
+partner operation valorPadrao
+;------------------------------
+
+	variables
+		string vCaixa, viParams, voParams
+		numeric vVlInicial
+		numeric vTpManutUsu, vTpManutFilial, vTpManutMatriz
+		numeric vNrCtaUsuario, vNrCtaFilial, vNrCtaMatriz
+	endvariables
+; Projeto 55 - Tarefa 10 - Aloisio Gargantini - 17/03/2006
+;	if ($inlogin$ = <FALSE>)
+;		viParams = ""
+;		putitem/id viParams, "IN_USULOGADO", <TRUE>
+;		putitem/id viParams, "CD_USUARIO", ""
+;		putitem/id viParams, "DS_COMPONENTE", "FCXFM005"
+;		activate "ADMFM020".exec(viParams, voParams, $xCdErro$, $xCtxerro$)
+;		if ($procerror)       
+;			exit(0)
+;		endif
+;		if ($status < 0)
+;			exit(0)
+;		endif
+;	endif
+; Projeto 55 - Tarefa 10 - Aloisio Gargantini - 17/03/2006	
+	clear/e "GER_EMPRESA"
+	CD_EMPRESA.GER_EMPRESA/init = $item("CD_EMPRESA", $$gParamGlb)
+	retrieve/e "GER_EMPRESA"
+	if ($status < 0)
+		message/info "Empresa não encontrada!"
+		exit(0)
+	endif
+
+	viParams = ""
+	activate "FCCSVCO002".buscaContaOperador($$gParamGlb, viParams, voParams, $xCdErro$, $xCtxErro$)
+	if ($procerror)       
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+		return(-1)
+	elseif ($status < 0)
+		$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")
+		return(-1)
+	endif
+
+	if (voParams = "")
+		message/info "Nenhuma conta liberada para o usuario!"
+		return(-1)
+	endif
+	
+	vNrCtaUsuario = $item("NR_CTAPES_CXUSUARIO", voParams)
+	vNrCtaFilial = $item("NR_CTAPES_CXFILIAL", voParams)
+	vNrCtaMatriz = $item("NR_CTAPES_CXMATRIZ", voParams)
+
+	vCaixa = ""
+	if (vNrCtaUsuario > 0)
+		viParams = ""
+		activate "FCXSVCO001".buscaCaixa($$gParamGlb, viParams, voParams, $xCdErro$, $xCtxErro$)
+		if ($procerror)       
+			$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+			return(-1)
+		elseif ($status < 0)
+			$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")
+		else
+			putitem/id vCaixa, "1", "Usuário"
+			$nrCtaPes$ = vNrCtaUsuario
+
+			vVlInicial = 1
+			NR_CTA.DUMMY/init = $nrCtaPes$
+		endif
+	endif
+
+	if (vNrCtaFilial >= 0)
+		putitem/id vCaixa, "2", "Filial"
+		if (vVlInicial = 0)
+			vVlInicial = 2
+			NR_CTA.DUMMY/init = $item("CD_CTAPES_CXFILIAL", $xlplemp$)
+		endif
+	endif
+
+	if (vNrCtaMatriz > 0)
+		putitem/id vCaixa, "3", "Matriz"
+		if (vVlInicial = 0)
+			vVlInicial = 3
+			NR_CTA.DUMMY/init = $item("CD_CTAPES_CXMATRIZ", $xlplemp$)
+		endif
+	endif
+
+	$valrep (NR_CAIXA.DUMMY) = vCaixa
+	NR_CAIXA.DUMMY/init = vVlInicial
+
+	;caso for chamado de dentro do TRAFM090 atavés da tecla CTRL+D
+	if($item("IN_PDV", $xlpi$) = <TRUE> & $inPdvOtimizado$ = <TRUE>)
+		if($item("CD_PESSOA_DESPESA", $xlplemp$) != "")
+			CD_FORNECEDOR.V_PES_FORNECEDOR/init = $item("CD_PESSOA_DESPESA", $xlplemp$)
+			retrieve/e "V_PES_FORNECEDOR"
+			if($status < 0)
+				$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Código do fornecedor cadastrado no parâmetro empresa CD_PESSOA_DESPESA não está cadastrado como fornecedor!", "")
+			endif
+
+			$prompt = NR_DUPLICATA.FCP_DUPLICATAC
+		else
+			$prompt = CD_FORNECEDOR.V_PES_FORNECEDOR
+		endif
+
+		if($item("CD_CONTA_DESPESA", $xlplEmp$) != "")
+			CD_DESPESAITEM.FCP_DESPESAITEM/init = $item("CD_CONTA_DESPESA", $xlplEmp$)
+			retrieve/e "FCP_DESPESAITEM"
+			if($status < 0 )
+				$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Código da despesa cadastrado no parâmetro empresa CD_CONTA_DESPESA inválida!", "")
+			else
+				PR_RATEIO.FCP_DUPDESPESA/init = 100
+			endif
+		endif
+
+		DT_EMISSAO.FCP_DUPLICATAI/init = $item("DT_SISTEMA", $$gParamGlb)
+		DT_VENCIMENTO.FCP_DUPLICATAI/init = $item("DT_SISTEMA", $$gParamGlb)
+	endif
+
+	return(0)
+end
+
+
+;-----------------------------------------------------------;
+partner operation validaContaUsuario                        ;
+;-----------------------------------------------------------;
+; MTF    : 13/09/2006               Projeto 078, tarefa 023 ;
+; Funcao : Verifica se usuario possui liberacao p/ utilizar ;
+;          conta informada.                                 ;
+; Chamada: field get focus - cd_fornecedor.v_pes_fornecedor ;
+;          operation       - gravaDuplicata()               ;
+;-----------------------------------------------------------;
+;
+	variables
+		string vpiParams, vpoParams
+	endvariables
+	
+	if (nr_cta.dummy = "") | (nr_cta.dummy = 0)
+		return(0)
+	endif
+	vpiParams = ""
+	putitem/id vpiParams, "CD_USUARIO", $item("CD_USUARIO", $$gParamGlb)
+	putitem/id vpiParams, "NR_CTAPES",  nr_cta.dummy
+	activate "FCCSVCO014".validaContaUsuario($$gParamGlb, vpiParams, vpoParams, $xCdErro$, $xCtxErro$)
+	if ($procerror)
+		$instancehandle->setStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+		$prompt = nr_caixa.dummy
+		return(-1)
+	elseif ($status < 0)
+		$instancehandle->setStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")
+		$prompt = nr_caixa.dummy
+		return(-1)
+	endif
+	
+	return(0)
+End ;operation validaContaUsuario.
+
+;-----------------------------------------------------------;
+partner operation validaCentroCusto                         ;
+;-----------------------------------------------------------;
+;Projeto 118 - Tarefa 228 - Aloisio Gargantini - 03/02/2009 ;
+
+	clear/e "GEC_CCUSTO"
+	CD_CCUSTO.GEC_CCUSTO/init = CD_CCUSTO.FCP_DUPDESPESA
+	retrieve/e "GEC_CCUSTO"
+	if ($status < 0)
+		$instancehandle->setStatus(<STS_AVISO>, "GEN001", "DESCRICAO=Código do centro de custo não cadastrado.", "")
+		$prompt = CD_CCUSTO.FCP_DUPDESPESA
+		return(-1)
+	endif
+	return(0)
+End ; operation validaCentroCusto
+
+;-------------------------------------------------------------;
+partner operation carregaDespesaFornecedor                    ;
+;-------------------------------------------------------------;
+; Projeto 078 - Tarefa 3213 - Aloisio Gargantini - 09/03/2010 ;
+;-------------------------------------------------------------;
+
+	clear/e "FCP_FORNDESP"
+	CD_EMPRESA.FCP_FORNDESP/init 	= CD_EMPRESA.FCP_DUPLICATAI
+	CD_FORNECEDOR.FCP_FORNDESP/init = CD_FORNECEDOR.FCP_DUPLICATAI
+	retrieve/e "FCP_FORNDESP"
+	if ($status >= 0)
+		setocc "FCP_FORNDESP", 1
+		while ($status >= 0)
+			creocc "FCP_DUPDESPESA", -1
+			CD_EMPRESA.FCP_DUPDESPESA           = CD_EMPRESA.FCP_DUPLICATAI            
+			CD_FORNECEDOR.FCP_DUPDESPESA        = CD_FORNECEDOR.FCP_DUPLICATAI         
+			NR_DUPLICATA.FCP_DUPDESPESA         = NR_DUPLICATA.FCP_DUPLICATAI     
+			NR_PARCELA.FCP_DUPDESPESA           = NR_PARCELA.FCP_DUPLICATAI  
+			CD_DESPESAITEM.FCP_DESPESAITEM/init = CD_DESPESAITEM.FCP_FORNDESP
+			CD_DESPESAITEM.FCP_DUPDESPESA       = CD_DESPESAITEM.FCP_FORNDESP
+			retrieve/e "FCP_DESPESAITEM"
+			PR_RATEIO.FCP_DUPDESPESA = PR_RATEIO.FCP_FORNDESP
+			
+			if (cd_despesaitem.fcp_despesaitem != "") & ($tpLancDespFcp$ = 2)
+				;--Douglas Ferreira - [Prj/Tarefa 78/4070] - 07/02/2011
+				;cd_ccusto.fcp_dupdespesa/init = $cdCCustoPadraoFcp$
+				if (CD_CCUSTO.FCP_DUPDESPESA = 0) | (CD_CCUSTO.FCP_DUPDESPESA = "")
+					CD_CCUSTO.FCP_DUPDESPESA = $cdCCustoPadraoFcp$
+				endif
+				;
+				fieldsyntax cd_ccusto.fcp_dupdespesa, "DIM"
+			endif
+			
+			setocc "FCP_FORNDESP", $curocc("FCP_FORNDESP") + 1
+		endwhile
+	endif
+
+	return (0)
+end ; carregaDespesaFornecedor
+
+
+;-------------------------------------------------------------;
+partner operation gravaObservacaoDuplicata                    ;
+;-------------------------------------------------------------;
+; Projeto 078 - Tarefa 3965 - Aloisio Gargantini - 30/11/2010 ;
+;-------------------------------------------------------------;
+	variables
+		string viParams, voParams
+	endvariables
+
+	setocc ("SIS_OBSERVACAO"), 1
+
+	while ($status >=0)
+		if (DS_OBSERVACAO.SIS_OBSERVACAO != "")
+			viParams = ""
+			putitem/id viParams, "CD_EMPRESA",    CD_EMPRESA.FCP_DUPLICATAI
+			putitem/id viParams, "CD_FORNECEDOR", CD_FORNECEDOR.FCP_DUPLICATAI
+			putitem/id viParams, "NR_DUPLICATA",  NR_DUPLICATA.FCP_DUPLICATAI
+			putitem/id viParams, "NR_PARCELA",    NR_PARCELA.FCP_DUPLICATAI
+			putitem/id viParams, "IN_MANUTENCAO", <FALSE>
+			putitem/id viParams, "DS_OBS",        DS_OBSERVACAO.SIS_OBSERVACAO
+			putitem/id viParams, "DS_COMPONENTE", "FCXFM005"
+			activate "FCPSVCO001".gravaObsDuplicata($$gParamGlb, viParams, voParams, $xCdErro$, $xCtxerro$)
+			if ($procerror)
+				$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+				return (-1)
+			endif
+			if ($status < 0)
+				$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+				return (-1)
+			endif
+		endif
+
+		setocc ("SIS_OBSERVACAO"), $curocc("SIS_OBSERVACAO")+1
+	endwhile
+
+	return (0)
+end ; gravaObservacaoDuplicata

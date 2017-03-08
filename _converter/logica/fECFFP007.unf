@@ -1,0 +1,1436 @@
+;------------------------
+entry preEDIT 
+;------------------------
+	$instancehandle->valorPadrao()
+	if ($procerror)
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+	endif
+		
+	return(0)
+End ; operation preEDIT
+
+;-------------------------------
+entry espacoDireita
+;-------------------------------	
+	params
+		string vDsEntrada : IN
+		numeric vTam      : IN
+		string vDsSaida   : OUT
+	endparams
+	variables
+		numeric vCont, vTamDsEntrada
+	endvariables
+	length vDsEntrada
+	vTamDsEntrada = $result 
+	vCont = 0
+	repeat
+		vCont = vCont + 1
+		if (vCont <= vTamDsEntrada)
+			vDsSaida = "%%vDsSaida%%vDsEntrada[vCont,vCont]"	
+		else
+			vDsSaida = "%%vDsSaida%%% "
+		endif
+	until(vCont = vTam)
+	return(0)
+end;
+
+;----------------------------
+entry preencheZero
+;----------------------------
+	params        
+		numeric piNumero : IN
+		numeric piTamanho : IN 
+		string poNumero : OUT
+	endparams
+	
+	poNumero = piNumero
+	length(poNumero)
+	while ($result < piTamanho)
+		poNumero = "0%%poNumero"
+		length(poNumero)
+	endwhile
+	
+	if ($result > piTamanho)
+		poNumero = poNumero[$result - piTamanho + 1]
+	endif
+	
+	return(0)
+end ;preencheZero
+
+;----------------------------
+entry mascaraData
+;----------------------------
+	params
+		date piData : IN
+		string poData : IN
+	endparams
+	variables
+		String vDataAuxiliar  
+	endvariables
+
+	vDataAuxiliar = piData[Y]
+	poData = "%%vDataAuxiliar"
+	vDataAuxiliar = piData[M]
+	call preencheZero(vDataAuxiliar,2,vDataAuxiliar) 
+	poData = "%%poData%%vDataAuxiliar"
+	vDataAuxiliar  = piData[D]
+	call preencheZero(vDataAuxiliar,2,vDataAuxiliar) 
+	poData = "%%poData%%vDataAuxiliar"
+	
+	return(0)
+end ;mascaraData
+
+;-----------------------------------------------;
+entry convValorString                ;
+;-----------------------------------------------;
+	params
+		string  piCampo :IN
+		numeric piQtPosicoes :IN
+		string  poCampo :OUT
+	endparams
+	variables
+		string vStringAux
+	endvariables
+	
+	if (piQtPosicoes = 14)
+		vStringAux = piCampo[2:11]
+		poCampo = vStringAux
+		vStringAux = ","
+		poCampo = "%%poCampo%%vStringAux"
+		vStringAux = piCampo[13:2]
+		poCampo = "%%poCampo%%vStringAux"
+	elseif (piQtPosicoes = 5)
+		vStringAux = piCampo[2:2]
+		poCampo = vStringAux
+		vStringAux = "."
+		poCampo = "%%poCampo%%vStringAux"
+		vStringAux = piCampo[4:2]
+		poCampo = "%%poCampo%%vStringAux"
+	elseif (piQtPosicoes = 3)
+		vStringAux = piCampo[2:10]
+		poCampo = vStringAux
+		vStringAux = ","
+		poCampo = "%%poCampo%%vStringAux"
+		vStringAux = piCampo[12:3]
+		poCampo = "%%poCampo%%vStringAux"
+	endif
+	
+	return(0)
+End ;convValorString.
+
+;---------------------------
+entry formataCampoComDecimal
+;---------------------------
+	params
+		numeric piValorEntra : IN
+		numeric piTamInt : IN
+		numeric piTamDec :IN
+		string  poValorSai :OUT
+	endparams
+
+	variables
+		numeric vParteInt, vTamDec 
+		string  vMontado, vParteDec		
+	endvariables
+ 
+	vParteInt = piValorEntra [trunc]  	
+	vParteDec = piValorEntra [fraction] 
+	if (vParteDec != "")
+		length vParteDec
+		vTamDec = $result
+		vParteDec = vParteDec[3,vTamDec]
+	endif 
+	call preencheZerosEsquerda(vParteInt,piTamInt,vMontado)
+	poValorSai = vMontado
+	call preencheZerosDireita(vParteDec,piTamDec,vMontado)
+	poValorSai = "%%poValorSai%%vMontado"
+
+	return (0)
+end ; formataCampoComDecimal
+	
+;--------------------------
+entry preencheZerosEsquerda
+;--------------------------
+	params
+		string  piDadoEntra : IN
+		numeric piTamFinal : IN
+		string  poDadoSai : OUT
+	endparams
+
+	variables
+		numeric vTam
+	endvariables
+
+	length piDadoEntra
+	vTam = $result
+	if (vTam < piTamFinal)
+		poDadoSai = piDadoEntra
+		repeat 
+			poDadoSai = "0%%poDadoSai"
+			vTam = vTam + 1
+		until (vTam = piTamFinal)
+	else
+		vTam = vTam - piTamFinal + 1
+		poDadoSai = piDadoEntra[vTam:piTamFinal]	
+	endif
+
+	return(0)
+end; preencheZerosEsquerda
+	
+;-------------------------
+entry preencheZerosDireita
+;-------------------------
+	params
+		string  piDadoEntra : IN
+		numeric piTamFinal : IN
+		string  poDadoSai : OUT
+	endparams
+
+	variables
+		numeric vTam
+		string vZero
+	endvariables
+
+	length piDadoEntra
+	vTam = $result
+	if (vTam < piTamFinal)
+		poDadoSai = piDadoEntra
+		vZero = "0"
+		repeat 
+			poDadoSai = "%%poDadoSai%%vZero"
+			vTam = vTam + 1
+		until (vTam = piTamFinal)
+	else
+		poDadoSai = piDadoEntra[1:piTamFinal]	
+	endif
+
+	return(0)
+end; preencheZerosDireita
+
+;---------------------
+partner operation INIT 
+	;---------------------
+	$formtitle = "%%$componentname - Gera Arquivo Digital da Nota Fiscal/ECF Matricial"
+End ; operation INIT
+
+;-----------------------------------
+partner operation validaEmpresas
+;------------------------------------------
+	params
+		string piNmCampo        : IN
+		boolean piMostraMessage : IN
+	endparams
+	
+	variables
+		string vpiParams, vpoParams
+	endvariables
+
+	if (@piNmCampo = "")
+		message/info "Informe a empresa."
+		$prompt = CD_EMPRESA.SIS_DUMMY
+		return(-1)		
+	endif
+
+	clear/e "GER_EMPRESA"
+	CD_EMPRESA.GER_EMPRESA/init = @piNmCampo
+	retrieve/e "GER_EMPRESA"
+	if ($status < 0)
+		$instancehandle->setStatus(<STS_INFO>, "GEN001", "DESCRICAO=Empresa não existe.", "")
+		$prompt = CD_EMPRESA.SIS_DUMMY
+		NM_EMPRESA.SIS_DUMMY = ""
+		return(-1)
+	endif
+
+	vpiParams = ""
+	putitem/id vpiParams, "CD_EMPRESA", @piNmCampo
+	putitem/id vpiParams, "IN_CCUSTO",  <FALSE>
+	putitem/id vpiParams, "CD_COMPONENTE",  $componentname
+	activate "SICSVCO004".validaEmpresa($$gParamGlb, vpiParams, vpoParams, $xCdErro$, $xCtxErro$)
+	if ($procerror)
+		$instancehandle->setStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+		return(-1)
+	elseif ($status < 0)
+		if (piMostraMessage = <TRUE>)
+			$instancehandle->setStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Nenhuma empresa informada.", "")
+			$prompt = CD_EMPRESA.SIS_DUMMY
+			NM_EMPRESA.SIS_DUMMY = ""
+			return(-1)
+		endif
+	endif
+	@piNmCampo = $item("LST_EMPRESA", vpoParams)
+	if (@piNmCampo = "")
+		$instancehandle->setStatus(<STS_INFO>, "GEN001", "DESCRICAO=Empresa não pertence ao Pool.", "")
+		$prompt = CD_EMPRESA.SIS_DUMMY
+		CD_EMPRESA.SIS_DUMMY = $item("CD_EMPRESA", $$gParamGlb)
+		NM_EMPRESA.SIS_DUMMY= ""
+		return(-1)
+	endif
+	return(0)
+end ; operation validaEmpresas
+
+;-------------------------------
+partner operation filtroNrECF
+;-------------------------------
+	NR_INTERVALO.SIS_DUMMY/init = ""
+	
+	if (NR_INICIAL.SIS_DUMMY > NR_FINAL.SIS_DUMMY)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Número ECF inicial maior que a final!", "")
+		$prompt = NR_INICIAL.SIS_DUMMY
+		return(-1)
+	endif
+	
+	if (NR_FINAL.SIS_DUMMY != "")    
+		NR_INTERVALO.SIS_DUMMY/init = "·>·= %%NR_INICIAL.SIS_DUMMY ·&·<·= %%NR_FINAL.SIS_DUMMY"
+	endif
+	
+	return (0)
+end
+
+;------------------------------------
+partner operation validaIntervaloData
+;------------------------------------
+	
+	if (DT_INICIAL.SIS_DUMMY != ""  & DT_FINAL.SIS_DUMMY != "")
+		if (DT_INICIAL.SIS_DUMMY > DT_FINAL.SIS_DUMMY)
+			$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Data inicial maior que a data final !", "")
+			DT_INTERVALO.SIS_DUMMY = ""
+			$prompt = DT_FINAL.SIS_DUMMY
+			return(0)
+		else
+			DT_INTERVALO.SIS_DUMMY/init = "·>·= %%DT_INICIAL.SIS_DUMMY ·&·<·= %%DT_FINAL.SIS_DUMMY"
+		endif
+	endif
+	
+	if (DT_INICIAL.SIS_DUMMY = "" & DT_FINAL.SIS_DUMMY = "")
+		DT_INTERVALO.SIS_DUMMY/init = ""
+		message/info "Intervalo de data deve ser informado !"
+		$prompt = DT_INICIAL.SIS_DUMMY
+		return (-1)
+	endif
+	
+end ;validaIntervaloData
+
+;-------------------------------------------------;
+partner operation consultarECFExportacao           ;
+;-------------------------------------------------;
+	if (CD_EMPRESA.SIS_DUMMY = "")
+		$instancehandle->setStatus(<STS_AVISO>, "GEN001", "DESCRICAO=Informar empresa para consulta da ECF Matricial.", "")
+		$prompt = CD_EMPRESA.SIS_DUMMY
+		return(-1)
+	endif
+	$instancehandle->validaEmpresas("CD_EMPRESA.SIS_DUMMY", <TRUE>)
+	if ($procerror)
+		$instancehandle->setStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+		return(-1)
+	elseif ($status < 0)
+		return(-1)
+	endif
+	
+	$instancehandle->validaIntervaloData()
+	if ($procerror)
+		$instancehandle->setStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+		return(-1)
+	elseif ($status < 0)
+		return(-1)
+	endif
+	
+	$instancehandle->filtroNrECF()
+	if ($procerror)
+		$instancehandle->setStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+		return(-1)
+	elseif ($status < 0)
+		return(-1)
+	endif
+	
+	clear/e "FIS_REDZM"
+	show
+	CD_EMPRESA.FIS_REDZM/INIT  = CD_EMPRESA.SIS_DUMMY
+	NR_ECF.FIS_REDZM/INIT       = NR_INTERVALO.SIS_DUMMY
+	DT_EMISSAO.FIS_REDZM/INIT  = DT_INTERVALO.SIS_DUMMY
+	retrieve/e "FIS_REDZM"
+	if ($status < 0)
+		$instancehandle->setStatus(<STS_AVISO>, "GEN001", "DESCRICAO=Nenhuma ECF Matricial encontrada para o filtro informado.", "")
+		clear/e "FIS_REDZM"
+		$prompt = CD_EMPRESA.SIS_DUMMY
+		return(-1)
+	else
+		setocc "FIS_REDZM", -1
+		setocc "FIS_REDZM",  1
+	endif
+	
+	return(0)
+End ;operation consultarECFExportacao.
+
+;-------------------------------------------------;
+partner operation selecionarRegistro              ;
+;-------------------------------------------------;
+
+	if ($empty("FIS_REDZM"))
+		return(0)
+	endif
+	
+	setocc "FIS_REDZM", 1
+	while ($status >= 0)
+		
+		if (BT_MARCAR.SIS_TITBOTOES = "^U_UNCHECK")
+			IN_MARCAR.FIS_REDZM = <TRUE>
+		else
+			IN_MARCAR.FIS_REDZM = <FALSE>
+		endif
+		
+		setocc "FIS_REDZM", $curocc(FIS_REDZM) + 1
+	endwhile
+	if (BT_MARCAR.SIS_TITBOTOES = "^U_UNCHECK")
+		BT_MARCAR.SIS_TITBOTOES = "^U_CHECK"
+	else
+		bt_marcar.sis_TITbotoes = "^U_UNCHECK"
+	endif
+	setocc "FIS_REDZM", 1
+	
+	return(0)
+End ;operation selecionarRegistro.
+
+	
+;----------------------------------------------;
+partner operation valorPadrao                  ;
+;----------------------------------------------;
+	clear/e "FIS_REDZM"
+	
+	CD_EMPRESA.SIS_DUMMY = $item("CD_EMPRESA", $$gParamGlb)
+	clear/e "GER_EMPRESA"
+	CD_EMPRESA.GER_EMPRESA/init = CD_EMPRESA.SIS_DUMMY
+	retrieve/e "GER_EMPRESA"
+	
+	NM_EMPRESA.SIS_DUMMY/INIT = NM_PESSOA.PES_PESSOA
+
+	return (0)
+End ;operation valorPadrao.
+
+;-----------------------------------------------;
+partner operation gerarE00
+;-----------------------------------------------;
+	variables
+		string  vDsNumeroSerie, vDsMfAdicional, vNumeroUsuario
+		string  vTipoECF, vMarca, vModelo, vCOO, vNumeroAplicativo
+		string  vImunicipal, vNomeSoftHouse, vNomeAplicativo, vCnpjCpf, vVersaoAplicativo, vInscricaoEstadual, vLinha1, vLinha2
+		numeric vNumericAux
+		boolean vFlag 
+	endvariables
+
+	$instancehandle->setDisplay("Gerando NFP: registro E00", "", "")
+	if ($procerror)
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+	endif
+
+	$vDsPath$ = DS_CAMINHO.SIS_DUMMY
+
+	$vDsConteudo$ = ""
+	;Texto fixo.
+	$vDsConteudo$ = "E00"
+	
+	vDsNumeroSerie = CD_SERIEFAB.FIS_ECF
+	call espacoDireita(vDsNumeroSerie,20,vDsNumeroSerie) 
+	$vDsConteudo$ = "%%$vDsConteudo$%%vDsNumeroSerie"
+
+	vDsMfAdicional = ""
+	call espacoDireita(vDsMfAdicional ,1,vDsMfAdicional) 
+	$vDsConteudo$ = "%%$vDsConteudo$%%vDsMfAdicional"
+
+	vNumeroUsuario = "1"
+	call preencheZero(vNumeroUsuario,2,vNumeroUsuario) 
+	$vDsConteudo$ = "%%$vDsConteudo$%%vNumeroUsuario"
+
+	vTipoECF = "ECF-IF" ;-=LSC=- TAR 431 PRJ 61 - 01-08-2008 - Tipo de ECF constava como ECF_IF assim o validador recusava
+	call espacoDireita(vTipoECF,7,vTipoECF ) 
+	$vDsConteudo$ = "%%$vDsConteudo$%%vTipoECF"
+
+	clear/e "FIS_ECFMOD"
+	CD_EMPRESA.FIS_ECFMOD/init = CD_EMPRESA.FIS_REDZM
+	NR_ECF.FIS_ECFMOD/init = NR_ECF.FIS_REDZM
+	retrieve/e "FIS_ECFMOD"
+	if ($status >= 0)
+		clear/e "FIS_MARCAECF"
+		CD_MARCA.FIS_MARCAECF/init = DS_MARCA.FIS_ECFMOD
+		retrieve/e "FIS_MARCAECF"
+	endif
+	vMarca = DS_MARCA.FIS_MARCAECF[1:20]
+	call espacoDireita(vMarca,20,vMarca ) 
+	$vDsConteudo$ = "%%$vDsConteudo$%%vMarca"
+
+	clear/e "FIS_MODELOECF"
+	CD_MARCA.FIS_MODELOECF/init = CD_MARCA.FIS_MARCAECF
+	CD_MODELO.FIS_MODELOECF/init = CD_MODELO.FIS_ECFMOD
+	retrieve/e "FIS_MODELOECF" 
+	
+	vModelo = DS_MODELO.FIS_MODELOECF[1:20]
+	call espacoDireita(vModelo,20,vModelo) 
+	$vDsConteudo$ = "%%$vDsConteudo$%%vModelo"
+
+	vCOO =  NR_CUPOMINI.FIS_REDZM
+	call preencheZero(vCOO,6,vCOO) 
+	$vDsConteudo$ = "%%$vDsConteudo$%%vCOO"
+
+	vNumeroAplicativo = "0"
+	call preencheZero(vNumeroAplicativo,2,vNumeroAplicativo ) 
+	$vDsConteudo$ = "%%$vDsConteudo$%%vNumeroAplicativo"
+
+	vCnpjCpf = "00157585000158"
+	call preencheZero(vCnpjCpf,14,vCnpjCpf) 
+	$vDsConteudo$ = "%%$vDsConteudo$%%vCnpjCpf"
+
+	vInscricaoEstadual = "0"
+	call preencheZero(vInscricaoEstadual,14,vInscricaoEstadual) 
+	$vDsConteudo$ = "%%$vDsConteudo$%%vInscricaoEstadual"
+
+	vImunicipal = "7070000"
+	call preencheZero(vImunicipal,14,vImunicipal) 
+	$vDsConteudo$ = "%%$vDsConteudo$%%vImunicipal"
+
+	vNomeSoftHouse = "JOSE MARCOS NABHAN"
+	call espacoDireita(vNomeSoftHouse,40,vNomeSoftHouse) 
+	$vDsConteudo$ = "%%$vDsConteudo$%%vNomeSoftHouse"
+
+	vNomeAplicativo = "STORE AGE"
+	call espacoDireita(vNomeAplicativo,40,vNomeAplicativo ) 
+	$vDsConteudo$ = "%%$vDsConteudo$%%vNomeAplicativo"
+
+	vVersaoAplicativo = "3.0"
+	call espacoDireita(vVersaoAplicativo,10,vVersaoAplicativo) 
+	$vDsConteudo$ = "%%$vDsConteudo$%%vVersaoAplicativo"
+
+	vLinha1 = " "
+	call espacoDireita(vLinha1,42,vLinha1) 
+	$vDsConteudo$ = "%%$vDsConteudo$%%vLinha1"
+
+	vLinha2 = " "
+	call espacoDireita(vLinha2,42,vLinha2) 
+	$vDsConteudo$ = "%%$vDsConteudo$%%vLinha2%%^"
+
+	$instancehandle->geraNomeArquivo(DT_EMISSAO.FIS_REDZM,DS_MARCA.FIS_ECFMOD,CD_MODELO.FIS_MODELOECF,CD_SERIEFAB.FIS_ECF,$nomeArquivo$)
+	if ($procerror)
+		$instancehandle->setStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+	endif
+
+	activate "vbfileman".arqexiste(vFlag,"%%$vDsPath$%%%%%$nomeArquivo$")
+	if (vFlag)
+		activate "vbfileman".apagaarquivo("%%$vDsPath$%%%%%$nomeArquivo$")
+	endif
+
+	return(0)
+End ;operation gerarE00
+
+
+;-----------------------------------------------;
+partner operation gerarE01
+;-----------------------------------------------;
+	variables
+		string  vDsNumeroSerie, vDsMfAdicional, vComandoGeracao, vTipoECF, vVersaoBiblioteca
+		string	vMarca, vModelo, vCOO, vNumeroAplicativo, vContadorReducaoInicial, vContadorReducaoFinal, vDataAuxiliar, vVersaoAtoCotepe    
+		string	vCnpjCpf, vVersaoSoftBasico, vHoraGravacaoSoftBasico, vDataGravacaoSoftBasico, vNrSequencialEcf, vDataInicial, vDataFinal
+		numeric vNumericAux 
+	endvariables
+
+	$instancehandle->setDisplay("Gerando NFP: registro E01", "", "")
+	if ($procerror)
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+	endif
+
+	;Texto fixo.
+	$vDsConteudo$ = "%%$vDsConteudo$%%%E01"
+
+	vDsNumeroSerie = CD_SERIEFAB.FIS_ECF
+	call espacoDireita(vDsNumeroSerie,20,vDsNumeroSerie) 
+	$vDsConteudo$ = "%%$vDsConteudo$%%vDsNumeroSerie"
+
+	vDsMfAdicional = "" 
+	call espacoDireita(vDsMfAdicional,1,vDsMfAdicional) 
+	$vDsConteudo$ = "%%$vDsConteudo$%%vDsMfAdicional"
+	
+	vTipoECF = "ECF-IF" ;-=LSC=- TAR 431 PRJ 61 - 01-08-2008 - Tipo de ECF constava como ECF_IF assim o validador recusava
+	call espacoDireita(vTipoECF,7,vTipoECF ) 
+	$vDsConteudo$ = "%%$vDsConteudo$%%vTipoECF"
+	
+	clear/e "FIS_ECFMOD"
+	CD_EMPRESA.FIS_ECFMOD/init = CD_EMPRESA.FIS_REDZM
+	NR_ECF.FIS_ECFMOD/init = NR_ECF.FIS_REDZM
+	retrieve/e "FIS_ECFMOD"
+	if ($status>=0)
+		clear/e "FIS_MARCAECF"
+		CD_MARCA.FIS_MARCAECF/init = DS_MARCA.FIS_ECFMOD
+		retrieve/e "FIS_MARCAECF"
+	endif
+	vMarca = DS_MARCA.FIS_MARCAECF[1:20]
+	call espacoDireita(vMarca,20,vMarca ) 
+	$vDsConteudo$ = "%%$vDsConteudo$%%vMarca"
+
+	clear/e "FIS_MODELOECF"
+	CD_MARCA.FIS_MODELOECF/init = CD_MARCA.FIS_MARCAECF
+	CD_MODELO.FIS_MODELOECF/init = CD_MODELO.FIS_ECFMOD
+	retrieve/e "FIS_MODELOECF" 
+	vModelo = DS_MODELO.FIS_MODELOECF[1:20]
+	call espacoDireita(vModelo,20,vModelo ) 
+	$vDsConteudo$ = "%%$vDsConteudo$%%vModelo"
+
+	clear/e "FIS_ECFSB"
+	CD_EMPRESA.FIS_ECFSB/init = CD_EMPRESA.FIS_REDZM
+	NR_ECF.FIS_ECFSB/init = NR_ECF.FIS_ECFSB
+	retrieve/e "FIS_ECFSB"
+	vVersaoSoftBasico= DS_VERSAOSB.FIS_ECFSB
+	call espacoDireita(vVersaoSoftBasico,10,vVersaoSoftBasico) 
+	$vDsConteudo$ = "%%$vDsConteudo$%%vVersaoSoftBasico"
+
+	vDataGravacaoSoftBasico = DT_GRAVACAOSB.FIS_ECFSB
+	call mascaraData(vDataGravacaoSoftBasico,vDataGravacaoSoftBasico)	
+	call preencheZero(vDataGravacaoSoftBasico,8,vDataGravacaoSoftBasico) 
+	$vDsConteudo$ = "%%$vDsConteudo$%%vDataGravacaoSoftBasico"
+
+	$vHoraGravacaoSoftBasico$ = HR_GRAVACAOSB.FIS_ECFSB 
+	vHoraGravacaoSoftBasico = "%%$vHoraGravacaoSoftBasico$"
+	call preencheZero(vHoraGravacaoSoftBasico,6,vHoraGravacaoSoftBasico ) 
+	$vDsConteudo$ = "%%$vDsConteudo$%%vHoraGravacaoSoftBasico"
+
+	vNrSequencialEcf= NR_ECF.FIS_REDZM
+	call preencheZero(vNrSequencialEcf,3,vNrSequencialEcf) 
+	$vDsConteudo$ = "%%$vDsConteudo$%%vNrSequencialEcf"
+
+	clear/e "GER_EMPRESA"
+	CD_EMPRESA.GER_EMPRESA/init = CD_EMPRESA.FIS_REDZM
+	retrieve/e "GER_EMPRESA"
+	vCnpjCpf = NR_CNPJ.PES_PESJURIDICA
+	call preencheZero(vCnpjCpf,14,vCnpjCpf) 
+	$vDsConteudo$ = "%%$vDsConteudo$%%vCnpjCpf"
+
+	vComandoGeracao = "APL"
+	call espacoDireita(vComandoGeracao,3,vComandoGeracao) 
+	$vDsConteudo$ = "%%$vDsConteudo$%%vComandoGeracao"
+
+	vContadorReducaoInicial = NR_REDUCAOZ.FIS_REDZM;"0"
+	call preencheZero(vContadorReducaoInicial,6,vContadorReducaoInicial) 
+	$vDsConteudo$ = "%%$vDsConteudo$%%vContadorReducaoInicial"
+
+	vContadorReducaoFinal = NR_REDUCAOZ.FIS_REDZM;"0"
+	call preencheZero(vContadorReducaoFinal,6,vContadorReducaoFinal) 
+	$vDsConteudo$ = "%%$vDsConteudo$%%vContadorReducaoFinal"
+	
+	vDataInicial = DT_INICIAL.SIS_DUMMY
+	call mascaraData(vDataInicial,vDataInicial)	
+	call preencheZero(vDataInicial,8,vDataInicial) 
+	$vDsConteudo$ = "%%$vDsConteudo$%%vDataInicial"
+
+	vDataFinal = DT_FINAL.SIS_DUMMY
+	call mascaraData(vDataFinal,vDataFinal)	
+	call preencheZero(vDataFinal,8,vDataFinal) 
+	$vDsConteudo$ = "%%$vDsConteudo$%%vDataFinal"
+
+	vVersaoBiblioteca = "01.00.00"
+	call espacoDireita(vVersaoBiblioteca,8,vVersaoBiblioteca) 
+	$vDsConteudo$ = "%%$vDsConteudo$%%vVersaoBiblioteca"
+
+	vVersaoAtoCotepe = "PC5207 01.00.00"
+	call espacoDireita(vVersaoAtoCotepe,15,vVersaoAtoCotepe) 
+	$vDsConteudo$ = "%%$vDsConteudo$%%vVersaoAtoCotepe%%^"
+
+	return(0)
+End;operation gerarE01
+
+;-----------------------------------------------;
+partner operation gerarE02
+;-----------------------------------------------;
+	variables
+		string  vDsNumeroSerie, vDsMfAdicional, vNrUsuario, vGrandeTotal
+		string	vModelo,  vDataAuxiliar, vNomeContribuinte, vEnderecoEstabelecimento, vCroCadastroUsu     
+		string	vCnpjCpf, vInscricaoEstadual, vDataCadastroUsu, vHoraCadastroUsu, vAux
+	endvariables
+
+	$instancehandle->setDisplay("Gerando NFP: registro E02", "", "")
+	if ($procerror)
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+	endif
+
+	;Texto fixo.
+	$vDsConteudo$ = "%%$vDsConteudo$%%%E02"
+
+	vDsNumeroSerie = CD_SERIEFAB.FIS_ECF
+	call espacoDireita(vDsNumeroSerie,20,vDsNumeroSerie) 
+	$vDsConteudo$ = "%%$vDsConteudo$%%vDsNumeroSerie"
+
+	vDsMfAdicional = ""
+	call espacoDireita(vDsMfAdicional ,1,vDsMfAdicional) 
+	$vDsConteudo$ = "%%$vDsConteudo$%%vDsMfAdicional"
+
+	clear/e "FIS_MODELOECF"
+	CD_MARCA.FIS_MODELOECF/init = CD_MARCA.FIS_MARCAECF
+	CD_MODELO.FIS_MODELOECF/init = CD_MODELO.FIS_ECFMOD
+	retrieve/e "FIS_MODELOECF" 
+	vModelo = DS_MODELO.FIS_MODELOECF[1:20]
+	call espacoDireita(vModelo,20,vModelo ) 
+	$vDsConteudo$ = "%%$vDsConteudo$%%vModelo"
+
+	clear/e "GER_EMPRESA"
+	CD_EMPRESA.GER_EMPRESA/init = CD_EMPRESA.FIS_REDZM
+	retrieve/e "GER_EMPRESA"
+	vCnpjCpf = NR_CNPJ.PES_PESJURIDICA
+	call preencheZero(vCnpjCpf,14,vCnpjCpf) 
+	$vDsConteudo$ = "%%$vDsConteudo$%%vCnpjCpf"
+
+	vInscricaoEstadual = NR_INSCESTL.PES_PESJURIDICA
+	call espacoDireita(vInscricaoEstadual,14,vInscricaoEstadual) 
+	$vDsConteudo$ = "%%$vDsConteudo$%%vInscricaoEstadual"
+	
+	vNomeContribuinte = NM_PESSOA.PES_PESSOA
+	call espacoDireita(vNomeContribuinte,40,vNomeContribuinte) 
+	$vDsConteudo$ = "%%$vDsConteudo$%%vNomeContribuinte"
+
+	vAux = " "
+	vEnderecoEstabelecimento =	DS_SIGLALOGRAD.PES_ENDERECO
+	vEnderecoEstabelecimento = "%%vEnderecoEstabelecimento%%vAux%%NM_LOGRADOURO.PES_ENDERECO"
+	vEnderecoEstabelecimento = "%%vEnderecoEstabelecimento%%vAux%%NR_LOGRADOURO.PES_ENDERECO"
+	call espacoDireita(vEnderecoEstabelecimento,120,vEnderecoEstabelecimento) 
+	$vDsConteudo$ = "%%$vDsConteudo$%%vEnderecoEstabelecimento"
+
+	clear/e "FIS_ECFSB"
+	CD_EMPRESA.FIS_ECFSB/init = CD_EMPRESA.FIS_REDZM
+	NR_ECF.FIS_ECFSB/init = NR_ECF.FIS_REDZM 
+	retrieve/e "FIS_ECFSB"
+	vDataCadastroUsu = DT_CADUSUECF.FIS_ECFSB
+	call mascaraData(vDataCadastroUsu,vDataCadastroUsu)	
+	call preencheZero(vDataCadastroUsu,8,vDataCadastroUsu) 
+	$vDsConteudo$ = "%%$vDsConteudo$%%vDataCadastroUsu"
+
+	$vHoraCadastroUsu$ = HR_CADUSUECF.FIS_ECFSB 	
+	vHoraCadastroUsu = "%%$vHoraCadastroUsu$"
+	call preencheZero(vHoraCadastroUsu,6,vHoraCadastroUsu) 
+	$vDsConteudo$ = "%%$vDsConteudo$%%vHoraCadastroUsu"
+
+	vCroCadastroUsu = NR_CRO.FIS_ECFSB	
+	call preencheZero(vCroCadastroUsu,6,vCroCadastroUsu) 
+	$vDsConteudo$ = "%%$vDsConteudo$%%vCroCadastroUsu"
+
+	vGrandetotal = VL_GT.FIS_ECFSB
+	call formataCampoComDecimal((vGrandetotal),16,2,vGrandetotal)
+	$vDsConteudo$ = "%%$vDsConteudo$%%vGrandetotal"
+
+	vNrUsuario = NR_USUARIO.FIS_ECFSB
+	call preencheZero(vNrUsuario,2,vNrUsuario) 
+	$vDsConteudo$ = "%%$vDsConteudo$%%vNrUsuario%%^"
+
+	return(0)
+End;operation gerarE02
+
+;-----------------------------------------------;
+partner operation gerarE12
+;-----------------------------------------------;
+	variables
+		string  vDsNumeroSerie, vDsMfAdicional, vHoraEmissao, vVendaBruta, vIncidenciaDesconto 
+		string	vModelo,  vDataAuxiliar, vNomeContribuinte, vEnderecoEstabelecimento, vDataMovimento, vDataEmissao      
+		string	vCnpjCpf, vInscricaoEstadual, vNumeroUsuario, vContadorReducaoZ, vContadorOperacao, vContadorReinicio
+		numeric vNumericAux
+	endvariables
+
+	$instancehandle->setDisplay("Gerando NFP: registro E12", "", "")
+	if ($procerror)
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+	endif
+
+	;Texto fixo.
+	$vDsConteudo$ = "%%$vDsConteudo$%%%E12"
+
+	vDsNumeroSerie = CD_SERIEFAB.FIS_ECF
+	call espacoDireita(vDsNumeroSerie,20,vDsNumeroSerie) 
+	$vDsConteudo$ = "%%$vDsConteudo$%%vDsNumeroSerie"
+
+	vDsMfAdicional = ""
+	call espacoDireita(vDsMfAdicional ,1,vDsMfAdicional) 
+	$vDsConteudo$ = "%%$vDsConteudo$%%vDsMfAdicional"
+
+	clear/e "FIS_MODELOECF"
+	CD_MARCA.FIS_MODELOECF/init = CD_MARCA.FIS_MARCAECF
+	CD_MODELO.FIS_MODELOECF/init = CD_MODELO.FIS_ECFMOD
+	retrieve/e "FIS_MODELOECF" 
+	vModelo = DS_MODELO.FIS_MODELOECF[1:20]
+	call espacoDireita(vModelo,20,vModelo) 
+	$vDsConteudo$ = "%%$vDsConteudo$%%vModelo"
+
+	vNumeroUsuario = "1"
+	call preencheZero(vNumeroUsuario,2,vNumeroUsuario) 
+	$vDsConteudo$ = "%%$vDsConteudo$%%vNumeroUsuario"
+
+	vContadorReducaoZ = NR_REDUCAOZ.FIS_REDZM
+	call preencheZero(vContadorReducaoZ,6,vContadorReducaoZ) 
+	$vDsConteudo$ = "%%$vDsConteudo$%%vContadorReducaoZ"
+
+	vContadorOperacao = NR_CUPOMINI.FIS_REDZM
+	call preencheZero(vContadorOperacao,6,vContadorOperacao) 
+	$vDsConteudo$ = "%%$vDsConteudo$%%vContadorOperacao"
+
+	vContadorReinicio = NR_REINICIO.FIS_REDZM
+	call preencheZero(vContadorReinicio,6,vContadorReinicio) 
+	$vDsConteudo$ = "%%$vDsConteudo$%%vContadorReinicio"
+	vDataMovimento =	DT_EMISSAO.FIS_REDZM
+	call mascaraData(vDataMovimento,vDataMovimento)	
+	call preencheZero(vDataMovimento,8,vDataMovimento) 
+	$vDsConteudo$ = "%%$vDsConteudo$%%vDataMovimento"
+
+	vDataEmissao = DT_EMISSAO.FIS_REDZM
+	call mascaraData(vDataEmissao,vDataEmissao)	
+	call preencheZero(vDataEmissao,8,vDataEmissao) 
+	$vDsConteudo$ = "%%$vDsConteudo$%%vDataEmissao"
+
+	$vHoraCadastro$ = DT_CADASTRO.FIS_REDZM
+	vHoraEmissao = "%%$vHoraCadastro$" 
+	call preencheZero(vHoraEmissao,6,vHoraEmissao) 
+	$vDsConteudo$ = "%%$vDsConteudo$%%vHoraEmissao"
+
+	vVendaBruta = VL_VENDABRUTA.FIS_REDZM
+	call formataCampoComDecimal((vVendaBruta),12,2,vVendaBruta)
+	$vDsConteudo$ = "%%$vDsConteudo$%%vVendaBruta"
+
+	vIncidenciaDesconto = "N"
+	call espacoDireita(vIncidenciaDesconto,1,vIncidenciaDesconto)
+	$vDsConteudo$ = "%%$vDsConteudo$%%vIncidenciaDesconto%%^"
+
+	return(0)
+End;operation gerarE12
+
+;-----------------------------------------------;
+partner operation gerarE13
+;-----------------------------------------------;
+	variables
+		string  vDsNumeroSerie, vDsMfAdicional, vAuxiliar
+		string	vModelo,  vDataAuxiliar, vTotalizadorParcial, vNumeroUsuario, vContadorReducaoZ, vValorAcumulado      
+		numeric vNumeroSeq
+	endvariables
+
+	clear/e "FIS_REDZA"
+	CD_EMPRESA.FIS_REDZA/init = CD_EMPRESA.FIS_REDZM
+	NR_ECF.FIS_REDZA/init = NR_ECF.FIS_REDZM
+	DT_EMISSAO.FIS_REDZA/init = DT_EMISSAO.FIS_REDZM
+	retrieve/e "FIS_REDZA"
+	if ($status >= 0)
+		setocc "FIS_REDZA", 1
+		while ($status >= 0)
+		
+			$instancehandle->setDisplay("Gerando NFP: registro E13", "", "")
+			if ($procerror)
+				$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+			endif
+
+			;Texto fixo.
+			$vDsConteudo$ = "%%$vDsConteudo$%%%E13"
+	
+			vNumeroSeq = vNumeroSeq + 1
+
+			vDsNumeroSerie = CD_SERIEFAB.FIS_ECF
+			call espacoDireita(vDsNumeroSerie,20,vDsNumeroSerie) 
+			$vDsConteudo$ = "%%$vDsConteudo$%%vDsNumeroSerie"
+	
+			vDsMfAdicional = ""
+			call espacoDireita(vDsMfAdicional ,1,vDsMfAdicional) 
+			$vDsConteudo$ = "%%$vDsConteudo$%%vDsMfAdicional"
+
+			clear/e "FIS_MODELOECF"
+			CD_MARCA.FIS_MODELOECF/init = CD_MARCA.FIS_MARCAECF
+			CD_MODELO.FIS_MODELOECF/init = CD_MODELO.FIS_ECFMOD
+			retrieve/e "FIS_MODELOECF" 
+			vModelo = DS_MODELO.FIS_MODELOECF[1:20]
+			call espacoDireita(vModelo,20,vModelo) 
+			$vDsConteudo$ = "%%$vDsConteudo$%%vModelo"
+
+			vNumeroUsuario = "1"
+			call preencheZero(vNumeroUsuario,2,vNumeroUsuario) 
+			$vDsConteudo$ = "%%$vDsConteudo$%%vNumeroUsuario"
+
+			vContadorReducaoZ = NR_REDUCAOZ.FIS_REDZM
+			call preencheZero(vContadorReducaoZ,6,vContadorReducaoZ) 
+			$vDsConteudo$ = "%%$vDsConteudo$%%vContadorReducaoZ"
+
+			
+			if (CD_SITALIQ.FIS_REDZA = "CANC")
+				vTotalizadorParcial = "Can-T" 
+				call espacoDireita(vTotalizadorParcial,7,vTotalizadorParcial) 
+				$vDsConteudo$ = "%%$vDsConteudo$%%vTotalizadorParcial"
+			elseif (CD_SITALIQ.FIS_REDZA = "DESC")
+				vTotalizadorParcial = "DT" 
+				call espacoDireita(vTotalizadorParcial,7,vTotalizadorParcial) 
+				$vDsConteudo$ = "%%$vDsConteudo$%%vTotalizadorParcial"
+			elseif (CD_SITALIQ.FIS_REDZA = "F")
+				vTotalizadorParcial = "F1" 
+				call espacoDireita(vTotalizadorParcial,7,vTotalizadorParcial) 
+				$vDsConteudo$ = "%%$vDsConteudo$%%vTotalizadorParcial"
+         elseif (CD_SITALIQ.FIS_REDZA = "N")		
+				vTotalizadorParcial = "N1" 
+				call espacoDireita(vTotalizadorParcial,7,vTotalizadorParcial) 
+				$vDsConteudo$ = "%%$vDsConteudo$%%vTotalizadorParcial"
+         elseif (CD_SITALIQ.FIS_REDZA = "I")
+				vTotalizadorParcial = "I1" 
+				call espacoDireita(vTotalizadorParcial,7,vTotalizadorParcial) 
+				$vDsConteudo$ = "%%$vDsConteudo$%%vTotalizadorParcial"
+			else		
+				vAuxiliar = "T"
+				call preencheZero(vNumeroSeq,2,vNumeroSeq) 
+				vTotalizadorParcial = "%%vNumeroSeq%%vAuxiliar%%CD_SITALIQ.FIS_REDZA" 
+				call espacoDireita(vTotalizadorParcial,7,vTotalizadorParcial) 
+				$vDsConteudo$ = "%%$vDsConteudo$%%vTotalizadorParcial"
+			endif
+			
+
+			vValorAcumulado = VL_TOTALACUM.FIS_REDZA
+			call formataCampoComDecimal((vValorAcumulado),11,2,vValorAcumulado)
+			$vDsConteudo$ = "%%$vDsConteudo$%%vValorAcumulado%%^"
+			setocc "FIS_REDZA", $curocc("FIS_REDZA") +1
+		endwhile
+	endif
+		
+	return(0)
+End;operation gerarE13
+
+;-----------------------------------------------;
+partner operation gerarE14
+;-----------------------------------------------;
+	variables
+		string  vDsNumeroSerie, vDsMfAdicional, vContatorDocumento, vNrCupom, vSubTotal, vTipoDesconto, vTipoAcrescimo, vValorLiquidoTotal    
+		string  vModelo,  vDataAuxiliar, vTotalizadorParcial, vNumeroUsuario, vContadorReducaoZ, vValorAcumulado, vValorDesconto, vIndicadorCancelamento 
+		string  vValorDescontoAcrecimo, vNomeCliente, vNumCupom, vDataEmissao, vAcrescimoSubTotal, vCpfCnpj, vIndicadorDesconto      
+		numeric vNumericAux
+	endvariables
+
+	clear/e "FIS_NFECF"
+	;CD_EMPRESA.FIS_NFECF/init = CD_EMPRESA.FIS_REDZM
+	;NR_CUPOM.FIS_NFECF/init = "·>·= %%NR_CUPOMINI.FIS_REDZM ·&·<·= %%NR_CUPOMFIM.FIS_REDZM"
+	;DT_FATURA.FIS_NFECF/init = DT_EMISSAO.FIS_REDZM 
+	;NR_ECF.FIS_NFECF/init = NR_ECF.FIS_REDZM
+	;-=LSC=- alterado para testes no lojao
+	CD_EMPFAT.FIS_NFECF/init = CD_EMPRESA.FIS_REDZM
+	DT_FATURA.FIS_NFECF/init = DT_EMISSAO.FIS_REDZM 
+	CD_EMPECF.FIS_NFECF/init = CD_EMPRESA.FIS_REDZM
+	NR_ECF.FIS_NFECF/init = NR_ECF.FIS_REDZM
+	retrieve/e "FIS_NFECF"
+	if ($status >=0)
+		setocc "FIS_NFECF", -1
+		setocc "FIS_NFECF", 1
+		while ($status >=0)	
+
+			clear/e "FIS_NF"
+			CD_EMPRESA.FIS_NF/init = CD_EMPRESA.FIS_NFECF     
+			NR_FATURA.FIS_NF/init  = NR_FATURA.FIS_NFECF   
+			DT_FATURA.FIS_NF/init  = DT_FATURA.FIS_NFECF
+			retrieve/e "FIS_NF"
+			if ($status >=0)
+
+				$instancehandle->setDisplay("Gerando NFP: registro E14", "", "")
+				if ($procerror)
+					$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+				endif
+	
+				;Texto fixo.
+				$vDsConteudo$ = "%%$vDsConteudo$%%%E14"
+
+				vDsNumeroSerie = CD_SERIEFAB.FIS_ECF
+				call espacoDireita(vDsNumeroSerie,20,vDsNumeroSerie) 
+				$vDsConteudo$ = "%%$vDsConteudo$%%vDsNumeroSerie"
+
+				vDsMfAdicional = ""
+				call espacoDireita(vDsMfAdicional,1,vDsMfAdicional) 
+				$vDsConteudo$ = "%%$vDsConteudo$%%vDsMfAdicional"
+	
+				clear/e "FIS_MODELOECF"
+				CD_MARCA.FIS_MODELOECF/init = CD_MARCA.FIS_MARCAECF
+				CD_MODELO.FIS_MODELOECF/init = CD_MODELO.FIS_ECFMOD
+				retrieve/e "FIS_MODELOECF" 
+				vModelo = DS_MODELO.FIS_MODELOECF[1:20]
+				call espacoDireita(vModelo,20,vModelo) 
+				$vDsConteudo$ = "%%$vDsConteudo$%%vModelo"
+
+				vNumeroUsuario = "1"
+				call preencheZero(vNumeroUsuario,2,vNumeroUsuario) 
+				$vDsConteudo$ = "%%$vDsConteudo$%%vNumeroUsuario"
+
+				vContatorDocumento = ""
+				call preencheZero(vContatorDocumento,6,vContatorDocumento) 
+				$vDsConteudo$ = "%%$vDsConteudo$%%vContatorDocumento"
+
+				vNumCupom = NR_CUPOM.FIS_NFECF
+				call preencheZero(vNumCupom,6,vNumCupom) 
+				$vDsConteudo$ = "%%$vDsConteudo$%%vNumCupom"
+		
+				vDataEmissao = DT_EMISSAO.FIS_NF
+				call mascaraData(vDataEmissao,vDataEmissao)	
+				call preencheZero(vDataEmissao,8,vDataEmissao ) 
+				$vDsConteudo$ = "%%$vDsConteudo$%%vDataEmissao"
+				
+				;-=LSC=- (20/08/2008) TAR 451 PRJ 61
+				;vSubTotal = VL_TOTALNOTA.FIS_NF
+				;vSubTotal = VL_TOTALNOTA.FIS_NF + VL_DESCONTO.FIS_NF 
+				;-=LSC=- TAR 481 PRJ 061 - Documento em anexo tarefa sobre Secretaria de Fazendo do Estado de São Paulo
+				;Foi solicitado passar o valor total dos produto que é a somatoria dos itens e também zerar o ValorDesconto 
+				vSubTotal = VL_TOTALPRODUTO.FIS_NF
+				call formataCampoComDecimal((vSubTotal),12,2,vSubTotal)
+				$vDsConteudo$ = "%%$vDsConteudo$%%vSubTotal"
+		
+				;vValorDesconto = VL_DESCONTO.FIS_NF
+				vValorDesconto = "0"
+				;call formataCampoComDecimal((vValorDesconto),11,2,vValorDesconto)
+				call preencheZero(vValorDesconto,13,vValorDesconto) 
+				$vDsConteudo$ = "%%$vDsConteudo$%%vValorDesconto"
+				;:) -=LSC=- (20/08/2008) TAR 451 PRJ 61
+
+				vTipoDesconto = "V" ;fixo
+				call espacoDireita(vTipoDesconto,1,vTipoDesconto) 
+				$vDsConteudo$ = "%%$vDsConteudo$%%vTipoDesconto"
+	
+				vAcrescimoSubTotal = "0"
+				call preencheZero(vAcrescimoSubTotal,13,vAcrescimoSubTotal) 
+				$vDsConteudo$ = "%%$vDsConteudo$%%vAcrescimoSubTotal"
+		
+				vTipoAcrescimo = "V" ;fixo
+				call espacoDireita(vTipoAcrescimo,1,vTipoAcrescimo) 
+				$vDsConteudo$ = "%%$vDsConteudo$%%vTipoAcrescimo"
+	
+				vValorLiquidoTotal = VL_TOTALNOTA.FIS_NF
+				call formataCampoComDecimal((vValorLiquidoTotal),12,2,vValorLiquidoTotal)
+				$vDsConteudo$ = "%%$vDsConteudo$%%vValorLiquidoTotal"
+	
+				if (TP_SITUACAO.FIS_NF = "C")
+					vIndicadorCancelamento = "S"
+				else
+					vIndicadorCancelamento = "N"
+				endif
+				call espacoDireita(vIndicadorCancelamento,1,vIndicadorCancelamento) 	
+				$vDsConteudo$ = "%%$vDsConteudo$%%vIndicadorCancelamento"
+			
+				vValorDescontoAcrecimo = ""      
+				call preencheZero(vValorDescontoAcrecimo,13,vValorDescontoAcrecimo) 
+				$vDsConteudo$ = "%%$vDsConteudo$%%vValorDescontoAcrecimo"
+			
+				vIndicadorDesconto = "D"
+				call espacoDireita(vIndicadorDesconto,1,vIndicadorDesconto) 	
+				$vDsConteudo$ = "%%$vDsConteudo$%%vIndicadorDesconto"
+		
+				vNomeCliente = NM_NOME.FIS_NFREMDES
+				call espacoDireita(vNomeCliente,40,vNomeCliente) 
+				$vDsConteudo$ = "%%$vDsConteudo$%%vNomeCliente"
+		
+				vCpfCnpj = NR_CPFCNPJ.FIS_NFREMDES
+				call preencheZero(vCpfCnpj,14,vCpfCnpj) 
+				$vDsConteudo$ = "%%$vDsConteudo$%%vCpfCnpj%%^"
+
+			endif
+			setocc "FIS_NFECF", $curocc("FIS_NFECF") + 1	
+		endwhile
+	endif
+	return(0)
+End;operation gerarE14
+
+;-----------------------------------------------;
+partner operation gerarE15
+;-----------------------------------------------;
+	variables
+		string  vDsNumeroSerie, vDsMfAdicional, vContatorDocumento, vNumItem, vValorDesconto, vIndicadorCancelamento, vValorCancelado
+		string  vModelo, vNumeroUsuario, vCodigoProduto, vDescProduto, vQuantidade, vUnidade, vValorUnitario, vTotalizadoParcial, vQuantidadeCancelada
+		string  vCancelamentoAcrescimoItem, vRegraCalculo, vAcrescimoItem, vTotalLiquido, vContatorDocumentoEmitido, vAuxiliar, vTotalizadorParcial
+		string  vCasaDecimalQuant, vCasaDecimalValor  
+	endvariables
+
+;oda
+	setocc "FIS_NFECF", 1
+	while($status >= 0)
+		clear/e "FIS_NF"
+		CD_EMPRESA.FIS_NF/init = CD_EMPRESA.FIS_NFECF     
+		NR_FATURA.FIS_NF/init  = NR_FATURA.FIS_NFECF   
+		DT_FATURA.FIS_NF/init  = DT_FATURA.FIS_NFECF
+		retrieve/e "FIS_NF"
+		if ($status >=0)
+			setocc "FIS_NFITEM", -1		
+			setocc "FIS_NFITEM", 1
+			while ($status >=0)
+				$instancehandle->setDisplay("Gerando NFP: registro E15", "", "")
+				if ($procerror)
+					$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+				endif
+
+				;Texto fixo.
+				$vDsConteudo$ = "%%$vDsConteudo$%%%E15"
+
+				vDsNumeroSerie = CD_SERIEFAB.FIS_ECF
+				call espacoDireita(vDsNumeroSerie,20,vDsNumeroSerie) 
+				$vDsConteudo$ = "%%$vDsConteudo$%%vDsNumeroSerie"
+
+				vDsMfAdicional = ""
+				call espacoDireita(vDsMfAdicional,1,vDsMfAdicional) 
+				$vDsConteudo$ = "%%$vDsConteudo$%%vDsMfAdicional"
+		
+				clear/e "FIS_MODELOECF"
+				CD_MARCA.FIS_MODELOECF/init = CD_MARCA.FIS_MARCAECF
+				CD_MODELO.FIS_MODELOECF/init = CD_MODELO.FIS_ECFMOD
+				retrieve/e "FIS_MODELOECF" 
+				vModelo = DS_MODELO.FIS_MODELOECF[1:20]
+				call espacoDireita(vModelo,20,vModelo) 
+				$vDsConteudo$ = "%%$vDsConteudo$%%vModelo"
+
+				vNumeroUsuario = "1"
+				call preencheZero(vNumeroUsuario,2,vNumeroUsuario) 
+				$vDsConteudo$ = "%%$vDsConteudo$%%vNumeroUsuario"
+
+;				clear/e "FIS_NFECF"
+;				CD_EMPRESA.FIS_NFECF/init = CD_EMPRESA.FIS_NF
+;			    NR_FATURA.FIS_NFECF/init  = NR_FATURA.FIS_NF
+;			    DT_FATURA.FIS_NFECF/init  = DT_FATURA.FIS_NF
+;			    retrieve/e "FIS_NFECF"
+				vContatorDocumento = NR_CUPOM.FIS_NFECF
+				call preencheZero(vContatorDocumento,6,vContatorDocumento) 
+				$vDsConteudo$ = "%%$vDsConteudo$%%vContatorDocumento"
+
+				vContatorDocumentoEmitido = ""
+				call preencheZero(vContatorDocumentoEmitido,6,vContatorDocumentoEmitido) 
+				$vDsConteudo$ = "%%$vDsConteudo$%%vContatorDocumentoEmitido"
+	
+				vNumItem = NR_ITEM.FIS_NFITEM
+				call preencheZero(vNumItem,3,vNumItem) 
+				$vDsConteudo$ = "%%$vDsConteudo$%%vNumItem"
+	
+				vCodigoProduto = CD_PRODUTO.FIS_NFITEM
+				call preencheZero(vCodigoProduto,14,vCodigoProduto) 
+				$vDsConteudo$ = "%%$vDsConteudo$%%vCodigoProduto"
+
+				vDescProduto = DS_PRODUTO.FIS_NFITEM[1:100]
+				call espacoDireita(vDescProduto,100,vDescProduto) 
+				$vDsConteudo$ = "%%$vDsConteudo$%%vDescProduto"
+	
+				vQuantidade = QT_FATURADO.FIS_NFITEM
+				call formataCampoComDecimal((vQuantidade),5,2,vQuantidade)
+				$vDsConteudo$ = "%%$vDsConteudo$%%vQuantidade"
+	
+				vUnidade = CD_ESPECIE.FIS_NFITEM[1:3]
+				call espacoDireita(vUnidade,3,vUnidade) 
+				$vDsConteudo$ = "%%$vDsConteudo$%%vUnidade"
+ 	
+				vValorUnitario = VL_UNITBRUTO.FIS_NFITEM
+				call formataCampoComDecimal((vValorUnitario),6,2,vValorUnitario)
+				$vDsConteudo$ = "%%$vDsConteudo$%%vValorUnitario"
+
+				vValorDesconto = VL_TOTALDESC.FIS_NFITEM
+				call formataCampoComDecimal((vValorDesconto),6,2,vValorDesconto)
+				$vDsConteudo$ = "%%$vDsConteudo$%%vValorDesconto"
+	
+				vAcrescimoItem = "0"
+				call preencheZero(vAcrescimoItem,8,vAcrescimoItem) 
+				$vDsConteudo$ = "%%$vDsConteudo$%%vAcrescimoItem"
+
+				vTotalLiquido = VL_TOTALLIQUIDO.FIS_NFITEM
+				call formataCampoComDecimal((vTotalLiquido),12,2,vTotalLiquido)
+				$vDsConteudo$ = "%%$vDsConteudo$%%vTotalLiquido"
+
+				if (TP_SITUACAO.FIS_NF = "C")
+					vTotalizadorParcial = "Can-T" 
+					call espacoDireita(vTotalizadorParcial,7,vTotalizadorParcial) 
+					$vDsConteudo$ = "%%$vDsConteudo$%%vTotalizadorParcial"
+				else
+					clear/e "FIS_NFITEMIMPOST"
+					CD_EMPRESA.FIS_NFITEMIMPOST/init  = CD_EMPRESA.FIS_NFITEM      
+					NR_FATURA.FIS_NFITEMIMPOST/init = NR_FATURA.FIS_NFITEM
+					DT_FATURA.FIS_NFITEMIMPOST/init = DT_FATURA.FIS_NFITEM
+					NR_ITEM.FIS_NFITEMIMPOST/init = NR_ITEM.FIS_NFITEM		
+					retrieve/e "FIS_NFITEMIMPOST"
+					if (CD_IMPOSTO.FIS_NFITEMIMPOST = 2)					
+						vAuxiliar = "F"
+						vTotalizadorParcial = "%%vAuxiliar%%1" 
+						call espacoDireita(vTotalizadorParcial,7,vTotalizadorParcial) 
+						$vDsConteudo$ = "%%$vDsConteudo$%%vTotalizadorParcial"
+					elseif (CD_CST.FIS_NFITEM != 040 | CD_CST.FIS_NFITEM != 041)
+						vAuxiliar = "01T"
+						vTotalizadorParcial = "%%vAuxiliar%%PR_ALIQUOTA.FIS_NFITEMIMPOST" 
+						vTotalizadorParcial= $replace(vTotalizadorParcial, 1, ",", "", -1)
+						call espacoDireita(vTotalizadorParcial,7,vTotalizadorParcial) 
+						$vDsConteudo$ = "%%$vDsConteudo$%%vTotalizadorParcial"
+					elseif(CD_CST.FIS_NFITEM = 040)
+						vAuxiliar = "I"
+						vTotalizadorParcial = "%%vAuxiliar%%1" 
+						call espacoDireita(vTotalizadorParcial,7,vTotalizadorParcial) 
+						$vDsConteudo$ = "%%$vDsConteudo$%%vTotalizadorParcial"
+					elseif(CD_CST.FIS_NFITEM = 041)
+						vAuxiliar = "N"
+						vTotalizadorParcial = "%%vAuxiliar%%1" 
+						call espacoDireita(vTotalizadorParcial,7,vTotalizadorParcial) 
+						$vDsConteudo$ = "%%$vDsConteudo$%%vTotalizadorParcial"
+					endif
+				endif
+				;-=LSC=- (03/09/2008) PRJ 061 TAR 460
+				;if (TP_SITUACAO.FIS_NF = "C")
+				;	vIndicadorCancelamento = "S"
+				;	call espacoDireita(vIndicadorCancelamento,1,vIndicadorCancelamento) 
+				;	$vDsConteudo$ = "%%$vDsConteudo$%%vIndicadorCancelamento"
+					
+				;
+				;	vQuantidadeCancelada = QT_FATURADO.FIS_NFITEM
+				;	call formataCampoComDecimal((vQuantidadeCancelada),5,2,vQuantidadeCancelada)
+				;	$vDsConteudo$ = "%%$vDsConteudo$%%vQuantidadeCancelada"
+		
+				;	vValorCancelado = VL_TOTALLIQUIDO.FIS_NFITEM
+				;	call formataCampoComDecimal((vValorCancelado),11,2,vValorCancelado)
+				;	$vDsConteudo$ = "%%$vDsConteudo$%%vValorCancelado"	
+				;else	
+					vIndicadorCancelamento = "N"
+					call espacoDireita(vIndicadorCancelamento,1,vIndicadorCancelamento) 
+					$vDsConteudo$ = "%%$vDsConteudo$%%vIndicadorCancelamento"
+	
+					vQuantidadeCancelada = "0"
+					call preencheZero(vQuantidadeCancelada,7,vQuantidadeCancelada) 
+					$vDsConteudo$ = "%%$vDsConteudo$%%vQuantidadeCancelada"
+	
+					vValorCancelado = "0"
+					call preencheZero(vValorCancelado,13,vValorCancelado) 
+					$vDsConteudo$ = "%%$vDsConteudo$%%vValorCancelado"
+				;endif
+	
+				vCancelamentoAcrescimoItem = "0"
+				call preencheZero(vCancelamentoAcrescimoItem,13,vCancelamentoAcrescimoItem) 
+				$vDsConteudo$ = "%%$vDsConteudo$%%vCancelamentoAcrescimoItem"
+	
+				vRegraCalculo = "A"
+				call espacoDireita(vRegraCalculo,1,vRegraCalculo) 
+				$vDsConteudo$ = "%%$vDsConteudo$%%vRegraCalculo"
+				
+				vCasaDecimalQuant = "2"
+				call preencheZero(vCasaDecimalQuant,1,vCasaDecimalQuant) 
+				$vDsConteudo$ = "%%$vDsConteudo$%%vCasaDecimalQuant"
+
+				vCasaDecimalValor = "2"
+				call preencheZero(vCasaDecimalValor,1,vCasaDecimalValor) 
+				$vDsConteudo$ = "%%$vDsConteudo$%%vCasaDecimalValor%%^"
+
+				setocc "FIS_NFITEM", $curocc("FIS_NFITEM") + 1	
+			endwhile
+		endif
+		setocc "FIS_NFECF", $curocc("FIS_NFECF") + 1	
+	endwhile
+
+	return(0)
+End; operation gerarE15
+
+;-----------------------------------------------
+partner operation gerarNotaFiscalPaulista
+;-----------------------------------------------
+	variables
+		String  vDsPath, vDsTipoArquivo, vDsAux 
+		boolean vInErro, vGerarArq  
+	endvariables
+
+	if (CD_EMPRESA.SIS_DUMMY = "")
+		$instancehandle->setStatus(<STS_AVISO>, "GEN001", "DESCRICAO=Informar empresa para gerar Nota Fiscal Paulista.", "")
+		$prompt = CD_EMPRESA.SIS_DUMMY
+		return(-1)
+	endif
+	if (DT_INICIAL.SIS_DUMMY = "")
+		$instancehandle->setStatus(<STS_AVISO>, "GEN001", "DESCRICAO=Informar intervalo de período.", "")
+		$prompt = DT_INICIAL.SIS_DUMMY
+		return(-1)
+	endif
+	$instancehandle->validaIntervaloData()
+	if ($procerror)
+		$instancehandle->setStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+		return(-1)
+	elseif ($status < 0)
+		return(-1)
+	endif
+	if (DS_CAMINHO.SIS_DUMMY = "")
+		$instancehandle->setStatus(<STS_AVISO>, "GEN001", "DESCRICAO=Informar o arquivo para gerar Nota Fiscal Paulista.", "")
+		$prompt = DS_CAMINHO.SIS_DUMMY
+		return(-1)
+	endif
+
+	
+	vDsTipoArquivo  = ""
+
+	setocc "FIS_REDZM", 1
+	while ($status>=0)
+		vInErro = <FALSE>	
+		
+		if (IN_MARCAR.FIS_REDZM = <TRUE>)
+			vGerarArq = <TRUE>
+			$instancehandle->gerarE00()
+			if ($procerror)
+				$instancehandle->setStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+				vInErro = <TRUE>
+				vDsTipoArquivo = "E00."
+			elseif ($status < 0)
+				vInErro = <TRUE>
+				vDsTipoArquivo = "E00."
+			endif
+
+			$instancehandle->gerarE01()
+			if ($procerror)
+				$instancehandle->setStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+				vInErro = <TRUE>
+				vDsTipoArquivo = "E01."
+			elseif ($status < 0)
+				vInErro = <TRUE>
+				vDsTipoArquivo = "E01."
+				break
+			endif
+
+			$instancehandle->gerarE02()
+			if ($procerror)
+				$instancehandle->setStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+				vInErro = <TRUE>
+				vDsTipoArquivo = "E02."
+			elseif ($status < 0)
+				vInErro = <TRUE>
+				vDsTipoArquivo = "E02."
+				break
+			endif
+	
+			$instancehandle->gerarE12()
+			if ($procerror)
+				$instancehandle->setStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+				vInErro = <TRUE>
+				vDsTipoArquivo = "E12."
+			elseif ($status < 0)
+				vInErro = <TRUE>
+				vDsTipoArquivo = "E12."
+				break
+			endif
+
+			$instancehandle->gerarE13()
+			if ($procerror)
+				$instancehandle->setStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+				vInErro = <TRUE>
+				vDsTipoArquivo = "E13."
+			elseif ($status < 0)
+				vInErro = <TRUE>
+				vDsTipoArquivo = "E13."
+				break
+			endif
+
+			$instancehandle->gerarE14()
+			if ($procerror)
+				$instancehandle->setStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+				vInErro = <TRUE>
+				vDsTipoArquivo = "E14."
+			elseif ($status < 0)
+				vInErro = <TRUE>
+				vDsTipoArquivo = "E14."
+				break
+			endif
+	
+			$instancehandle->gerarE15()
+			if ($procerror)
+				$instancehandle->setStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+				vInErro = <TRUE>
+				vDsTipoArquivo = "E15."
+			elseif ($status < 0)
+				vInErro = <TRUE>
+				vDsTipoArquivo = "E15."
+				break
+			endif
+	
+			vDsAux = $vDsConteudo$[1:2000]
+			$instancehandle->geraEAD(vDsAux)
+			if ($procerror)
+				$instancehandle->setStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+				vInErro = <TRUE>
+				vDsTipoArquivo = "EAD."
+			elseif ($status < 0)
+				vInErro = <TRUE>
+				vDsTipoArquivo = "EAD."
+				break
+			endif
+		endif
+		setocc "FIS_REDZM", $curocc("FIS_REDZM")+ 1
+	endwhile
+	
+	if (vGerarArq = <TRUE>)
+		if (vInErro = <FALSE>)
+			$instancehandle->setStatus(<STS_INFO>, "GEN001", "DESCRICAO=Arquivo de nota fiscal paulista gerado com sucesso.", "")
+		else
+			$instancehandle->setStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Erro na geração do arquivo de nota fiscal Paulista. %%vDsTipoArquivo", "")
+		endif
+	endif
+	
+	$instancehandle->valorPadrao()
+	if ($procerror)
+		$instancehandle->setStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+		return(-1)
+	endif
+
+	$prompt = CD_EMPRESA.SIS_DUMMY
+
+	return(0)
+End;operation gerarNotaFiscalPaulista
+
+;------------------------------------------------------
+partner operation geraNomeArquivo
+;------------------------------------------------------
+	params
+		String piDtEmissao : IN
+		String piDsMarca : IN
+		String piDsModelo : IN
+		String piNrSerie : IN
+		String poDsArquivo : OUT
+	endparams	
+
+	variables
+		String viParams, voParams
+	endvariables
+
+	viParams = ""
+	voParams = ""
+	putitem/id viParams, "DT_EMISSAO",piDtEmissao
+	putitem/id viParams, "DS_MARCA",  piDsMarca
+	putitem/id viParams, "DS_MODELO", piDsModelo
+	putitem/id viParams, "NR_SERIE", piNrSerie
+	activate "SISSVCO012".Execute($$gParamGlb, viParams, voParams, $xCdErro$, $xCtxErro$)
+	if ($procerror)
+		$instancehandle->setStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+		return(-1)
+	elseif ($status < 0)
+		return(-1)
+	endif
+	
+	poDsArquivo = $item("DS_ARQUIVO",voParams)	
+
+	return(0)
+End; operation geraNomeArquivo
+
+;------------------------------------------------------
+partner operation geraEAD
+;------------------------------------------------------
+	params
+		String piDsArquivo : IN
+	endparams	
+
+	variables
+		String viParams, voParams, vCodRSA, vEOF
+		boolean vFlag 
+	endvariables
+
+	viParams = ""
+	voParams = ""
+	putitem/id viParams, "DS_ARQUIVO", piDsArquivo 
+	activate "SISSVCO012".Execute($$gParamGlb, viParams, voParams, $xCdErro$, $xCtxErro$)
+	if ($procerror)
+		$instancehandle->setStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+		return(-1)
+	elseif ($status < 0)
+		return(-1)
+	endif
+	
+	vCodRSA	= $item("DS_ARQUIVO",voParams)	
+	
+	$vDsConteudo$ = "%%$vDsConteudo$%%%EAD%%vCodRSA"
+
+	activate "vbfileman".arqexiste(vFlag,"%%$vDsPath$%%%%%$nomeArquivo$") 
+	if (vFlag = <TRUE>)
+		activate "vbfileman".apagaarquivo("%%$vDsConteudo$%%^","%%$vDsPath$%%%%%$nomeArquivo$")
+	endif
+	
+	filedump/append "%%$vDsConteudo$%%^","%%$vDsPath$%%%%%$nomeArquivo$%%%.TMP"
+
+	activate "vbfileman".movearquivo(vEOF,"%%$vDsPath$%%%%%$nomeArquivo$%%%.TMP","%%$vDsPath$%%%%%$nomeArquivo$")
+	if ($procerror)
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+	elseif ($status < 0)
+		$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")
+	endif
+	
+	return(0)
+End; operation geraEAD

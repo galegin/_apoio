@@ -1,0 +1,916 @@
+entry getParam
+	params
+		numeric piCdEmpresa : IN
+	endparams
+
+	variables
+		string viParams, voParams
+	endvariables
+
+	if (piCdEmpresa = 0)
+		$instancehandle->SetErroApl("ERRO=-1·;DESCRICAO=Empresa para busca de parâmetros não infomada!", $xCdErro$, $xCtxErro$)
+		return(-1)
+	endif
+	
+	viParams = ""
+	putitem viParams, -1, "CD_EMPRESA_VALOR"
+	activate "ADMSVCO001".GetParamEmpresa(piCdEmpresa, viParams, voParams, $xCdErro$, $xCtxErro$)
+	if ($procerror)
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+		return(-1)
+	elseif ($xCdErro$)
+		$instancehandle->SetErroApl($xCtxErro$, $xCdErro$, $xCtxErro$)
+		return(-1)
+	endif
+
+	$cdEmpresaValorEmp$ = $item("CD_EMPRESA_VALOR", voParams)
+
+	viParams = ""
+	putitem viParams, -1, "CD_EMPVALOR"
+	putitem viParams, -1, "TP_ARREDONDAMENTO_PRECO"
+	putitem viParams, -1, "NR_PONTOM_ARRED"
+	putitem viParams, -1, "NR_DECIMAL_ABAIXO_PONTOM"
+	putitem viParams, -1, "NR_DECIMAL_ACIMA_PONTOM"
+	putitem viParams, -1, "NR_INTEIRO_ABAIXO_PONTOM"
+	putitem viParams, -1, "NR_INTEIRO_ACIMA_PONTOM"
+	activate "ADMSVCO001".GetLstParametro(viParams, voParams, $xCdErro$, $xCtxErro$)
+	if ($procerror)
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+		return(-1)
+	elseif ($xCdErro$)
+		$instancehandle->SetErroApl($xCtxErro$, $xCdErro$, $xCtxErro$)
+		return(-1)
+	endif
+
+	$cdEmpresaValorSis$ = $item("CD_EMPVALOR", voParams)
+	$tpArredondamento$ = $item("TP_ARREDONDAMENTO_PRECO", voParams)
+	$nrPontomArred$ = $item("NR_PONTOM_ARRED", voParams)
+	$nrDecimalAcimaPontoM$ = $item("NR_DECIMAL_ACIMA_PONTOM", voParams)
+	$nrDecimalAbaixoPontoM$ = $item("NR_DECIMAL_ABAIXO_PONTOM", voParams)
+	$nrInteiroAcimaPontoM$ = $item("NR_INTEIRO_ACIMA_PONTOM", voParams)
+	$nrInteiroAbaixoPontoM$ = $item("NR_INTEIRO_ABAIXO_PONTOM", voParams)
+	
+	return(0)
+end
+
+entry arredondaPrecoPontoM
+	params
+		numeric piVlValor : IN
+		numeric poVlValor : OUT
+	endparams
+
+	variables
+		string viGlobal, viParams, voParams
+		numeric vVlInteiro, vVlDecimal
+	endvariables
+
+;	if (piVlValor = 0)
+;		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Valor para calculo de arredondamento não infomado!", "")
+;		return(-1)
+;	endif
+
+	vVlInteiro = piVlValor[Trunc]
+	vVlDecimal = piVlValor[Fraction] * 100
+
+	if (vVlDecimal < $nrPontomArred$)
+		vVlInteiro = vVlInteiro + $nrInteiroAbaixoPontoM$
+		vVlDecimal = $nrDecimalAbaixoPontoM$
+	else
+		vVlInteiro = vVlInteiro + $nrInteiroAcimaPontoM$
+		vVlDecimal = $nrDecimalAcimaPontoM$
+	endif
+	poVlValor = vVlInteiro + (vVlDecimal / 100)
+	
+	return(0)
+end
+
+;-----------------------------
+public operation atualizaValor
+	;----------------------------- 
+	Params
+		string  piGlobal    :IN    
+		string  piParams    :IN
+		string  poParams    :OUT
+		string  poCdErro    :OUT
+		string  poCtxErro   :OUT
+	endParams
+	
+	Variables
+		numeric vNrSequencia, vVlProdutoAnt, vCdEmpresa, vCdGrupoEmpresa, vCdProduto
+		numeric vCdValor, vVlValor, vCdMotivo, vCdSeqGrupo, vCdUsuario
+		boolean vinAlterou, vInSoProduto
+		string  viParams, voParams, vTpValor, vDsLstProduto
+		date    vDtMovimento
+	endVariables
+	
+	poCdErro      = ""
+	poCtxErro     = ""
+	vDsLstProduto = ""
+	vInAlterou    = <FALSE>
+	vCdEmpresa    = $item("CD_EMPRESA", piParams)
+	vCdProduto    = $item("CD_PRODUTO", piParams)
+	vCdSeqGrupo   = $item("CD_SEQGRUPO", piParams)
+	vTpValor      = $item("TP_VALOR", piParams)
+	vCdValor      = $item("CD_VALOR", piParams)
+	vVlValor      = $item("VL_PRODUTOATU", piParams)
+	vCdMotivo     = $item("CD_MOTIVO", piParams)
+	vInSoProduto  = $item("IN_SOPRODUTO", piParams)
+	vDtMovimento  = $item("DT_SISTEMA", piGlobal)
+	vCdUsuario    = $item("CD_USUARIO", $$gParamGlb)
+
+	$tpValidacaoValorUsu$ = $item("TP_VALIDACAO_VALOR_USU", $$gParamGlb)
+
+	if (vCdProduto = 0)
+		if (vCdSeqGrupo > 0)
+			clear/e "PRD_GRUPOSVC"
+			CD_SEQ.PRD_GRUPOSVC = vCdSeqGrupo
+			retrieve/e "PRD_GRUPOSVC"
+			if ($status >= 0)    
+				if (CD_PRODUTO.PRD_GRUPOSVC = 0)
+					clear/e "PRD_PRDGRADESVC"
+					CD_SEQGRUPO.PRD_PRDGRADESVC = CD_SEQ.PRD_GRUPOSVC
+					retrieve/e "PRD_PRDGRADESVC"
+					if ($status >= 0)
+						setocc "PRD_PRDGRADESVC", 1
+						while ($status >= 0)
+							putitem vDsLstProduto, -1, CD_PRODUTO.PRD_PRDGRADESVC
+							setocc "PRD_PRDGRADESVC", $curocc("PRD_PRDGRADESVC") + 1
+						endwhile                        
+					endif
+				else
+					vDsLstProduto = CD_PRODUTO.PRD_GRUPOSVC
+				endif
+			endif
+			
+			if (vDsLstProduto = "")
+				$instancehandle->SetErroApl("ERRO=-1·;DESCRICAO=Grupo %%vCdSeqGrupo sem produto cadastrado!", $xCdErro$, $xCtxErro$)
+				poCdErro  = $xCdErro$
+				poCtxErro = $xCtxErro$
+				return(-1)
+			endif
+		endif
+	else
+		if (vInSoProduto != <TRUE>)
+			clear/e "PRD_PRDGRADESVC"
+			CD_PRODUTO.PRD_PRDGRADESVC = vCdProduto
+			retrieve/e "PRD_PRDGRADESVC"
+			if ($status >= 0)
+				clear/e "PRD_GRUPOSVC"
+				CD_SEQ.PRD_GRUPOSVC = CD_SEQGRUPO.PRD_PRDGRADESVC
+				retrieve/e "PRD_GRUPOSVC"
+				if ($status >= 0)
+					if (CD_PRODUTO.PRD_GRUPOSVC > 0)
+						vCdProduto = CD_PRODUTO.PRD_GRUPOSVC
+					endif
+				endif
+			endif
+		endif
+		vDsLstProduto = vCdProduto
+	endif
+	
+	if (vCdEmpresa = "")
+		$instancehandle->SetErroApl("ERRO=-1·;DESCRICAO=Código da Empresa não informado!", $xCdErro$, $xCtxErro$)
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif    
+	
+	if (vDsLstProduto = "")
+		$instancehandle->SetErroApl("ERRO=-1·;DESCRICAO=Produto não informado!", $xCdErro$, $xCtxErro$)
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-3)
+	endif
+	
+	if (vTpValor = "")
+		$instancehandle->SetErroApl("ERRO=-1·;DESCRICAO=Tipo de Valor não informado!", $xCdErro$, $xCtxErro$)
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	
+	if (vCdValor = "")
+		$instancehandle->SetErroApl("ERRO=-1·;DESCRICAO=Código do Valor não informado!", $xCdErro$, $xCtxErro$)
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	
+	if (vCdMotivo = "")
+		$instancehandle->SetErroApl("ERRO=-1·;DESCRICAO=Código do Tipo de Alteração não informado!", $xCdErro$, $xCtxErro$)
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	
+	clear/e "GER_EMPRESASVC"
+	CD_EMPRESA.GER_EMPRESASVC = vCdEmpresa
+	retrieve/e "GER_EMPRESASVC"
+	if ($status >= 0)
+		vCdGrupoEmpresa = CD_GRUPOEMPRESA.GER_EMPRESASVC
+	else
+		vCdGrupoEmpresa = $item("CD_GRUPOEMPRESA", piGlobal)
+	endif
+
+	;call getParam(vCdEmpresa)
+	;if ($procerror)
+	;    $instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+	;    poCdErro = $xCdErro$
+	;    poCtxErro = $xCtxErro$
+	;    return(-1)
+	;endif                    
+	;if ($status < 0)
+	;;    $instancehandle->SetErroApl("ERRO=-1·;DESCRICAO=Erro ao carregar parâmetros!", $xCdErro$, $xCtxErro$)
+	;    poCdErro = $xCdErro$
+	;    poCtxErro = $xCtxErro$
+	;    return(-1)
+	;endif
+	
+	repeat    
+		getitem vCdProduto, vDsLstProduto, 1
+
+		;;;DBB | PRJ 101/0277 | 11/06/2008
+		if ($tpValidacaoValorUsu$ = 1)
+			clear/e "PRD_USUCDVALOSVC"
+			CD_EMPRESA.PRD_USUCDVALOSVC/init = vCdEmpresa
+			CD_USUARIO.PRD_USUCDVALOSVC/init = vCdUsuario 
+			CD_VALOR.PRD_USUCDVALOSVC/init   = vCdValor
+			TP_VALOR.PRD_USUCDVALOSVC/init   = vTpValor
+			retrieve/e "PRD_USUCDVALOSVC"
+			if ($status < 0)	
+				$instancehandle->SetErroApl("ERRO=-1·;DESCRICAO=Usuário sem permissão para alterar valor!", $xCdErro$, $xCtxErro$)
+				poCdErro  = $xCdErro$
+				poCtxErro = $xCtxErro$
+				return(-1)
+			endif
+		endif
+		;;;
+
+;		newinstance "GERSVCO009", "GERSVCO009", "TRANSACTION=TRUE"
+;		vNrSequencia = 0 ; esta sequencia tamb?m ser? utilizada pelo kardex/valor
+;		activate "GERSVCO009".GetSeqValor(vCdEmpresa, vDtMovimento, vCdProduto, vTpValor, vCdValor, piGlobal, vNrSequencia, $xCdErro$, $xCtxErro$)
+;		if ($procerror)
+;			$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+;			poCdErro = $xCdErro$
+;			poCtxErro = $xCtxErro$
+;			return(-1)  
+;		elseif ($xCdErro$)
+;			$instancehandle->SetErroApl($xCtxErro$, $xCdErro$, $xCtxErro$)
+;			poCdErro = $xCdErro$
+;			poCtxErro = $xCtxErro$
+;			return(-1)  
+;		elseif ($status < 0)
+;			poCdErro = $xCdErro$
+;			poCtxErro = $xCtxErro$
+;			return(-1)
+;		endif 
+
+		viParams = ""
+		voParams = ""
+		putitem/id viParams, "NM_ENTIDADE", "PRD_ALTVALOR"
+		activate "GERSVCO031".getNumSeq($xlpg$, viParams, voParams, $xCdErro$, $xCtxerro$)
+		if ($procerror)
+			$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+			poCdErro  = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return(-1)  
+		elseif ($status < 0)
+			$instancehandle->SetErroApl("ERRO=-1·;DESCRICAO=Não foi possível obter sequência de movimentação!", poCdErro, poCtxErro)
+			return (-1)
+		endif    
+
+		vNrSequencia = $item("NR_SEQUENCIA", voParams)
+		
+		clear/e "PRD_VALORSVC"     
+		creocc "PRD_VALORSVC", -1
+		cd_empresa.prd_valorsvc/init = vCdEmpresa
+		cd_produto.prd_valorsvc/init = vCdProduto
+		tp_valor.prd_valorsvc/init   = vTpValor
+		cd_valor.prd_valorsvc/init   = vCdValor        
+		retrieve/o "PRD_VALORSVC"
+		if ($status = -7)
+			retrieve/x "PRD_VALORSVC"
+		endif        
+		if (vl_produto.prd_valorsvc != vVlValor)
+			vVlProdutoAnt                = vl_produto.prd_valorsvc
+			vl_produto.prd_valorsvc      = vVlValor
+			cd_grupoempresa.prd_valorsvc = vCdGrupoEmpresa
+			cd_operador.prd_valorsvc     = $item("CD_USUARIO", piGlobal)
+			dt_cadastro.prd_valorsvc     = $datim
+			in_basemarkup.prd_valorsvc   = <FALSE>        
+			$collhandle("PRD_VALORSVC")->Salvar()
+			if ($procerror)
+				$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+				poCdErro  = $xCdErro$
+				poCtxErro = $xCtxErro$
+				return(-1)    
+			elseif ($status < 0)
+				$instancehandle->SetErroApl($xCtxErro$, $xCdErro$, $xCtxErro$)
+				poCdErro  = $xCdErro$
+				poCtxErro = $xCtxErro$
+				return(-1)
+			else
+				clear/e "PRD_ALTVALORSVC"
+				cd_empresa.prd_altvalorsvc   = vCdEmpresa
+				cd_produto.prd_altvalorsvc   = vCdProduto
+				tp_valor.prd_altvalorsvc     = vTpValor
+				cd_valor.prd_altvalorsvc     = vCdValor
+				dt_movimento.prd_altvalorsvc = vDtMovimento            
+				nr_sequencia.prd_altvalorsvc = vNrSequencia
+				retrieve/o "PRD_ALTVALORSVC"
+				if ($status = -7)
+					retrieve/x "PRD_ALTVALORSVC"
+				endif
+				cd_motivo.prd_altvalorsvc       = vCdMotivo
+				vl_anterior.prd_altvalorsvc     = vVlProdutoAnt
+				vl_atualizado.prd_altvalorsvc   = vVlValor
+				cd_grupoempresa.prd_altvalorsvc = vCdGrupoEmpresa
+				cd_operador.prd_altvalorsvc     = $item("CD_USUARIO", piGlobal)
+				dt_cadastro.prd_altvalorsvc     = $datim            
+				$collhandle("PRD_ALTVALORSVC")->Salvar()
+				if ($procerror)
+					$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+					poCdErro  = $xCdErro$
+					poCtxErro = $xCtxErro$
+					return(-1)
+				elseif ($status < 0)
+					$instancehandle->SetErroApl($xCtxErro$, $xCdErro$, $xCtxErro$)
+					poCdErro  = $xCdErro$
+					poCtxErro = $xCtxErro$
+					return(-1)
+				else
+					vInAlterou = <TRUE>
+				endif  
+			endif  
+		endif
+		
+		delitem vDsLstProduto, 1
+	until (vDsLstProduto = "")    
+	
+	
+	putitem/id poParams, "IN_ALTEROU", vInAlterou
+	
+	return(0)
+End ; operation atualizaValor
+
+;---------; leandro 148/212 25/06/2009
+public operation gravaAltValor
+;------------------------------ 
+	params
+		string piGlobal    : IN    
+		string piParams    : IN
+		string poParams    : OUT
+		string poCdErro    : OUT
+		string poCtxErro   : OUT
+	endparams
+	
+	variables
+		numeric vCdEmpresa, vCdProduto, vCdValor, vVlValor, vNrSeq, vVlAnterior, vCdGrupoEmpresa, vCdMotivo 
+		string  vDsTpValor, viParams, voParams
+		date    vDtMovimento
+	endvariables
+	
+	vCdEmpresa   = $item("CD_EMPRESA", piParams)
+	vCdProduto   = $item("CD_PRODUTO", piParams)
+	vDsTpValor   = $item("TP_VALOR", piParams)
+	vCdValor     = $item("CD_VALOR", piParams)
+	vCdMotivo    = $item("CD_MOTIVO", piParams)
+	vDtMovimento = $item("DT_MOVIMENTO", piParams)
+	vVlValor     = $item("VL_ATUALIZADO", piParams)
+	
+	if (vCdEmpresa = 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Empresa não informada. Verifique!", "ADICIONAL=PRDSVCO007.gravaAltValor")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1) 
+	endif
+
+	if (vCdProduto = 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Produto não informado. Verifique!", "ADICIONAL=PRDSVCO007.gravaAltValor")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1) 
+	endif
+	
+	if (vDsTpValor = "")
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Tipo de valor não informado. Verifique!", "ADICIONAL=PRDSVCO007.gravaAltValor")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1) 
+	endif
+
+	if (vCdValor = 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Código do valor não informado. Verifique!", "ADICIONAL=PRDSVCO007.gravaAltValor")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1) 
+	endif
+	
+	if (vCdMotivo = 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Motivo não informado. Verifique!", "ADICIONAL=PRDSVCO007.gravaAltValor")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1) 
+	endif
+
+	if (vDtMovimento = "")
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Data do movimento não informado. Verifique!", "ADICIONAL=PRDSVCO007.gravaAltValor")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1) 
+	endif
+
+	if (vVlValor = 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Valor não informado. Verifique!", "ADICIONAL=PRDSVCO007.gravaAltValor")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1) 
+	endif
+	
+	clear/e "PRD_MOTIVOALTSVC"
+	CD_MOTIVO.PRD_MOTIVOALTSVC = vCdMotivo
+	retrieve/e "PRD_MOTIVOALTSVC"
+	if ($status < 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Motivo %%vCdMotivo não encontrado. Verifique!", "ADICIONAL=PRDSVCO007.gravaAltValor")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1) 
+	endif
+	
+	clear/e "GER_EMPRESASVC"
+	CD_EMPRESA.GER_EMPRESASVC = vCdEmpresa
+	retrieve/e "GER_EMPRESASVC"
+	if ($status >= 0)
+		vCdGrupoEmpresa = CD_GRUPOEMPRESA.GER_EMPRESASVC
+	else
+		vCdGrupoEmpresa = $item("CD_GRUPOEMPRESA", piGlobal)
+	endif
+
+	clear/e "PRD_PRDGRADESVC"
+	CD_PRODUTO.PRD_PRDGRADESVC = vCdProduto
+	retrieve/e "PRD_PRDGRADESVC"
+	if ($status >= 0)
+		clear/e "PRD_GRUPOSVC"
+		CD_SEQ.PRD_GRUPOSVC = CD_SEQGRUPO.PRD_PRDGRADESVC
+		retrieve/e "PRD_GRUPOSVC"
+		if ($status >= 0 & CD_PRODUTO.PRD_GRUPOSVC > 0)
+			vCdProduto = CD_PRODUTO.PRD_GRUPOSVC
+		endif
+	else
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Produto %%vCdProduto não encontrado. Verifique!", "ADICIONAL=PRDSVCO007.gravaAltValor")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1) 
+	endif
+	
+	clear/e "PRD_ALTVALORSVC"
+	CD_EMPRESA.PRD_ALTVALORSVC   = vCdEmpresa
+	CD_PRODUTO.PRD_ALTVALORSVC   = vCdProduto 
+	TP_VALOR.PRD_ALTVALORSVC     = vDsTpValor 
+	CD_VALOR.PRD_ALTVALORSVC     = vCdValor 
+	DT_MOVIMENTO.PRD_ALTVALORSVC = "·<·=%%vDtMovimento"
+	retrieve/e "PRD_ALTVALORSVC"
+	if ($status >= 0)
+		sort/e "PRD_ALTVALORSVC", "NR_SEQUENCIA.PRD_ALTVALORSVC:d"
+		setocc "PRD_ALTVALORSVC", 1
+		vVlAnterior = VL_ATUALIZADO.PRD_ALTVALORSVC
+	else
+		vVlAnterior = 0
+	endif
+
+;	if (vVlValor = vVlAnterior)
+;		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=A alteração anterior para este produto foi de %%vVlAnterior%%^Mesmo valor que esta sendo informado agora. Verifique!", "ADICIONAL=PRDSVCO007.gravaAltValor")
+;		poCdErro = $xCdErro$
+;		poCtxErro = $xCtxErro$
+;		return(-1) 
+;	endif
+
+	viParams = ""
+	voParams = ""
+	putitem/id viParams, "NM_ENTIDADE", "PRD_ALTVALOR"
+	activate "GERSVCO031".getNumSeq($xlpg$, viParams, voParams, $xCdErro$, $xCtxerro$)
+	if ($procerror)
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)  
+	elseif ($status < 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Não foi possível obter sequência de movimentação!", "ADICIONAL=PRDSVCO007.gravaAltValor")
+		return (-1)
+	endif    
+
+	vNrSeq = $item("NR_SEQUENCIA", voParams)
+	
+	clear/e "PRD_ALTVALORSVC"
+	CD_EMPRESA.PRD_ALTVALORSVC   = vCdEmpresa
+	CD_PRODUTO.PRD_ALTVALORSVC   = vCdProduto 
+	TP_VALOR.PRD_ALTVALORSVC     = vDsTpValor 
+	CD_VALOR.PRD_ALTVALORSVC     = vCdValor 
+	DT_MOVIMENTO.PRD_ALTVALORSVC = vDtMovimento
+	NR_SEQUENCIA.PRD_ALTVALORSVC = vNrSeq 
+	retrieve/o "PRD_ALTVALORSVC"
+	if ($status = -7)
+		retrieve/x "PRD_ALTVALORSVC"
+	endif
+	
+	CD_GRUPOEMPRESA.PRD_ALTVALORSVC = vCdGrupoEmpresa
+	CD_MOTIVO.PRD_ALTVALORSVC       = vCdMotivo 
+	VL_ATUALIZADO.PRD_ALTVALORSVC   = vVlValor 
+
+	if (vVlAnterior > 0)
+		VL_ANTERIOR.PRD_ALTVALORSVC = vVlAnterior 
+	endif
+
+	CD_OPERADOR.PRD_ALTVALORSVC = $item("CD_USUARIO", piGlobal)
+	DT_CADASTRO.PRD_ALTVALORSVC = $datim
+      
+	$collhandle("PRD_ALTVALORSVC")->Salvar()
+	if ($procerror)
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	elseif ($status < 0)
+		$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	
+	putlistitems/occ poParams, "PRD_ALTVALORSVC"
+	
+	return (0)
+End ; gravaAltValor
+
+;------------------------------
+public operation buscaValorData
+	;------------------------------ 
+	Params
+		string  piGlobal    :IN    
+		string  piParams    :IN
+		string  piListas    :IN
+		string  poParams    :OUT
+		string  poCdErro    :OUT
+		string  poCtxErro   :OUT
+	endParams
+	
+	variables
+		numeric vCdEmpresaParam, vCdProduto, vCdSeqGrupo, vCdValor, vQtSaldo, vVlValor
+		numeric vCdEmpresa, vCdPromocao, vNrPrazoMedio, vCdEmpPromocao
+		string  vTpValor, vDsLstEmpresa, vDsNulo
+		boolean vInPromocao, vInSoProduto, vInSoEmpresa, vInPromocaoAberta
+		date    vDtValor, vDtSistema, vDtMovimentoAnt
+	endvariables    
+
+	vVlValor    = 0
+	vCdPromocao = 0
+	vDsNulo     = ""
+	vCdEmpresaParam = $item("CD_EMPRESA", piParams)
+	if (vCdEmpresaParam = "")
+		vCdEmpresaParam = $item("CD_EMPRESA", piGlobal)
+	endif
+	vCdProduto    = $item("CD_PRODUTO", piParams)
+	vCdSeqGrupo   = $item("CD_SEQGRUPO", piParams)
+	vTpValor      = $item("TP_VALOR", piParams)
+	vCdValor      = $item("CD_VALOR", piParams)
+	vInPromocao   = $item("IN_PROMOCAO", piParams)
+	vNrPrazoMedio = $item("NR_PRAZOMEDIO", piParams)
+	vInSoProduto  = $item("IN_SOPRODUTO", piParams)
+	vInSoEmpresa  = $item("IN_SOEMPRESA", piParams)
+	vDtValor      = $item("DT_VALOR", piParams)    
+	vDtSistema    = $item("DT_SISTEMA", piGlobal)
+	if (vDtValor  = "")    
+		vDtValor = $item("DT_SISTEMA", piGlobal)
+	endif
+	$cdEmpresaValorEmp$ = $item("CD_EMPRESA_VALOR", piParams)
+	$cdEmpresaValorSis$ = $item("CD_EMPVALOR", piParams)
+	vInPromocaoAberta   = $item("IN_PROMOCAOABERTA", piParams) ;;;DBB | PRJ 101/0288 | 24/07/2008
+	if ($cdEmpresaValorEmp$ = "") & ($cdEmpresaValorSis$ = "")
+		if($item("CD_EMPVALOR",piGlobal) = "") & ($item("CD_EMPRESA_VALOR", piGlobal) = "")
+			call getParam(vCdEmpresaParam)
+			if ($procerror)
+				$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+				poCdErro  = $xCdErro$
+				poCtxErro = $xCtxErro$
+				return(-1)
+			endif                    
+			if ($status < 0)
+;				$instancehandle->SetErroApl("ERRO=-1·;DESCRICAO=Erro ao carregar parâmetros!", $xCdErro$, $xCtxErro$)
+				poCdErro  = $xCdErro$
+				poCtxErro = $xCtxErro$
+				return(-1)
+			endif
+		else
+			$cdEmpresaValorEmp$ = $item("CD_EMPRESA_VALOR", piGlobal)
+			$cdEmpresaValorSis$ = $item("CD_EMPVALOR",piGlobal)
+		endif
+	endif
+	
+	if (vCdProduto = 0) 
+		if (vCdSeqGrupo > 0)
+			clear/e "PRD_GRUPOSVC"
+			CD_SEQ.PRD_GRUPOSVC = vCdSeqGrupo
+			retrieve/e "PRD_GRUPOSVC"
+			if ($status >= 0)    
+				if (CD_PRODUTO.PRD_GRUPOSVC = 0)
+					clear/e "PRD_PRDGRADESVC"
+					CD_SEQGRUPO.PRD_PRDGRADESVC = CD_SEQ.PRD_GRUPOSVC
+					retrieve/e "PRD_PRDGRADESVC"
+					if ($status >= 0)
+						vCdProduto = CD_PRODUTO.PRD_PRDGRADESVC
+					endif
+				else
+					vCdProduto = CD_PRODUTO.PRD_GRUPOSVC
+				endif
+			endif        
+		endif
+	else
+		if (vInSoProduto != <TRUE>)
+			clear/e "PRD_PRDGRADESVC"
+			CD_PRODUTO.PRD_PRDGRADESVC = vCdProduto
+			retrieve/e "PRD_PRDGRADESVC"
+			if ($status >= 0)
+				clear/e "PRD_GRUPOSVC"
+				CD_SEQ.PRD_GRUPOSVC = CD_SEQGRUPO.PRD_PRDGRADESVC
+				retrieve/e "PRD_GRUPOSVC"
+				if ($status >= 0)    
+					if (CD_PRODUTO.PRD_GRUPOSVC > 0)
+						vCdProduto = CD_PRODUTO.PRD_GRUPOSVC
+					endif
+				endif
+			endif
+		endif
+	endif
+	
+	if (vInPromocao = <TRUE>)
+		if (vCdEmpresaParam > 0) 
+			putitem vDsLstEmpresa, -1, vCdEmpresaParam
+		endif
+		if (vInSoEmpresa != <TRUE>)
+			if ($cdEmpresaValorEmp$ > 0) & ($cdEmpresaValorEmp$ != vCdEmpresaParam)
+				putitem vDsLstEmpresa, -1, $cdEmpresaValorEmp$
+			endif
+			if ($cdEmpresaValorSis$ > 0) & ($cdEmpresaValorSis$ != vCdEmpresaParam)
+				putitem vDsLstEmpresa, -1, $cdEmpresaValorSis$
+			endif
+		endif
+		
+		while (vDsLstEmpresa != "") & (vVlValor = 0)
+			getitem vCdEmpresa, vDsLstEmpresa, 1
+			clear/e "V_PRD_PROMOCASVC"
+			CD_EMPRESA.V_PRD_PROMOCASVC  = vCdEmpresa
+			CD_PRODUTO.V_PRD_PROMOCASVC  = vCdProduto
+			TP_VALOR.V_PRD_PROMOCASVC    = vTpValor
+			CD_VALOR.V_PRD_PROMOCASVC    = vCdValor
+			TP_SITUACAO.V_PRD_PROMOCASVC = "A"
+			if (vInPromocaoAberta != <TRUE>) ;;;DBB | PRJ 101/0288 | 24/07/2008
+				DT_INICIO.V_PRD_PROMOCASVC = "·<·=%%vDtValor"
+			endif
+			DT_FINAL.V_PRD_PROMOCASVC = "·>·=%%vDtValor"
+			if (vNrPrazoMedio != "")
+				NR_PRAZOMEDIO.V_PRD_PROMOCASVC = "·>·=%%vNrPrazoMedio·|·=%%vDsNulo"
+			endif
+			retrieve/e "V_PRD_PROMOCASVC"
+			if ($status >= 0)
+				vVlValor       = VL_PROMOCAO.V_PRD_PROMOCASVC
+				vCdPromocao    = CD_PROMOCAO.V_PRD_PROMOCASVC
+				vCdEmpPromocao = CD_EMPRESA.V_PRD_PROMOCASVC ;--Douglas Ferreira - [Prj/Tarefa 177/0019] - 14/12/2010
+			endif    
+			delitem vDsLstEmpresa, 1
+		endwhile
+	endif
+	
+	if (vVlValor = 0)
+		if (vCdEmpresaParam > 0)
+			putitem vDsLstEmpresa, -1, vCdEmpresaParam
+		endif
+		if (vInSoEmpresa != <TRUE>)
+			if ($cdEmpresaValorEmp$ > 0) & ($cdEmpresaValorEmp$ != vCdEmpresaParam)
+				putitem vDsLstEmpresa, -1, $cdEmpresaValorEmp$
+			endif
+			if ($cdEmpresaValorSis$ > 0) & ($cdEmpresaValorSis$ != vCdEmpresaParam)
+				putitem vDsLstEmpresa, -1, $cdEmpresaValorSis$
+			endif
+		endif
+		while (vDsLstEmpresa != "") & (vVlValor = 0)
+			getitem vCdEmpresa, vDsLstEmpresa, 1
+			
+			if (vDtValor != vDtSistema)
+				vDtMovimentoAnt = ""
+				selectdb max(DT_MOVIMENTO) %\
+				FROM "PRD_ALTVALORSVC" %\
+				U_WHERE (CD_EMPRESA.PRD_ALTVALORSVC = vCdEmpresa & %\
+				CD_PRODUTO.PRD_ALTVALORSVC = vCdProduto & %\
+				TP_VALOR.PRD_ALTVALORSVC     = vTpValor & %\
+				CD_VALOR.PRD_ALTVALORSVC     = vCdValor & %\
+				DT_MOVIMENTO.PRD_ALTVALORSVC <= vDtValor) %\
+				to vDtMovimentoAnt
+				if ($status < 0)
+					$instancehandle->SetErroOpr($procerrorcontext, $xCdErro$, $xCtxErro$)
+					poCdErro  = $xCdErro$
+					poCtxErro = $xCtxErro$
+					return(-1)
+				else
+					if (vDtMovimentoAnt != "")    
+						clear/e "PRD_ALTVALORSVC"
+						CD_EMPRESA.PRD_ALTVALORSVC   = vCdEmpresa
+						CD_PRODUTO.PRD_ALTVALORSVC   = vCdProduto
+						TP_VALOR.PRD_ALTVALORSVC     = vTpValor
+						CD_VALOR.PRD_ALTVALORSVC     = vCdValor
+						DT_MOVIMENTO.PRD_ALTVALORSVC = vDtMovimentoAnt
+						retrieve/e "PRD_ALTVALORSVC"
+						if ($status >= 0)
+							sort/e "PRD_ALTVALORSVC", "DT_CADASTRO.PRD_ALTVALORSVC, NR_SEQUENCIA.PRD_ALTVALORSVC"
+							setocc "PRD_ALTVALORSVC", -1
+							vVlValor = VL_ATUALIZADO.PRD_ALTVALORSVC
+						endif
+					endif
+				endif
+			else
+				clear/e "PRD_VALORSVC"
+				CD_EMPRESA.PRD_VALORSVC = vCdEmpresa
+				CD_PRODUTO.PRD_VALORSVC = vCdProduto
+				TP_VALOR.PRD_VALORSVC   = vTpValor
+				CD_VALOR.PRD_VALORSVC   = vCdValor
+				retrieve/e "PRD_VALORSVC"
+				if ($status >= 0)
+					vVlValor = VL_PRODUTO.PRD_VALORSVC    
+				endif
+			endif
+
+			if (vVlValor > 0)
+				break
+			endif
+
+			
+;			if (vVlValor = 0)
+;				clear/e "PRD_VALORSVC"
+;				CD_EMPRESA.PRD_VALORSVC = vCdEmpresa
+;				CD_PRODUTO.PRD_VALORSVC = vCdProduto
+;				TP_VALOR.PRD_VALORSVC = vTpValor
+;				CD_VALOR.PRD_VALORSVC = vCdValor
+;				retrieve/e "PRD_VALORSVC"
+;				if ($status >= 0)
+;					vVlValor = VL_PRODUTO.PRD_VALORSVC    
+;				endif    
+;			endif
+			
+			delitem vDsLstEmpresa, 1
+		endwhile
+	endif
+	
+	poParams = ""
+	putitem/id poParams, "VL_VALOR"      , vVlValor
+	putitem/id poParams, "CD_PROMOCAO"   , vCdPromocao
+	putitem/id poParams, "CD_EMPPROMOCAO", vCdEmpPromocao ;--Douglas Ferreira - [Prj/Tarefa 177/0019] - 14/12/2010
+	
+	return(0)
+End ; operation buscaValorData
+
+;--------------------------------- ;; Marcus Vinicius - 101/571 - 04/08/2010
+public operation calculaValorMedio
+	;--------------------------------- 
+	params
+		string  piGlobal    :IN    
+		string  piParams    :IN
+		string  poParams    :OUT
+		string  poCdErro    :OUT
+		string  poCtxErro   :OUT
+	endparams
+
+	variables
+		string  vDsLstEmpresa, vDsRegistro, viParams, viListas, voParams, vTpValor
+		numeric vCdProduto, vCdSeqGrupo, vCdValor, vVlValor, vNrCont, vVlMedio
+		numeric vCdEmpresaValorEmp, vCdEmpresaValorSis
+		date    vDtValor
+	endvariables	
+
+	vDsLstEmpresa      = $item("CD_EMPRESA", piParams)
+	vCdProduto         = $item("CD_PRODUTO", piParams)
+	vCdSeqGrupo        = $item("CD_SEQGRUPO", piParams)
+	vCdValor           = $item("CD_VALOR", piParams)
+	vTpValor           = $item("TP_VALOR", piParams)
+	vDtValor           = $item("DT_VALOR", piParams)
+	vCdEmpresaValorEmp = $item("CD_EMPRESA_VALOR", piParams)
+	vCdEmpresaValorSis = $item("CD_EMPVALOR", piParams)
+
+	if(vDsLstEmpresa = "")
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Nenhuma empresa informada!", "ADICIONAL=PRDSVCO007.calculaValorMedio")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1) 
+	endif
+
+	vNrCont = 0
+	vVlValor = 0
+
+	repeat
+		getitem vDsRegistro, vDsLstEmpresa, 1
+		vNrCont = vNrCont + 1
+
+		viParams = ""
+		viListas = ""    
+		putitem/id viParams, "CD_EMPRESA"      , vDsRegistro
+		putitem/id viParams, "CD_SEQGRUPO"     , vCdSeqGrupo
+		putitem/id viParams, "CD_PRODUTO"      , vCdProduto 
+		putitem/id viParams, "TP_VALOR"        , vTpValor 
+		putitem/id viParams, "CD_VALOR"        , vCdValor 
+		putitem/id viParams, "DT_VALOR"        , vDtValor 
+ 		putitem/id viParams, "CD_EMPRESA_VALOR", vCdEmpresaValorEmp
+		putitem/id viParams, "CD_EMPVALOR"     , vCdEmpresaValorSis
+		newinstance "PRDSVCO007", "PRDSVCO007A1", "TRANSACTION=FALSE"
+		activate "PRDSVCO007".buscaValorData($$gParamGlb, viParams, viListas, voParams, $xCdErro$, $xCtxErro$)
+		if ($procerror)
+			$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+			poCdErro  = $xCdErro$
+			poCtxErro = $xCtxErro$
+			deleteinstance "PRDSVCO007A1"	
+			return(-1)  
+		elseif ($status < 0)
+			$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")
+			poCdErro  = $xCdErro$
+			poCtxErro = $xCtxErro$
+			deleteinstance "PRDSVCO007A1"
+			return(-1)  
+		endif
+		deleteinstance "PRDSVCO007A1"
+
+		vVlValor = vVlValor + $item("VL_VALOR", voParams)
+
+		delitem vDsLstEmpresa, 1
+	until(vDsLstEmpresa = "")
+
+	vVlMedio = 0
+	if(vNrCont > 0)
+		vVlMedio = vVlValor / vNrCont
+	endif
+
+	poParams = ""
+	putitem/id poParams, "VL_MEDIO", vVlMedio 
+
+	return(0)
+End ; operation calculaValorMedio
+
+;------------------------------
+public operation arredondaPreco
+	;------------------------------
+	params
+		string  piGlobal    :IN    
+		string  piParams    :IN
+		string  poParams    :OUT
+		string  poCdErro    :OUT
+		string  poCtxErro   :OUT
+	endparams
+	
+	variables
+		numeric vVlPreco, vCdEmpresa, vVlArredondado
+	endvariables    
+	
+	vCdEmpresa = $item("CD_EMPRESA", piGlobal)
+	
+	call getParam(vCdEmpresa)
+	if ($procerror)
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif                    
+	if ($status < 0)
+;		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Erro ao carregar parâmetros!", "")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif    
+	
+	vVlPreco = $item("VL_PRECO", piParams)
+	
+	if (vVlPreco > 0)
+		selectcase $tpArredondamento$
+			case 00
+				vVlPreco = vVlPreco[round, 2]
+			case 01
+				vVlPreco = vVlPreco[round, 1]
+			case 02
+				vVlPreco = vVlPreco[round, 0]
+			case 03
+				call arredondaPrecoPontoM(vVlPreco, vVlArredondado)
+				if ($procerror)
+					$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+					poCdErro  = $xCdErro$
+					poCtxErro = $xCtxErro$
+					return(-1)
+				endif                    
+				if ($status < 0)
+					poCdErro  = $xCdErro$
+					poCtxErro = $xCtxErro$
+					return(-1)
+				endif
+				vVlPreco = vVlArredondado
+		endselectcase
+	endif
+	
+	poParams = ""
+	putitem/id poParams, "VL_PRECO", vVlPreco
+	
+	return(0)
+End ; operation arredondaPreco

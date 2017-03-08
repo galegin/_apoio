@@ -1,0 +1,1432 @@
+entry getParam
+
+	params
+		numeric piCdEmpresa : IN
+	endparams
+
+	variables
+		string viParams, voParams, vInOptSimples
+	endvariables
+
+	if (piCdEmpresa = 0)
+		$instancehandle->SetStatus (<STS_ERRO>, "GEN0001", "DESCRICAO=Empresa para busca de parâmetros não infomada!", "ADICIONAL=Operação->PESSVCO005")
+		return(-1)
+	endif
+	
+	viParams = ""
+	putitem viParams, -1, "IN_OPT_SIMPLES"
+	putitem viParams, -1, "CD_PESSOA_ENDERECO_PADRAO"
+	putitem viParams, -1, "IN_CONSIDERA_MUN_ZFM"       ;-- WMC [Proj 175 Tar 060] - (09/02/2011)
+
+	activate "ADMSVCO001".GetParamEmpresa(piCdEmpresa, viParams, voParams, $xCdErro$, $xCtxErro$)
+	if ($procerror)
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+		return(-1)
+	elseif ($xCdErro$)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=%%$item("DESCRICAO", $xCtxErro$)", "")
+		return(-1)
+	endif
+
+	vInOptSimples = $item("IN_OPT_SIMPLES", voParams)
+
+	if (vInOptSimples = "S")
+		$inOptSimples$ = <TRUE>
+	else
+		$inOptSimples$ = <FALSE>
+	endif
+
+	$cdPessoaEndPadrao$ = $item("CD_PESSOA_ENDERECO_PADRAO", voParams)
+	
+	;------ WMC - PRJ 175 TAR 060 - 09/02/2011
+	$inConsideraMunZFM$ = $item("IN_CONSIDERA_MUN_ZFM", voParams)
+	;------//------//------
+	
+	return(0)
+end
+
+;----------------------------------------
+public operation buscaEnderecoFaturamento
+;----------------------------------------
+	params
+		string  piGlobal    :IN    
+		string  piParams    :IN
+		string  poParams    :OUT
+		string  poCdErro    :OUT
+		string  poCtxErro   :OUT
+	endparams
+
+	variables
+		numeric vCdPessoa, vNrSeqEndereco, vCdEmpresa, vInSair
+		boolean inVendaEcf
+	endvariables
+
+	vNrSeqEndereco = 0
+	vCdPessoa = $item("CD_PESSOA", piParams)
+	inVendaEcf = $item("IN_VENDA_ECF", piParams)
+	vInSair = $item("IN_SAIR", piParams)
+	vCdEmpresa = $item("CD_EMPRESA", $$gParamGlb)
+
+	call getParam(vCdEmpresa)
+	if ($procerror)
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		exit(-1)
+	endif
+	if ($status < 0)
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		exit(-1)
+	endif
+
+	if (vCdPessoa = 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Código da pessoa não infomado!", "ADICIONAL=Operação->PESSVCO005.buscaEnderecoFaturamento")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		exit(-1)
+	endif
+
+	clear/e "PES_PESSOASVC"
+	CD_PESSOA.PES_PESSOASVC/init = vCdPessoa
+	retrieve/e "PES_PESSOASVC"
+	if ($status < 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Pessoa %%vCdPessoa não cadastrada!", "ADICIONAL=Operação->PESSVCO005.buscaEnderecoFaturamento")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		exit(-1)
+	endif
+	
+	if (TP_PESSOA.PES_PESSOASVC = "J")
+;		if (NR_SEQEND.PES_PESSOASVC > 0)
+;			vNrSeqEndereco = NR_SEQEND.PES_PESSOASVC
+;		elseif (NR_ENDENT.PES_PESSOASVC > 0)
+;			vNrSeqEndereco = NR_ENDENT.PES_PESSOASVC
+;		elseif (NR_ENDCOR.PES_PESSOASVC > 0)
+;			vNrSeqEndereco = NR_ENDCOR.PES_PESSOASVC
+;		elseif (NR_ENDCOB.PES_PESSOASVC > 0)
+;			vNrSeqEndereco = NR_ENDCOB.PES_PESSOASVC
+;		elseif (NR_ENDRES.PES_PESSOASVC > 0)
+;			vNrSeqEndereco = NR_ENDRES.PES_PESSOASVC
+;		elseif (NR_ENDCOM.PES_PESSOASVC > 0)
+;			vNrSeqEndereco = NR_ENDCOM.PES_PESSOASVC
+;		endif	
+		if (vNrSeqEndereco = 0)
+			clear/e "PES_ENDERECOSVC"
+			CD_TIPOENDERECO.PES_ENDERECOSVC/init = 1
+			retrieve/e "PES_ENDERECOSVC"
+			if ($status >= 0)
+				vNrSeqEndereco= NR_SEQUENCIA.PES_ENDERECOSVC
+			endif 
+		endif
+		if (vNrSeqEndereco = 0)
+			clear/e "PES_ENDERECOSVC"
+			CD_TIPOENDERECO.PES_ENDERECOSVC/init = 3
+			retrieve/e "PES_ENDERECOSVC"
+			if ($status >= 0)
+				vNrSeqEndereco= NR_SEQUENCIA.PES_ENDERECOSVC
+			endif 
+		endif
+		if (vNrSeqEndereco = 0)
+			clear/e "PES_ENDERECOSVC"
+			CD_TIPOENDERECO.PES_ENDERECOSVC/init = 4
+			retrieve/e "PES_ENDERECOSVC"
+			if ($status >= 0)
+				vNrSeqEndereco= NR_SEQUENCIA.PES_ENDERECOSVC
+			endif 
+		endif
+		if (vNrSeqEndereco = 0)
+			clear/e "PES_ENDERECOSVC"
+			CD_TIPOENDERECO.PES_ENDERECOSVC/init = 2
+			retrieve/e "PES_ENDERECOSVC"
+			if ($status >= 0)
+				vNrSeqEndereco= NR_SEQUENCIA.PES_ENDERECOSVC
+			endif 
+		endif
+		; --- DIONE |PRJ 094/1404| 29/06/10
+		if (vNrSeqEndereco = 0)
+			clear/e "PES_ENDERECOSVC"
+			CD_TIPOENDERECO.PES_ENDERECOSVC/init = 5 ; Entrega
+			retrieve/e "PES_ENDERECOSVC"
+			if ($status >= 0)
+				vNrSeqEndereco= NR_SEQUENCIA.PES_ENDERECOSVC
+			endif 
+		endif
+		; ---
+	else
+;		if (NR_SEQEND.PES_PESSOASVC > 0)
+;			vNrSeqEndereco = NR_SEQEND.PES_PESSOASVC
+;		elseif (NR_ENDRES.PES_PESSOASVC > 0)
+;			vNrSeqEndereco = NR_ENDRES.PES_PESSOASVC
+;		elseif (NR_ENDCOM.PES_PESSOASVC > 0)
+;			vNrSeqEndereco = NR_ENDCOM.PES_PESSOASVC
+;		elseif (NR_ENDENT.PES_PESSOASVC > 0)
+;			vNrSeqEndereco = NR_ENDENT.PES_PESSOASVC
+;		elseif (NR_ENDCOR.PES_PESSOASVC > 0)
+;			vNrSeqEndereco = NR_ENDCOR.PES_PESSOASVC
+;		elseif (NR_ENDCOB.PES_PESSOASVC > 0)
+;			vNrSeqEndereco = NR_ENDCOB.PES_PESSOASVC
+;		endif	
+		if (vNrSeqEndereco = 0)
+			clear/e "PES_ENDERECOSVC"
+			CD_TIPOENDERECO.PES_ENDERECOSVC/init = 2
+			retrieve/e "PES_ENDERECOSVC"
+			if ($status >= 0)
+				vNrSeqEndereco= NR_SEQUENCIA.PES_ENDERECOSVC
+			endif 
+		endif
+		if (vNrSeqEndereco = 0)
+			clear/e "PES_ENDERECOSVC"
+			CD_TIPOENDERECO.PES_ENDERECOSVC/init = 1
+			retrieve/e "PES_ENDERECOSVC"
+			if ($status >= 0)
+				vNrSeqEndereco= NR_SEQUENCIA.PES_ENDERECOSVC
+			endif 
+		endif
+		if (vNrSeqEndereco = 0)
+			clear/e "PES_ENDERECOSVC"
+			CD_TIPOENDERECO.PES_ENDERECOSVC/init = 3
+			retrieve/e "PES_ENDERECOSVC"
+			if ($status >= 0)
+				vNrSeqEndereco= NR_SEQUENCIA.PES_ENDERECOSVC
+			endif 
+		endif
+		if (vNrSeqEndereco = 0)
+			clear/e "PES_ENDERECOSVC"
+			CD_TIPOENDERECO.PES_ENDERECOSVC/init = 4
+			retrieve/e "PES_ENDERECOSVC"
+			if ($status >= 0)
+				vNrSeqEndereco= NR_SEQUENCIA.PES_ENDERECOSVC
+			endif 
+		endif
+		; --- DIONE |PRJ 094/1404| 29/06/10
+		if (vNrSeqEndereco = 0)
+			clear/e "PES_ENDERECOSVC"
+			CD_TIPOENDERECO.PES_ENDERECOSVC/init = 5 ; Entrega
+			retrieve/e "PES_ENDERECOSVC"
+			if ($status >= 0)
+				vNrSeqEndereco= NR_SEQUENCIA.PES_ENDERECOSVC
+			endif 
+		endif
+		; ---
+	endif
+	;---Elia Proj. 102/84 26/06/07
+	if (vNrSeqEndereco = 0 )
+		if ($cdPessoaEndPadrao$ != "" & inVendaEcf = <TRUE>)
+
+			vNrSeqEndereco = 0
+			vCdPessoa = $cdPessoaEndPadrao$
+		
+			if (vCdPessoa = 0)
+				$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Código da pessoa não infomado!", "ADICIONAL=Operação->PESSVCO005.buscaEnderecoFaturamento")
+				poCdErro = $xCdErro$
+				poCtxErro = $xCtxErro$
+				exit(-1)
+			endif
+		
+			clear/e "PES_PESSOASVC"
+			CD_PESSOA.PES_PESSOASVC/init = vCdPessoa
+			retrieve/e "PES_PESSOASVC"
+			if ($status < 0)
+				$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Pessoa %%vCdPessoa não cadastrada!", "ADICIONAL=Operação->PESSVCO005.buscaEnderecoFaturamento")
+				poCdErro = $xCdErro$
+				poCtxErro = $xCtxErro$
+				exit(-1)
+			endif
+		
+			if (TP_PESSOA.PES_PESSOASVC = "J")
+				if (vNrSeqEndereco = 0)
+					clear/e "PES_ENDERECOSVC"
+					CD_TIPOENDERECO.PES_ENDERECOSVC/init = 1
+					retrieve/e "PES_ENDERECOSVC"
+					if ($status >= 0)
+						vNrSeqEndereco= NR_SEQUENCIA.PES_ENDERECOSVC
+					endif 
+				endif
+				if (vNrSeqEndereco = 0)
+					clear/e "PES_ENDERECOSVC"
+					CD_TIPOENDERECO.PES_ENDERECOSVC/init = 3
+					retrieve/e "PES_ENDERECOSVC"
+					if ($status >= 0)
+						vNrSeqEndereco= NR_SEQUENCIA.PES_ENDERECOSVC
+					endif 
+				endif
+				if (vNrSeqEndereco = 0)
+					clear/e "PES_ENDERECOSVC"
+					CD_TIPOENDERECO.PES_ENDERECOSVC/init = 4
+					retrieve/e "PES_ENDERECOSVC"
+					if ($status >= 0)
+						vNrSeqEndereco= NR_SEQUENCIA.PES_ENDERECOSVC
+					endif 
+				endif
+				if (vNrSeqEndereco = 0)
+					clear/e "PES_ENDERECOSVC"
+					CD_TIPOENDERECO.PES_ENDERECOSVC/init = 2
+					retrieve/e "PES_ENDERECOSVC"
+					if ($status >= 0)
+						vNrSeqEndereco= NR_SEQUENCIA.PES_ENDERECOSVC
+					endif 
+				endif
+				; --- DIONE |PRJ 094/1404| 29/06/10
+				if (vNrSeqEndereco = 0)
+					clear/e "PES_ENDERECOSVC"
+					CD_TIPOENDERECO.PES_ENDERECOSVC/init = 5 ; Entrega
+					retrieve/e "PES_ENDERECOSVC"
+					if ($status >= 0)
+						vNrSeqEndereco= NR_SEQUENCIA.PES_ENDERECOSVC
+					endif 
+				endif
+				; ---
+			else
+				if (vNrSeqEndereco = 0)
+					clear/e "PES_ENDERECOSVC"
+					CD_TIPOENDERECO.PES_ENDERECOSVC/init = 2
+					retrieve/e "PES_ENDERECOSVC"
+					if ($status >= 0)
+						vNrSeqEndereco= NR_SEQUENCIA.PES_ENDERECOSVC
+					endif 
+				endif
+				if (vNrSeqEndereco = 0)
+					clear/e "PES_ENDERECOSVC"
+					CD_TIPOENDERECO.PES_ENDERECOSVC/init = 1
+					retrieve/e "PES_ENDERECOSVC"
+					if ($status >= 0)
+						vNrSeqEndereco= NR_SEQUENCIA.PES_ENDERECOSVC
+					endif 
+				endif
+				if (vNrSeqEndereco = 0)
+					clear/e "PES_ENDERECOSVC"
+					CD_TIPOENDERECO.PES_ENDERECOSVC/init = 3
+					retrieve/e "PES_ENDERECOSVC"
+					if ($status >= 0)
+						vNrSeqEndereco= NR_SEQUENCIA.PES_ENDERECOSVC
+					endif 
+				endif
+				if (vNrSeqEndereco = 0)
+					clear/e "PES_ENDERECOSVC"
+					CD_TIPOENDERECO.PES_ENDERECOSVC/init = 4
+					retrieve/e "PES_ENDERECOSVC"
+					if ($status >= 0)
+						vNrSeqEndereco= NR_SEQUENCIA.PES_ENDERECOSVC
+					endif 
+				endif
+				; --- DIONE |PRJ 094/1404| 29/06/10
+				if (vNrSeqEndereco = 0)
+					clear/e "PES_ENDERECOSVC"
+					CD_TIPOENDERECO.PES_ENDERECOSVC/init = 5 ; Entrega
+					retrieve/e "PES_ENDERECOSVC"
+					if ($status >= 0)
+						vNrSeqEndereco= NR_SEQUENCIA.PES_ENDERECOSVC
+					endif 
+				endif
+				; ---		
+			endif
+			if (vNrSeqEndereco = 0)
+				$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Nenhum endereço cadastrado p/ a pessoa %%vCdPessoa%%%!", "ADICIONAL=Operação->PESSVCO005.buscaEnderecoFaturamento")
+				poCdErro = $xCdErro$
+				poCtxErro = $xCtxErro$
+				exit(-1)
+			endif
+		else
+			$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Nenhum endereço cadastrado p/ a pessoa %%vCdPessoa%%%!", "ADICIONAL=Operação->PESSVCO005.buscaEnderecoFaturamento")
+			poCdErro = $xCdErro$
+			poCtxErro = $xCtxErro$
+			exit(-1)
+		endif
+	endif
+
+	poParams = ""
+	putitem/id poParams, "NR_SEQENDERECO", vNrSeqEndereco
+	if (vInSair = 0)
+		exit(0)
+	endif
+end
+
+;-------------------------------------
+public operation buscaEnderecoCobranca
+;-------------------------------------
+; Jorge - 29/12/2004
+; Chamada: operation geraDetalheQ240 - componente FCRSVCO018
+	params
+		string  piGlobal    :IN    
+		string  piParams    :IN
+		string  poParams    :OUT
+		string  poCdErro    :OUT
+		string  poCtxErro   :OUT
+	endparams
+
+	variables
+		numeric vCdPessoa, vNrSeqEndereco
+	endvariables
+
+	poParams = ""
+
+	vNrSeqEndereco = 0
+	vCdPessoa = $item("CD_PESSOA", piParams)
+
+	if (vCdPessoa = 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Código da pessoa não infomado!", "ADICIONAL=Operação->PESSVCO005.buscaEnderecoCobranca")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		exit(-1)
+	endif
+
+	clear/e "PES_PESSOASVC"
+	CD_PESSOA.PES_PESSOASVC/init = vCdPessoa
+	retrieve/e "PES_PESSOASVC"
+	if ($status < 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Pessoa %%vCdPessoa não cadastrada!", "ADICIONAL=Operação->PESSVCO005.buscaEnderecoCobranca")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		exit(-1)
+	endif
+
+	clear/e "PES_ENDERECOSVC"
+	CD_TIPOENDERECO.PES_ENDERECOSVC/init = 3 ; Endereço de cobrança
+	retrieve/e "PES_ENDERECOSVC"
+	if ($status >= 0)
+		vNrSeqEndereco= NR_SEQUENCIA.PES_ENDERECOSVC
+	endif 
+	
+	if (vNrSeqEndereco = 0)
+		clear/e "PES_ENDERECOSVC"
+		CD_TIPOENDERECO.PES_ENDERECOSVC/init = 6 ; Endereço correspondência
+		retrieve/e "PES_ENDERECOSVC"
+		if ($status >= 0)
+			vNrSeqEndereco= NR_SEQUENCIA.PES_ENDERECOSVC
+		endif 
+	endif
+	
+	if (TP_PESSOA.PES_PESSOASVC = "J")
+		if (vNrSeqEndereco = 0)
+			clear/e "PES_ENDERECOSVC"
+			CD_TIPOENDERECO.PES_ENDERECOSVC/init = 1 ; Endereço comercial
+			retrieve/e "PES_ENDERECOSVC"
+			if ($status >= 0)
+				vNrSeqEndereco= NR_SEQUENCIA.PES_ENDERECOSVC
+			endif 
+		endif
+		if (vNrSeqEndereco = 0)
+			clear/e "PES_ENDERECOSVC"
+			CD_TIPOENDERECO.PES_ENDERECOSVC/init = 4 ; Endereço de compra
+			retrieve/e "PES_ENDERECOSVC"
+			if ($status >= 0)
+				vNrSeqEndereco= NR_SEQUENCIA.PES_ENDERECOSVC
+			endif 
+		endif
+		if (vNrSeqEndereco = 0)
+			clear/e "PES_ENDERECOSVC"
+			CD_TIPOENDERECO.PES_ENDERECOSVC/init = 5 ; Endereço de entrega
+			retrieve/e "PES_ENDERECOSVC"
+			if ($status >= 0)
+				vNrSeqEndereco= NR_SEQUENCIA.PES_ENDERECOSVC
+			endif 
+		endif
+		if (vNrSeqEndereco = 0)
+			clear/e "PES_ENDERECOSVC"
+			CD_TIPOENDERECO.PES_ENDERECOSVC/init = 2 ; Endereço residencial
+			retrieve/e "PES_ENDERECOSVC"
+			if ($status >= 0)
+				vNrSeqEndereco= NR_SEQUENCIA.PES_ENDERECOSVC
+			endif 
+		endif
+	else
+		if (vNrSeqEndereco = 0)
+			clear/e "PES_ENDERECOSVC"
+			CD_TIPOENDERECO.PES_ENDERECOSVC/init = 2 ; Endereço residencial
+			retrieve/e "PES_ENDERECOSVC"
+			if ($status >= 0)
+				vNrSeqEndereco= NR_SEQUENCIA.PES_ENDERECOSVC
+			endif 
+		endif
+		if (vNrSeqEndereco = 0)
+			clear/e "PES_ENDERECOSVC"
+			CD_TIPOENDERECO.PES_ENDERECOSVC/init = 4 ; Endereço de compra
+			retrieve/e "PES_ENDERECOSVC"
+			if ($status >= 0)
+				vNrSeqEndereco= NR_SEQUENCIA.PES_ENDERECOSVC
+			endif 
+		endif
+		if (vNrSeqEndereco = 0)
+			clear/e "PES_ENDERECOSVC"
+			CD_TIPOENDERECO.PES_ENDERECOSVC/init = 5 ; Endereço de entrega
+			retrieve/e "PES_ENDERECOSVC"
+			if ($status >= 0)
+				vNrSeqEndereco= NR_SEQUENCIA.PES_ENDERECOSVC
+			endif 
+		endif
+		if (vNrSeqEndereco = 0)
+			clear/e "PES_ENDERECOSVC"
+			CD_TIPOENDERECO.PES_ENDERECOSVC/init = 1 ; Endereço comercial
+			retrieve/e "PES_ENDERECOSVC"
+			if ($status >= 0)
+				vNrSeqEndereco= NR_SEQUENCIA.PES_ENDERECOSVC
+			endif 
+		endif
+	endif
+
+	if (vNrSeqEndereco = 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Nenhum endereço cadastrado p/ a pessoa %%vCdPessoa%%%!", "ADICIONAL=Operação->PESSVCO005.buscaEnderecoCobranca")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		exit(-1)
+	endif
+
+	putitem/id poParams, "NR_SEQENDERECO", vNrSeqEndereco
+
+	exit(0)
+end; buscaEnderecoCobranca
+
+;------------------------------------
+public operation verificaAreaComercio
+; Toda alteracao realisada nessa
+; operation deve ser feita na 
+; function F_PES_TP_AREA_COMERCIO_CF.SQL
+;------------------------------------
+	params
+		string  $xlpg$      :IN    
+		string  piParams    :IN
+		string  poParams    :OUT
+		string  poCdErro    :OUT
+		string  poCtxErro   :OUT
+	endparams
+
+	variables
+		string vNmMunicipio, vDsSiglaEstado
+		numeric vCdPessoa, vTpAreaComercio, vCdEmpresa
+	endvariables
+
+	;Verifica se uma cidade pertence a alguma area de livre comercio(Zona Franca de Manaus)
+
+	vCdPessoa = $item("CD_PESSOA", piParams)
+	vNmMunicipio = $item("NM_MUNICIPIO", piParams)
+	vDsSiglaEstado = $item("DS_SIGLAESTADO", piParams)
+	vCdEmpresa = $item("CD_EMPRESA", $xlpg$)
+
+	if (vCdPessoa = 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Pessoa não infomada!", "ADICIONAL=Operação->PESSVCO005.verificaAreaComercio")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		exit(-1)
+	endif
+
+	if (vNmMunicipio = "")
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Município não infomado!", "ADICIONAL=Operação->PESSVCO005.verificaAreaComercio")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		exit(-1)
+	endif
+
+	if (vDsSiglaEstado = "")
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=UF não infomado!", "ADICIONAL=Operação->PESSVCO005.verificaAreaComercio")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		exit(-1)
+	endif	
+
+	call getParam(vCdEmpresa)
+	if ($procerror)
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		exit(-1)
+	endif
+	if ($status < 0)
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		exit(-1)
+	endif
+
+	clear/e "PES_PESSOASVC"
+	CD_PESSOA.PES_PESSOASVC/init = vCdPessoa
+	retrieve/e "PES_PESSOASVC"
+	if ($status < 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Pessoa %%vCdPessoa não cadastrada!", "ADICIONAL=Operação->PESSVCO005.verificaAreaComercio")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		exit(-1)
+	endif
+
+	vTpAreaComercio = 0
+
+	if ($inOptSimples$ = <TRUE>)
+	else
+		if (vNmMunicipio = "MACAPA") & (vDsSiglaEstado = "AP")
+			vTpAreaComercio = 1
+		elseif (vNmMunicipio = "SANTANA") & (vDsSiglaEstado = "AP")
+			vTpAreaComercio = 1
+		elseif (vNmMunicipio = "BONFIM") & (vDsSiglaEstado = "RR")
+			vTpAreaComercio = 1
+		elseif (vNmMunicipio = "BOA VISTA") & (vDsSiglaEstado = "RR")
+			vTpAreaComercio = 1
+		elseif (vNmMunicipio = "TABATINGA") & (vDsSiglaEstado = "AM")
+			vTpAreaComercio = 1
+		elseif (vNmMunicipio = "MANAUS") & (vDsSiglaEstado = "AM")
+			vTpAreaComercio = 2
+		elseif (vNmMunicipio = "GUAJARA-MIRIM") & (vDsSiglaEstado = "RO")
+			vTpAreaComercio = 1
+		elseif (vNmMunicipio = "GUAJARAMIRIM") & (vDsSiglaEstado = "RO")
+			vTpAreaComercio = 1
+		elseif (vNmMunicipio = "GUAJARA MIRIM") & (vDsSiglaEstado = "RO")
+			vTpAreaComercio = 1
+		elseif (vNmMunicipio = "BRASILEIA") & (vDsSiglaEstado = "AC")
+			vTpAreaComercio = 1
+		elseif (vNmMunicipio = "EPITACIOLANDIA") & (vDsSiglaEstado = "AC")
+			vTpAreaComercio = 1
+		elseif (vNmMunicipio = "CRUZEIRO DO SUL") & (vDsSiglaEstado = "AC")
+			vTpAreaComercio = 1
+		;---- WMC - Proj 175 Tar 60 - 09/02/2011
+		elseif (vNmMunicipio = "RIO PRETO DA EVA") & (vDsSiglaEstado = "AM") & ($inConsideraMunZFM$ = <TRUE>)
+			vTpAreaComercio = 2
+		elseif (vNmMunicipio = "PRESIDENTE FIGUEIREDO") & (vDsSiglaEstado = "AM") & ($inConsideraMunZFM$ = <TRUE>)
+			vTpAreaComercio = 2
+		;------//------//------
+		endif
+	endif
+
+	if (vTpAreaComercio > 0)
+		clear/e "PES_CLIENTESVC"
+		retrieve/e "PES_CLIENTESVC"
+		if ($status >= 0)
+			if (NR_SUFRAMA.PES_CLIENTESVC = 0)
+				vTpAreaComercio = 0
+			endif
+		else
+			vTpAreaComercio = 0
+		endif
+	endif
+
+	;TP_AREACOMERCIO  assume:
+	;1 - Área de livre comécio
+	;2 - Zona franca de Manaus
+	poParams = ""
+	putitem/id poParams, "TP_AREACOMERCIO", vTpAreaComercio
+
+	exit(0)
+end
+
+;------------------------------
+public operation buscarEndereco
+;------------------------------
+	params
+		string  piParams    :IN
+		string  poParams    :OUT
+		string  poCdErro    :OUT
+		string  poCtxErro   :OUT
+	endparams
+
+	variables
+		numeric vCdPessoa, vCdTipoEndereco, vNrSequencia, vCdEmpresa
+		string vDsEndereco, vDsMunicipio
+		boolean vInVerificaEndPadrao, vInQualquerEnd
+	endvariables
+
+	vInQualquerEnd = $item("ÏN_QUALQUEREND", piParams)
+	vInVerificaEndPadrao = $item("IN_VERIFICAENDPADRAO", piParams) ;---Elia Proj. 102/134 20/09/07
+	vCdTipoEndereco = $item("CD_TIPOENDERECO", piParams)
+	vNrSequencia = $item("NR_SEQUENCIA", piParams)
+	vCdPessoa = $item("CD_PESSOA", piParams)
+	vCdEmpresa = $item("CD_EMPRESA", $$gParamGlb)
+
+	if (vCdPessoa = "")
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Pessoa não infomada!", "ADICIONAL=Operação->PESSVCO005.buscarEndereco")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return (-1)
+	endif
+
+	call getParam(vCdEmpresa)
+	if ($procerror)
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		exit(-1)
+	elseif ($status < 0)
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		exit(-1)
+	endif
+
+	clear/e "V_PES_ENDERECSVC"
+	CD_PESSOA.V_PES_ENDERECSVC/init = vCdPessoa
+	if (vCdTipoEndereco != "")
+		CD_TIPOENDERECO.V_PES_ENDERECSVC/init = vCdTipoEndereco
+	endif
+	if (vNrSequencia != "")
+		;NR_SEQUENCIA.V_PES_ENDERECSVC/init = vCdTipoEndereco
+		NR_SEQUENCIA.V_PES_ENDERECSVC/init = vNrSequencia
+	endif
+	retrieve/e "V_PES_ENDERECSVC"
+	if ($status < 0)
+		;---Elia Proj. 102/134 20/09/07
+		if (vInVerificaEndPadrao = <TRUE>) & ($cdPessoaEndPadrao$ != "")
+			clear/e "V_PES_ENDERECSVC"
+			CD_PESSOA.V_PES_ENDERECSVC/init = $cdPessoaEndPadrao$
+			if (vCdTipoEndereco != "")
+				CD_TIPOENDERECO.V_PES_ENDERECSVC/init = vCdTipoEndereco
+			endif
+			if (vNrSequencia != "")
+				NR_SEQUENCIA.V_PES_ENDERECSVC/init = vCdTipoEndereco
+			endif
+			retrieve/e "V_PES_ENDERECSVC"
+			if ($status < 0)
+				$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Tipo de endereco (%%vCdTipoEndereco%%%) não cadastrada para a pessoa (%%$cdPessoaEndPadrao$%%%)!", "ADICIONAL=Operação->PESSVCO005.buscarEndereco")
+				poCdErro = $xCdErro$
+				poCtxErro = $xCtxErro$
+				return (-1)
+			endif
+		elseif(vInQualquerEnd = <TRUE>)
+			clear/e "V_PES_ENDERECSVC"
+			CD_PESSOA.V_PES_ENDERECSVC = vCdPEssoa
+			retrieve/e "V_PES_ENDERECSVC"
+		else
+			$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Tipo de endereco (%%vCdTipoEndereco%%%) não cadastrada para a pessoa (%%vCdPessoa%%%)!", "ADICIONAL=Operação->PESSVCO005.buscarEndereco")
+			poCdErro = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return (-1)
+		endif
+		;
+	endif
+
+	;Fiuza 29/01/09 - Dudalina - Frete no Ped.Venda - Specian
+	clear/e "PES_ENDERECOSVC"
+	CD_PESSOA.PES_ENDERECOSVC/init = vCdPessoa
+	NR_SEQUENCIA.PES_ENDERECOSVC/init = vNrSequencia
+	retrieve/e "PES_ENDERECOSVC"	
+	;-------------------------------------------	
+	
+
+	vDsEndereco = "%%DS_SIGLALOGRAD.V_PES_ENDERECSVC %%NM_LOGRADOURO.V_PES_ENDERECSVC %%NR_LOGRADOURO.V_PES_ENDERECSVC"
+	vDsEndereco = "%%vDsEndereco %%DS_COMPLEMENTO.V_PES_ENDERECSVC - %%DS_BAIRRO.V_PES_ENDERECSVC"
+	vDsEndereco = "%%vDsEndereco - %%NM_MUNICIPIO.V_PES_ENDERECSVC - %%DS_SIGLAESTADO.V_PES_ENDERECSVC cep:%%CD_CEP.V_PES_ENDERECSVC"
+	vDsMunicipio = "%%NM_MUNICIPIO.V_PES_ENDERECSVC - %%DS_SIGLAESTADO.V_PES_ENDERECSVC"
+
+	poParams = ""
+	putitem/id poParams,"CD_PESSOA"      ,CD_PESSOA.V_PES_ENDERECSVC
+	putitem/id poParams,"NM_PESSOA"      ,NM_PESSOA.V_PES_ENDERECSVC      
+	putitem/id poParams,"TP_PESSOA"      ,TP_PESSOA.V_PES_ENDERECSVC      
+	putitem/id poParams,"IN_INATIVO"     ,IN_INATIVO.V_PES_ENDERECSVC
+	putitem/id poParams,"NR_CPFCNPJ"     ,NR_CPFCNPJ.V_PES_ENDERECSVC     
+	putitem/id poParams,"NR_SEQUENCIA"   ,NR_SEQUENCIA.V_PES_ENDERECSVC   
+	putitem/id poParams,"CD_TIPOENDERECO",CD_TIPOENDERECO.V_PES_ENDERECSVC
+	putitem/id poParams,"NM_PAIS"        ,NM_PAIS.V_PES_ENDERECSVC        
+	putitem/id poParams,"DS_SIGLAESTADO" ,DS_SIGLAESTADO.V_PES_ENDERECSVC
+	;Fiuza 29/01/09 - Dudalina - Frete no Ped.Venda - Specian
+	putitem/id poParams,"CD_MUNICIPIO"   ,CD_MUNICIPIO.PES_ENDERECOSVC 
+	;-------------------------------------------
+	putitem/id poParams,"NM_MUNICIPIO"   ,NM_MUNICIPIO.V_PES_ENDERECSVC   
+	putitem/id poParams,"CD_CEP"         ,"%%CD_CEP.V_PES_ENDERECSVC"
+	putitem/id poParams,"DS_SIGLALOGRAD" ,DS_SIGLALOGRAD.V_PES_ENDERECSVC 
+	putitem/id poParams,"NM_LOGRADOURO"  ,NM_LOGRADOURO.V_PES_ENDERECSVC  
+	putitem/id poParams,"NR_LOGRADOURO"  ,NR_LOGRADOURO.V_PES_ENDERECSVC  
+	putitem/id poParams,"DS_COMPLEMENTO" ,DS_COMPLEMENTO.V_PES_ENDERECSVC 
+	putitem/id poParams,"DS_REFERENCIA"  ,DS_REFERENCIA.V_PES_ENDERECSVC  
+	putitem/id poParams,"NR_CAIXAPOSTAL" ,NR_CAIXAPOSTAL.V_PES_ENDERECSVC 
+	putitem/id poParams,"DS_BAIRRO"      ,DS_BAIRRO.V_PES_ENDERECSVC    
+	putitem/id poParams,"DS_ENDERECO"    ,vDsEndereco 
+	putitem/id poParams,"DS_MUNICIPIO"   ,vDsMunicipio 
+	return (0)
+end;buscarEndereco
+
+;------------------------------
+public operation buscarTelefone
+;------------------------------
+	params
+		string  piParams    :IN
+		string  poParams    :OUT
+		string  poCdErro    :OUT
+		string  poCtxErro   :OUT
+	endparams
+
+	variables
+		numeric vCdPessoa,vCdTipoFone, vNrSeq
+		boolean vInRetornaTodos
+	endvariables
+
+	vInRetornaTodos = $item("IN_RETORNATODOS", piParams)
+	vCdPessoa = $item("CD_PESSOA", piParams)
+	if (vCdPessoa = "")
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Pessoa não infomada!", "ADICIONAL=Operação->PESSVCO005.buscarTelefone")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		exit(-1)
+	endif
+
+	vCdTipoFone = $item("CD_TIPOFONE", piParams)
+
+	clear/e "PES_PESSOASVC"
+	CD_PESSOA.PES_PESSOASVC/init = vCdPessoa
+	retrieve/e "PES_PESSOASVC"
+	if ($status >= 0)
+;---------------------------------------------------------
+;		Buscar o Tipo selecionado
+;---------------------------------------------------------
+		if(vInRetornaTodos = <TRUE>)
+			vNrseq = 1
+			clear/e "PES_TELEFONESVC"
+			retrieve/e "PES_TELEFONESVC"
+			if($status >= 0)
+				setocc  "PES_TELEFONESVC", 1
+				while($status >= 0)
+					if(NR_TELEFONE.PES_TELEFONESVC != "")
+						putitem/id poParams,"NR_TELEFONE%%vNrSeq", NR_TELEFONE.PES_TELEFONESVC
+						vNrseq = vNrSeq + 1
+					endif
+					setocc "PES_TELEFONESVC", $curocc("PES_TELEFONESVC") + 1
+				endwhile
+			endif
+		elseif (vCdTipoFone != "")
+			clear/e "PES_TELEFONESVC"
+			CD_TIPOFONE.PES_TELEFONESVC/init = vCdTipoFone
+			retrieve/e "PES_TELEFONESVC"
+		else
+			clear/e "PES_TELEFONESVC"  ;* Claudemir - Prj/Tarefa: 22/1872 - 03/08/2011
+			IN_PADRAO.PES_TELEFONESVC/init = <True>
+			retrieve/e "PES_TELEFONESVC"
+			if ($status < 0)
+				clear/e "PES_TELEFONESVC"
+				retrieve/e "PES_TELEFONESVC"
+			endif
+		endif
+	endif
+	if(vInRetornaTodos != <TRUE>)
+		putitem/id poParams,"NR_TELEFONE",NR_TELEFONE.PES_TELEFONESVC
+		putitem/id poParams,"NR_RAMAL",NR_RAMAL.PES_TELEFONESVC
+	endif
+
+	return (0)
+end;buscarTelefone
+
+;-------------------------------------
+public operation buscaEnderecoEtiqueta
+;-------------------------------------
+; DIONE [PRJ/TAR 094/0435] - 06/02/2008
+	params
+		string  piGlobal    :IN    
+		string  piParams    :IN
+		string  poParams    :OUT
+		string  poCdErro    :OUT
+		string  poCtxErro   :OUT
+	endparams
+
+	variables
+		numeric vCdPessoa, vNrSeqEndereco
+	endvariables
+
+	poParams = ""
+
+	vNrSeqEndereco = 0
+	vCdPessoa = $item("CD_PESSOA", piParams)
+
+	if (vCdPessoa = 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Código da pessoa não infomado!", "ADICIONAL=Operação->PESSVCO005.buscaEnderecoCobranca")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		exit(-1)
+	endif
+
+	clear/e "PES_PESSOASVC"
+	CD_PESSOA.PES_PESSOASVC/init = vCdPessoa
+	retrieve/e "PES_PESSOASVC"
+	if ($status < 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Pessoa %%vCdPessoa não cadastrada!", "ADICIONAL=Operação->PESSVCO005.buscaEnderecoCobranca")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		exit(-1)
+	endif
+
+	if (TP_PESSOA.PES_PESSOASVC = "J")
+		if (vNrSeqEndereco = 0)
+			clear/e "PES_ENDERECOSVC"
+			CD_TIPOENDERECO.PES_ENDERECOSVC/init = 1 ; Endereço comercial
+			retrieve/e "PES_ENDERECOSVC"
+			if ($status >= 0)
+				vNrSeqEndereco= NR_SEQUENCIA.PES_ENDERECOSVC
+			endif 
+		endif
+		if (vNrSeqEndereco = 0)
+			clear/e "PES_ENDERECOSVC"
+			CD_TIPOENDERECO.PES_ENDERECOSVC/init = 3 ; Endereço de cobrança
+			retrieve/e "PES_ENDERECOSVC"
+			if ($status >= 0)
+				vNrSeqEndereco= NR_SEQUENCIA.PES_ENDERECOSVC
+			endif 
+		endif
+		if (vNrSeqEndereco = 0)
+			clear/e "PES_ENDERECOSVC"
+			CD_TIPOENDERECO.PES_ENDERECOSVC/init = 4 ; Endereço de compra
+			retrieve/e "PES_ENDERECOSVC"
+			if ($status >= 0)
+				vNrSeqEndereco= NR_SEQUENCIA.PES_ENDERECOSVC
+			endif 
+		endif
+		if (vNrSeqEndereco = 0)
+			clear/e "PES_ENDERECOSVC"
+			CD_TIPOENDERECO.PES_ENDERECOSVC/init = 5 ; Endereço entrega
+			retrieve/e "PES_ENDERECOSVC"
+			if ($status >= 0)
+				vNrSeqEndereco= NR_SEQUENCIA.PES_ENDERECOSVC
+			endif 
+		endif
+		if (vNrSeqEndereco = 0)
+			clear/e "PES_ENDERECOSVC"
+			CD_TIPOENDERECO.PES_ENDERECOSVC/init = 6 ; Correspondencia
+			retrieve/e "PES_ENDERECOSVC"
+			if ($status >= 0)
+				vNrSeqEndereco= NR_SEQUENCIA.PES_ENDERECOSVC
+			endif 
+		endif
+		if (vNrSeqEndereco = 0)
+			clear/e "PES_ENDERECOSVC"
+			CD_TIPOENDERECO.PES_ENDERECOSVC/init = 2 ; Endereço residencial
+			retrieve/e "PES_ENDERECOSVC"
+			if ($status >= 0)
+				vNrSeqEndereco= NR_SEQUENCIA.PES_ENDERECOSVC
+			endif 
+		endif
+	else
+		if (vNrSeqEndereco = 0)
+			clear/e "PES_ENDERECOSVC"
+			CD_TIPOENDERECO.PES_ENDERECOSVC/init = 2 ; Endereço residencial
+			retrieve/e "PES_ENDERECOSVC"
+			if ($status >= 0)
+				vNrSeqEndereco= NR_SEQUENCIA.PES_ENDERECOSVC
+			endif 
+		endif
+		if (vNrSeqEndereco = 0)
+			clear/e "PES_ENDERECOSVC"
+			CD_TIPOENDERECO.PES_ENDERECOSVC/init = 3 ; Endereço de cobrança
+			retrieve/e "PES_ENDERECOSVC"
+			if ($status >= 0)
+				vNrSeqEndereco= NR_SEQUENCIA.PES_ENDERECOSVC
+			endif 
+		endif
+		if (vNrSeqEndereco = 0)
+			clear/e "PES_ENDERECOSVC"
+			CD_TIPOENDERECO.PES_ENDERECOSVC/init = 4 ; Endereço de compra
+			retrieve/e "PES_ENDERECOSVC"
+			if ($status >= 0)
+				vNrSeqEndereco= NR_SEQUENCIA.PES_ENDERECOSVC
+			endif 
+		endif
+		if (vNrSeqEndereco = 0)
+			clear/e "PES_ENDERECOSVC"
+			CD_TIPOENDERECO.PES_ENDERECOSVC/init = 5 ; Endereço de entrega
+			retrieve/e "PES_ENDERECOSVC"
+			if ($status >= 0)
+				vNrSeqEndereco= NR_SEQUENCIA.PES_ENDERECOSVC
+			endif 
+		endif
+		if (vNrSeqEndereco = 0)
+			clear/e "PES_ENDERECOSVC"
+			CD_TIPOENDERECO.PES_ENDERECOSVC/init = 6 ; Endereço Correspondencia
+			retrieve/e "PES_ENDERECOSVC"
+			if ($status >= 0)
+				vNrSeqEndereco= NR_SEQUENCIA.PES_ENDERECOSVC
+			endif 
+		endif
+		if (vNrSeqEndereco = 0)
+			clear/e "PES_ENDERECOSVC"
+			CD_TIPOENDERECO.PES_ENDERECOSVC/init = 1 ; Endereço comercial
+			retrieve/e "PES_ENDERECOSVC"
+			if ($status >= 0)
+				vNrSeqEndereco= NR_SEQUENCIA.PES_ENDERECOSVC
+			endif 
+		endif
+	endif
+
+	putitem/id poParams, "NR_SEQENDERECO", vNrSeqEndereco
+
+	exit(0)
+end; buscaEnderecoEtiqueta
+
+;======================= ANO Pjt102 Trf613 - 18/07/2008
+;--------------------------------
+public operation buscaDadosPessoa
+	;----------------------------
+	params
+		string  $xlpg$      :IN    
+		string  piParams    :IN
+		string  poParams    :OUT
+		string  poCdErro    :OUT
+		string  poCtxErro   :OUT
+	endparams
+
+	variables
+		numeric vCdEmpresa, vCdPessoa, vCdTipoClas
+		string  vNmEmpresa
+		string  vDsSiglaUf ;---- Delpin [Proj/Tar.061/384] - 20/06/2008
+	endvariables
+	
+	vCdEmpresa = $item("CD_EMPRESA", piParams)
+	vCdPessoa  = $item("CD_PESSOA", piParams)
+	vDsSiglaUf = $item("DS_SIGLAUF", piParams) ;---- Delpin [Proj/Tar.061/384] - 20/06/2008
+	vCdTipoClas = $item("CD_TIPOCLAS", piParams) ;tarefa 102/439		Kazuyuki - 06/11/2008
+	
+	if (vCdPessoa = 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Pessoa não informado!", "ADICIONAL=Operação->PESSVCO005.buscaDadosPessoa")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+
+	if (vCdEmpresa = 0)
+		vCdEmpresa = $item("CD_EMPRESA", $xlpg$)
+	else
+		clear/e "GER_EMPRESASVC"
+		CD_EMPRESA.GER_EMPRESASVC/init = vCdEmpresa 
+		retrieve/e "GER_EMPRESASVC"
+		if($status >= 0)
+			clear/e "PES_PESSOASVC"
+			CD_PESSOA.PES_PESSOASVC/init = CD_PESSOA.GER_EMPRESASVC
+			retrieve/e "PES_PESSOASVC"
+			if($status >= 0)
+				vNmEmpresa = NM_PESSOA.PES_PESSOASVC
+			endif
+		endif
+	endif
+
+	clear/e "PES_PESSOASVC"
+	CD_PESSOA.PES_PESSOASVC/init = vCdPessoa
+	retrieve/e "PES_PESSOASVC"
+	if($status < 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Pessoa %%vCdPessoa não cadastrada!", "ADICIONAL=Operação->PESSVCO005.buscaDadosPessoa")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+
+	;[DIONE BUENO [ PRJ/TAR 102/205] (30/01/2008)]
+	clear/e "PES_CLIENTESVC"
+	CD_CLIENTE.PES_CLIENTESVC/init = vCdPessoa
+	retrieve/e "PES_CLIENTESVC" 
+	if ($status < 0)
+		clear/e "PES_CLIENTESVC"
+	endif
+
+	clear/e "PES_CLIENTEESSVC"
+	CD_EMPRESA.PES_CLIENTEESSVC/init = vCdEmpresa
+	CD_CLIENTE.PES_CLIENTEESSVC/init = vCdPessoa
+	retrieve/e "PES_CLIENTEESSVC"
+	if ($status < 0)
+		clear/e "PES_CLIENTEESSVC"
+	endif
+
+	clear/e "PES_GUIACLIENSVC"
+	CD_CLIENTE.PES_GUIACLIENSVC/init = vCdPessoa
+	retrieve/e "PES_GUIACLIENSVC"
+	if ($status < 0)
+		clear/e "PES_GUIACLIENSVC"
+	endif
+
+	clear/e "PES_REPRCLIENSVC"
+	CD_CLIENTE.PES_REPRCLIENSVC/init = vCdPessoa
+	retrieve/e "PES_REPRCLIENSVC"
+	if ($status < 0)
+		clear/e "PES_REPRCLIENSVC"
+	endif
+
+; 	==== CFC: Tar. 61/307 15/04/2008 - Buscar o código da Inscrição Estadual de Substituição Tributária do destinatário da nota.
+	clear/e "PES_IESUBTRIBSVC"
+	CD_PESSOA.PES_IESUBTRIBSVC/init = vCdPessoa
+	DS_SIGLAUF.PES_IESUBTRIBSVC/init = vDsSiglaUf ;---- Delpin [Proj/Tar.061/384] - 20/06/2008
+	retrieve/e "PES_IESUBTRIBSVC"
+	if ($status < 0)
+		clear/e "PES_IESUBTRIBSVC"
+	endif
+;	====
+	;tarefa 102/439		Kazuyuki - 06/11/2008
+	clear/e "PES_PESSOACLASVC"
+	CD_PESSOA.PES_PESSOACLASVC/init = vCdPessoa
+	CD_TIPOCLAS.PES_PESSOACLASVC/init = vCdTipoClas
+	retrieve/e "PES_PESSOACLASVC"
+	if ($status < 0)	
+		clear/e "PES_PESSOACLASVC"
+	endif
+	;;
+	clear/e "PES_EMAILSVC"
+	CD_PESSOA.PES_EMAILSVC/init = vCdPessoa
+	IN_PADRAO.PES_EMAILSVC/init = <TRUE>
+	retrieve/e "PES_EMAILSVC"
+	if ($status >= 0)
+	else
+		clear/e "PES_EMAILSVC"
+		CD_PESSOA.PES_EMAILSVC/init = vCdPessoa
+		retrieve/e "PES_EMAILSVC"
+		if ($status < 0)
+			clear/e "PES_EMAILSVC"
+		endif
+	endif
+
+	poParams = ""
+	putitem/id poParams, "TP_PESSOA", TP_PESSOA.PES_PESSOASVC
+	putitem/id poParams, "DT_PRIMCOMPRA", DT_PRIMCOMPRA.PES_CLIENTEESSVC
+	putitem/id poParams, "DT_ULTCOMPRA", DT_ULTCOMPRA.PES_CLIENTEESSVC
+	putitem/id poParams, "QT_COMPRAS", QT_COMPRAS.PES_CLIENTEESSVC
+	putitem/id poParams, "CD_GUIA", CD_GUIA.PES_GUIACLIENSVC
+	putitem/id poParams, "CD_REPRESENTANT", CD_REPRESENTANT.PES_REPRCLIENSVC
+	putitem/id poParams, "NM_PESSOA", NM_PESSOA.PES_PESSOASVC
+	putitem/id poParams, "NR_CPFCNPJ", NR_CPFCNPJ.PES_PESSOASVC
+	putitem/id poParams, "NM_FANTASIA", NM_FANTASIA.PES_PESJURIDISVC
+	putitem/id poParams, "NR_INSCESTL", NR_INSCESTL.PES_PESJURIDISVC
+	putitem/id poParams, "TP_REGIMETRIB", TP_REGIMETRIB.PES_PESJURIDISVC
+	putitem/id poParams, "NR_RG", NR_RG.PES_PESFISICASVC
+	putitem/id poParams, "NR_SUFRAMA", NR_SUFRAMA.PES_CLIENTESVC ;[DIONE BUENO [ PRJ/TAR 102/205] (30/01/2008)]
+	putitem/id poParams, "CD_IESUBTRIB", CD_IESUBTRIB.PES_IESUBTRIBSVC; CFC: Tar. 61/307 15/04/2008
+	putitem/id poParams, "NR_PRZMEDIOMAX", NR_PRZMEDIOMAX.PES_PREFCLIENSVC	
+	putitem/id poParams, "CD_CLASSIFICACAO", CD_CLASSIFICACAO.PES_PESSOACLASVC	;tarefa 102/439		Kazuyuki - 06/11/2008
+	putitem/id poParams, "DS_CLASSIFICACAO", DS_CLASSIFICACAO.PES_CLASSIFICSVC	;tarefa 102/439		Kazuyuki - 06/11/2008
+	putitem/id poParams, "NM_EMPRESA", vNmEmpresa 
+	putitem/id poParams, "NM_CONTATO", NM_CONTATO.PES_CONTATOSVC
+	putitem/id poParams, "NR_FONECONTATO", NR_TELEFONE.PES_CONTATOSVC
+	putitem/id poParams, "IN_INATIVOPES", IN_INATIVO.PES_PESSOASVC
+	putitem/id poParams, "IN_BLOQUEADOCLI", IN_BLOQUEADO.PES_CLIENTESVC
+	putitem/id poParams, "IN_INATIVOCLI", IN_INATIVO.PES_CLIENTESVC
+	if ($empty("PES_FORNECEDOSVC") = 0)
+		putitem/id poParams, "IN_INATIVOFOR", IN_INATIVO.PES_FORNECEDOSVC
+		putitem/id poParams, "PR_MARKUPFOR", PR_MARKUP.PES_PREFFORNESVC
+	else
+		putitem/id poParams, "IN_INATIVOFOR", <FALSE>
+	endif
+	;---Elia Proj. 102/536 06/05/09
+	putitem/id poParams, "IN_GUIAINATIVO", IN_INATIVO.PES_GUIASVC
+	putitem/id poParams, "IN_GUIABLOQUEADO", IN_BLOQUEADO.PES_GUIASVC
+	putitem/id poParams, "IN_REPREINATIVO", IN_INATIVO.PES_REPRESENTSVC
+	putitem/id poParams, "IN_REPREBLOQUEADO", IN_BLOQUEADO.PES_REPRESENTSVC
+	;
+	putitem/id poParams, "DS_EMAIL", DS_EMAIL.PES_EMAILSVC
+	putitem/id poParams, "DS_HOMEPAGE", DS_HOMEPAGE.PES_PESSOASVC
+	putitem/id poParams, "DT_NASCIMENTO", DT_NASCIMENTO.PES_PESFISICASVC ;thamati 21/01/2010 [Proj. 0156 - Tar. 0143]
+	;-=CANONICO=- (31/03/2010) TAR 847 PRJ 102 - Estouro do ECFSVCO010 
+	putitem/id poParams, "IN_CNSRFINAL", IN_CNSRFINAL.PES_CLIENTESVC
+	putitem/id poParams, "NR_CODIGOFISCAL", NR_CODIGOFISCAL.PES_CLIENTESVC
+	
+	if ($empty("PES_PREFFORNESVC") = 0)
+		if (IN_FRETEPAGO.PES_PREFFORNESVC = <TRUE>)
+			putitem/id poParams, "TP_FRETE", 1 ;Pago
+		else
+			putitem/id poParams, "TP_FRETE", 2 ;A pagar
+		endif
+		
+		putitem/id poParams, "CD_CONDPGTO", CD_CONDPGTO.PES_PREFFORNESVC
+		putitem/id poParams, "CD_TRANSPORT", CD_TRANSPORT.PES_PREFFORNESVC
+		putitem/id poParams, "TP_FORMAPGTO", TP_FORMAPGTO.PES_PREFFORNESVC
+		putitem/id poParams, "TP_FORMAPGTOPADRAO", TP_FORMAPGTOPADRAO.PES_PREFFORNESVC
+	endif
+	
+	;--Devair 0148/0605 - 14/10/2010
+	if(!$empty("PES_FUNCIONARSVC"))
+		putitem/id poParams, "CD_AUXILIAR", CD_AUXILIAR.PES_FUNCIONARSVC
+	endif
+	;--
+
+	return(0)
+end
+
+;--------------------------------
+public operation buscaTranspAdmFrete
+;----------------------------
+;PRJ/TRF: 0022/0951  16/04/2009  Isabella
+	params
+		string  $xlpg$      :IN    
+		string  piParams    :IN
+		string  poParams    :OUT
+		string  poCdErro    :OUT
+		string  poCtxErro   :OUT
+	endparams
+
+	variables
+		numeric vCdCliente, vNrSeqEndereco, vCdMunicipio, vCdEmpresa, vCdPessoa, vCdMunicipioOr, vCdMunicipioEmp
+		numeric vCdTranspR, vCdRotaREDESPACHO 
+		string vDsUf, vDsUfOr, vDsUfOrR  
+		numeric vCdTransport, vCdTransRedespac
+		string viParams, voParams
+	endvariables
+	
+	vCdCliente = $item("CD_CLIENTE", piParams)
+	
+	if (vCdCliente= 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Cliente  não informado!", "ADICIONAL=Operação->PESSVCO005.buscaTranspAdmFrete")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+
+	viParams = ""
+	putitem/id viParams, "CD_PESSOA", vCdCliente
+	putitem/id viParams, "IN_SAIR", 1
+
+	$instancehandle->buscaEnderecoFaturamento(viParams, viParams, voParams,poCdErro,poCtxErro)
+	if ($procerror)
+	   	$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+	    return(-1)
+	elseif ($status < 0)
+	    return(-1)
+	endif
+
+	if ($status >= 0)
+		vNrSeqEndereco = $item("NR_SEQENDERECO", voParams)
+		viParams = ""
+		putitem/id viParams, "CD_PESSOA", vCdCliente
+		putitem/id viParams, "NR_SEQUENCIA", vNrSeqEndereco
+
+		$instancehandle->buscarEndereco(viParams, voParams,poCdErro,poCtxErro)
+		if ($procerror)
+	    	$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+		    return(-1)
+		elseif ($status < 0)
+		    return(-1)
+		endif
+
+		vDsUf = $item("DS_SIGLAESTADO", voParams)	
+		vCdMunicipio = $item("CD_MUNICIPIO", voParams)	
+	endif
+
+	vCdEmpresa = $item("CD_EMPRESA",$$gParamGlb)
+	clear/e "GER_EMPRESASVC"
+	CD_EMPRESA.GER_EMPRESASVC/init = vCdEmpresa
+	retrieve/e "GER_EMPRESASVC"
+	vCdPessoa = CD_PESSOA.GER_EMPRESASVC
+	viParams = ""
+	putitem/id viParams, "CD_PESSOA", vCdPessoa
+	putitem/id viParams, "CD_TIPOENDERECO", 1
+	$instancehandle->buscarEndereco(viParams, voParams,poCdErro,poCtxErro)
+	if ($procerror)
+	   	$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+	    return(-1)
+	elseif ($status < 0)
+	    return(-1)
+	endif
+
+	vDsUfOr = $item("DS_SIGLAESTADO", voParams)	
+	vCdMunicipioOr = $item("CD_MUNICIPIO", voParams)	
+	vCdMunicipioEmp = $item("CD_MUNICIPIO", voParams)	
+	
+	vCdTransport = ""
+	vCdTransRedespac = ""
+	
+	clear/e "ADF_ROTASVC"
+	CD_UFORIGEM.ADF_ROTASVC/init = vDsUfOr
+	CD_CIDADEORIGEM.ADF_ROTASVC/init = vCdMunicipioOr
+	CD_UFDESTINO.ADF_ROTASVC/init = vDsUf
+	CD_CIDADESTINO.ADF_ROTASVC/init = vCdMunicipio
+	retrieve/e "ADF_ROTASVC"
+	if ($status >= 0)
+		vCdTransport = CD_TRANSPATIVA.ADF_ROTASVC
+	else ;carregar sem apenas [origem -> destino] - considerando REDESPACHO
+		;carregar DESTINO - ver se tem ORIGEM com esta rota de REDESPACHO
+		;	ORIGEM -> REDESPACHO -> DESTINO
+		;verifica se Destino existe no REDESPACHO
+		clear/e "ADF_ROTASVC"
+		CD_UFDESTINO.ADF_ROTASVC/init = vDsUf 
+		CD_CIDADESTINO.ADF_ROTASVC/init = vCdMunicipio
+		retrieve/e "ADF_ROTASVC"
+		if ($status >=0)
+			vCdTranspR = CD_TRANSPATIVA.ADF_ROTASVC
+			vCdRotaREDESPACHO = CD_ROTA.ADF_ROTASVC
+			vCdMunicipioOr = CD_CIDADEORIGEM.ADF_ROTASVC 
+			vDsUfOrR = CD_UFORIGEM.ADF_ROTASVC 
+			clear/e "ADF_ROTASVC"
+			CD_UFORIGEM.ADF_ROTASVC/init = vDsUfOr 
+			CD_CIDADEORIGEM.ADF_ROTASVC/init = vCdMunicipioEmp
+			CD_UFDESTINO.ADF_ROTASVC/init = vDsUfOrR 
+			CD_CIDADESTINO.ADF_ROTASVC/init = vCdMunicipioOr
+			retrieve/e "ADF_ROTASVC"
+			if ($status >= 0)
+				vCdTransport = CD_TRANSPATIVA.ADF_ROTASVC
+				vCdTransRedespac = vCdTranspR
+			endif 
+		endif
+	endif
+
+	if (vCdTransport = 0)
+		clear/e "ADF_MUNREGSVC"
+		CD_UFDESTINO.ADF_MUNREGSVC/init = vDsUf
+		CD_CIDADESTINO.ADF_MUNREGSVC/init = vCdMunicipio	
+		retrieve/e "ADF_MUNREGSVC"	
+		if ($status >= 0)
+			clear/e "ADF_ROTASVC"
+			CD_UFORIGEM.ADF_ROTASVC/init = vDsUfOr
+			CD_CIDADEORIGEM.ADF_ROTASVC/init = vCdMunicipioEmp
+			CD_REGIAO.ADF_ROTASVC/init = CD_REGIAO.ADF_MUNREGSVC
+			retrieve/e "ADF_ROTASVC"			
+			if ($status >= 0)
+				setocc "ADF_ROTASVC", 1
+				vCdTransport = CD_TRANSPATIVA.ADF_ROTASVC
+			endif			
+		endif
+	endif
+	
+	if (vCdTransport = 0)
+		clear/e "ADF_ROTASVC"
+		CD_UFORIGEM.ADF_ROTASVC/init = vDsUfOr
+		CD_CIDADEORIGEM.ADF_ROTASVC/init = vCdMunicipioEmp
+		CD_UFDESTINO.ADF_ROTASVC/init = vDsUf
+		retrieve/e "ADF_ROTASVC"
+		if ($status >= 0)
+			setocc "ADF_ROTASVC", 1
+			vCdTransport = CD_TRANSPATIVA.ADF_ROTASVC
+		endif
+	endif
+
+	putitem/id poParams, "CD_TRANSPORT", vCdTransport
+	putitem/id poParams, "CD_TRANSREDESPAC", vCdTransRedespac
+
+	return(0)
+end
+
+;-----------------------------------
+public operation buscaDadosComprador
+;-----------------------------------
+	params
+		string  $xlpg$      :IN    
+		string  piParams    :IN
+		string  poParams    :OUT
+		string  poCdErro    :OUT
+		string  poCtxErro   :OUT
+	endparams
+
+	variables
+		numeric vCdComprador
+	endvariables
+	
+	vCdComprador = $item("CD_COMPRADOR", piParams)
+	
+	if (vCdComprador = 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Comprador não informado!", "ADICIONAL=Operação->PESSVCO005.buscaDadosComprador")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	
+	clear/e "PES_COMPRADORSVC"
+	CD_COMPRADOR.PES_COMPRADORSVC/init = vCdComprador
+	retrieve/e "PES_COMPRADORSVC"
+	if($status < 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Comprador %%vCdComprador não cadastrado!", "ADICIONAL=Operação->PESSVCO005.buscaDadosComprador")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+
+	poParams = ""
+	putlistitems/occ poParams, "PES_COMPRADORSVC"
+	
+	return(0)
+end
+
+;-----------------------
+public operation buscaEstatisticaCliente
+	;-----------------------
+	;thamati 20/05/2010 [Proj. 0094 - Tar. 1384]
+	params
+		string  $xlpg$      :IN    
+		string  piParams    :IN
+		string  poParams    :OUT
+		string  poCdErro    :OUT
+		string  poCtxErro   :OUT
+	endparams
+	variables
+		numeric vCdEmpresa, vCdCliente
+	endvariables
+	
+	vCdEmpresa = $item("CD_EMPRESA", piParams)
+	vCdCliente = $item("CD_CLIENTE", piParams)
+
+	if (vCdEmpresa = 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Empresa não informada!", "ADICIONAL=Operação->PESSVCO005.buscaEstatisticaCliente")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	
+	if (vCdCliente = 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Cliente não informado!", "ADICIONAL=Operação->PESSVCO005.buscaEstatisticaCliente")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+
+	clear/e "PES_CLIENTEESSVC"
+	CD_EMPRESA.PES_CLIENTEESSVC/init = vCdEmpresa
+	CD_CLIENTE.PES_CLIENTEESSVC/init = vCdCliente 
+	retrieve/e "PES_CLIENTEESSVC"
+	if ($status < 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Estatística para cliente %%vCdEmpresa / %%vCdCliente não encontrado!", "ADICIONAL=Operação->PESSVCO005.buscaEstatisticaCliente")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+
+	poParams = ""
+	putlistitems/occ poParams, "PES_CLIENTEESSVC"
+
+	return(0)
+End ; operation buscaEstatisticaCliente
+
+;--------------------------------------
+public operation buscaDadosPessoaFisica
+;--------------------------------------
+	params
+		string  $xlpg$      :IN    
+		string  piParams    :IN
+		string  poParams    :OUT
+		string  poCdErro    :OUT
+		string  poCtxErro   :OUT
+	endparams
+	
+	variables
+		numeric vCdPessoa
+	endvariables
+	
+	vCdPessoa  = $item("CD_PESSOA", piParams)
+	
+	if (vCdPessoa = 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Pessoa não informado!", "ADICIONAL=Operação->PESSVCO005.buscaDadosPessoaFisica")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	
+	clear/e "PES_PESSOASVC"
+	CD_PESSOA.PES_PESSOASVC/init = vCdPessoa
+	retrieve/e "PES_PESSOASVC"
+	if($status < 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Pessoa %%vCdPessoa não cadastrada!", "ADICIONAL=Operação->PESSVCO005.buscaDadosPessoa")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	
+	poParams = ""
+	putitem/id poParams, "IN_INATIVO", IN_INATIVO.PES_PESFISICASVC
+	putitem/id poParams, "TP_ESTCIVIL", TP_ESTCIVIL.PES_PESFISICASVC
+	putitem/id poParams, "TP_SEXO", TP_SEXO.PES_PESFISICASVC
+	putitem/id poParams, "CD_SERIECTPS", CD_SERIECTPS.PES_PESFISICASVC
+	putitem/id poParams, "DS_ORGEXPEDIDOR", DS_ORGEXPEDIDOR.PES_PESFISICASVC
+	putitem/id poParams, "NR_CTPS", NR_CTPS.PES_PESFISICASVC
+	putitem/id poParams, "NR_CPF", NR_CPF.PES_PESFISICASVC
+	putitem/id poParams, "NR_RG", NR_RG.PES_PESFISICASVC
+	putitem/id poParams, "VL_RENDAMENSAL", VL_RENDAMENSAL.PES_PESFISICASVC
+	putitem/id poParams, "DS_CARGO", DS_CARGO.PES_PESFISICASVC
+	putitem/id poParams, "DT_ADMISSAO", DT_ADMISSAO.PES_PESFISICASVC
+	putitem/id poParams, "DT_NASCIMENTO", DT_NASCIMENTO.PES_PESFISICASVC
+	putitem/id poParams, "DS_LOCALTRAB", DS_LOCALTRAB.PES_PESFISICASVC
+	putitem/id poParams, "DS_LOCALNASC", DS_LOCALNASC.PES_PESFISICASVC
+	putitem/id poParams, "DS_NACIONALIDADE", DS_NACIONALIDADE.PES_PESFISICASVC
+	putitem/id poParams, "NM_MAE", NM_MAE.PES_PESFISICASVC
+	putitem/id poParams, "NM_PAI", NM_PAI.PES_PESFISICASVC
+	putitem/id poParams, "TP_ESCOLARIDADE", TP_ESCOLARIDADE.PES_PFADICSVC
+	putitem/id poParams, "QT_FILHOS", QT_FILHOS.PES_PFADICSVC
+	putitem/id poParams, "QT_DEPENDENTES", QT_DEPENDENTES.PES_PFADICSVC
+	putitem/id poParams, "QT_RESANTMESES", QT_RESANTMESES.PES_PFADICSVC
+	putitem/id poParams, "QT_TRAANTMESES", QT_TRAANTMESES.PES_PFADICSVC
+	putitem/id poParams, "DS_TRAANTLOCAL", DS_TRAANTLOCAL.PES_PFADICSVC
+	putitem/id poParams, "DT_RESIDEDESDE", DT_RESIDEDESDE.PES_PFADICSVC
+	putitem/id poParams, "TP_CASA", TP_CASA.PES_PFADICSVC
+	putitem/id poParams, "TP_CARRO", TP_CARRO.PES_PFADICSVC
+	putitem/id poParams, "NR_ESCORE", NR_ESCORE.PES_PFADICSVC
+	putitem/id poParams, "NR_RISCO", NR_RISCO.PES_PFADICSVC
+	putitem/id poParams, "DT_ATUALIZSPC", DT_ATUALIZSPC.PES_PFADICSVC
+	
+	return(0)
+end

@@ -1,0 +1,279 @@
+;------------------------------------
+public operation buscaLstGrupoEmpresa
+;------------------------------------
+	params
+		string  $xlpg$      :IN    
+		string  piParams    :IN
+		string  poParams    :OUT
+		string  poCdErro    :OUT
+		string  poCtxErro   :OUT
+	endparams
+
+	variables
+		string viParams, voParams, vDsLstEmpresa, vDsLstEmp
+		numeric vCdEmpresa, vCdGrupoEmpresa, vCdEmp
+		date vDtSistema, vDtEmp
+		boolean vInEncerramento, vInCCusto, vInEmpresa, vInValidaLocal
+	endvariables  
+	
+	vCdEmpresa = $item("CD_EMPRESA", piParams)
+	vCdGrupoEmpresa = $item("CD_GRUPOEMPRESA", piParams)
+	vInEncerramento = $item("IN_ENCERRAMENTO", piParams)
+	vInCCusto = $item("IN_CCUSTO", piParams)
+	vInEmpresa = $item("IN_EMPRESA", piParams)
+	vInValidaLocal = $item("IN_VALIDALOCAL", piParams)
+	if (vInValidaLocal = "")
+		vInValidaLocal = <TRUE>
+	endif
+
+	if (vCdEmpresa = "") & (vCdGrupoEmpresa = "")
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Empresa/Grupo empresa não informados!", "ADICIONAL=Operação->GERSVCO032.buscaGrupoEmpresa")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+
+	if (vCdEmpresa > 0)
+		clear/e "GER_EMPRESASVC"
+		CD_EMPRESA.GER_EMPRESASVC/init = vCdEmpresa
+		retrieve/e "GER_EMPRESASVC"
+		if ($status < 0)
+			$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Empresa %%vCdEmpresa não cadastrada!", "ADICIONAL=Operação->GERSVCO032.buscaGrupoEmpresa")
+			poCdErro = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return(-1)
+		else
+			vCdGrupoEmpresa = CD_GRUPOEMPRESA.GER_EMPRESASVC
+		endif
+	endif
+
+	vDsLstEmpresa = ""
+
+	clear/e "GER_EMPRESASVC"
+	CD_GRUPOEMPRESA.GER_EMPRESASVC/init = vCdGrupoEmpresa
+	retrieve/e "GER_EMPRESASVC"
+	if ($status >= 0)
+		setocc "GER_EMPRESASVC", -1
+		setocc "GER_EMPRESASVC", 1
+		putlistitems vDsLstEmpresa, CD_EMPRESA.GER_EMPRESASVC
+
+		if (vInValidaLocal = <TRUE>)
+			viParams = ""
+			putitem/id viParams, "CD_EMPRESA", vDsLstEmpresa
+			putitem/id viParams, "IN_CCUSTO", vInCCusto
+			putitem/id viParams, "IN_EMPRESA", vInEmpresa
+			activate "SICSVCO002".validaLocal($xlpg$, viParams, voParams, $xCdErro$, $xCtxErro$)
+			if ($procerror)       
+				$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+				poCdErro = $xCdErro$
+				poCtxErro = $xCtxErro$
+				return(-1)
+			elseif ($status < 0)
+				$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")
+				poCdErro = $xCdErro$
+				poCtxErro = $xCtxErro$
+				return(-1)
+			endif
+			vDsLstEmpresa = $item("CD_EMPRESA", voParams)	
+		endif		
+	endif
+
+	if (vInEncerramento = <TRUE>) & (vDsLstEmpresa != "")
+		vDtSistema = $item("DT_SISTEMA", $xlpg$)
+		vDsLstEmp = vDsLstEmpresa
+		vDsLstEmpresa = ""
+		repeat
+			getitem vCdEmp, vDsLstEmp, 1
+
+			viParams = ""
+			putitem viParams, -1, "DT_SISTEMA"
+			activate "ADMSVCO001".GetParamEmpresa(vCdEmp, viParams, voParams, $xCdErro$, $xCtxerro$)
+			if ($procerror)
+				$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+				poCdErro = $xCdErro$
+				poCtxErro = $xCtxErro$
+				return(-1)
+			elseif ($xCdErro$)
+				$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=%%$item("DESCRICAO", $xCtxErro$)", "")
+				poCdErro = $xCdErro$
+				poCtxErro = $xCtxErro$
+				return(-1)
+			endif
+
+			vDtEmp = $item("DT_SISTEMA", voParams)
+			if (vDtEmp = vDtSistema)
+				putitem vDsLstEmpresa, -1, vCdEmp
+			endif
+
+			delitem vDsLstEmp, 1
+		until (vDsLstEmp = "")
+
+		if (vDsLstEmpresa = "")
+			$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Nenhuma empresa válida p/ encerramento diário!", "ADICIONAL=Operação->GERSVCO032.buscaGrupoEmpresa")
+			poCdErro = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return(-1)
+		endif
+	endif
+
+	poParams = ""
+	putitem/id poParams, "CD_EMPRESA", vDsLstEmpresa
+
+	return(0)
+end
+
+
+;----------------------------------------------------;
+public operation validaEmpresaSelecionada            ;
+;----------------------------------------------------;
+; MTF    : 12/09/2006        Projeto 078, tarefa 023 ;
+; Funcao : Valida se a empresa informada pertence a  ;
+;          mesma empresa do grupo empresa informado. ;
+; Chamada: FCCFM011 - validaConta()                  ;
+;----------------------------------------------------;
+;
+	params
+		string  piGlobal  :IN
+		string  piParams  :IN
+		string  poParams  :OUT
+		numeric poCdErro  :OUT
+		string  poCtxErro :OUT
+	endparams
+	variables
+		string  vCdEmpresaGrupoEmp, vpiParams, vpoParams, vLstEmpresa
+		numeric vCdEmpresa, vCdGrupoEmpresa
+		boolean vInEmpValida
+	endvariables
+	
+	vInEmpValida = <FALSE>
+	vCdGrupoEmpresa = $item("CD_GRUPOEMPRESA", piParams)
+	if (vCdGrupoEmpresa = "")
+		vCdGrupoEmpresa = $item("CD_GRUPOEMPESA", piGlobal)
+	endif
+	vCdEmpresa   = $item("CD_EMPRESA", piParams)
+	if (vCdEmpresa = "")
+		$instancehandle->setStatus(<STS_AVISO>, "GEN001", "DESCRICAO=Favor informar a empresa para validação.", "")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	
+	vpiParams = ""
+	putitem/id vpiParams, "CD_GRUPOEMPRESA", vCdGrupoEmpresa
+	newinstance "GERSVCO032", "GERSVCO032X"
+	activate "GERSVCO032X".buscaLstGrupoEmpresa(piGlobal, vpiParams, vpoParams, $xCdErro$, $xCtxerro$)
+	if ($procerror)
+		$instancehandle->setStatus(<STS_ERRO>, $procerror, $procerrorcontext, "ADICIONAL=  GERSVCO032.validaEmpresaSelecionada()  chamada  GERSVCO032.buscaLstGrupoEmpresa()")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	elseif ($status < 0)
+		$instancehandle->setStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "ADICIONAL=  GERSVCO032.validaEmpresaSelecionada()  chamada  GERSVCO032.buscaLstGrupoEmpresa()")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	
+	if ($item("CD_EMPRESA", vpoParams) != "")
+		vLstEmpresa = $item("CD_EMPRESA", vpoParams)
+		repeat
+			
+			getitem vCdEmpresaGrupoEmp, vLstEmpresa, 1
+			if (vCdEmpresaGrupoEmp = vCdEmpresa)
+				vInEmpValida = <TRUE>
+			endif
+			
+			delitem vLstEmpresa, 1
+		until(vLstEmpresa = "")
+	endif
+	if (vInEmpValida = <TRUE>)
+		putitem/id poParams, "CD_EMPRESA", vCdEmpresa
+	endif
+	
+	return(0)
+end
+
+;======================= ANO Pjt94 Trf819 - 29/01/2009
+;----------------------------------------;
+public operation buscaDadosEmpresa
+	;----------------------------------------;
+	params
+		string  piGlobal  :IN
+		string  piParams  :IN
+		string  poParams  :OUT
+		numeric poCdErro  :OUT
+		string  poCtxErro :OUT
+	endparams
+	variables
+		numeric vCdEmpresa, vCdPessoa
+		string vDsEmpresa ;; Marcus Vinicius - 94/1439 - 28/07/2010
+	endvariables
+
+	vCdEmpresa = $item("CD_EMPRESA", piParams)
+	if (vCdEmpresa = "")
+		$instancehandle->setStatus(<STS_AVISO>, "GEN001", "DESCRICAO=Código da empresa não informado!", "")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+
+	clear/e "GER_EMPRESASVC"
+	CD_EMPRESA.GER_EMPRESASVC/init = vCdEmpresa
+	retrieve/e "GER_EMPRESASVC"
+	if ($status < 0)
+		$instancehandle->setStatus(<STS_AVISO>, "GEN001", "DESCRICAO=Empresa informada inválida!", "")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+
+;; Marcus Vinicius - 94/1439 - 28/07/2010
+	putlistitems/occ vDsEmpresa, "GER_EMPRESASVC"
+	putitem/id poParams, "DS_EMPRESA", vDsEmpresa
+;;
+	putitem/id poParams, "CD_GRUPOEMPRESA", CD_GRUPOEMPRESA.GER_EMPRESASVC
+	putitem/id poParams, "CD_PESSOA", CD_PESSOA.PES_PESSOASVC
+	putitem/id poParams, "NM_PESSOA", NM_PESSOA.PES_PESSOASVC
+	putitem/id poParams, "NM_CPFCNPJ", NR_CPFCNPJ.PES_PESSOASVC
+
+	return(0)
+end ;buscaDadosEmpresa
+;==============================================================
+
+;----------------------------------------;; Marcus Vinicius - 94/1439 - 28/07/2010
+public operation buscaDadosEmpresaPorPessoa
+	;----------------------------------------;
+	params
+		string  piGlobal  :IN
+		string  piParams  :IN
+		string  poParams  :OUT
+		numeric poCdErro  :OUT
+		string  poCtxErro :OUT
+	endparams
+
+	variables
+		numeric vCdPessoa
+	endvariables
+
+	vCdPessoa = $item("CD_PESSOA", piParams)
+	if (vCdPessoa = "")
+		$instancehandle->setStatus(<STS_AVISO>, "GEN001", "DESCRICAO=Código da pessoa não informado!", "")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+
+	clear/e "GER_EMPRESASVC"
+	CD_PESSOA.GER_EMPRESASVC/init = vCdPessoa
+	retrieve/e "GER_EMPRESASVC"
+	if ($status < 0)
+		$instancehandle->setStatus(<STS_AVISO>, "GEN001", "DESCRICAO=Pessoa informada inválida!", "")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+
+	putlistitems/occ poParams, "GER_EMPRESASVC"
+
+	return(0)
+end ; operation buscaDadosEmpresaPorPessoa

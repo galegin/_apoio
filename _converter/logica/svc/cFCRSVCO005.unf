@@ -1,0 +1,656 @@
+entry getParam
+	params
+		numeric piCdEmpresa : IN
+	endparams
+
+	variables
+		string viParams, voParams
+	endvariables
+
+	if (piCdEmpresa = 0)
+		$instancehandle->setStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Empresa para busca de parâmetros não informada", "")
+		return(-1)
+	endif
+
+	viParams = ""
+	putitem viParams, -1, "CD_TIPOCAMPO_DIAVENCTO_CL"
+	activate "ADMSVCO001".GetLstParametro(viParams, voParams, $xCdErro$, $xCtxErro$)
+	if ($procerror)
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+		return(-1)
+	elseif ($status < 0)
+		$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")
+		return(-1)
+	endif
+	$cdTipoCampoDiaVenctoCl$ = $item("CD_TIPOCAMPO_DIAVENCTO_CL", voParams)
+
+	;Projeto 078 - Tarefa 1123 - Aloisio Gargantini - 23/01/2008
+	viParams = ""
+	putitem viParams, -1, "IN_CARTAO_CREDITO_PRAZO"
+	;Projeto 078 - Tarefa 3161 - Aloisio Gargantini - 13/02/2010
+	putitem viParams, -1, "IN_CARTAO_DEBITO_PRAZO"
+	;
+	activate "ADMSVCO001".GetParamEmpresa(piCdEmpresa, viParams, voParams, $xCdErro$, $xCtxErro$)
+	if ($procerror)
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+		return(-1)
+	endif
+	if ($status < 0)
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+		return(-1)
+	endif
+	$inCartaoCreditoPrazo$    = $item("IN_CARTAO_CREDITO_PRAZO", voParams)
+	;Projeto 078 - Tarefa 3161 - Aloisio Gargantini - 13/02/2010
+	$inCartaoDebitoPrazo$     = $item("IN_CARTAO_DEBITO_PRAZO", voParams)
+	if ($inCartaoDebitoPrazo$ = "")
+		$inCartaoDebitoPrazo$ = $inCartaoCreditoPrazo$
+	endif
+	;
+	return(0)
+end
+
+;---------------------------
+public operation geraCartao
+;---------------------------
+	params
+		string  piGlobal  :IN
+		string  piParams  :IN
+		string  poParams  :OUT
+		numeric poCdErro  :OUT
+		string  poCtxErro :OUT
+	endparams
+	variables
+		numeric vCdEmpresa, vPortador, vNrVenctoCliente, vCdTipoCampo, vValor, vCdCliente, vPrTaxa
+		string vDsLinha, viParams, voParams, vDsRegFatI, vDsFaturaI
+		string vDsOrigem, vDsDestino, vCliente, vDsCampo, vParams
+		string vLista, vRegistro, vDsRegistro, vDs
+		string lstVencto, listaVencimento, vLstCampo, vpiParams, vpoParams
+		boolean vInNaoGravFat, vInGeraFaturaOperadora, vInProprio, vInGeraFaturaOp
+	endvariables
+	
+	call getParam($item("CD_EMPRESA", piGlobal))
+	if ($procerror)
+		$instancehandle->setStatus(<STS_ERRO>, $procerror, $procerrorcontext, "ADICIONAL=  / FCRSVCO005.geraCartao()")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		exit(-1)
+	elseif ($status < 0)
+		$instancehandle->setStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "ADICIONAL=  / FCRSVCO005.geraCartao()")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		exit(-1)
+	endif
+
+	clear/e "FCR_FATURAISVC"
+	clear/e "F_FCR_FATURAISVC"
+	clear/e "FGR_LIQSVC"
+	clear/e "FGR_PORTEMPRESVC"
+	
+	vInNaoGravFat = $item("IN_NAOGRAVAFAT", piParams)
+	vPortador     = $item("NR_PORTADOR",    piParams)
+	vDsRegFatI    = $item("DS_LSTFATURA",   piParams)
+	vDsOrigem     = vDsRegFatI
+	
+	if (vDsRegFatI != "")
+		repeat
+			getitem vDsFaturaI, vDsRegFatI, 1
+			
+			;Gera faturas de Origem
+			creocc "FCR_FATURAISVC", -1
+			getlistitems/occ vDsFaturaI, "FCR_FATURAISVC"
+			
+			;Gera faturas de Destino
+			vCdEmpresa = CD_EMPRESA.FCR_FATURAISVC
+			clear/e "FGR_PORTEMPRESVC"
+			CD_EMPRESA.FGR_PORTEMPRESVC  = vCdEmpresa
+			NR_PORTADOR.FGR_PORTEMPRESVC = vPortador
+			retrieve/e "FGR_PORTEMPRESVC"
+			if ($status < 0)
+				$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Não existe um cliente vinculado ao portador %%vPortador!", "ADICIONAL=Operação->FCRSVCO005.geraCartao")
+				poCdErro  = $xCdErro$
+				poCtxErro = $xCtxErro$
+				return(-1)
+			endif
+			
+			creocc "F_FCR_FATURAISVC", -1
+			getlistitems/occ vDsFaturaI, "F_FCR_FATURAISVC"
+			CD_CLIENTE.F_FCR_FATURAISVC = CD_PESSOA.FGR_PORTEMPRESVC
+			NR_FAT.F_FCR_FATURAISVC     = NR_FAT.FCR_FATURAISVC
+			NR_PARCELA.F_FCR_FATURAISVC = ""
+			;MTF(19/05/2006) - Conforme conversa com Hugo.
+			;Pois o tp_baixa gerado para cartao credito/debito no trafm066 vem com tp_baixa = 10
+			;e isso nao permite cancelar a transacao no TRAFP006 que chama FCRSVCO010.cancelaFatLiq.
+			tp_baixa.f_fcr_faturaisvc   = 0
+			;
+			;Projeto 078 - Tarefa 1123 - Aloisio Gargantini - 23/01/2008
+			if (TP_DOCUMENTO.F_FCR_FATURAISVC = 4) | (TP_DOCUMENTO.F_FCR_FATURAISVC = 5) ;Cartão de crédito / Cartão de Débito.
+				;MTF(28/04/2008) - Projeto 079, tarefa 0186.
+				;if ($inCartaoCreditoPrazo$ = 0)
+				;	TP_FATURAMENTO.F_FCR_FATURAISVC = 1 ; a vista
+				;else
+				;	TP_FATURAMENTO.F_FCR_FATURAISVC = 2 ; a prazo
+				;endif
+				;
+				;MTF(26/01/2009) - Projeto 079, tarefa 0221.
+				;Por solicitacao do Miguel a logica abaixo foi desabilitada e inclusa a nova.
+				;if ($inCartaoCreditoPrazo$ = <TRUE>)
+				;	if (tp_faturamento.fcr_faturaisvc = 1)  ;Venda a vista.
+				;		tp_faturamento.f_fcr_faturaisvc = 2 ;Venda a prazo.
+				;	endif
+				;	if (tp_faturamento.fcr_faturaisvc = 3)  ;Recebimento a vista.
+				;		tp_faturamento.f_fcr_faturaisvc = 4 ;Recebimento a prazo.
+				;	endif
+				;endif
+				;Projeto 078 - Tarefa 3161 - Aloisio Gargantini - 13/02/2010
+				if  (tp_documento.f_fcr_faturaisvc = 4) & ($inCartaoCreditoPrazo$ = <TRUE>) | %\
+					(tp_documento.f_fcr_faturaisvc = 5) & ($inCartaoDebitoPrazo$  = <TRUE>)
+				;if ($inCartaoCreditoPrazo$ = <TRUE>)
+				;
+					;if (tp_faturamento.f_fcr_faturaisvc = 1)  ;Venda a vista.
+					;	tp_faturamento.fcr_faturaisvc = 2 ;Venda a prazo.
+					;endif
+					;if (tp_faturamento.f_fcr_faturaisvc = 3)  ;Recebimento a vista.
+					;	tp_faturamento.fcr_faturaisvc = 4 ;Recebimento a prazo.
+					;endif
+					if (tp_faturamento.f_fcr_faturaisvc = 1) ;Venda a vista.
+						tp_faturamento.f_fcr_faturaisvc = 2  ;Venda a prazo.
+						tp_faturamento.fcr_faturaisvc   = 2  ;Venda a prazo.
+					endif
+					if (tp_faturamento.f_fcr_faturaisvc = 3) ;Recebimento a vista.
+						tp_faturamento.f_fcr_faturaisvc = 4  ;Recebimento a prazo.
+						tp_faturamento.fcr_faturaisvc   = 4  ;Recebimento a prazo.
+					endif
+				else
+				endif
+				;
+				;
+			endif
+			;
+			
+			delitem vDsRegFatI, 1
+		until (vDsRegFatI = "")
+	endif
+
+	if (vInNaoGravFat != <TRUE>)
+		vDsOrigem = ""
+		if ($empty("FCR_FATURAISVC") = 0)
+			setocc "FCR_FATURAISVC", 1
+			while ($status >= 0)
+				viParams = ""
+				putlistitems/occ vDsLinha, "FCR_FATURAISVC"
+				putitem/id viParams, "DS_FATURAI",      vDsLinha
+				putitem/id viParams, "IN_ALTSOFATURAI", <FALSE>
+				if (DS_FATCOMISSAO.FCR_FATURAISVC = "")
+					putitem/id viParams, "IN_SEMCOMISSAO", <TRUE>
+				else
+					putitem/id viParams, "IN_SEMCOMISSAO", <FALSE>
+				endif
+				putitem/id viParams, "IN_SEMIMPOSTO",   <TRUE>
+				putitem/id viParams, "CD_COMPONENTE",   $componentname
+				activate "FCRSVCO001".geraFatura(piGlobal, viParams, voParams, $xCdErro$, $xCtxErro$)
+				if ($procerror)
+					$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+					poCdErro  = $xCdErro$
+					poCtxErro = $xCtxErro$
+					return (-1)
+				elseif ($status < 0)
+					$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")
+					poCdErro  = $xCdErro$
+					poCtxErro = $xCtxErro$
+					return (-1)
+				endif
+				NR_PARCELA.FCR_FATURAISVC = $item("NR_PARCELA", voParams)
+				putitem vDsOrigem, -1, voParams
+
+				setocc "FCR_FATURAISVC", $curocc("FCR_FATURAISVC") + 1
+			endwhile
+		endif
+	endif
+
+	if (!$empty("F_FCR_FATURAISVC"))
+		setocc "F_FCR_FATURAISVC", 1
+		vValor = 0
+		while ($status >= 0)
+			vValor = vValor + vl_fatura.f_fcr_faturaisvc
+
+			setocc "F_FCR_FATURAISVC", $curocc("F_FCR_FATURAISVC") + 1
+		endwhile
+
+		setocc "F_FCR_FATURAISVC", 1
+
+		vNrVenctoCliente = 0
+		;Projeto 078 - Tarefa 2595 - Aloisio Gargantini - 05/08/2009
+		;if ($item("CD_CARTAO",piParams) != "")
+		if ($item("CD_CARTAO", piParams) > 0)
+		;
+			clear/e "CTC_TPCARPARSVC"
+			TP_DOCUMENTO.CTC_TPCARPARSVC/init     = TP_DOCUMENTO.F_FCR_FATURAISVC
+			NR_SEQHISTRELSUB.CTC_TPCARPARSVC/init = NR_HISTRELSUB.F_FCR_FATURAISVC
+			retrieve/e "CTC_TPCARPARSVC"
+			if ($status >= 0)
+				clear/e "CTC_CARTAOSVC"
+				CD_CARTAO.CTC_CARTAOSVC/init = $item("CD_CARTAO", piParams)
+				retrieve/e "CTC_CARTAOSVC"
+				if ($status >= 0)
+					vNrVenctoCliente = NR_DIAVENCTO.CTC_CARTAOSVC			
+				else
+					$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Não existe cartão informado para este processo!", "ADICIONAL=Operação->FCRSVCO005.geraCartao")
+					poCdErro  = $xCdErro$
+					poCtxErro = $xCtxErro$
+					return(-1)
+				endif
+				clear/e "CTC_CARTAOSVC"
+			endif
+			clear/e "CTC_TPCARPARSVC"
+		endif
+
+		;MTF(05/12/2007) - Projeto 078, tarefa 990.
+		if ($cdTipoCampoDiaVenctoCl$ != "") & (vNrVenctoCliente = 0)
+			viParams = ""
+			putitem/id viParams, "CD_PESSOA", cd_cliente.f_fcr_faturaisvc
+			activate "PESSVCO022".buscaCampoAdicional(piGlobal, viParams, voParams, $xCdErro$, $xCtxErro$)
+			if ($procerror)
+				$instancehandle->setStatus(<STS_ERRO>, $procerror, $procerrorcontext, "ADICIONAL=  / FCRSVCO005.geraCartao() chamando PESSVCO002.buscaCampoAdicional()")
+				poCdErro  = $xCdErro$
+				poCtxErro = $xCtxErro$
+				return(-1)
+			elseif ($status < 0)
+				$instancehandle->setStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "ADICIONAL=  / FCRSVCO005.geraCartao() chamando PESSVCO002.buscaCampoAdicional()")
+				poCdErro  = $xCdErro$
+				poCtxErro = $xCtxErro$
+				return(-1)
+			endif
+			if ($item("DS_LSTCAMPO", voParams) != "")
+				vLstCampo = $item("DS_LSTCAMPO", voParams)
+				repeat
+					getitem vDsRegistro, vLstCampo, 1
+					vCdTipoCampo = $item("CD_TIPOCAMPO", vDsRegistro)
+					if (vCdTipoCampo = $cdTipoCampoDiaVenctoCl$)
+						vNrVenctoCliente = $item("DS_CAMPO", vDsRegistro)
+					endif
+					
+					delitem vLstCampo, 1
+				until(vLstCampo = "")
+			endif
+		endif
+		;
+		
+		viParams = ""
+		putitem/id viParams, "CD_EMPRESA",       $item("CD_EMPRESA", piGlobal)
+		putitem/id viParams, "CD_PORTADOR",      vPortador
+		putitem/id viParams, "DT_VENDA",         DT_VENCIMENTO.F_FCR_FATURAISVC
+		putitem/id viParams, "NR_PARCELAS",      $totocc("F_FCR_FATURAISVC")
+		;MTF(05/12/2007) - Projeto 078, tarefa 991.
+		;putitem/id viParams, "NR_VECTOCLIENTE", 0
+		putitem/id viParams, "NR_VECTOCLIENTE",  vNrVenctoCliente
+		;
+		putitem/id viParams, "TP_DOCUMENTO",     TP_DOCUMENTO.F_FCR_FATURAISVC
+		putitem/id viParams, "NR_SEQHISTRELSUB", NR_HISTRELSUB.F_FCR_FATURAISVC
+		;MTF(02/10/2006) - Projeto 078, tarefa 038.4
+		putitem/id viParams, "IN_FATURAMENTO", $item("IN_FATURAMENTO", piParams)
+		;
+		activate "FGRSVCO006".vencimentoParcelas($$gParamGlb, viParams, voParams, $xCdErro$, $xCtxerro$)
+		if ($procerror)       
+			$instancehandle->SetStatus("", $xCdErro$, $xCtxErro$, "")
+			poCdErro  = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return(-1)
+		elseif ($status < 0)
+			$instancehandle->SetStatus("", $xCdErro$, $xCtxErro$, "")
+			poCdErro  = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return(-1)
+		endif
+
+		if (voParams != "")
+			lstVencto = voParams
+			vPrTaxa   = $item("PR_TAXA", voParams) ;--Douglas Ferreira - [Prj/Tarefa 186/0152] - 25/07/2011
+			;Projeto 078 - Tarefa 1317 - Aloisio Gargantini - 26/03/2008
+			getitem vDs, lstVencto, 1
+			vInProprio      = $item("IN_PROPRIO",   vDs)
+			vInGeraFaturaOp = $item("IN_GERAFATOP", vDs)
+			;
+		endif
+
+		vInGeraFaturaOperadora = <TRUE>
+		if (vInProprio = <TRUE>) & (vInGeraFaturaOp = <FALSE>)
+			vInGeraFaturaOperadora = <FALSE>
+		endif
+
+		if (vInGeraFaturaOperadora = <TRUE>)
+		;
+			while ($status >= 0)
+
+				getitem listaVencimento, lstVencto, 1
+
+				; MFGALEGO - 08/07/2009
+				setocc "FCR_FATURAISVC", $curocc("F_FCR_FATURAISVC")
+				;
+
+				DT_VENCIMENTO.F_FCR_FATURAISVC = $item("DT_VENCIMENTO", listaVencimento)
+				TP_COBRANCA.F_FCR_FATURAISVC   = 14 ;Operadora de crédito
+				;Projeto 078 - Tarefa 1717 - Aloisio Gargantini - 26/08/2008
+				;MTF(26/01/2009) - Projeto 079, tarefa 0221.
+				;Por solicitacao do Miguel a logica abaixo foi desabilitada e inclusa a nova.
+				;if ($inCartaoCreditoPrazo$ = <TRUE>)
+				;	if (tp_faturamento.fcr_faturaisvc = 1)  ;Venda a vista.
+				;		tp_faturamento.f_fcr_faturaisvc = 2 ;Venda a prazo.
+				;	endif
+				;	if (tp_faturamento.fcr_faturaisvc = 3)  ;Recebimento a vista.
+				;		tp_faturamento.f_fcr_faturaisvc = 4 ;Recebimento a prazo.
+				;	endif
+				;endif
+				;Projeto 078 - Tarefa 3161 - Aloisio Gargantini - 13/02/2010
+				if  (tp_documento.f_fcr_faturaisvc = 4) & ($inCartaoCreditoPrazo$ = <TRUE>) | %\
+					(tp_documento.f_fcr_faturaisvc = 5) & ($inCartaoDebitoPrazo$  = <TRUE>)
+				;if ($inCartaoCreditoPrazo$ = <TRUE>)
+				;
+					;if (tp_faturamento.f_fcr_faturaisvc = 1)  ;Venda a vista.
+					;	tp_faturamento.fcr_faturaisvc = 2 ;Venda a prazo.
+					;endif
+					;if (tp_faturamento.f_fcr_faturaisvc = 3)  ;Recebimento a vista.
+					;	tp_faturamento.fcr_faturaisvc = 4 ;Recebimento a prazo.
+					;endif
+					if (tp_faturamento.f_fcr_faturaisvc = 1) ;Venda a vista.
+						tp_faturamento.f_fcr_faturaisvc = 2  ;Venda a prazo.
+						tp_faturamento.fcr_faturaisvc   = 2  ;Venda a prazo.
+					endif
+					if (tp_faturamento.f_fcr_faturaisvc = 3) ;Recebimento a vista.
+						tp_faturamento.f_fcr_faturaisvc = 4  ;Recebimento a prazo.
+						tp_faturamento.fcr_faturaisvc   = 4  ;Recebimento a prazo.
+					endif
+				endif
+				;
+
+				delitem lstVencto, 1
+
+				viParams = ""
+				putlistitems/occ vDsLinha, "F_FCR_FATURAISVC"
+				putitem/id viParams, "DS_FATURAI",      vDsLinha
+				putitem/id viParams, "IN_ALTSOFATURAI", <FALSE>
+				putitem/id viParams, "IN_SEMCOMISSAO",  <TRUE>
+				putitem/id viParams, "IN_SEMIMPOSTO",   <TRUE>
+				putitem/id viParams, "CD_COMPONENTE",   $componentname
+
+				activate "FCRSVCO001".geraFatura(piGlobal, viParams, voParams, $xCdErro$, $xCtxErro$)
+				if ($procerror)       
+					$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+					poCdErro  = $xCdErro$
+					poCtxErro = $xCtxErro$
+					return (-1)
+				elseif ($status < 0)
+					$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")
+					poCdErro  = $xCdErro$
+					poCtxErro = $xCtxErro$
+					return (-1)
+				endif
+ 
+				putitem vDsDestino, -1, voParams
+
+				;Projeto 078 - Tarefa 2396 - Aloisio Gargantini - 22/06/2009
+				vpiParams = ""
+				putitem/id vpiParams, "CD_EMPRESA"    , cd_empresa.f_fcr_faturaisvc
+				putitem/id vpiParams, "CD_CLIENTE"    , cd_cliente.f_fcr_faturaisvc
+				putitem/id vpiParams, "NR_FAT"        , nr_fat.f_fcr_faturaisvc
+				putitem/id vpiParams, "NR_PARCELA"    , $item("NR_PARCELA", voParams)
+				putitem/id vpiParams, "TP_CARTAO"     , 1
+				putitem/id vpiParams, "CD_CARTAO"     , ""
+				putitem/id vpiParams, "NR_SEQCARTAO"  , ""
+				putitem/id vpiParams, "CD_AUTORIZACAO", $item("CD_AUTORIZACAO",piParams)
+				putitem/id vpiParams, "NR_NSU"        , $item("NR_NSU",piParams)
+				putitem/id vpiParams, "DT_COMPRA"     , dt_emissao.fcr_faturaisvc
+				putitem/id vpiParams, "VL_COMPRA"     , vValor
+				putitem/id vpiParams, "NR_PARCELAS"   , $totocc("F_FCR_FATURAISVC")
+				putitem/id vpiParams, "NR_NF"         , $item("NR_NF",piParams)
+				putitem/id vpiParams, "CD_EMPORI"     , cd_empresa.fcr_faturaisvc
+				putitem/id vpiParams, "CD_CLIORI"     , cd_cliente.fcr_faturaisvc
+				putitem/id vpiParams, "NR_FATORI"     , nr_fat.fcr_faturaisvc
+				putitem/id vpiParams, "NR_PARORI"     , nr_parcela.fcr_faturaisvc
+				putitem/id vpiParams, "PR_TAXA"       , vPrTaxa ;--Douglas Ferreira - [Prj/Tarefa 186/0152] - 25/07/2011
+
+				$instancehandle->geraComplCartao(piGlobal, vpiParams, vpoParams, $xCdErro$, $xCtxErro$)
+				if ($procerror)
+					$instancehandle->setStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+					poCdErro  = $xCdErro$
+					poCtxErro = $xCtxErro$
+					return(-1)
+				elseif ($status < 0)
+					poCdErro  = $xCdErro$
+					poCtxErro = $xCtxErro$
+					return(-1)
+				endif
+				;
+				setocc "F_FCR_FATURAISVC", $curocc("F_FCR_FATURAISVC") + 1
+			endwhile
+		else
+			;Projeto 078 - Tarefa 1317 - Aloisio Gargantini - 26/03/2008
+			vDsLinha = ""
+
+			clear/e "F_FCR_FATURAISVC"
+
+			setocc "FCR_FATURAISVC", 1
+			  while ($status >= 0)
+
+ 				getitem listaVencimento, lstVencto, 1
+ 				DT_VENCIMENTO.FCR_FATURAISVC = $item("DT_VENCIMENTO", listaVencimento)
+ 				TP_COBRANCA.FCR_FATURAISVC   = 0 ;Não está em cobrança
+				;Projeto 078 - Tarefa 2989 - Aloisio Gargantini - 26/11/2009 - desabilitado
+ 				;TP_DOCUMENTO.FCR_FATURAISVC = 1 ;Fatura
+				;
+				; MFGALEGO - 07/01/2010 ; TAREFA 78/3063
+ 				TP_DOCUMENTO.FCR_FATURAISVC  = 1 ;Fatura
+				;
+ 				TP_BAIXA.FCR_FATURAISVC      = 0 ;Não baixado
+				if ($item("CD_CARTAO",piParams) > 0)
+					NR_RESUMOCARTAO.FCR_FATURAISVC = $item("CD_CARTAO",piParams)
+					DS_RESUMOCARTAO.FCR_FATURAISVC = "PROPRIO"
+                	if (tp_faturamento.fcr_faturaisvc = 1)  ;Venda a vista.
+						tp_faturamento.fcr_faturaisvc = 2 ;Venda a prazo.
+					endif
+					if (tp_faturamento.fcr_faturaisvc = 3)  ;Recebimento a vista.
+						tp_faturamento.fcr_faturaisvc = 4 ;Recebimento a prazo.
+					endif
+				endif
+				putlistitems/occ vdsLinha, "FCR_FATURAISVC"
+
+ 				delitem lstVencto, 1
+
+ 				viParams = ""
+ 				putitem/id viParams, "DS_FATURAI",      vDsLinha
+ 				putitem/id viParams, "IN_ALTSOFATURAI", <TRUE>
+ 				putitem/id viParams, "IN_SEMCOMISSAO",  <TRUE>
+ 				putitem/id viParams, "IN_SEMIMPOSTO",   <TRUE>
+ 				putitem/id viParams, "CD_COMPONENTE",   $componentname
+ 				activate "FCRSVCO001".geraFatura(piGlobal, viParams, voParams, $xCdErro$, $xCtxErro$)
+ 				if ($procerror)       
+ 				    $instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+ 				    poCdErro  = $xCdErro$
+ 				    poCtxErro = $xCtxErro$
+ 				    return (-1)
+ 				elseif ($status < 0)
+ 				    $instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")
+ 				    poCdErro  = $xCdErro$
+ 				    poCtxErro = $xCtxErro$
+ 				    return (-1)
+ 				endif
+
+				;Projeto 078 - Tarefa 2396 - Aloisio Gargantini - 22/06/2009
+				vpiParams = ""
+				putitem/id vpiParams, "CD_EMPRESA"    , cd_empresa.fcr_faturaisvc
+				putitem/id vpiParams, "CD_CLIENTE"    , cd_cliente.fcr_faturaisvc
+				putitem/id vpiParams, "NR_FAT"        , nr_fat.fcr_faturaisvc
+				putitem/id vpiParams, "NR_PARCELA"    , nr_parcela.fcr_faturaisvc
+				;Projeto 078 - Tarefa 2595 - Aloisio Gargantini - 05/08/2009	
+				;if ($item("CD_CARTAO", piParams) != "")
+				if ($item("CD_CARTAO", piParams) > 0)
+				;
+					putitem/id vpiParams, "TP_CARTAO"    , 2 ;próprio
+					putitem/id vpiParams, "CD_CARTAO"    , $item("CD_CARTAO",    piParams)
+					putitem/id vpiParams, "NR_SEQCARTAO" , $item("NR_SEQCARTAO", piParams)
+				else
+					putitem/id vpiParams, "TP_CARTAO"    , 1
+					putitem/id vpiParams, "CD_CARTAO"    , ""
+					putitem/id vpiParams, "NR_SEQCARTAO" , ""
+				endif
+				putitem/id vpiParams, "CD_AUTORIZACAO", $item("CD_AUTORIZACAO",piParams)
+				putitem/id vpiParams, "NR_NSU"        , $item("NR_NSU",piParams)
+				putitem/id vpiParams, "DT_COMPRA"     , dt_emissao.fcr_faturaisvc
+				putitem/id vpiParams, "VL_COMPRA"     , vValor
+				putitem/id vpiParams, "NR_PARCELAS"   , $totocc("FCR_FATURAISVC")
+				putitem/id vpiParams, "NR_NF"         , $item("NR_NF",piParams)
+				putitem/id vpiParams, "CD_EMPORI"     , ""
+				putitem/id vpiParams, "CD_CLIORI"     , ""
+				putitem/id vpiParams, "NR_FATORI"     , ""
+				putitem/id vpiParams, "NR_PARORI"     , ""
+				putitem/id vpiParams, "PR_TAXA"       , vPrTaxa ;--Douglas Ferreira - [Prj/Tarefa 186/0152] - 25/07/2011
+
+				$instancehandle->geraComplCartao(piGlobal, vpiParams, vpoParams, $xCdErro$, $xCtxErro$)
+				if ($procerror)
+					$instancehandle->setStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+					poCdErro  = $xCdErro$
+					poCtxErro = $xCtxErro$
+					return(-1)
+				elseif ($status < 0)
+					poCdErro  = $xCdErro$
+					poCtxErro = $xCtxErro$
+					return(-1)
+				endif
+				;
+				setocc "FCR_FATURAISVC", $curocc("FCR_FATURAISVC") + 1
+				
+			endwhile
+		endif
+		;
+	endif
+
+	;Projeto 078 - Tarefa 1317 - Aloisio Gargantini - 26/03/2008
+    if (vInGeraFaturaOperadora = <TRUE>)
+	;
+        viParams = ""
+        putitem/id viParams, "DS_ORIGEM",  vDsOrigem
+        putitem/id viParams, "DS_DESTINO", vDsDestino
+        activate "FGRSVCO005".geraLiquidacao(piGlobal, viParams, voParams, $xCdErro$, $xCtxErro$)
+        if ($procerror)       
+            $instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+            poCdErro  = $xCdErro$
+            poCtxErro = $xCtxErro$
+            return (-1)
+        elseif ($status < 0)
+            $instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")
+            poCdErro  = $xCdErro$
+            poCtxErro = $xCtxErro$
+            return (-1)
+        endif
+    endif
+
+	poParams = ""
+	putitem/id poParams, "DS_LSTFATURA", vDsOrigem
+	
+	return (0)
+end ;geraCartao
+
+;-----------------------------------------------------------
+public operation geraComplCartao
+;-----------------------------------------------------------
+;Projeto 078 - Tarefa 2396 - Aloisio Gargantini - 18/06/2009
+
+	params
+		string  piGlobal  :IN
+		string  piParams  :IN
+		string  poParams  :OUT
+		numeric poCdErro  :OUT
+		string  poCtxErro :OUT
+	endparams
+	variables
+		string  vpiParams, vpoParams, vDsFatCartao
+		numeric vCdEmpresa, vCdCliente, vNrFatura, vNrParcela, vNrNf
+	endvariables
+
+
+	vDsFatCartao = $item("DS_FATCARTAO", piParams)
+
+	if (vDsFatCartao != "")
+		vCdEmpresa = $item("CD_EMPRESA" , vDsFatCartao)
+		vCdCliente = $item("CD_CLIENTE" , vDsFatCartao)
+		vNrFatura  = $item("NR_FAT"     , vDsFatCartao)
+		vNrParcela = $item("NR_PARCELA" , vDsFatCartao)
+	else
+		vCdEmpresa = $item("CD_EMPRESA", piParams)
+		if ($item("CD_EMPRESA", piParams) = "")
+			$instancehandle->setStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Empresa da fatura não informada para gravar complemento de cartão. FCRSVCO005.geraComplCartao", "")
+			poCdErro  = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return(-1)
+		endif
+		vCdCliente = $item("CD_CLIENTE", piParams)
+		if ($item("CD_CLIENTE", piParams) = "")
+			$instancehandle->setStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Cliente da fatura não informado para gravar complemento de cartão. FCRSVCO005.geraComplCartao", "")
+			poCdErro  = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return(-1)
+		endif
+		vNrFatura = $item("NR_FAT", piParams)
+		if ($item("NR_FAT", piParams) = "")
+			$instancehandle->setStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Número da fatura não informado para gravar complemento de cartão. FCRSVCO005.geraComplCartao", "")
+			poCdErro  = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return(-1)
+		endif
+		vNrParcela = $item("NR_PARCELA", piParams)
+		if ($item("NR_PARCELA", piParams) = "")
+			$instancehandle->setStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Parcela da fatura não informada para gravar complemento de cartão. FCRSVCO005.geraComplCartao", "")
+			poCdErro  = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return(-1)
+		endif
+	endif
+
+	creocc "FCR_FATCARTAOSVC", -1
+	cd_empresa.fcr_fatcartaosvc = vCdEmpresa
+	cd_cliente.fcr_fatcartaosvc = vCdCliente
+	nr_fat.fcr_fatcartaosvc     = vNrFatura
+	nr_parcela.fcr_fatcartaosvc = vNrParcela
+	retrieve/o "FCR_FATCARTAOSVC"
+	if ($status = 4) | ($status = -7)
+		retrieve/x "FCR_FATCARTAOSVC"
+	endif
+
+	if (vDsFatCartao != "")
+		getlistitems/occ vDsFatCartao, "FCR_FATCARTAOSVC"
+	else
+		tp_cartao.fcr_fatcartaosvc      = $item("TP_CARTAO", piParams)
+		if (tp_cartao.fcr_fatcartaosvc = "")
+			tp_cartao.fcr_fatcartaosvc  = 1
+		endif
+		cd_cartao.fcr_fatcartaosvc      = $item("CD_CARTAO",      piParams)
+		nr_seqcartao.fcr_fatcartaosvc   = $item("NR_SEQCARTAO",   piParams)
+		cd_autorizacao.fcr_fatcartaosvc = $item("CD_AUTORIZACAO", piParams)
+		nr_nsu.fcr_fatcartaosvc         = $item("NR_NSU",         piParams)
+		dt_compra.fcr_fatcartaosvc      = $item("DT_COMPRA",      piParams)
+		vl_compra.fcr_fatcartaosvc      = $item("VL_COMPRA",      piParams)
+		nr_parcelas.fcr_fatcartaosvc    = $item("NR_PARCELAS",    piParams)
+		nr_nf.fcr_fatcartaosvc          = $item("NR_NF",          piParams)
+		cd_empori.fcr_fatcartaosvc      = $item("CD_EMPORI",      piParams)
+		cd_cliori.fcr_fatcartaosvc      = $item("CD_CLIORI",      piParams)
+		nr_fatori.fcr_fatcartaosvc      = $item("NR_FATORI",      piParams)
+		nr_parori.fcr_fatcartaosvc      = $item("NR_PARORI",      piParams)
+		PR_TAXAADM.FCR_FATCARTAOSVC     = $item("PR_TAXA",        piParams) ;--Douglas Ferreira - [Prj/Tarefa 186/0152] - 25/07/2011
+	endif
+	cd_operador.fcr_fatcartaosvc = $item("CD_USUARIO", piGlobal)
+	dt_cadastro.fcr_fatcartaosvc = $datim
+				
+	$collhandle("FCR_FATCARTAOSVC")->Salvar()
+	if ($procerror)
+		$instancehandle->setStatus(<STS_ERRO>, $procerror, $procerrorcontext, "ADICIONAL=  FCRSVCO005.geraComplCartao()")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return (-1)
+	elseif ($status < 0)
+		$instancehandle->setStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "ADICIONAL=  FCRSVCO005.geraComplCartao()")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return (-1)
+	endif
+
+	return(0)
+end ;geraComplCartao

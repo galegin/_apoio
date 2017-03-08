@@ -1,0 +1,42 @@
+  if (VL_VALOR.SIS_DUMMY = 0)
+    $instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Valor não informado!", "")
+    $prompt = VL_VALOR.SIS_DUMMY
+    return(-1)
+  endif
+
+  if (DS_FORMAPGTO.SIS_DUMMY != 1 & DS_FORMAPGTO.SIS_DUMMY != 2 & DS_FORMAPGTO.SIS_DUMMY != 14)
+    $instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Tipo de documento inválido!", "")
+    $prompt = DS_FORMAPGTO.SIS_DUMMY
+    return(-1)
+  endif
+
+  if ($inImobiliaria$ = <TRUE>) & (NR_PARCELA.IMB_CONTRATO > 0) & (NR_DIABASEVCTO.IMB_CONTRATO > 0)
+  else
+    if (CD_CONDPGTO.GER_CONDPGTOC = 0)
+      $instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Condição de Pagamento não informada!", "")
+      $prompt = CD_CONDPGTO.GER_CONDPGTOC
+      return(-1)
+    endif
+  endif
+
+  if (DS_FORMAPGTO.SIS_DUMMY = 1 | DS_FORMAPGTO.SIS_DUMMY = 14) & (NR_DOCUMENTO.SIS_DUMMY = 0)
+    $instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Documento não informado!", "")
+    $prompt = DS_FORMAPGTO.SIS_DUMMY
+    return(-1)
+  endif
+
+  $instancehandle->geraParcela()
+  if ($procerror)
+    $instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+  endif
+
+  if ($status < 0)
+    return(-1)
+  endif
+
+  $xlpo$ = ""
+  putitem/id $xlpo$, "DS_LSTPARCELA", $lsParcela$
+  putitem/id $xlpo$, "NR_DOCUMENTO", NR_DOCUMENTO.SIS_DUMMY
+  putitem/id $xlpo$, "IN_COBLOJA", IN_COBLOJA.SIS_DUMMY
+  putitem/id $xlpo$, "TP_DOCUMENTO", DS_FORMAPGTO.SIS_DUMMY
+  exit(0)

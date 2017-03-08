@@ -1,0 +1,1986 @@
+;------------------------------------------------;
+public operation gravarChequePresente            ;
+;------------------------------------------------;
+;Projeto: 078 - Tarefa 1483 - 16/05/2008         ;
+;         Aloisio Gargantini                     ;
+;Chamada: FCRFP086.efetuarLancamento             ;
+;------------------------------------------------;
+	params
+		string piGlobal  :IN
+		string piParams  :IN
+		string poParams  :OUT
+		string poCdErro  :OUT
+		string poCtxErro :OUT
+	endparams
+
+	variables
+		string  vDsRegistro, vDsLstCampo, vDsCampo, vNmCheque, vCdComponente, viParams, voParams, viValores, vCdBarra
+		numeric vCdEmpresa, vCdCliente, vCdTipoCampo, vNrGeral, vNrCheque, vVlCheque
+		numeric vCdEmpLiq, vNrSeqLiq, vNrCtaPes, vNrTransacao
+		date    vDtCheque, vDtLiq
+	endvariables
+
+	;Projeto 180 - Tarefa 0181 - Aloisio Gargantini - 25/05/2011
+	$instancehandle->buscaParametro()
+	if ($procerror)
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	;
+
+	;vNrCheque     = $item("NR_CHEQUE", piParams)
+	vVlCheque     = $item("VL_CHEQUE", piParams)
+	vDtCheque     = $item("DT_CHEQUE", piParams)
+	vNmCheque     = $item("NM_CHEQUE", piParams)
+	vCdEmpresa    = $item("CD_EMPRESA", piParams)
+	vCdCliente    = $item("CD_CLIENTE", piParams)
+	vCdEmpLiq     = $item("CD_EMPLIQ", piParams)
+	vDtLiq        = $item("DT_LIQ", piParams)
+	vNrSeqLiq     = $item("NR_SEQLIQ", piParams)
+	vCdComponente = $item("CD_COMPONENTE", piParams)
+	;Projeto 180 - Tarefa 0181 - Aloisio Gargantini - 25/05/2011
+	vCdBarra      = $item("CD_BARRA", piParams)
+	if ($tpChequePresente$ = 1) & (vCdBarra = "")
+		$instancehandle->setStatus(<STS_ERRO>, "GEN001", "DESCRICAO=É obrigatório o código de barras quando parâmetro empresa TP_CHEQUE_PRESENTE for 1.", "")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	;
+
+	;if (vNrCheque = "") | (vNrCheque = 0)
+	;	$instancehandle->setStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Número de cheque não informado para gravação do cheque presente.", "")
+	;	poCdErro  = $xCdErro$
+	;	poCtxErro = $xCtxErro$
+	;	return(-1)
+	;endif
+
+	if (vVlCheque = "") | (vVlCheque = 0)
+		$instancehandle->setStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Valor do cheque não informado para gravação do cheque presente.", "")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+
+	if (vDtCheque = "") | (vDtCheque = 0)
+		$instancehandle->setStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Data do cheque não informada para gravação do cheque presente.", "")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+
+	if (vNmCheque = "") | (vNmCheque = 0)
+		$instancehandle->setStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Nominal do cheque não informado para gravação do cheque presente.", "")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+
+	if (vCdEmpresa = "") | (vCdEmpresa = 0)
+		$instancehandle->setStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Empresa não informada para gravação do cheque presente.", "")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+
+	if (vCdCliente = "") | (vCdCliente = 0)
+		$instancehandle->setStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Cliente não informado para gravação do cheque presente.", "")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+
+	if (vCdEmpLiq = "") | (vCdEmpLiq = 0)
+		$instancehandle->setStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Empresa de liquidação não informada para gravação do cheque presente.", "")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+
+	if (vNrSeqLiq = "") | (vNrSeqLiq = 0)
+		$instancehandle->setStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Número de sequência de liquidação não informado para gravação do cheque presente.", "")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	
+	if (vDtLiq = "") | (vDtLiq = 0)
+		$instancehandle->setStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Data de liquidação não informada para gravação do cheque presente.", "")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+
+	if (vCdComponente = "")
+		$instancehandle->setStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Código de componente não informado para gravação do cheque presente.", "")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	
+	selectdb max(NR_CHEQUE) %\
+		from "FCR_CHEQUEPRESVC" %\
+		u_where (CD_EMPRESA.FCR_CHEQUEPRESVC = vCdEmpresa & %\
+		CD_CLIENTE.FCR_CHEQUEPRESVC = vCdCliente ) %\
+		to vNrCheque
+
+	vNrCheque = vNrCheque + 1
+	if (vNrCheque = "") | (vNrCheque = 0)
+		$instancehandle->setStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Número de cheque não informado para gravação do cheque presente.", "")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+
+	clear/e "FCR_CHEQUEPRESVC"
+	creocc "FCR_CHEQUEPRESVC", -1
+	CD_EMPRESA.FCR_CHEQUEPRESVC      = vCdEmpresa
+	CD_CLIENTE.FCR_CHEQUEPRESVC      = vCdCliente
+	NR_CHEQUE.FCR_CHEQUEPRESVC       = vNrCheque
+	retrieve/o "FCR_CHEQUEPRESVC"
+	if ($status = -7)
+		retrieve/x "FCR_CHEQUEPRESVC"
+	endif
+	CD_OPERADOR.FCR_CHEQUEPRESVC     = $item("CD_USUARIO", piGlobal)
+	DT_CADASTRO.FCR_CHEQUEPRESVC     = $datim
+	DT_EMISSAO.FCR_CHEQUEPRESVC      = $datim
+	DT_VALIDADE.FCR_CHEQUEPRESVC     = vDtCheque
+	DS_NOMINAL.FCR_CHEQUEPRESVC      = vNmCheque
+	VL_CHEQUE.FCR_CHEQUEPRESVC       = vVlCheque
+	DT_INCLUSAO.FCR_CHEQUEPRESVC     = $datim
+	CD_OPERINCL.FCR_CHEQUEPRESVC     = $item("CD_USUARIO", piGlobal)
+	DT_UTILIZACAO.FCR_CHEQUEPRESVC   = ""
+	CD_OPERUTIL.FCR_CHEQUEPRESVC     = ""
+	DT_CANCELAMENTO.FCR_CHEQUEPRESVC = ""
+	CD_OPERCANCEL.FCR_CHEQUEPRESVC   = ""
+	TP_SITUACAO.FCR_CHEQUEPRESVC     = 1 ; normal
+	CD_EMPLIQ.FCR_CHEQUEPRESVC       = vCdEmpLiq
+	DT_LIQ.FCR_CHEQUEPRESVC          = vDtLiq
+	NR_SEQLIQ.FCR_CHEQUEPRESVC       = vNrSeqLiq		
+	;Projeto 180 - Tarefa 0181 - Aloisio Gargantini - 25/05/2011
+	CD_BARRA.FCR_CHEQUEPRESVC        = vCdBarra
+	if ($tpChequePresente$ = 1) ;cartão presente
+		TP_CHEQUE.FCR_CHEQUEPRESVC   = 1
+		;busca conta do cliente
+		viParams = ""
+		putitem/id viParams, "CD_PESSOA", vCdCliente
+		putitem/id viParams, "TP_CONTA",  "C"
+		activate "FCCSVCO002".buscaContaPessoa(piGlobal, viParams, voParams, $xCdErro$, $xCtxerro$)
+		if ($procerror)       
+			$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+			poCdErro  = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return(-1)
+		elseif ($status < 0)
+			$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")
+			poCdErro  = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return(-1)
+		endif
+		vNrCtapes = $item("NR_CTAPES", voParams)
+		NR_CTAPES.FCR_CHEQUEPRESVC   = vNrCtaPes
+		;movimenta conta cliente
+		$collhandle("FCR_CHEQUEPRESVC")->Salvar()
+		if ($procerror)
+			$instancehandle->setStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+			poCdErro  = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return(-1)
+		elseif ($status < 0)
+			$instancehandle->setStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")    
+			poCdErro  = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return(-1)
+		endif 
+		viParams = ""
+		putitem/id viParams, "CD_EMPRESA",       vCdEmpresa
+		putitem/id viParams, "NR_CTAPES",        vNrCtapes
+		putitem/id viParams, "DT_MOVIMENTO",     vDtLiq
+		putitem/id viParams, "CD_HISTORICO",     1093 ;Crédito cheque presente
+		putitem/id viParams, "TP_DOCUMENTO",     18 ;Cheque presente
+		putitem/id viParams, "NR_SEQHISTRELSUB", 1
+		putitem/id viParams, "CD_EMPLIQ",        vCdEmpLiq
+		putitem/id viParams, "DT_LIQ",           vDtLiq
+		putitem/id viParams, "NR_SEQLIQ",        vNrSeqLiq
+		putitem/id viParams, "VL_LANCTO",        vVlCheque
+		putitem/id viParams, "IN_ESTORNO",       <FALSE>
+		putitem/id viParams, "IN_CAIXA",         <FALSE>
+		putitem/id viParams, "DS_DOC",           "Cred. Cheque presente"
+		putitem/id viParams, "DS_AUX",           ""
+		putitem/id viParams, "CD_EMPCHQPRES",    vCdEmpresa
+		putitem/id viParams, "CD_CLICHQPRES",    vCdCliente
+		putitem/id viParams, "NR_CHEQUEPRES",    vNrCheque
+		activate "FCCSVCO002".movimentaConta(piGlobal, viParams, viValores, voParams, $xCdErro$, $xCtxerro$)
+		if ($procerror)       
+			$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+			poCdErro = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return(-1)
+		elseif ($status < 0)
+			$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")
+			poCdErro = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return(-1)
+		endif
+	else
+		$collhandle("FCR_CHEQUEPRESVC")->Salvar()
+		if ($procerror)
+			$instancehandle->setStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+			poCdErro  = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return(-1)
+		elseif ($status < 0)
+			$instancehandle->setStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")    
+			poCdErro  = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return(-1)
+		endif 
+
+	endif
+	;
+	putitem/id poParams, "NR_CHEQUE", NR_CHEQUE.FCR_CHEQUEPRESVC
+
+	return(0)
+End ;operation gravarChequePresente.
+
+;------------------------------------------------;
+public operation gravarUtilizacaoChequePresente  ;
+;------------------------------------------------;
+;Projeto: 078 - Tarefa 1483 - 16/05/2008         ;
+;         Aloisio Gargantini                     ;
+;Chamada: TRAFM066                               ;
+;------------------------------------------------;
+	params
+		string piGlobal  :IN
+		string piParams  :IN
+		string poParams  :OUT
+		string poCdErro  :OUT
+		string poCtxErro :OUT
+	endparams
+
+	variables
+		string  vDsRegistro, vDsLstCampo, vDsCampo, vNmCheque, vCdComponente
+		numeric vCdEmpresa, vCdCliente, vCdTipoCampo, vNrGeral, vNrCheque, vVlCheque, vCdEmpFat, vCdClienteFat, vNrFat
+		numeric vNrParcela, vTpCheque
+		date vDtCheque
+	endvariables
+
+	vNrCheque     = $item("NR_CHEQUE", piParams)
+	vCdEmpresa    = $item("CD_EMPRESA", piParams)
+	vCdCliente    = $item("CD_CLIENTE", piParams)
+	vCdEmpFat     = $item("CD_EMPFAT", piParams)
+	vCdClienteFat = $item("CD_CLIFAT", piParams)
+	vNrFat        = $item("NR_FAT", piParams)
+	vNrParcela    = $item("NR_PARCELA", piParams)
+	vTpCheque     = $item("TP_CHEQUE", piParams)
+
+	if (vNrCheque = "") | (vNrCheque = 0)
+		$instancehandle->setStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Número de cheque não informado para gravação do cheque presente.", "")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+
+	if (vCdEmpresa = "") | (vCdEmpresa = 0)
+		$instancehandle->setStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Empresa não informada para gravação do cheque presente.", "")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+
+	if (vCdCliente = "") | (vCdCliente = 0)
+		$instancehandle->setStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Cliente não informado para gravação do cheque presente.", "")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+
+	;Projeto 180 - Tarefa 0181 - Aloisio Gargantini - 25/05/2011
+	if (vTpCheque != 1)
+	;
+		if (vCdEmpFat = "") | (vCdEmpFat = 0)
+			$instancehandle->setStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Código da empresa da fatura não informado para gravação do cheque presente.", "")
+			poCdErro  = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return(-1)
+		endif
+
+		if (vCdClienteFat = "") | (vCdClienteFat = 0)
+			$instancehandle->setStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Código do cliente da fatura não informado para gravação do cheque presente.", "")
+			poCdErro  = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return(-1)
+		endif
+
+		if (vNrFat = "") | (vNrFat = 0)
+			$instancehandle->setStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Número da fatura não informado para gravação do cheque presente.", "")
+			poCdErro  = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return(-1)
+		endif
+
+		if (vNrParcela = "") | (vNrParcela = 0)
+			$instancehandle->setStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Número da parcela da fatura não informado para gravação do cheque presente.", "")
+			poCdErro  = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return(-1)
+		endif
+	endif
+
+	creocc "FCR_CHEQUEPRESVC", -1
+	CD_EMPRESA.FCR_CHEQUEPRESVC = vCdEmpresa
+	CD_CLIENTE.FCR_CHEQUEPRESVC = vCdCliente
+	NR_CHEQUE.FCR_CHEQUEPRESVC  = vNrCheque
+	retrieve/o "FCR_CHEQUEPRESVC"
+	if ($status = -7)
+		retrieve/x "FCR_CHEQUEPRESVC"
+	endif
+	DT_UTILIZACAO.FCR_CHEQUEPRESVC = $datim
+	CD_OPERUTIL.FCR_CHEQUEPRESVC   = $item("CD_USUARIO", piGlobal)
+	TP_SITUACAO.FCR_CHEQUEPRESVC   = 2 ;utilizado
+	;Projeto 180 - Tarefa 0181 - Aloisio Gargantini - 25/05/2011
+	if (vTpCheque != 1)
+	;
+		CD_EMPFAT.FCR_CHEQUEPRESVC     = vCdEmpFat
+		CD_CLIENTEFAT.FCR_CHEQUEPRESVC = vCdClienteFat
+		NR_FAT.FCR_CHEQUEPRESVC        = vNrFat
+		NR_PARCELA.FCR_CHEQUEPRESVC    = vNrParcela
+	endif
+	$collhandle("FCR_CHEQUEPRESVC")->Salvar()
+	if ($procerror)
+		$instancehandle->setStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	elseif ($status < 0)
+		$instancehandle->setStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")    
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif 
+	
+	return(0)
+End ;operation gravarUtilizacaoChequePresente.
+
+;------------------------------------------------;
+public operation cancelarChequePresente          ;
+;------------------------------------------------;
+;Projeto: 078 - Tarefa 1483 - 16/05/2008         ;
+;         Aloisio Gargantini                     ;
+;Chamada:FGRSVCO013.CancelaAdiantCliChqPresente  ;
+;------------------------------------------------;
+	params
+		string piGlobal  :IN
+		string piParams  :IN
+		string poParams  :OUT
+		string poCdErro  :OUT
+		string poCtxErro :OUT
+	endparams
+
+	variables
+		numeric vCdEmpLiq,vNrSeqLiq
+		date vDtLiq
+	endvariables
+
+	vNrSeqLiq     = $item("NR_SEQLIQ", piParams)
+	vCdEmpLiq     = $item("CD_EMPLIQ", piParams)
+	vDtLiq        = $item("DT_LIQ", piParams)
+
+	if (vNrSeqLiq = "") | (vNrSeqLiq = 0)
+		$instancehandle->setStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Número de sequência de liquidação não informada.", "")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+
+	if (vCdEmpLiq = "") | (vCdEmpLiq = 0)
+		$instancehandle->setStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Empresa de liquidação não informada.", "")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+
+	if (vDtLiq = "") | (vDtLiq = 0)
+		$instancehandle->setStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Data de liquidação não informada.", "")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	clear/e "FCR_CHEQUEPRESVC"
+
+	;Projeto 180 - Tarefa 0181 - Aloisio Gargantini - 25/05/2011
+	$instancehandle->buscaParametro()
+	if ($procerror)
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+
+	if ($tpChequePresente$ = 1) ;cartão presente
+		;buscar o cheque presente pelo movimento do conta corrente
+		clear/e "FCC_MOVSVC"
+		CD_EMPLIQ.FCC_MOVSVC/init = vCdEmpLiq
+		DT_LIQ.FCC_MOVSVC/init    = vNrSeqLiq
+		NR_SEQLIQ.FCC_MOVSVC/init = vDtLiq
+		retrieve/e "FCC_MOVSVC"
+		if ($status >=0)
+			clear/e "FCR_CHEQUEPRESVC"
+			CD_EMPRESA.FCR_CHEQUEPRESVC/init = CD_EMPCHQPRES.FCC_MOVSVC
+			CD_CLIENTE.FCR_CHEQUEPRESVC/init = CD_CLICHQPRES.FCC_MOVSVC
+			NR_CHEQUE.FCR_CHEQUEPRESVC/init  = NR_CHEQUEPRES.FCC_MOVSVC
+		else
+			$instancehandle->setStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Cheque Presente não encontrado na movimentação do conta corrente para cancelamento.", "")
+			poCdErro  = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return(-1)
+		endif
+	else
+	;
+		CD_EMPLIQ.FCR_CHEQUEPRESVC/init = vCdEmpLIq
+		NR_SEQLIQ.FCR_CHEQUEPRESVC/init = vNrSeqLIq
+		DT_LIQ.FCR_CHEQUEPRESVC/init    = vDtLIq
+	endif
+	retrieve/e "FCR_CHEQUEPRESVC"
+	if ($status < 0)
+		return(0)
+	endif
+	setocc "FCR_CHEQUEPRESVC", 1
+	while ($status >= 0)
+		;Projeto 180 - Tarefa 0181 - Aloisio Gargantini - 25/05/2011
+		if (TP_CHEQUE.FCR_CHEQUEPRESVC = 1) ;cartão presente por movimento em conta corrente
+			$instancehandle->setStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Permitido cancelamento somente pela transação.", "")
+			poCdErro  = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return(-1)
+		endif
+		;
+		if (DT_UTILIZACAO.FCR_CHEQUEPRESVC != "")
+			$instancehandle->setStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Cheque Presente com situação de Utilizado.", "")
+			poCdErro  = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return(-1)
+		endif
+
+		DT_CANCELAMENTO.FCR_CHEQUEPRESVC = $datim
+		CD_OPERCANCEL.FCR_CHEQUEPRESVC   = $item("CD_USUARIO", piGlobal)
+		TP_SITUACAO.FCR_CHEQUEPRESVC     = 3 ;cancelado
+
+		setocc "FCR_CHEQUEPRESVC", $curocc("FCR_CHEQUEPRESVC") + 1
+	endwhile	
+			
+	$collhandle("FCR_CHEQUEPRESVC")->Salvar()
+	if ($procerror)
+		$instancehandle->setStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	elseif ($status < 0)
+		$instancehandle->setStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")    
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif 
+	
+	return(0)
+End ;operation cancelarChequePresente.
+
+;--------------------------------------------------;
+public operation cancelarUtilizacaoChequePresente  ;
+;--------------------------------------------------;
+;Projeto: 078 - Tarefa 1483 - 16/05/2008           ;
+;         Aloisio Gargantini                       ;
+;Chamada: FGRSVCO013.CancelaFaturamentoVenda       ;
+;         TRASVCO013.cancelaLiquidacao             ;
+;--------------------------------------------------;
+	params
+		string piGlobal  :IN
+		string piParams  :IN
+		string poParams  :OUT
+		string poCdErro  :OUT
+		string poCtxErro :OUT
+	endparams
+
+	variables
+		numeric vCdEmpFat, vCdClienteFat, vNrFat, vNrParcela
+	endvariables
+
+	vCdEmpFat     = $item("CD_EMPFAT", piParams)
+	vCdClienteFat = $item("CD_CLIENTEFAT", piParams)
+	vNrFat        = $item("NR_FAT", piParams)
+	vNrParcela    = $item("NR_PARCELA", piParams)
+
+	if (vCdEmpFat = "") | (vCdEmpFat = 0)
+		$instancehandle->setStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Código da empresa da fatura não informado para gravação do cheque presente.", "")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+
+	if (vCdClienteFat = "") | (vCdClienteFat = 0)
+		$instancehandle->setStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Código do cliente da fatura não informado para gravação do cheque presente.", "")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+
+	if (vNrFat = "") | (vNrFat = 0)
+		$instancehandle->setStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Número da fatura não informado para gravação do cheque presente.", "")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+
+	if (vNrParcela = "") | (vNrParcela = 0)
+		$instancehandle->setStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Número da parcela da fatura não informado para gravação do cheque presente.", "")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+
+	clear/e "FCR_CHEQUEPRESVC"
+	CD_EMPFAT.FCR_CHEQUEPRESVC/init = vCdEmpFat
+	CD_CLIENTEFAT.FCR_CHEQUEPRESVC/init = vCdClienteFat
+	NR_FAT.FCR_CHEQUEPRESVC/init = vNrFat
+	NR_PARCELA.FCR_CHEQUEPRESVC/init = vNrParcela
+	retrieve/e "FCR_CHEQUEPRESVC"
+	if ($status < 0)
+		return(0)
+	endif
+	setocc "FCR_CHEQUEPRESVC", 1
+	while ($status >= 0)
+		if (TP_SITUACAO.FCR_CHEQUEPRESVC != 2)
+			$instancehandle->setStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Cheque Presente com situação diferente de Utilizado.", "")
+			poCdErro  = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return(-1)
+		endif
+		DT_UTILIZACAO.FCR_CHEQUEPRESVC = ""
+		CD_OPERUTIL.FCR_CHEQUEPRESVC   = ""
+		TP_SITUACAO.FCR_CHEQUEPRESVC   = 1 ;normal
+		CD_EMPFAT.FCR_CHEQUEPRESVC     = ""
+		CD_CLIENTEFAT.FCR_CHEQUEPRESVC = ""
+		NR_FAT.FCR_CHEQUEPRESVC        = ""
+		NR_PARCELA.FCR_CHEQUEPRESVC    = ""
+
+		setocc "FCR_CHEQUEPRESVC", $curocc("FCR_CHEQUEPRESVC") + 1
+	endwhile	
+			
+	$collhandle("FCR_CHEQUEPRESVC")->Salvar()
+	if ($procerror)
+		$instancehandle->setStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	elseif ($status < 0)
+		$instancehandle->setStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")    
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif 
+	
+	return(0)
+End ;operation cancelarUtilizacaoChequePresente.
+
+
+;-------------------------------
+partner operation buscaParametro
+;-------------------------------
+	variables
+		string viParams, voParams
+	endvariables
+
+	;viParams = ""
+	;putitem viParams, -1, "IN_CALCULO_JUROS_POR_PAR"
+	;activate "ADMSVCO001".GetLstParametro(viParams, voParams, $xCdErro$, $xCtxErro$)
+	;if ($procerror)
+	;	$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+	;	return(-1)
+	;elseif ($status < 0)
+	;	$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")
+	;	return(-1)
+	;endif
+	;$inCalculoJurosPorPar$ = $item("IN_CALCULO_JUROS_POR_PAR", voParams)
+	;
+	
+	viParams = ""
+	putitem viParams, -1, "TP_CHEQUE_PRESENTE"
+	putitem viParams, -1, "NR_PORTADOR_CARTEIRA"
+	putitem viParams, -1, "CD_DESPESA_CHEQUEPRESENTE"
+	putitem viParams, -1, "CD_DESPESA_CHEQUEPRESENTE_CCUSTO"
+	putitem viParams, -1, "NR_PORTADOR_CARTEIRA"
+	putitem viParams, -1, "CD_MOEDA"
+	activate "ADMSVCO001".GetParamEmpresa($item("CD_EMPRESA", $$gParamGlb), viParams, voParams, $xcderro$, $xctxerro$)
+	if ($procerror)
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+		return(-1)
+	elseif ($status < 0)
+		$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")
+		return(-1)
+	endif
+
+	$tpChequePresente$        = $item("TP_CHEQUE_PRESENTE", voParams)
+	$nrPortadorCarteira$      = $item("NR_PORTADOR_CARTEIRA", voParams)	
+	$cdDespesaChequePresente$ = $item("CD_DESPESA_CHEQUEPRESENTE", voParams)	
+	$cdCentroCusto$           = $item("CD_DESPESA_CHEQUEPRESENTE_CCUSTO", voParams)	
+	$cdMoeda$                 = $item("CD_MOEDA", voParams)	
+
+	return (0)
+end ; operation buscaParametro
+
+;----------------------------------------
+public operation zeramentoChequePresente
+;----------------------------------------
+;Projeto 180 - Tarefa 0187 - Aloisio Gargantini - 01/06/2011
+
+	params
+		string piGlobal  :IN
+		string piParams  :IN
+		string poParams  :OUT
+		string poCdErro  :OUT
+		string poCtxErro :OUT
+	endparams
+
+	variables
+		string  viParams, voParams
+		numeric vCdEmpresa, vCdCliente, vNrCheque, vVlSaldo, vCdEmpLiq, vNrSeqLiq, vNrCtaPes, viValores
+		date    vDtLiq, vDtSistema
+	endvariables
+
+	vCdEmpresa = $item("CD_EMPRESA", piParams)
+	vCdCliente = $item("CD_CLIENTE", piParams)
+	vNrCheque  = $item("NR_CHEQUE",  piParams)
+	vVlSaldo   = $item("VL_SALDO",   piParams)
+	vCdEmpLiq  = $item("CD_EMPLIQ",  piParams)
+	vNrSeqLiq  = $item("NR_SEQLIQ",  piParams)
+	vDtLiq     = $item("DT_LIQ",     piParams)
+	vNrCtaPes  = $item("NR_CTAPES",  piParams)
+	vDtSistema = $item("DT_SISTEMA", piGlobal)
+
+	if (vCdEmpresa = 0)
+		$instancehandle->setStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Código da empresa do cheque presente não informado para zeramento.", "")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	if (vCdCliente = 0)
+		$instancehandle->setStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Código do cliente do cheque presente não informado para zeramento.", "")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	if (vNrCheque = 0)
+		$instancehandle->setStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Número do cheque presente não informado para zeramento.", "")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	if (vVlSaldo = 0)
+		$instancehandle->setStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Saldo do cheque presente já está zerado.", "")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	if (vCdEmpLiq = 0)
+		$instancehandle->setStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Código da empresa da liquidação do cheque presente não informado para zeramento.", "")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	if (vNrSeqLiq = 0)
+		$instancehandle->setStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Número da sequência da liquidação do cheque presente não informado para zeramento.", "")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	if (vDtLiq = 0)
+		$instancehandle->setStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Data da liquidação do cheque presente não informada para zeramento.", "")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	if (vNrCtaPes = 0)
+		$instancehandle->setStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Número da conta do cheque presente não informado para zeramento.", "")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+
+	if (vVlSaldo > 0)
+		;efetuar débito na conta
+		viParams = ""
+		putitem/id viParams, "CD_EMPRESA",       vCdEmpresa
+		putitem/id viParams, "NR_CTAPES",        vNrCtapes
+		putitem/id viParams, "DT_MOVIMENTO",     vDtSistema
+		putitem/id viParams, "CD_HISTORICO",     1094 ;Débito cheque presente
+		putitem/id viParams, "TP_DOCUMENTO",     18 ;Cheque presente
+		putitem/id viParams, "NR_SEQHISTRELSUB", 1
+		putitem/id viParams, "CD_EMPLIQ",        vCdEmpLiq
+		putitem/id viParams, "DT_LIQ",           vDtLiq
+		putitem/id viParams, "NR_SEQLIQ",        vNrSeqLiq
+		putitem/id viParams, "VL_LANCTO",        vVlSaldo
+		putitem/id viParams, "IN_ESTORNO",       <FALSE>
+		putitem/id viParams, "IN_CAIXA",         <FALSE>
+		putitem/id viParams, "DS_DOC",           "Deb. cheque Presente"
+		putitem/id viParams, "DS_AUX",           ""
+		putitem/id viParams, "CD_EMPCHQPRES",    vCdEmpresa
+		putitem/id viParams, "CD_CLICHQPRES",    vCdCliente
+		putitem/id viParams, "NR_CHEQUEPRES",    vNrCheque
+		activate "FCCSVCO002".movimentaConta(piGlobal, viParams, viValores, voParams, $xCdErro$, $xCtxerro$)
+		if ($procerror)       
+			$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+			poCdErro = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return(-1)
+		elseif ($status < 0)
+			$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")
+			poCdErro = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return(-1)
+		endif
+
+		;grava observação do movimento
+		viParams = ""
+		putitem/id viParams, "NR_CTAPES",     vNrCtaPes
+		putitem/id viParams, "DT_MOVIM",      vDtSistema
+		putitem/id viParams, "NR_SEQMOV",     $item("NR_SEQMOV", voParams)
+		putitem/id viParams, "CD_COMPONENTE", "FCRSVCO068"
+		putitem/id viParams, "DS_OBS",        "Zeramento cheque presente"
+		activate "FCCSVCO002".gravaObsMov($$gParamGlb, viParams, voParams, $xCdErro$, $xCtxerro$)
+		if ($procerror)       
+			$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+			poCdErro  = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return (-1)
+		elseif ($status < 0)
+			$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")
+			poCdErro  = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return (-1)
+		endif
+	endif
+
+	if (vVlSaldo < 0)
+		;efetuar crédito na conta
+		viParams = ""
+		putitem/id viParams, "CD_EMPRESA",       vCdEmpresa
+		putitem/id viParams, "NR_CTAPES",        vNrCtapes
+		putitem/id viParams, "DT_MOVIMENTO",     vDtSistema
+		putitem/id viParams, "CD_HISTORICO",     1093 ;Crédito cheque presente
+		putitem/id viParams, "TP_DOCUMENTO",     18 ;Cheque presente
+		putitem/id viParams, "NR_SEQHISTRELSUB", 1
+		putitem/id viParams, "CD_EMPLIQ",        vCdEmpLiq
+		putitem/id viParams, "DT_LIQ",           vDtLiq
+		putitem/id viParams, "NR_SEQLIQ",        vNrSeqLiq
+		putitem/id viParams, "VL_LANCTO",        vVlSaldo
+		putitem/id viParams, "IN_ESTORNO",       <FALSE>
+		putitem/id viParams, "IN_CAIXA",         <FALSE>
+		putitem/id viParams, "DS_DOC",           "Cred. Cheque Presente"
+		putitem/id viParams, "DS_AUX",           ""
+		putitem/id viParams, "CD_EMPCHQPRES",    vCdEmpresa
+		putitem/id viParams, "CD_CLICHQPRES",    vCdCliente
+		putitem/id viParams, "NR_CHEQUEPRES",    vNrCheque
+		activate "FCCSVCO002".movimentaConta(piGlobal, viParams, viValores, voParams, $xCdErro$, $xCtxerro$)
+		if ($procerror)       
+			$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+			poCdErro = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return(-1)
+		elseif ($status < 0)
+			$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")
+			poCdErro = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return(-1)
+		endif
+
+		;grava observação do movimento
+		viParams = ""
+		putitem/id viParams, "NR_CTAPES",     vNrCtaPes
+		putitem/id viParams, "DT_MOVIM",      vDtSistema
+		putitem/id viParams, "NR_SEQMOV",     $item("NR_SEQMOV", voParams)
+		putitem/id viParams, "CD_COMPONENTE", "FCRSVCO068"
+		putitem/id viParams, "DS_OBS",        "Zeramento cheque presente"
+		activate "FCCSVCO002".gravaObsMov($$gParamGlb, viParams, voParams, $xCdErro$, $xCtxerro$)
+		if ($procerror)       
+			$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+			poCdErro  = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return (-1)
+		elseif ($status < 0)
+			$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")
+			poCdErro  = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return (-1)
+		endif
+	endif
+
+	viParams = ""
+	putitem/id viParams, "CD_EMPRESA", vCdEmpresa
+	putitem/id viParams, "CD_CLIENTE", vCdCliente
+	putitem/id viParams, "NR_CHEQUE" , vNrCheque
+	putitem/id viParams, "TP_CHEQUE" , 1
+	activate "FCRSVCO068".gravarUtilizacaoChequePresente($xlpg$, viParams, voParams, $xCdErro$, $xCtxErro$)
+	if ($procerror)
+		$instancehandle->setStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	elseif ($status)
+		$instancehandle->setStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+
+	return (0)
+end ; operation zeramentoChequePresente
+
+;------------------------------------------------;
+public operation atualizarChequePresente         ;
+;------------------------------------------------;
+;Projeto: 180 - Tarefa 0181 - 25/05/2011         ;
+;         Aloisio Gargantini                     ;
+;Chamada: FCRFP086.efetuarLancamento             ;
+;------------------------------------------------;
+	params
+		string piGlobal  :IN
+		string piParams  :IN
+		string poParams  :OUT
+		string poCdErro  :OUT
+		string poCtxErro :OUT
+	endparams
+
+	variables
+		string  vDsRegistro, vDsLstCampo, vDsCampo, vNmCheque, vCdComponente, viParams, voParams, viValores, vCdBarra
+		numeric vCdEmpresa, vCdCliente, vCdTipoCampo, vNrGeral, vNrCheque, vVlCheque
+		numeric vCdEmpLiq, vNrSeqLiq, vNrCtaPes, vNrTransacao
+		date vDtCheque, vDtLiq
+	endvariables
+
+	vVlCheque     = $item("VL_CHEQUE", piParams)
+	vDtCheque     = $item("DT_CHEQUE", piParams)
+	vCdEmpresa    = $item("CD_EMPRESA", piParams)
+	vCdCliente    = $item("CD_CLIENTE", piParams)
+	vNrCheque     = $item("NR_CHEQUE", piParams)
+	vCdEmpLiq     = $item("CD_EMPLIQ", piParams)
+	vDtLiq        = $item("DT_LIQ", piParams)
+	vNrSeqLiq     = $item("NR_SEQLIQ", piParams)
+	vCdComponente = $item("CD_COMPONENTE", piParams)
+	vCdBarra      = $item("CD_BARRA", piParams)
+
+	if (vNrCheque = "") | (vNrCheque = 0)
+		$instancehandle->setStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Número de cheque não informado para atualização do cheque presente.", "")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+
+	if (vVlCheque = "") | (vVlCheque = 0)
+		$instancehandle->setStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Valor do cheque não informado para atualização do cheque presente.", "")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+
+	if (vDtCheque = "") | (vDtCheque = 0)
+		$instancehandle->setStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Data do cheque não informada para atualização do cheque presente.", "")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+
+	if (vCdEmpresa = "") | (vCdEmpresa = 0)
+		$instancehandle->setStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Empresa não informada para atualização do cheque presente.", "")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+
+	if (vCdCliente = "") | (vCdCliente = 0)
+		$instancehandle->setStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Cliente não informado para atualização do cheque presente.", "")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+
+	if (vCdEmpLiq = "") | (vCdEmpLiq = 0)
+		$instancehandle->setStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Empresa de liquidação não informada para atualização do cheque presente.", "")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+
+	if (vNrSeqLiq = "") | (vNrSeqLiq = 0)
+		$instancehandle->setStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Número de sequência de liquidação não informado para atualização do cheque presente.", "")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	
+	if (vDtLiq = "") | (vDtLiq = 0)
+		$instancehandle->setStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Data de liquidação não informada para atualização do cheque presente.", "")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+
+	if (vCdComponente = "")
+		$instancehandle->setStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Código de componente não informado para atualização do cheque presente.", "")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	
+	creocc "FCR_CHEQUEPRESVC", -1
+	CD_EMPRESA.FCR_CHEQUEPRESVC      = vCdEmpresa
+	CD_CLIENTE.FCR_CHEQUEPRESVC      = vCdCliente
+	NR_CHEQUE.FCR_CHEQUEPRESVC       = vNrCheque
+	retrieve/o "FCR_CHEQUEPRESVC"
+	if ($status = -7)
+		retrieve/x "FCR_CHEQUEPRESVC"
+	else
+		$instancehandle->setStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Cheque presente não encontrado para atualização do cheque presente. Empresa: %%CD_EMPRESA.FCR_CHEQUEPRESVC  Cliente: %%CD_CLIENTE.FCR_CHEQUEPRESVC  Número: %%NR_CHEQUE.FCR_CHEQUEPRESVC.", "")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	CD_OPERADOR.FCR_CHEQUEPRESVC     = $item("CD_USUARIO", piGlobal)
+	DT_CADASTRO.FCR_CHEQUEPRESVC     = $datim
+	DT_EMISSAO.FCR_CHEQUEPRESVC      = $datim
+	DT_VALIDADE.FCR_CHEQUEPRESVC     = vDtCheque
+	DS_NOMINAL.FCR_CHEQUEPRESVC      = vNmCheque
+	VL_CHEQUE.FCR_CHEQUEPRESVC       = VL_CHEQUE.FCR_CHEQUEPRESVC + vVlCheque
+	DT_INCLUSAO.FCR_CHEQUEPRESVC     = $datim
+	CD_OPERINCL.FCR_CHEQUEPRESVC     = $item("CD_USUARIO", piGlobal)
+	DT_UTILIZACAO.FCR_CHEQUEPRESVC   = ""
+	CD_OPERUTIL.FCR_CHEQUEPRESVC     = ""
+	DT_CANCELAMENTO.FCR_CHEQUEPRESVC = ""
+	CD_OPERCANCEL.FCR_CHEQUEPRESVC   = ""
+	TP_SITUACAO.FCR_CHEQUEPRESVC     = 1 ; normal
+	CD_EMPLIQ.FCR_CHEQUEPRESVC       = vCdEmpLiq
+	DT_LIQ.FCR_CHEQUEPRESVC          = vDtLiq
+	NR_SEQLIQ.FCR_CHEQUEPRESVC       = vNrSeqLiq		
+	CD_BARRA.FCR_CHEQUEPRESVC        = vCdBarra
+	TP_CHEQUE.FCR_CHEQUEPRESVC       = 1
+	;busca conta do cliente
+	viParams = ""
+	putitem/id viParams, "CD_PESSOA", vCdCliente
+	putitem/id viParams, "TP_CONTA",  "C"
+	activate "FCCSVCO002".buscaContaPessoa(piGlobal, viParams, voParams, $xCdErro$, $xCtxerro$)
+	if ($procerror)       
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	elseif ($status < 0)
+		$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	vNrCtapes = $item("NR_CTAPES", voParams)
+	NR_CTAPES.FCR_CHEQUEPRESVC   = vNrCtaPes
+	;movimenta conta cliente
+	viParams = ""
+	putitem/id viParams, "CD_EMPRESA",       vCdEmpresa
+	putitem/id viParams, "NR_CTAPES",        vNrCtapes
+	putitem/id viParams, "DT_MOVIMENTO",     vDtLiq
+	putitem/id viParams, "CD_HISTORICO",     1093 ;Crédito cheque presente
+	putitem/id viParams, "TP_DOCUMENTO",     18 ;Cheque presente
+	putitem/id viParams, "NR_SEQHISTRELSUB", 1
+	putitem/id viParams, "CD_EMPLIQ",        vCdEmpLiq
+	putitem/id viParams, "DT_LIQ",           vDtLiq
+	putitem/id viParams, "NR_SEQLIQ",        vNrSeqLiq
+	putitem/id viParams, "VL_LANCTO",        vVlCheque
+	putitem/id viParams, "IN_ESTORNO",       <FALSE>
+	putitem/id viParams, "IN_CAIXA",         <FALSE>
+	putitem/id viParams, "DS_DOC",           "Cred. Cheque presente"
+	putitem/id viParams, "DS_AUX",           ""
+	putitem/id viParams, "CD_EMPCHQPRES",    vCdEmpresa
+	putitem/id viParams, "CD_CLICHQPRES",    vCdCliente
+	putitem/id viParams, "NR_CHEQUEPRES",    vNrCheque
+	activate "FCCSVCO002".movimentaConta(piGlobal, viParams, viValores, voParams, $xCdErro$, $xCtxerro$)
+	if ($procerror)       
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	elseif ($status < 0)
+		$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+
+	$collhandle("FCR_CHEQUEPRESVC")->Salvar()
+	if ($procerror)
+		$instancehandle->setStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	elseif ($status < 0)
+		$instancehandle->setStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")    
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif 
+
+	return(0)
+End ;operation gravarChequePresente.
+
+
+
+;----------------------------------------
+public operation buscaSaldoChequePresente
+;----------------------------------------
+;Projeto 180 - Tarefa 0181 - Aloisio Gargantini - 25/05/2011
+;Chamada: TRASVCO013, FCRFC074
+;
+	params
+		string  piGlobal   :IN    
+		string  piParams   	:IN
+		string  poParams   	:OUT
+		string  poCdErro   	:OUT
+		string  poCtxErro 	:OUT
+	endparams
+
+	variables
+		numeric vNrCtaPes, vVlSaldo, vTpDocumento, vNrSeqHistRelSub, vCdEmpresa, vCdCliente, vNrCheque
+		date    vDtMovim
+	endvariables
+
+	vNrCtaPes 			= $item("NR_CTAPES", piParams)
+	vTpDocumento 		= $item("TP_DOCUMENTO", piParams)
+	vNrSeqHistRelSub	= $item("NR_SEQHISTRELSUB", piParams)
+	vCdEmpresa         = $item("CD_EMPRESA", piParams)
+	vCdCliente         = $item("CD_CLIENTE", piParams)
+	vNrCheque          = $item("NR_CHEQUE", piParams)
+	if (vNrCtaPes = 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Conta não informada!", "ADICONAL=Operação->FCRSVCO068.buscaSaldoChequePresente")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	if (vTpDocumento = 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO= Tipo documento da conta não informado!", "ADICIONAL=Operação->FCRSVCO068.buscaSaldoChequePresente")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	if (vNrSeqHistRelSub = 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO= Número de sequência da conta não informado!", "ADICIONAL=Operação->FCRSVCO068.buscaSaldoChequePresente")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	if (vCdEmpresa = 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO= Código da empresa do cheque presente não informado!", "ADICIONAL=Operação->FCRSVCO068.buscaSaldoChequePresente")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	if (vCdCliente = 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO= Código do cliente do cheque presente não informado!", "ADICIONAL=Operação->FCRSVCO068.buscaSaldoChequePresente")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	if (vNrCheque = 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO= Número do do cheque presente não informado!", "ADICIONAL=Operação->FCRSVCO068.buscaSaldoChequePresente")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+
+	vVlSaldo = 0
+	clear/e "FCC_MOVSVC"
+	NR_CTAPES.FCC_MOVSVC/init        = vNrCtaPes
+	CD_HISTORICO.FCC_MOVSVC/init     = "1093·;1094" ;crédito/débito cheque presente
+	TP_DOCUMENTO.FCC_MOVSVC/init     = 18 ;cheque presente
+	NR_SEQHISTRELSUB.FCC_MOVSVC/init = vNrSeqHistRelSub
+	CD_EMPCHQPRES.FCC_MOVSVC/init    = vCdEmpresa
+	CD_CLICHQPRES.FCC_MOVSVC/init    = vCdCliente
+	NR_CHEQUEPRES.FCC_MOVSVC/init    = vNrCheque
+	retrieve/e "FCC_MOVSVC"
+	if ($status >=0)
+		setocc "FCC_MOVSVC", 1
+		while ($status >= 0)
+			if (DT_ESTORNO.FCC_MOVSVC = "")
+				if (CD_HISTORICO.FCC_MOVSVC = 1093) ;crédito cheque presente
+					vVlSaldo = vVlSaldo + VL_LANCTO.FCC_MOVSVC
+				endif
+				if (CD_HISTORICO.FCC_MOVSVC = 1094) ;débito cheque presente
+					vVlSaldo = vVlSaldo - VL_LANCTO.FCC_MOVSVC
+				endif
+			endif
+			setocc "FCC_MOVSVC", $curocc("FCC_MOVSVC") + 1
+		endwhile
+	else
+		vVlSaldo = 0
+	endif
+
+	poParams = ""
+	putitem/id poParams, "VL_SALDO", vVlSaldo
+
+	return(0)
+end; operation buscaSaldoChequePresente
+
+;------------------------------------
+public operation lancaMovimentoDebito
+;------------------------------------
+;Projeto 180 - Tarefa 0185 - Aloisio Gargantini - 02/06/2011
+;Chamada: TRAFM066
+;
+	params
+		string  piGlobal   :IN    
+		string  piParams   	:IN
+		string  poParams   	:OUT
+		string  poCdErro   	:OUT
+		string  poCtxErro 	:OUT
+	endparams
+
+	variables
+		string  viParams, voParams, viValores
+		numeric vNrCtaPes, vVlSaldo, vTpDocumento, vNrSeqHistRelSub, vCdEmpresa, vCdCliente, vNrCheque
+		numeric vNrSeqLiq, vCdEmpLiq, vCdEmpVenda, vVlVenda, vVlCheque
+		date    vDtMovim, vDtLiq
+	endvariables
+
+	vNrCtaPes 			= $item("NR_CTAPES", piParams)
+	vCdEmpresa         = $item("CD_EMPRESA", piParams)
+	vCdCliente         = $item("CD_CLIENTE", piParams)
+	vNrCheque          = $item("NR_CHEQUE", piParams)
+	vCdEmpLiq          = $item("CD_EMPLIQ", piParams)
+	vDtLiq             = $item("DT_LIQ", piParams)
+	vNrSeqLiq          = $item("NR_SEQLIQ", piParams)
+	vVlCheque          = $item("VL_CHEQUE", piParams)
+
+	if (vNrCtaPes = 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Conta não informada!", "ADICIONAL=Operação->FCRSVCO068.lancaMovimentoDebito")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	if (vCdEmpresa = 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO= Código da empresa do cheque presente não informado!", "ADICIONAL=Operação->FCRSVCO068.lancaMovimentoDebito")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	if (vCdCliente = 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO= Código do cliente do cheque presente não informado!", "ADICIONAL=Operação->FCRSVCO068.lancaMovimentoDebito")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	if (vNrCheque = 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO= Número do cheque presente não informado!", "ADICIONAL=Operação->FCRSVCO068.lancaMovimentoDebito")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	if (vCdEmpLiq = 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO= Código da empresa da liquidação do cheque presente não informado!", "ADICIONAL=Operação->FCRSVCO068.lancaMovimentoDebito")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	if (vNrSeqLiq = 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO= Número da sequência da liquidação do cheque presente não informado!", "ADICIONAL=Operação->FCRSVCO068.lancaMovimentoDebito")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	if (vDtLiq = 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO= Data da liquidação do cheque presente não informado!", "ADICIONAL=Operação->FCRSVCO068.lancaMovimentoDebito")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	if (vVlCheque = 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO= Valor de venda não informado!", "ADICIONAL=Operação->FCRSVCO068.lancaMovimentoDebito")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+
+	;movimenta conta cliente
+	viParams = ""
+	putitem/id viParams, "CD_EMPRESA",       vCdEmpresa
+	putitem/id viParams, "NR_CTAPES",        vNrCtapes
+	putitem/id viParams, "DT_MOVIMENTO",     vDtLiq
+	putitem/id viParams, "CD_HISTORICO",     1094 ;Débito cheque presente
+	putitem/id viParams, "TP_DOCUMENTO",     18 ;Cheque presente
+	putitem/id viParams, "NR_SEQHISTRELSUB", 1
+	putitem/id viParams, "CD_EMPLIQ",        vCdEmpLiq
+	putitem/id viParams, "DT_LIQ",           vDtLiq
+	putitem/id viParams, "NR_SEQLIQ",        vNrSeqLiq
+	putitem/id viParams, "VL_LANCTO",        vVlCheque
+	putitem/id viParams, "IN_ESTORNO",       <FALSE>
+	putitem/id viParams, "IN_CAIXA",         <FALSE>
+	putitem/id viParams, "DS_DOC",           "Deb. Cheque presente"
+	putitem/id viParams, "DS_AUX",           ""
+	putitem/id viParams, "CD_EMPCHQPRES",    vCdEmpresa
+	putitem/id viParams, "CD_CLICHQPRES",    vCdCliente
+	putitem/id viParams, "NR_CHEQUEPRES",    vNrCheque
+	activate "FCCSVCO002".movimentaConta(piGlobal, viParams, viValores, voParams, $xCdErro$, $xCtxerro$)
+	if ($procerror)       
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	elseif ($status < 0)
+		$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	;
+
+	;verifica saldo zerado para marcar o cheque como utilizado
+	viParams   = ""
+	putitem/id viParams, "NR_CTAPES",        vNrCtaPes
+	putitem/id viParams, "TP_DOCUMENTO",     18 ;Cheque presente
+	putitem/id viParams, "NR_SEQHISTRELSUB", 1
+	putitem/id viParams, "CD_EMPRESA",       vCdEmpresa
+	putitem/id viParams, "CD_CLIENTE",       vCdCliente
+	putitem/id viParams, "NR_CHEQUE",        vNrCheque
+	activate "FCRSVCO068".buscaSaldoChequePresente($$gParamGlb, viParams, voParams, $xCdErro$, $xCtxErro$)
+	if ($procerror)       
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	elseif ($status < 0)
+		$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	vVlSaldo = $item("VL_SALDO", voParams) 
+	if (vVlSaldo = 0)
+		;se saldo for 0, inutilizar o cheque presente.
+		viParams = ""
+		putitem/id viParams, "CD_EMPRESA", vCdEmpresa
+		putitem/id viParams, "CD_CLIENTE", vCdCliente
+		putitem/id viParams, "NR_CHEQUE" , vNrCheque
+		putitem/id viParams, "TP_CHEQUE" , 1
+		activate "FCRSVCO068".gravarUtilizacaoChequePresente($$gParamGlb, viParams, voParams, $xCdErro$, $xCtxErro$)
+		if ($procerror)
+			$instancehandle->setStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+			poCdErro = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return(-1)
+		elseif ($status)
+			$instancehandle->setStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")
+			poCdErro = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return(-1)
+		endif
+	endif
+
+	return(0)	
+
+End ;operation lancaMovimentoDebito
+
+;-------------------------------------------------;
+public operation gravarMovimentacaoCartaoPresente ; 
+;-------------------------------------------------;
+;Projeto: 180 - Tarefa 0185 - 02/06/2011          ;
+;         Aloisio Gargantini                      ;
+;Chamada: TRAFM066                                ;
+;-------------------------------------------------;
+	params
+		string piGlobal  :IN
+		string piParams  :IN
+		string poParams  :OUT
+		string poCdErro  :OUT
+		string poCtxErro :OUT
+	endparams
+
+	variables
+		string  vDsRegistro, vDsLstCampo, vDsCampo, vNmCheque, vCdComponente, viParams, voParams, vDsRegDup, vDsLstDesp
+		numeric vCdEmpresa, vCdCliente, vCdTipoCampo, vNrGeral, vNrCheque, vVlCheque, vCdEmpFat, vCdClienteFat, vNrFat
+		numeric vNrParcela, vTpCheque, vCdEmpLiq, vNrSeqLiq, vNrCtaPes, viValores, vCdEmpLogada, vTpLiq
+		numeric vCdClienteEmpresa, vCdFornecedorEmpresa, vNrSeqFat, vNrSeqItem, vNrSeqAtual
+		date vDtCheque, vDtLiq
+	endvariables
+
+	$instancehandle->buscaParametro()
+	if ($procerror)
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+
+	vNrCheque     = $item("NR_CHEQUE", piParams)
+	vCdEmpresa    = $item("CD_EMPRESA", piParams)
+	vCdCliente    = $item("CD_CLIENTE", piParams)
+	vVlCheque     = $item("VL_CHEQUE", piParams)
+	vCdEmpLiq     = $item("CD_EMPLIQ", piParams)
+	vDtLiq        = $item("DT_LIQ", piParams)
+	vNrSeqLiq     = $item("NR_SEQLIQ", piParams)
+	vTpLiq        = $item("TP_LIQ", piParams)
+	vNrCtaPes     = $item("NR_CTAPES", piParams)
+	;Projeto 180 - Tarefa 0227 - Aloisio Gargantini - 27/07/2011
+	vNrSeqItem    = $item("NR_SEQITEM", piParams)
+	;
+	vNrSeqAtual   = $item("NR_SEQATUAL", piParams) ;MARTINEZ - PRJ/TAR 186/311 - 10/11/2011
+
+	if (vNrCheque = "") | (vNrCheque = 0)
+		$instancehandle->setStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Número de cheque não informado para movimentação do cheque presente.", "ADICIONAL=Operação->FCRSVCO068.gravaMovimentacaoCartaoPresente")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+
+	if (vCdEmpresa = "") | (vCdEmpresa = 0)
+		$instancehandle->setStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Empresa não informada para movimentação do cheque presente.", "ADICIONAL=Operação->FCRSVCO068.gravaMovimentacaoCartaoPresente")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+
+	if (vCdCliente = "") | (vCdCliente = 0)
+		$instancehandle->setStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Cliente não informado para movimentação do cheque presente.", "ADICIONAL=Operação->FCRSVCO068.gravaMovimentacaoCartaoPresente")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+
+	if (vVlCheque = "") | (vVlCheque = 0)
+		$instancehandle->setStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Valor não informado para movimentação do cheque presente.", "ADICIONAL=Operação->FCRSVCO068.gravaMovimentacaoCartaoPresente")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+
+	if (vCdEmpLiq = "") | (vCdEmpLiq = 0)
+		$instancehandle->setStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Código da empresa da liquidação não informado para movimentação do cheque presente.", "ADICIONAL=Operação->FCRSVCO068.gravaMovimentacaoCartaoPresente")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+
+	if (vDtLiq = "") | (vDtLiq = 0)
+		$instancehandle->setStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Data da liquidação não informado para movimentação do cheque presente.", "ADICIONAL=Operação->FCRSVCO068.gravaMovimentacaoCartaoPresente")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif	
+
+	if (vNrSeqLiq = "") | (vNrSeqLiq = 0)
+		$instancehandle->setStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Número da sequência da liquidação não informado para movimentação do cheque presente.", "ADICIONAL=Operação->FCRSVCO068.gravaMovimentacaoCartaoPresente")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+
+	if (vTpLiq = "") | (vTpLiq = 0)
+		$instancehandle->setStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Tipo da liquidação não informado para movimentação do cheque presente.", "ADICIONAL=Operação->FCRSVCO068.gravaMovimentacaoCartaoPresente")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+
+	if (vNrCtaPes = "") | (vNrCtaPes = 0)
+		$instancehandle->setStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Número da conta não informado para movimentação do cheque presente.", "ADICIONAL=Operação->FCRSVCO068.gravaMovimentacaoCartaoPresente")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+
+	if (vNrSeqItem = "") | (vNrSeqItem = 0)
+		$instancehandle->setStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Número de sequência do ítem da liquidação não informado para movimentação do cheque presente.", "ADICIONAL=Operação->FCRSVCO068.gravaMovimentacaoCartaoPresente")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+
+	;movimenta conta cliente (débito)
+	vCdEmpLogada = $item("CD_EMPRESA", piGlobal)
+
+	viParams = ""
+	putitem/id viParams, "NR_CTAPES",   vNrCtaPes
+	putitem/id viParams, "CD_EMPRESA",  vCdEmpresa
+	putitem/id viParams, "CD_CLIENTE",  vCdCliente
+	putitem/id viParams, "NR_CHEQUE" ,  vNrCheque
+	putitem/id viParams, "CD_EMPLIQ",   vCdEmpLiq
+	putitem/id viParams, "NR_SEQLIQ",   vNrSeqLiq
+	putitem/id viParams, "DT_LIQ",      vDtLiq
+	putitem/id viParams, "VL_CHEQUE",   vVlCheque
+	activate "FCRSVCO068".lancaMovimentoDebito($$gParamGlb, viParams, voParams, $xCdErro$, $xCtxErro$)
+	if ($procerror)
+		$instancehandle->setStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+		return(-1)
+	elseif ($status)
+		$instancehandle->setStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")
+		return(-1)
+	endif
+
+;	;gravar o número do cheque na tabela de liquidação adicional para informações de cancelamento.
+	clear/e "FGR_LIQICRADISVC"
+	creocc "FGR_LIQICRADISVC", -1
+	CD_EMPLIQ.FGR_LIQICRADISVC       = vCdEmpLiq
+	DT_LIQ.FGR_LIQICRADISVC          = vDtLiq
+	NR_SEQLIQ.FGR_LIQICRADISVC       = vNrSeqLIq
+	NR_SEQITEM.FGR_LIQICRADISVC      = vNrSeqItem
+	CD_OPERADOR.FGR_LIQICRADISVC     = $item("CD_USUARIO", piGlobal)
+	DT_CADASTRO.FGR_LIQICRADISVC     = $datim
+	TP_FATURAMENTO.FGR_LIQICRADISVC  = 1 ;vista
+	CD_EMPCHQPRES.FGR_LIQICRADISVC   = vCdEmpresa
+	NR_CHEQUEPRES.FGR_LIQICRADISVC   = vNrCheque
+	CD_CLICHQPRES.FGR_LIQICRADISVC   = vCdCliente
+	NR_CTAPESPRES.FGR_LIQICRADISVC   = vNrCtaPes
+	CD_MOEDA.FGR_LIQICRADISVC        = $cdMoeda$
+	NR_PORTADOR.FGR_LIQICRADISVC     = $nrPortadorCarteira$
+
+	$collhandle("FGR_LIQICRADISVC")->Salvar()
+	if ($procerror)
+		$instancehandle->setStatus(<STS_ERRO>, $procerror, $procerrorcontext, "ADICIONAL=  /  FCRSVCO068.gravarMovimentacaoCartaoPresente()")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	elseif ($status < 0)
+		$instancehandle->setStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "ADICIONAL=  /  FCRSVCO068.gravarMovimentacaoCartaoPresente()")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+
+	;testa se empresa do cheque presente é diferente da empresa logada.
+	;caso seja, será gerada uma duplicata para a empresa logada e uma fatura para a empresa do cheque.
+	;A pagar = empresa logada / A receber = empresa do cheque.
+	vCdEmpLogada = $item("CD_EMPRESA", piGlobal)
+	if (vCdEmpresa != vCdEmpLogada) & (vCdEmpresa > 0) & (vCdEmpLogada > 0)
+		;busca os codigos de cliente da empresa.
+		clear/e "GER_EMPRESASVC"
+		CD_EMPRESA.GER_EMPRESASVC/init = vCdEmpresa
+		retrieve/e "GER_EMPRESASVC"
+		if ($status >=0)
+			vCdClienteEmpresa = CD_PESSOA.GER_EMPRESASVC
+		else
+			$instancehandle->setStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Código da pessoa da empresa do cheque na tabela de empresa não existe para movimentação do cheque presente.", "ADICIONAL=Operação->FCRSVCO068.gravaMovimentacaoCartaoPresente")
+			poCdErro  = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return(-1)
+		endif
+		;busca os codigos de fornecedor da empresa logada.
+		clear/e "GER_EMPRESASVC"
+		CD_EMPRESA.GER_EMPRESASVC/init = vCdEmpLogada
+		retrieve/e "GER_EMPRESASVC"
+		if ($status >=0)
+			vCdFornecedorEmpresa = CD_PESSOA.GER_EMPRESASVC
+		else
+			$instancehandle->setStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Código da pessoa da empresa logada na tabela de empresa não existe para movimentação do cheque presente.", "ADICIONAL=Operação->FCRSVCO068.gravaMovimentacaoCartaoPresente")
+			poCdErro  = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return(-1)
+		endif
+
+		;gera a fatura para a empresa do cheque
+		clear/e "FCR_FATURAISVC"
+		creocc "FCR_FATURAISVC", -1
+		CD_EMPRESA.FCR_FATURAISVC     = vCdEmpresa
+		CD_CLIENTE.FCR_FATURAISVC     = vCdFornecedorEmpresa
+		NR_FAT.FCR_FATURAISVC         = vNrCheque
+		DT_EMISSAO.FCR_FATURAISVC     = vDtLiq
+		DT_VENCIMENTO.FCR_FATURAISVC  = vDtLiq
+		TP_FATURAMENTO.FCR_FATURAISVC = 21 ;Cheque presente
+		TP_COBRANCA.FCR_FATURAISVC    = 1  ;simples
+		TP_SITUACAO.FCR_FATURAISVC    = 1  ;Normal.
+		TP_INCLUSAO.FCR_FATURAISVC    = 2  ;Automatica.
+		NR_PORTADOR.FCR_FATURAISVC    = $nrPortadorCarteira$
+		TP_DOCUMENTO.FCR_FATURAISVC   = 1  ;Fatura.
+		VL_FATURA.FCR_FATURAISVC      = vVlCheque
+			
+		vDsRegistro = ""
+		putlistitems/occ vDsRegistro, "FCR_FATURAISVC"
+		viParams = ""
+		putitem/id viParams, "DS_FATURAI",      vDsRegistro
+		putitem/id viParams, "IN_ALTSOFATURAI", <FALSE>
+		putitem/id viParams, "IN_SEMCOMISSAO",  <TRUE>
+		putitem/id viParams, "IN_SEMIMPOSTO",   <TRUE>
+		putitem/id viParams, "CD_COMPONENTE",   $componentname
+		activate "FCRSVCO001".geraFatura($$gParamGlb, viParams, voParams, $xCdErro$, $xCtxErro$)
+		if ($procerror)       
+			$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+			poCdErro = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return(-1)
+		elseif ($status < 0)
+			$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")
+			poCdErro = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return(-1)
+		endif
+		vNrParcela = $item("NR_PARCELA", voParams)
+		;==BY BIANCHINI[PRJ/TAREFA 180/0277] 31/10/2011 ==;
+		;atualiza liquidação				
+		;##########
+		if (vNrSeqAtual > 0)
+			vNrSeqFat = vNrSeqAtual
+		else
+		;##########
+		;==
+			vNrSeqFat = 0
+			clear/e "FGR_LIQITEMCRSVC"
+			CD_EMPLIQ.FGR_LIQITEMCRSVC/init = vCdEmpLiq
+			DT_LIQ.FGR_LIQITEMCRSVC/init    = vDtLiq
+			NR_SEQLIQ.FGR_LIQITEMCRSVC/init = vNrSeqLiq
+			retrieve/e "FGR_LIQITEMCRSVC"
+			if ($status >=0)
+				setocc "FGR_LIQITEMCRSVC", 1
+				while ($status >= 0)
+
+					if (NR_SEQITEM.FGR_LIQITEMCRSVC > vNrSeqFat)
+						vNrSeqFat = NR_SEQITEM.FGR_LIQITEMCRSVC
+					endif
+
+					setocc "FGR_LIQITEMCRSVC", $curocc("FGR_LIQITEMCRSVC") + 1
+				endwhile
+			endif
+		endif
+
+		vNrSeqFat = vNrSeqFat + 1
+		viParams = ""
+		putitem/id viParams, "CD_EMPLIQ",     vCdEmpLiq
+		putitem/id viParams, "DT_LIQ",        vDtLiq
+		putitem/id viParams, "NR_SEQLIQ",     vNrSeqLiq
+		putitem/id viParams, "NR_SEQFATURA",  vNrSeqFat
+		putitem/id viParams, "TP_LIQUIDACAO", vTpLiq
+		putitem/id viParams, "TP_TIPOREG",    5
+		putitem/id viParams, "CD_PESSOA",     CD_CLIENTE.FCR_FATURAISVC
+		putitem/id viParams, "CD_EMPFAT",     CD_EMPRESA.FCR_FATURAISVC
+		putitem/id viParams, "CD_CLIENTEFAT", CD_CLIENTE.FCR_FATURAISVC
+		putitem/id viParams, "NR_FAT",        NR_FAT.FCR_FATURAISVC
+		putitem/id viParams, "NR_PARCELA",    vNrParcela
+		putitem/id viParams, "TP_DOCUMENTO",  TP_DOCUMENTO.FCR_FATURAISVC
+		putitem/id viParams, "VL_PAGO",       vVlCheque
+		putitem/id viParams, "IN_ATUALIZA",   "N"
+		activate "FCPSVCO014".atualizaLiqCR($$gParamGlb, viParams, voParams, $xCdErro$, $xCtxErro$)
+		if ($procerror)
+			$instancehandle->setStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+			poCdErro = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return(-1)
+		elseif ($status < 0)
+			$instancehandle->setStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")
+			poCdErro = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return(-1)
+		endif
+
+		;Gerar duplicata.
+		vDsRegDup   = ""
+		vDsRegistro = ""
+		vDsLstDesp  = ""
+		putitem/id vDsRegDup,   "CD_EMPRESA",      vCdEmpLogada
+		putitem/id vDsRegDup,   "CD_FORNECEDOR",   vCdClienteEmpresa
+		putitem/id vDsRegDup,   "NR_DUPLICATA",    vNrCheque
+		putitem/id vDsRegDup,   "NR_PORTADOR",     $nrPortadorCarteira$
+		putitem/id vDsRegDup,   "DT_EMISSAO",      vDtLiq
+		putitem/id vDsRegDup,   "DT_ENTRADA",      vDtLiq
+		putitem/id vDsRegDup,   "TP_SITUACAO",     "N" ;Normal.
+		putitem/id vDsRegDup,   "TP_DOCUMENTO",    30  ;Cheque presente
+		putitem/id vDsRegDup,   "TP_INCLUSAO",     2   ;Automática.
+		putitem/id vDsRegDup,   "TP_PREVISAOREAL", 2   ;Real.
+		putitem/id vDsRegDup,   "DT_VENCIMENTO",   vDtLiq
+		putitem/id vDsRegDup,   "VL_DUPLICATA",    vVlCheque
+		putitem/id vDsRegDup,   "VL_ORIGINAL",     vVlCheque
+		putitem/id vDsRegDup,   "TP_ESTAGIO",      1
+		putitem/id vDsRegDup,   "TP_BAIXA",        0 ;Nao baixada.
+		putitem/id vDsRegistro, "CD_DESPESAITEM",  $cdDespesaChequePresente$
+		putitem/id vDsRegistro, "CD_CUSTO",        $cdCentroCusto$
+		putitem/id vDsRegistro, "PR_RATEIO",       100
+		putitem/id vDsRegistro, "VL_RATEIO",       vVlCheque
+		putitem    vDsLstDesp,  -1,                vDsRegistro
+		putitem/id vDsRegDup,   "DS_DUPDESPESA",   vDsLstDesp
+		
+		viParams = ""
+		putitem/id viParams, "DS_DUPLICATAI", vDsRegDup
+		putitem/id viParams, "DS_COMPONENTE", $componentname
+		activate "FCPSVCO001".geraDuplicata(piGlobal, viParams, voParams, $xCdErro$, $xCtxErro$)
+		if ($procerror)
+			$instancehandle->setStatus(<STS_ERRO>, $procerror, $procerrorcontext, "ADICIONAL=  /  Operação->FCRSVCO068.gravaMovimentacaoCartaoPresente()")
+			poCdErro  = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return(-1)
+		elseif ($status < 0)
+			$instancehandle->setStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "ADICIONAL=  /  Operação->FCRSVCO068.gravaMovimentacaoCartaoPresente()")
+			poCdErro  = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return(-1)
+		endif
+		vNrParcela = $item("NR_PARCELA", voParams)
+
+		;atualiza liquidação
+		viParams = ""
+		putitem/id viParams, "CD_EMPLIQ",       vCdEmpLiq
+		putitem/id viParams, "DT_LIQ",          vDtLiq
+		putitem/id viParams, "NR_SEQLIQ",       vNrSeqLiq
+		putitem/id viParams, "NR_SEQDUPLICATA", 1
+		putitem/id viParams, "TP_LIQUIDACAO",   vTpLiq
+		putitem/id viParams, "TP_SUBLIQ",       5
+		putitem/id viParams, "CD_PESSOA",       vCdClienteEmpresa
+		putitem/id viParams, "CD_EMPRESADUP",   vCdEmpLogada
+		putitem/id viParams, "CD_FORNECDUP",    vCdClienteEmpresa
+		putitem/id viParams, "NR_DUPLICATADUP", vNrCheque
+		putitem/id viParams, "NR_PARCELADUP",   vNrParcela
+		putitem/id viParams, "VL_PAGO",         vVlCheque
+		putitem/id viParams, "IN_ATUALIZA",     "N"
+		activate "FCPSVCO014".atualizaLiqCC($$gParamGlb, viParams, voParams, $xCdErro$, $xCtxErro$)
+		if ($procerror)
+			$instancehandle->setStatus(<STS_ERRO>, $procerror, $procerrorcontext, "ADICIONAL=  /  Operação->FCRSVCO068.gravaMovimentacaoCartaoPresente()")
+			poCdErro  = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return(-1)
+		elseif ($status < 0)
+			$instancehandle->setStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "ADICIONAL=  /  Operação->FCRSVCO068.gravaMovimentacaoCartaoPresente()")
+			poCdErro  = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return(-1)
+		endif	
+	endif
+
+	return(0)
+End ;operation gravarMovimentacaoCartaoPresente.
+
+;----------------------------------------------------;
+public operation cancelarUtilizacaoChequePresCC      ;
+;----------------------------------------------------;
+;Projeto: 180 - Tarefa 0185 - 02/06/2011             ;
+;         Aloisio Gargantini                         ;
+;Chamada: TRASVCO013.cancelaLiquidacao               ;
+;----------------------------------------------------;
+	params
+		string piGlobal  :IN
+		string piParams  :IN
+		string poParams  :OUT
+		string poCdErro  :OUT
+		string poCtxErro :OUT
+	endparams
+
+	variables
+		string  vDetalheFaturaLog, vDsLinhaDuplicata, viParams, voParams, viValores
+		numeric vCdEmpLiq, vNrSeqLiq, vCdEmpresa, vVlCheque, vNrCheque, vNrCtaPes, vCdCliente
+		numeric vCdEmpFat, vCdClienteFat, vNrFat, vNrParcela, vNrSeqItem
+		date    vDtLiq
+	endvariables
+
+	vCdEmpLiq     = $item("CD_EMPLIQ", piParams)
+	vDtLiq        = $item("DT_LIQ", piParams)
+	vNrSeqLiq     = $item("NR_SEQLIQ", piParams)
+	vVlCheque     = $item("VL_CHEQUE", piParams)
+	vCdEmpFat     = $item("CD_EMPFAT", piParams)
+	vCdClienteFat = $item("CD_CLIENTEFAT", piParams)
+	vNrFat        = $item("NR_FAT", piParams)
+	vNrParcela    = $item("NR_PARCELA", piParams)
+	vNrSeqItem    = $item("NR_SEQITEM", piParams) ;MARTINEZ - PRJ/TAR 186/311 - 09/11/2011
+
+	if (vCdEmpLiq = "") | (vCdEmpLiq = 0)
+		$instancehandle->setStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Código da empresa de liquidação não informado para cancelamento do cheque presente.", "")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+
+	if (vDtLiq = "") | (vDtLiq = 0)
+		$instancehandle->setStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Data de liquidação não informado para cancelamento do cheque presente.", "")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+
+	if (vNrSeqLiq = "") | (vNrSeqLiq = 0)
+		$instancehandle->setStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Número de sequência de liquidação não informado para cancelamento do cheque presente.", "")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+
+	if (vCdEmpLiq = "") | (vCdEmpLiq = 0)
+		$instancehandle->setStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Código da empresa de liquidação não informado para cancelamento do cheque presente.", "")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+
+	if (vCdEmpFat = "") | (vCdEmpFat = 0)
+		$instancehandle->setStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Código da empresa da fatura não informado para cancelamento do cheque presente.", "")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+
+	if (vCdClienteFat = "") | (vCdClienteFat = 0)
+		$instancehandle->setStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Código do cliente da fatura não informado para cancelamento do cheque presente.", "")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+
+	if (vNrFat = "") | (vNrFat = 0)
+		$instancehandle->setStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Número da fatura não informado para cancelamento do cheque presente.", "")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+
+	if (vNrParcela = "") | (vNrParcela = 0)
+		$instancehandle->setStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Número da parcela da fatura não informado para cancelamento do cheque presente.", "")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+
+	clear/e "FCR_FATURAISVC"
+	CD_EMPRESA.FCR_FATURAISVC/init = vCdEmpFat
+	CD_CLIENTE.FCR_FATURAISVC/init = vCdClienteFat
+	NR_FAT.FCR_FATURAISVC/init     = vNrFat
+	NR_PARCELA.FCR_FATURAISVC/init = vNrParcela
+	retrieve/e "FCR_FATURAISVC"
+	if ($status >=0) 
+		vVlCheque = VL_PAGO.FCR_FATURAISVC
+	endif
+
+	if (vVlCheque = "") | (vVlCheque = 0)
+		$instancehandle->setStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Valor do cheque não informado para cancelamento do cheque presente.", "")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+
+	clear/e "FGR_LIQICRADISVC"
+	CD_EMPLIQ.FGR_LIQICRADISVC/init  = vCdEmpLiq
+	DT_LIQ.FGR_LIQICRADISVC/init     = vDtLiq
+	NR_SEQLIQ.FGR_LIQICRADISVC/init  = vNrSeqLiq
+	;MARTINEZ - PRJ/TAR 186/311 - 09/11/2011
+	;NR_SEQITEM.FGR_LIQICRADISVC/init = 1
+	NR_SEQITEM.FGR_LIQICRADISVC/init = vNrSeqItem
+	;
+	retrieve/e "FGR_LIQICRADISVC"
+	if ($status >=0)
+		vCdEmpresa    = CD_EMPCHQPRES.FGR_LIQICRADISVC
+		vCdCliente    = CD_CLICHQPRES.FGR_LIQICRADISVC
+		vNrCheque     = NR_CHEQUEPRES.FGR_LIQICRADISVC
+		vNrCtaPes     = NR_CTAPESPRES.FGR_LIQICRADISVC
+	endif
+	if (vCdEmpresa = "") | (vCdEmpresa = 0)
+		$instancehandle->setStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Código da empresa não informado para cancelamento do cheque presente.", "")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+
+	if (vCdCliente = "") | (vCdCliente = 0)
+		$instancehandle->setStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Código do cliente não informado para cancelamento do cheque presente.", "")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+
+	if (vNrCheque = "") | (vNrCheque = 0)
+		$instancehandle->setStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Número do cheque não informado para cancelamento do cheque presente.", "")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+
+	if (vNrCtaPes = "") | (vNrCtaPes = 0)
+		$instancehandle->setStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Número da conta não informado para cancelamento do cheque presente.", "")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+
+	;lançar crédito no FCC_MOV
+	viParams = ""
+	putitem/id viParams, "CD_EMPRESA",       vCdEmpresa
+	putitem/id viParams, "NR_CTAPES",        vNrCtapes
+	putitem/id viParams, "DT_MOVIMENTO",     vDtLiq
+	putitem/id viParams, "CD_HISTORICO",     1093 ;Crédito cheque presente
+	putitem/id viParams, "TP_DOCUMENTO",     18 ;Cheque presente
+	putitem/id viParams, "NR_SEQHISTRELSUB", 1
+	putitem/id viParams, "CD_EMPLIQ",        vCdEmpLiq
+	putitem/id viParams, "DT_LIQ",           vDtLiq
+	putitem/id viParams, "NR_SEQLIQ",        vNrSeqLiq
+	putitem/id viParams, "VL_LANCTO",        vVlCheque
+	putitem/id viParams, "IN_ESTORNO",       <FALSE>
+	putitem/id viParams, "IN_CAIXA",         <FALSE>
+	putitem/id viParams, "DS_DOC",           "Cred. Cheque presente"
+	putitem/id viParams, "DS_AUX",           ""
+	putitem/id viParams, "CD_EMPCHQPRES",    vCdEmpresa
+	putitem/id viParams, "CD_CLICHQPRES",    vCdCliente
+	putitem/id viParams, "NR_CHEQUEPRES",    vNrCheque
+	activate "FCCSVCO002".movimentaConta(piGlobal, viParams, viValores, voParams, $xCdErro$, $xCtxerro$)
+	if ($procerror)       
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	elseif ($status < 0)
+		$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+
+	;cancelar a fatura gerada para a empresa logada 
+	clear/e "FGR_LIQITEMCRSVC"
+	CD_EMPLIQ.FGR_LIQITEMCRSVC/init  = vCdEmpLiq
+	DT_LIQ.FGR_LIQITEMCRSVC/init     = vDtLiq
+	NR_SEQLIQ.FGR_LIQITEMCRSVC/init  = vNrSeqLiq
+	TP_TIPOREG.FGR_LIQITEMCRSVC/init = 5
+	retrieve/e "FGR_LIQITEMCRSVC"
+	if ($status >= 0)
+		setocc "FGR_LIQITEMCRSVC", 1
+		while ($status >= 0)
+			clear/e "FCR_FATURAISVC"
+			CD_EMPRESA.FCR_FATURAISVC/init = CD_EMPFAT.FGR_LIQITEMCRSVC
+			CD_CLIENTE.FCR_FATURAISVC/init = CD_CLIENTE.FGR_LIQITEMCRSVC
+			NR_FAT.FCR_FATURAISVC/init     = NR_FAT.FGR_LIQITEMCRSVC
+			NR_PARCELA.FCR_FATURAISVC/init = NR_PARCELA.FGR_LIQITEMCRSVC
+			retrieve/e "FCR_FATURAISVC"
+			if ($status >=0)
+				TP_SITUACAO.FCR_FATURAISVC     = 3  ;cancelado
+				CD_OPERCANCEL.FCR_FATURAISVC   = $$gCdUsuario
+				DT_CANCELAMENTO.FCR_FATURAISVC = $datim
+				$collhandle ("FCR_FATURAISVC")->Salvar()
+				if ($procerror)
+					$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "ADICIONAL=Não foi possível gravar cancelamento da fatura / FCRSVCO068.cancelarUtilizacaoChequePresenteCC.")
+					poCdErro  = $xCdErro$
+					poCtxErro = $xCtxErro$
+					return(-1)
+				elseif ($status < 0)
+					$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "ADICIONAL=Não foi possível gravar cancelamento da fatura  / FCRSVCO068.cancelarUtilizacaoChequePresenteCC.")			
+					poCdErro  = $xCdErro$
+					poCtxErro = $xCtxErro$
+					return(-1)
+				endif
+	
+				;grava log fatura
+				viParams = ""
+				putitem/id viParams, "CD_EMPRESA",    CD_EMPFAT.FGR_LIQITEMCRSVC
+				putitem/id ViParams, "CD_CLIENTE",    CD_CLIENTE.FGR_LIQITEMCRSVC
+				putitem/id viParams, "NR_FAT",        NR_FAT.FGR_LIQITEMCRSVC
+				putitem/id viParams, "NR_PARCELA",    NR_PARCELA.FGR_LIQITEMCRSVC
+				putitem/id viParams, "TP_LOGFAT",     9
+				putitem/id viParams, "DS_COMPONENTE", "FCRSVCO068"
+				putitem/id viParams, "DS_OBS",        "Cancelamento de Liquidacao"	
+				activate "FCRSVCO001".gravaLogFatura(piGlobal, viParams, voParams, $xCdErro$, $xCtxErro$)
+				if ($procerror)
+					$instancehandle->setStatus(<STS_ERRO>,  "ADICIONAL=   / operation -> FCRSVCO068.cancelarUtilizacaoChequePresenteCC  chamando  FCRSVCO001 -> gravaLogFatura()")
+					poCdErro  = $xCdErro$
+					poCtxErro = $xCtxErro$
+					return(-1)
+				elseif ($status < 0)
+					$instancehandle->setStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "ADICIONAL=   / operation -> FCRSVCO068.cancelarUtilizacaoChequePresenteCC  chamando  FCRSVCO001 -> gravaLogFatura()")
+					poCdErro  = $xCdErro$
+					poCtxErro = $xCtxErro$
+					return(-1)
+				endif
+			endif
+
+			setocc "FGR_LIQITEMCRSVC", $curocc("FGR_LIQITEMCRSVC") + 1
+		endwhile
+	endif
+
+
+	;cancelar a duplicata gerada para a empresa do cheque presente
+	clear/e "FGR_LIQITEMCCSVC"
+	CD_EMPLIQ.FGR_LIQITEMCCSVC/init = vCdEmpLiq
+	DT_LIQ.FGR_LIQITEMCCSVC/init    = vDtLiq
+	NR_SEQLIQ.FGR_LIQITEMCCSVC/init = vNrSeqLiq
+	TP_SUBLIQ.FGR_LIQITEMCCSVC/init = 5
+	retrieve/e "FGR_LIQITEMCCSVC"
+	if ($status >= 0)
+		setocc "FGR_LIQITEMCCSVC", 1
+		while ($status >= 0)
+			putitem/id vDsLinhaDuplicata , "CD_EMPRESA"    , CD_EMPRESADUP.FGR_LIQITEMCCSVC
+			putitem/id vDsLinhaDuplicata , "CD_FORNECEDOR" , CD_FORNECDUP.FGR_LIQITEMCCSVC
+			putitem/id vDsLinhaDuplicata , "NR_DUPLICATA"  , NR_DUPLICATADUP.FGR_LIQITEMCCSVC
+			putitem/id vDsLinhaDuplicata , "NR_PARCELA"    , NR_PARCELADUP.FGR_LIQITEMCCSVC
+			putitem/id vDsLinhaDuplicata , "CD_COMPONENTE" , "FCRSVCO068"
+
+			viParams = ""
+			putitem viParams, -1, vDsLinhaDuplicata
+			activate "FCPSVCO001".CancelaDuplicata($$gParamGlb, viParams, voParams, $xCdErro$, $xCtxErro$)
+			if ($procerror)
+				$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+				poCdErro  = $xCdErro$
+				poCtxErro = $xCtxErro$
+				return(-1)
+			elseif ($status < 0)
+				$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")
+				poCdErro  = $xCdErro$
+				poCtxErro = $xCtxErro$
+				return(-1)
+			endif
+
+			;grava log de cancelamento da duplicata
+			viParams = ""
+			putitem/id viParams, "CD_EMPRESA",    CD_EMPRESADUP.FGR_LIQITEMCCSVC
+			putitem/id viParams, "CD_FORNECEDOR", CD_FORNECDUP.FGR_LIQITEMCCSVC
+			putitem/id viParams, "NR_DUPLICATA",  NR_DUPLICATADUP.FGR_LIQITEMCCSVC
+			putitem/id viParams, "NR_PARCELA",    NR_PARCELADUP.FGR_LIQITEMCCSVC
+			putitem/id viParams, "TP_LOGDUP",     6 ;cancelamento de duplicata
+			putitem/id viParams, "DS_COMPONENTE", $componentname
+			putitem/id viParams, "DS_OBS",        "Cancelamento Cheque presente - Liq: %%vNrSeqLiq Data: %%vDtLiq Emp: %%vCdEmpLiq"
+			activate "FCPSVCO001".gravaLogDuplicata($$gParamGlb, viParams, voParams, $xCdErro$, $xCtxErro$)
+			if ($procerror)
+				$instancehandle->setStatus(<STS_ERRO>, $procerror, $procerrorcontext, "ADICIONAL=   / FCRSVCO068.cancelarUtilizacaoChequePresenteCC.")
+				poCdErro  = $xCdErro$
+				poCtxErro = $xCtxErro$
+				return(-1)
+			elseif ($status < 0)
+				$instancehandle->setStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "ADICIONAL=   / FCRSVCO068.cancelarUtilizacaoChequePresenteCC.")
+				poCdErro  = $xCdErro$
+				poCtxErro = $xCtxErro$
+				return(-1)
+			endif
+
+			setocc "FGR_LIQITEMCCSVC", $curocc("FGR_LIQITEMCCSVC") + 1
+		endwhile
+	endif
+
+	;atualiza o cheque presente caso esteja utilizado
+	creocc "FCR_CHEQUEPRESVC", -1
+	CD_EMPRESA.FCR_CHEQUEPRESVC      = vCdEmpresa
+	CD_CLIENTE.FCR_CHEQUEPRESVC      = vCdCliente
+	NR_CHEQUE.FCR_CHEQUEPRESVC       = vNrCheque
+	retrieve/o "FCR_CHEQUEPRESVC"
+	if ($status = -7)
+		retrieve/x "FCR_CHEQUEPRESVC"
+	else
+		$instancehandle->setStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Cheque presente não encontrado para atualização do cheque presente. Empresa: %%CD_EMPRESA.FCR_CHEQUEPRESVC  Cliente: %%CD_CLIENTE.FCR_CHEQUEPRESVC  Número: %%NR_CHEQUE.FCR_CHEQUEPRESVC.", "")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+
+	if (TP_SITUACAO.FCR_CHEQUEPRESVC = 2) ;Utilizado
+		DT_UTILIZACAO.FCR_CHEQUEPRESVC   = ""
+		CD_OPERUTIL.FCR_CHEQUEPRESVC     = ""
+		DT_CANCELAMENTO.FCR_CHEQUEPRESVC = ""
+		CD_OPERCANCEL.FCR_CHEQUEPRESVC   = ""
+		TP_SITUACAO.FCR_CHEQUEPRESVC     = 1 ; normal
+		$collhandle("FCR_CHEQUEPRESVC")->Salvar()
+		if ($procerror)
+			$instancehandle->setStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+			poCdErro  = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return(-1)
+		elseif ($status < 0)
+			$instancehandle->setStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")    
+			poCdErro  = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return(-1)
+		endif 
+	endif
+
+	return(0)
+End ;operation cancelarUtilizacaoChequePresCC.

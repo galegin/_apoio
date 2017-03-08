@@ -1,0 +1,470 @@
+;------------------------------------------------------;
+public operation gravaLogAt                            ;
+;------------------------------------------------------;
+; MTF - 23/11/04                                       ;
+; Funcao : Grava os Log's e faz a consulta das faturas ;
+;          da empresa correspondente a empresa logada. ;
+; Chamada: FCRFP002 - consulta().                      ;
+;------------------------------------------------------;
+;
+	params
+		string  piGlobal  :IN
+		string  piParams  :IN
+		string  poParams  :OUT
+		numeric poCdErro  :OUT
+		string  poCtxErro :OUT
+	endparams
+	variables
+		string  vpiParams, vpoParams, vDsPessoa, vDsLinha
+		numeric vNrSeq, vNrSequencia
+	endvariables
+	vNrSeq       = 0
+	vNrSequencia = 0
+	
+	;Gravar Logat.
+	;newinstance "GERSVCO011", "GERSVCO011", "TRANSACTION=TRUE"
+	activate "GERSVCO001".GetNumSeq($$gParamGlb, "FCR_LOGAT", "FCR_LOGAT", 9999999, vNrSequencia, $xCdErro$, $xCtxErro$)
+	if ($procerror)
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return (-1)
+	elseif ($status < 0)
+		$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return (-1)
+	endif
+	
+	creocc "FCR_LOGATSVC", -1
+	dt_log.fcr_logatsvc       = $item("DT_SISTEMA", $$gParamGlb)
+	nr_seqlogat.fcr_logatsvc  = vNrSequencia
+	in_conferido.fcr_logatsvc = "N"
+	cd_operador.fcr_logatsvc  = $item("CD_USUARIO", $$gParamGlb)
+	dt_cadastro.fcr_logatsvc  = $item("DT_SISTEMA", $$gParamGlb)
+	
+	vDsPessoa              = $item("DS_PESSOA", piParams)
+	vNrSeq                 = 1
+	repeat
+		vDsLinha = ""
+		getitem vDsLinha, vDsPessoa, 1
+		
+		creocc "FCR_LOGATISVC", -1
+		dt_log.fcr_logatisvc       = dt_log.fcr_logatsvc
+		nr_seqlogat.fcr_logatisvc  = nr_seqlogat.fcr_logatsvc
+		nr_seqlogati.fcr_logatisvc = vNrSeq
+		nr_cliente.fcr_logatisvc   = $item("NR_GERAL", vDsLinha)
+		cd_operador.fcr_logatisvc  = $item("CD_USUARIO", $$gParamGlb)		
+		dt_cadastro.fcr_logatisvc  = $item("DT_SISTEMA", $$gParamGlb)
+		vNrSeq                     = vNrSeq + 1
+		
+		delitem vDsPessoa, 1
+	until (vDsPessoa = "")	
+	
+	validateocc "FCR_LOGATSVC"
+	if ($status = 0)
+		$collhandle ("FCR_LOGATSVC")->salvar()
+		if ($procerror)
+			rollback
+			$instancehandle->setStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+			poCdErro  = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return(-1)
+		elseif ($status < 0)
+			rollback
+			$instancehandle->setStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")
+			poCdErro  = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return(-1)
+		else
+			;putitem/id vpiParams, "CD_USUARIO",           $$gCdUsuario
+			;putitem/id vpiParams, "CD_COMPONENTE",        $item("CD_COMPONENTE", piParams)
+			;putitem/id vpiParams, "CD_GRUPOEMPRESA",      $item("CD_GRUPOEMPRESA", piParams)
+			;putitem/id vpiParams, "IN_RECEBIMENTO",       <TRUE>
+			;putitem/id vpiParams, "IN_UTILIZA_AUDITORIA", <TRUE>
+			;putitem/id vpiParams, "IN_FLAG",              <TRUE>
+			;activate "SICSVCO004".filtraEmpresa($$gParamGlb, vpiParams, vpoParams, $xCdErro$, $xCtxErro$)
+			;if ($procerror)       
+			;	$instancehandle->SetErroProc($procerrorcontext,$xcderro$,$xctxerro$)
+			;	poCdErro  = $xCdErro$
+			;	poCtxErro = $xCtxErro$
+			;	return(-1)
+			;elseif ($xCtxErro$)
+			;	$instancehandle->SetErroApl($xCtxErro$,$xCdErro$,$xCtxErro$) 
+			;	poCdErro  = $xCdErro$
+			;	poCtxErro = $xCtxErro$
+			;	return (-1)
+			;endif
+			
+			;if ($item("LST_GRUPOEMPRESA", vpoParams) != "")
+			
+			;MTF(01/10/2008) - Projeto 078, tarefa 1875.
+			;if ($item("CD_EMPRESA", piParams) != "")
+			;	vpiParams = ""
+			;	;putitem/id vpiParams, "CD_EMPRESA",  $item("LST_GRUPOEMPRESA", vpoParams)
+			;	putitem/id vpiParams, "CD_EMPRESA",  $item("CD_EMPRESA", piParams)
+			;	putitem/id vpiParams, "DT_LOG",      dt_log.fcr_logatsvc
+			;	putitem/id vpiParams, "NR_SEQLOGAT", nr_seqlogat.fcr_logatsvc
+			;	activate "FCRFP002".consultaFaturai(vpiParams, vpoParams, $xCdErro$, $xCtxErro$)
+			;	if ($procerror)
+			;		$instancehandle->setStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+			;		poCdErro  = $xCdErro$
+			;		poCtxErro = $xCtxErro$
+			;		return(-1)
+			;	elseif ($status < 0)
+			;		$instancehandle->setStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")
+			;		poCdErro  = $xCdErro$
+			;		poCtxErro = $xCtxErro$
+			;		return(-1)
+			;	endif
+			;endif
+			;
+		endif
+	endif
+	poParams = ""
+	putitem/id poParams, "DT_LOG",      dt_log.fcr_logatsvc
+	putitem/id poParams, "NR_SEQLOGAT", nr_seqlogat.fcr_logatsvc
+	
+	return(0)
+end ;operation gravaLogAt.
+
+
+;----------------------------------------------------------------;
+public operation validaRecebimento                               ;
+;----------------------------------------------------------------;
+; MTF - 29/03/2005                                               ;
+; Funcao : Valida recebimento das empresas principal e encargos. ;
+; Chamada: FCRFP002 - processaRecebimento()                      ;
+;----------------------------------------------------------------;
+;
+	params
+		string  piGlobal  :IN
+		string  piParams  :IN
+		string  poParams  :OUT
+		numeric poCdErro  :OUT
+		string  poCtxErro :OUT
+	endparams
+	variables
+		string  vDsFaturas, vDsLinha, vConfereFaturas, vConfereJuros
+		numeric vVlConfereFaturas, vVlConfereJuros, vVlTrocoMaximo
+	endvariables
+	
+	vConfereFaturas   = ""
+	vConfereJuros     = ""
+	vVlConfereFaturas = ""
+	vVlConfereJuros   = ""
+	vDsFaturas        = ""
+	vVlTrocoMaximo    = ""
+	vDsFaturas        = $item("DS_FATURAS", piParams)
+	
+	repeat
+		
+		vDsLinha = ""
+		getitem vDsLinha, vDsFaturas, 1
+		
+		clear/e "GER_EMPRESASVC"
+		cd_empresa.ger_empresasvc/init = $item("CD_EMPRESA", vDsLinha)
+		retrieve/e "GER_EMPRESASVC"
+		if ($status < 0)
+			$instancehandle->setStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Empresa não encontrada no recebimento", "")
+			poCdErro  = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return(-1)
+		endif
+		
+		if (cd_ccusto.ger_empresasvc = "")
+			putitem vConfereFaturas, -1, vDsLinha
+			vVlConfereFaturas = vVlConfereFaturas + $item("VL_ARECEBER", vDsLinha)
+		else
+			putitem vConfereJuros,   -1, vDsLinha
+			vVlConfereJuros = vVlConfereJuros + $item("VL_ARECEBER", vDsLinha)
+		endif
+		vVlTrocoMaximo = vVlTrocoMaximo + $item("VL_ARECEBER", vDsLinha)
+		
+		delitem vDsFaturas, 1
+	until(vDsFaturas = "")
+	
+	poParams = ""
+	putitem/id poParams, "DS_CONFERIDOFATURAS", vConfereFaturas
+	putitem/id poParams, "VL_CONFERIDOFATURAS", vVlConfereFaturas
+	putitem/id poParams, "DS_CONFERIDOJUROS",   vConfereJuros
+	putitem/id poParams, "VL_CONFERIDOJUROS",   vVlConfereJuros
+	putitem/id poParams, "VL_TROCOMAXIMO",      vVlTrocoMaximo
+	
+	return(0)
+End ;operation validaRecebimento.
+
+
+;------------------------------------------------------;
+public operation validaVlMaxTroco                      ;
+;------------------------------------------------------;
+; MTF - 29/03/2005                                     ;
+; Funcao : Verifica se o valor informado de encargos é ;
+;          ou nao superior ao valor maximo de troco.   ;
+; Chamada: FCRFP010 - validaRecebimento()              ;
+;------------------------------------------------------;
+	params
+		string  piGlobal  :IN    
+		string  piParams  :IN
+		string  poParams  :OUT
+		string  poCdErro  :OUT
+		string  poCtxErro :OUT
+	endparams
+	
+	variables
+		numeric vVlMaxTroco, vVlRecebido, vVlChequeVista, vVlDinheiro, vVlTroco, vVlDofni, vVlCredev
+	endvariables
+	
+	vVlMaxTroco    = $item("VL_MAXTROCO", piParams)
+	vVlRecebido    = $item("VL_RECEBIDO", piParams)
+	vVlChequeVista = $item("VL_CHEQUEVISTA", piParams)
+	vVlDinheiro    = $item("VL_DINHEIRO", piParams)
+	vVlDofni       = $item("VL_DOFNI", piParams)
+	vVlCredev      = $item("VL_CREDEV", piParams)
+	
+	if (vVlRecebido < vVlMaxTroco)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Valor recebido menor que o valor a receber!", "ADICIONAL=Operação->SICSVCO005.validaVlMaxTroco")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		exit(-1)
+	endif
+	
+	vVlTroco = 0
+	if (vVlRecebido > vVlMaxTroco)
+		vVlTroco = vVlRecebido - vVlMaxTroco
+	endif
+	
+	if (vVlTroco > 0)
+		if (vVlDinheiro > 0)
+			if (vVlTroco > vVlDinheiro)
+				$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Valor de troco maior que o valor em dinheiro!", "ADICIONAL=Operação->SICSVCO005.validaVlMaxTroco")
+				poCdErro = $xCdErro$
+				poCtxErro = $xCtxErro$
+				exit(-1)
+			endif
+		elseif (vVlChequeVista > 0)
+			if (vVlTroco > vVlChequeVista)
+				$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Valor de troco maior que o valor em cheque à vista!", "ADICIONAL=Operação->SICSVCO005.validaVlMaxTroco")
+				poCdErro = $xCdErro$
+				poCtxErro = $xCtxErro$
+				exit(-1)
+			endif
+		elseif (vVlDofni > 0)
+			if (vVlTroco > vVlDofni)
+				$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Valor de troco maior que o valor de dofni!", "ADICIONAL=Operação->SICSVCO005.validaVlMaxTroco")
+				poCdErro = $xCdErro$
+				poCtxErro = $xCtxErro$
+				exit(-1)
+			endif
+		elseif (vVlCredev > 0)
+			if (vVlTroco > vVlCredev)
+				$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Valor de troco maior que o valor em CREDEV!", "ADICIONAL=Operação->SICSVCO005.validaVlMaxTroco")
+				poCdErro = $xCdErro$
+				poCtxErro = $xCtxErro$
+				exit(-1)
+			endif
+		else
+			$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Valor de troco inválido! Não existe valor em dinheiro nem valor em cheque à vista!", "ADICIONAL=Operação->SICSVCO005.validaVlMaxTroco")
+			poCdErro = $xCdErro$
+			poCtxErro = $xCtxErro$
+			exit(-1)
+		endif
+	endif
+	
+	return(0)
+End ;operation validaVlMaxTroco.
+
+
+;------------------------------------------------------;
+public operation validaCentroCusto                     ;
+;------------------------------------------------------;
+; MTF - 30/03/2005                                     ;
+; Funcao : Verifica quais sao as empresas principal ou ;
+;          encargos correspondentes a empresa logada.  ;
+; Chamada: FCRFP002 - processaRecebimento()            ;
+;          SICFP011 - validaEmpOrig()                  ;
+;                     validaEmpDest()                  ;
+;------------------------------------------------------;
+;
+	params
+		string  piGlobal  :IN
+		string  piParams  :IN
+		string  poParams  :OUT
+		numeric poCdErro  :OUT
+		string  poCtxErro :OUT
+	endparams
+
+	variables
+		numeric vCdEmpresa, vCdCentroCusto
+		boolean vInPrincipal
+	endvariables
+	
+	vCdEmpresa   = $item("CD_EMPRESA", piParams)
+	vInPrincipal = <FALSE>
+	
+	if (vCdEmpresa = 0)
+		vCdEmpresa = $item("CD_EMPRESA", piGlobal)
+	endif
+	
+	if (vCdEmpresa = 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Empresa não informada!", "ADICIONAL=Operação->SICSVCO009.validaCentroCusto")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		exit(-1)
+	endif
+	
+	clear/e "GER_EMPRESASVC"
+	CD_EMPRESA.GER_EMPRESASVC/init = vCdEmpresa
+	retrieve/e "GER_EMPRESASVC"
+	if ($status < 0)
+		$instancehandle->setStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Empresa %%vCdEmpresa não cadastrada!", "SICSVCO009.validaCentroCusto")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		exit(-1)
+	endif
+	
+	if (cd_ccusto.ger_empresasvc = "") 
+		;Verifica qual a empresa encargos correspondente a empresa principal.
+		;Caso haja mais de uma empresa encargos com o mesmo codigo da empresa principal 
+		;a rotina retorna erro p/ acertar o problema.
+		vCdEmpresa   = cd_empresa.ger_empresasvc
+		vInPrincipal = <TRUE>
+		
+		clear/e "GER_S_EMPRESASVC"
+		cd_ccusto.ger_s_empresasvc/init = cd_empresa.ger_empresasvc
+		retrieve/e "GER_S_EMPRESASVC"
+		if ($status < 0)
+			vCdCentroCusto = ""
+		else
+			setocc "GER_S_EMPRESASVC", -1
+			setocc "GER_S_EMPRESASVC", 1
+			if ($totocc("GER_S_EMPRESASVC") > 1)
+				$instancehandle->SetStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Existe mais de uma empresa p/ este centro de custo %%vCdEmpresa%%%!", "")
+				exit(-1)
+			else
+				vCdCentroCusto = cd_empresa.ger_s_empresasvc
+			endif
+		endif
+	else ;Logado na empresa encargos.
+		;Se estiver logado na empresa encargos, busca qual o codigo da empresa principal.
+		vCdEmpresa     = cd_ccusto.ger_empresasvc
+		vCdCentroCusto = cd_empresa.ger_empresasvc
+	endif
+	
+	poParams = ""
+	putitem/id poParams, "CD_EMPRESA",     vCdEmpresa
+	putitem/id poParams, "CD_CENTROCUSTO", vCdCentroCusto
+	putitem/id poParams, "IN_MATRIZ",      vInPrincipal   ;IN_MATRIZ = <true> a empresa é principal, senao é encargos.
+	
+	return(0)
+End ;operation validaCentroCusto.
+
+
+;---------------------------------------------------------------;
+public operation buscaSaldoAdiantCredev                         ;
+;---------------------------------------------------------------;
+; MTF - 08/07/2005                                              ;
+; Funcao : Busca o saldo de adiantamento e credev do cliente.   ;
+;          Se for principal somente os saldos do principal, se  ;
+;          for encargos traz os saldos do principal e encargos. ;
+; Chamada:                                                      ;
+;---------------------------------------------------------------;
+;
+	params
+		string  piGlobal  :IN
+		string  piParams  :IN
+		string  poParams  :OUT
+		numeric poCdErro  :OUT
+		string  poCtxErro :OUT
+	endparams
+	variables
+		string  vpiParams, vpoParams, vLstCdEmpresa, vLstTpDocumento, vpiValores
+		numeric vCdEmpresa, vVlSaldoAdiantCredev, vTpDocumento, vCdCentroCusto
+	endvariables
+	
+	if ($item("CD_PESSOA", piParams) = "")
+		$instancehandle->setStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Informar o código da pessoa!", "")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	if ($item("CD_TPMANUT_CLIENTE", piParams) = "")
+		$instancehandle->setStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Informar o CD_TPMANUT_CLIENTE p/ consultar o saldo de adiantamento e Credev!", "")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	
+	;Busca empresa principal e encargos de acordo com a empresa passada no parametro.
+	putitem/id vpiParams, "CD_EMPRESA", $item("CD_EMPRESA", piGlobal)
+	$instancehandle->validaCentroCusto(piGlobal, vpiParams, vpoParams, $xCdErro$, $xCtxErro$)
+	if ($procerror)
+		$instancehandle->setStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	elseif ($status < 0)
+		$instancehandle->setStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	
+	vLstCdEmpresa  = ""
+	vCdCentroCusto = ""
+	vLstCdEmpresa  = $item("CD_EMPRESA", vpoParams)
+	if ($item("IN_MATRIZ", vpoParams) = <FALSE>)
+		vCdCentroCusto = $item("CD_CENTROCUSTO", vpoParams)
+	endif
+	vLstCdEmpresa  = "%%vLstCdEmpresa·;%%vCdCentroCusto"
+	
+	repeat
+		getitem vCdEmpresa, vLstCdEmpresa, 1
+		
+		if (vCdEmpresa > 0)
+			clear/e "FCC_CTAPESSVC"
+			cd_pessoa.fcc_ctapessvc/init     = $item("CD_PESSOA", piParams)
+			cd_empresa.fcc_ctapessvc/init    = vCdEmpresa
+			tp_manutencao.fcc_ctapessvc/init = $item("CD_TPMANUT_CLIENTE", piParams)
+			retrieve/e "FCC_CTAPESSVC"
+			if ($status >= 0)
+				vLstTpDocumento = ""
+				vLstTpDocumento = "10·;20"
+				
+				repeat
+					vTpDocumento = ""
+					getitem vTpDocumento, vLstTpDocumento, 1
+					
+					vpiParams = ""
+					putitem/id vpiParams, "NR_CTAPES",        nr_ctapes.fcc_ctapessvc
+					putitem/id vpiParams, "TP_DOCUMENTO",     vTpDocumento
+					putitem/id vpiParams, "NR_SEQHISTRELSUB", 1
+					putitem/id vpiParams, "DT_SALDO",         $item("DT_SISTEMA", piGlobal)
+					activate "FCCSVCO002".buscaSaldoCtaTp($$gParamGlb, vpiParams, vpiValores, vpoParams, $xCdErro$, $xCtxerro$)
+					if ($procerror)       
+						$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "ADICIONAL=  SICSVCO009 -> buscaSaldoAdiantCredev chamando FCCSVCO002 -> buscaContaSaldoTp()")
+						poCdErro  = $xCdErro$
+						poCtxErro = $xCtxErro$
+						return(-1)
+					elseif ($status < 0)
+						$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "ADICIONAL=  ADICIONAL=  SICSVCO009 -> buscaSaldoAdiantCredev chamando FCCSVCO002 -> buscaContaSaldoTp()")
+						poCdErro  = $xCdErro$
+						poCtxErro = $xCtxErro$
+						return(-1)
+					endif
+					
+					vVlSaldoAdiantCredev = vVlSaldoAdiantCredev + $item("VL_SALDO", vpoParams)
+					
+					delitem vLstTpDocumento, 1	
+				until(vLstTpDocumento = "")
+			endif
+		endif
+		
+		delitem vLstCdEmpresa, 1
+	until(vLstCdEmpresa = "")
+	
+	poParams = ""
+	putitem/id poParams, "VL_SALDO", vVlSaldoAdiantCredev
+	
+	return(0)
+End ;operation buscaSaldoAdiantCredev.

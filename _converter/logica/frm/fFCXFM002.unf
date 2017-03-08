@@ -1,0 +1,342 @@
+;-------------------------
+entry posCLEAR 
+;-------------------------
+	variables
+		numeric vInCxTerminal
+	endvariables
+
+	vInCxTerminal = $item("IN_CAIXA_TERMINAL", $xlplemp$)
+	if (vInCxTerminal = 0)
+		fieldsyntax CD_USUARIO.ADM_S_USUARIO, ""
+	else
+		fieldsyntax CD_USUARIO.ADM_S_USUARIO, "DIM"
+	endif
+
+	CD_EMPRESA.FCX_CAIXAC = $item("CD_EMPRESA", $$gParamGlb)
+	IN_FECHADO.SIS_DUMMY  = <FALSE>
+	clear/e "SIS_OPERADOR"
+	
+	return (0)
+End ; operation posCLEAR
+
+;------------------------
+entry preEDIT 
+;------------------------
+	variables
+		numeric vInCxTerminal
+	endvariables
+
+	vInCxTerminal = $item("IN_CAIXA_TERMINAL", $xlplemp$)
+
+	if (vInCxTerminal = 0)
+		fieldsyntax CD_USUARIO.ADM_S_USUARIO, ""
+	else
+		fieldsyntax CD_USUARIO.ADM_S_USUARIO, "DIM"
+	endif
+
+	IN_FECHADO.SIS_DUMMY = <FALSE>
+	clear/e "SIS_OPERADOR"
+	
+	clear/e "FCX_CAIXAC"
+	CD_EMPRESA.FCX_CAIXAC = $item("CD_EMPRESA", $$gParamGlb)
+	IN_FECHADO.FCX_CAIXAC = <FALSE>
+	retrieve/e "FCX_CAIXAC"
+
+	$prompt = DT_ABERTURA.FCX_CAIXAC
+
+	return (0)
+End ; operation preEDIT
+
+;---------------------
+partner operation INIT
+;---------------------
+	variables
+		boolean vInCCustoEmp
+	endvariables	
+
+	$formtitle = "%%$componentname - Fechamento de Caixa"
+	
+	;Parametros gerais
+	putitem $xlpl$, -1, "IN_UTILIZA_CCUSTO"
+	activate "ADMSVCO001".GetLstParametro($xlpl$, $xlpl$, $xcderro$, $xctxerro$)
+	if ($procerror)
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+	elseif ($xcdErro$)
+		$instancehandle->SetErroApl($xCtxErro$, $xCdErro$, $xCtxErro$)
+	endif
+	$inUtilizaCCusto$ = $item("IN_UTILIZA_CCUSTO", $xlpl$)
+	
+	;Parametros por empresa
+	$xlplemp$ = ""
+	putitem $xlplemp$, -1, "IN_CAIXA_TERMINAL"
+	putitem $xlplemp$, -1, "TP_VALIDA_NF_IMPRESSA"
+	putitem $xlplemp$, -1, "IN_BLOQUEIA_FICHA_CEGA_CX"
+	putitem $xlplemp$, -1, "IN_UTILIZA_CCUSTO" ;MARTINEZ - PRJ/TAR 180/188 - 26/05/2011
+	activate "ADMSVCO001".GetParamEmpresa($item("CD_EMPRESA", $$gParamGlb), $xlplemp$, $xlplemp$, $xcderro$, $xctxerro$)
+	if ($procerror)
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+	elseif ($xcdErro$)
+		$instancehandle->SetErroApl($xCtxErro$, $xCdErro$, $xCtxErro$)
+	endif
+	;MARTINEZ - PRJ/TAR 180/188 - 26/05/2011
+	vInCCustoEmp = $item("IN_UTILIZA_CCUSTO", $xlplemp$)
+	if (vInCCustoEmp != "")
+		$InUtilizaCCusto$ = vInCCustoEmp
+	endif
+	;
+	return(0)
+End ; operation INIT
+
+;------------------------
+partner operation CLEANUP 
+;------------------------
+
+End ; operation CLEANUP
+
+;-----------------------------
+partner operation chamaEncerra
+;-----------------------------
+	variables
+		string  viParams, voParams, vDsErro, vDsPermite, vLstEmpresa
+		numeric vReg, vTpValidaNFImpressa
+		boolean vInBloqueiaFicha, vInFechamentoCaixa
+	endvariables
+	
+	vInBloqueiaFicha = $item("IN_BLOQUEIA_FICHA_CEGA_CX", $xlplemp$)
+	
+	;Projeto 078 - Tarefa 3042 - Aloisio Gargantini - 15/12/2009
+	vInFechamentoCaixa = <TRUE>
+	viParams = ""
+	putitem/id viParams, "CD_COMPONENTE", $componentname
+	putitem/id viParams, "DS_CAMPO"     , "IN_FECHAMENTO_CAIXA"
+	putitem/id viParams, "CD_EMPRESA"   , $item("CD_EMPRESA" ,$$gParamGlb)
+	putitem/id viParams, "CD_USUARIO"   , $item("CD_USUARIO" ,$$gParamGlb)
+	putitem/id viParams, "VL_VALOR"     , "" 
+	activate "ADMSVCO009".VerificaRestricao(viParams, voParams, $xCdErro$, $xCtxerro$)
+	if ($procerror) 
+		$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxerro$, "")
+		return(-1)
+	elseif ($status < 0)
+		vInFechamentoCaixa = <FALSE>
+	endif
+	if (vInFechamentoCaixa = <FALSE>)
+		$instancehandle->setStatus(<STS_AVISO>, "GEN001", "DESCRICAO=Usuário sem permissão para efetuar fechamento de caixa. Restrição IN_FECHAMENTO_CAIXA.", "")
+		return(-1)
+	endif
+	;
+	if (!$dbocc("FCX_CAIXAC"))
+		message/info "Necessário escolher um fechamento para encerrar!"
+		return(-1)
+	endif
+
+	if (IN_FECHADO.FCX_CAIXAC = <TRUE>)
+		message/info "Não é possível encerrar, fechamento já encerrado!"
+		return(-1)
+	endif
+	
+	if (vInBloqueiaFicha = <TRUE>) & (CD_OPERCONF.FCX_CAIXAC = 0)
+		message/info "Não é possível fazer o fechamento do caixa! Lançamentos (Ficha Cega) não encerrado!"
+		return (-1)
+	endif
+	
+	vTpValidaNFImpressa = $item("TP_VALIDA_NF_IMPRESSA", $xlplemp$)
+
+	if (vTpValidaNFImpressa = 2 | vTpValidaNFImpressa = 3)
+		viParams = ""
+		putitem/id viParams, "CD_GRUPOEMPRESA", $item("CD_GRUPOEMPRESA", $$gParamGlb)
+		activate "GERSVCO032".buscaLstGrupoEmpresa($$gParamGlb, viParams, voParams, $xCdErro$, $xCtxErro$)
+		if ($procerror)       
+			$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+			return (-1)
+		elseif ($status < 0)
+			$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")
+			return (-1)
+		endif
+
+		vLstEmpresa = $item("CD_EMPRESA", voParams)
+
+		viParams = ""
+		putitem/id viParams, "CD_EMPRESA",  vLstEmpresa
+		putitem/id viParams, "CD_USUARIO",  CD_OPERCX.FCX_CAIXAC
+		putitem/id viParams, "CD_TERMINAL", CD_TERMINAL.FCX_CAIXAC
+		activate "FCXSVCO003".validaEncerramentoCx($$gParamGlb, viParams, voParams, $xCdErro$, $xCtxErro$)
+		if ($procerror)       
+			$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+			return (-1)
+		elseif (voParams != "")
+			vDsErro = $item("DS_LOGERRO", voParams)
+
+			viparams = ""
+			vDsErro = "  NF não impressa: %%^%%^%%vDsErro"
+			putitem/id viparams,"TITULO",   "Validação de Fechamento de Caixa"
+			putitem/id viparams,"MENSAGEM", vDsErro
+			activate "GERFP008".EXEC(viparams,voparams,$xCdErro$,$xCtxErro$)
+			if ($procerror)       
+				$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+			endif
+
+			viParams = ""
+			putitem/id viParams, "IN_USULOGADO",  <TRUE>
+			putitem/id viParams, "CD_USUARIO",    0
+			putitem/id viParams, "DS_COMPONENTE", ""
+			activate "ADMFM020".exec(viParams, voParams, $xCdErro$, $xCtxerro$)
+			if ($procerror)       
+				return (-1)
+			endif
+			if ($status < 0)
+				return (-1)
+			endif
+
+			putitem/id viParams, "CD_COMPONENTE", "FCXFM001"
+			putitem/id viParams, "DS_CAMPO",      "IN_LIBERA_FECHA_NF" ;CAMPO OU PALAVRA CHAVE CADASTRADO NO CONTROLE DE RESTRIÇÕES                  
+			putitem/id viParams, "CD_EMPRESA",    $item("CD_EMPRESA" , $$gParamGlb)
+			putitem/id viParams, "CD_USUARIO",    $item("CD_USUARIO",  voParams)
+			activate "ADMSVCO009".verificaRestricao(viParams, voParams, $xCdErro$, $xCtxerro$)
+			if ($procerror)       
+				$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxerro$, "")
+				return(-1)
+			endif
+			if ($status < 0)
+				$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxerro$, "")
+				return(-1)
+			endif
+			if (voParams != "")
+				vDsPermite = $item("DS_PERMITE", voParams)
+			endif
+			if (vDsPermite = "NAO")
+				return(-1)
+			endif
+		endif
+	endif
+	
+	viParams = ""
+	putitem/id viParams, "CD_EMPRESA",  CD_EMPRESA.FCX_CAIXAC
+	putitem/id viParams, "CD_TERMINAL", CD_TERMINAL.FCX_CAIXAC
+	putitem/id viParams, "DT_ABERTURA", DT_ABERTURA.FCX_CAIXAC
+	putitem/id viParams, "NR_SEQ",      NR_SEQ.FCX_CAIXAC
+	putitem/id viParams, "TP_ROTINA",   1 ;1 - Fechamento,   2 - Consulta
+	activate "FCXFM003".exec(viParams,voParams, $xCdErro$, $xCtxerro$)
+	if ($procerror)       
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+		return (-1)
+	endif
+
+	macro "^RETRIEVE"
+
+	return(0)
+end ;chamaEncerra
+
+;-------------------------
+partner operation consulta
+;-------------------------
+	clear/e "FCX_CAIXAC"
+	CD_EMPRESA.FCX_CAIXAC  = $item("CD_EMPRESA", $$gParamGlb)
+	CD_TERMINAL.FCX_CAIXAC = CD_TERMINAL.F_GER_TERMINAL
+	CD_OPERCX.FCX_CAIXAC   = CD_USUARIO.ADM_S_USUARIO
+	DT_ABERTURA.FCX_CAIXAC = DT_ABERTURA.SIS_DUMMY
+	DT_FECHADO.FCX_CAIXAC  = DT_FECHADO.SIS_DUMMY
+	IN_FECHADO.FCX_CAIXAC  = IN_FECHADO.SIS_DUMMY
+	retrieve/e "FCX_CAIXAC"
+
+	$prompt = DT_ABERTURA.FCX_CAIXAC
+
+	return (0)
+end ;consulta
+
+;---------------------------------
+partner operation filtroDtAbertura
+;---------------------------------
+	DT_ABERTURA.SIS_DUMMY = ""
+	if (DT_ABERTURAINI.SIS_DUMMY > DT_ABERTURAFIM.SIS_DUMMY)
+		message/info "Data de abertura inicial maior que a final!"
+	else
+		if (DT_ABERTURAINI.SIS_DUMMY != "") & (DT_ABERTURAFIM.SIS_DUMMY != "")
+			DT_ABERTURA.SIS_DUMMY = "·>·= %%DT_ABERTURAINI.SIS_DUMMY ·&·<·= %%DT_ABERTURAFIM.SIS_DUMMY"
+		endif
+	endif
+
+	return (0)
+end
+
+;-----------------------------------
+partner operation filtroDtFechamento
+;-----------------------------------
+	DT_FECHADO.SIS_DUMMY = ""
+	if (DT_FECHADOINI.SIS_DUMMY > DT_FECHADOFIM.SIS_DUMMY)
+		message/info "Data de fechamento inicial maior que a final!"
+	else
+		if (DT_FECHADOINI.SIS_DUMMY != "") & (DT_FECHADOFIM.SIS_DUMMY != "")
+			DT_FECHADO.SIS_DUMMY = "·>·= %%DT_FECHADOINI.SIS_DUMMY ·&·<·= %%DT_FECHADOFIM.SIS_DUMMY"
+		endif
+	endif
+
+	return (0)
+end
+
+;----------------------------------
+partner operation validaCentroCusto 
+;----------------------------------
+	variables
+		string  viParams, voParams
+		numeric vCdEmpresa, vCdCCUsto
+	endvariables
+	
+	if ($inUtilizaCCusto$ != <TRUE>)
+		return(0)
+	endif
+	
+	viParams = ""
+	activate "SICSVCO009".validaCentroCusto($$gParamGlb, viParams, voParams, $xCdErro$, $xCtxErro$)
+	if ($procerror)
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "") 
+		return(-1)
+	elseif ($status < 0)
+		$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")    
+		return(-1)
+	endif
+
+	vCdCCusto  = $item("CD_CENTROCUSTO", voParams)
+	vCdEmpresa = $item("CD_EMPRESA",  $$gParamGlb)
+		
+	if (vCdCCusto != vCdEmpresa)
+		message/info "Empresa não possui centro de custo cadastrado!"
+		return(-1)
+	endif
+
+	return(0)
+end;
+
+;------------------------------
+partner operation chamaConsulta
+;------------------------------
+	variables
+		string  viParams, voParams
+		numeric vReg
+	endvariables
+
+	if (!$dbocc("FCX_CAIXAC"))
+		message/info "Necessário escolher um fechamento para encerrar!"
+		return(-1)
+	endif
+
+	if (IN_FECHADO.FCX_CAIXAC = <FALSE>)
+		message/info "Não é possível consultar, fechamento não encerrado!"
+		return(-1)
+	endif
+
+	viParams = ""
+	putitem/id viParams, "CD_EMPRESA",  CD_EMPRESA.FCX_CAIXAC
+	putitem/id viParams, "CD_TERMINAL", CD_TERMINAL.FCX_CAIXAC
+	putitem/id viParams, "DT_ABERTURA", DT_ABERTURA.FCX_CAIXAC
+	putitem/id viParams, "NR_SEQ",      NR_SEQ.FCX_CAIXAC
+	putitem/id viParams, "TP_ROTINA",   2 ;1 - Fechamento,   2 - Consulta
+	activate "FCXFM003".exec(viParams,voParams, $xCdErro$, $xCtxerro$)
+	if ($procerror)       
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+		return (-1)
+	endif
+
+	macro "^RETRIEVE"
+
+	return(0)
+end ;chamaConsulta

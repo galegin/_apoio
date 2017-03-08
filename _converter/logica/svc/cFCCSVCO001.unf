@@ -1,0 +1,349 @@
+;----------------------------
+public operation CargaTpManut
+;----------------------------
+params
+	string piParams  : IN
+	string poParams  : OUT
+	string poCdErro  : OUT
+	string poCtxErro : OUT
+endparams 
+	poParams = ""
+	clear/e "FCC_TPMANUTSVC"
+	retrieve/e "FCC_TPMANUTSVC"
+	setocc "FCC_TPMANUTSVC",1
+	if ($empty(FCC_TPMANUTSVC) = 0)
+		repeat
+			;if (in_ativo.fcc_tpbaixasvc)
+				if (poParams = "")
+					poParams = "%%tp_manutencao.fcc_tpmanutsvc%%%=%%ds_manutencao.fcc_tpmanutsvc"
+				else
+					poParams = "%%poParams·;%%tp_manutencao.fcc_tpmanutsvc%%%=%%ds_manutencao.fcc_tpmanutsvc"
+				endif
+			;endif
+			setocc "FCC_TPMANUTSVC",$curocc(FCC_TPMANUTSVC) + 1
+		until ($status < 0)
+	endif
+	return (0)
+end; CargaTpManut
+;------------------------------------------------------------------------
+;BAM - 30/08/04	- Carga de todos os tipos de manutencao
+;-------------------------------------------------------------------------
+;-------------------------------
+public operation CargaTpManutUsu
+;-------------------------------
+params
+	string piParams  : IN
+	string poParams  : OUT
+	string poCdErro  : OUT
+	string poCtxErro : OUT
+endparams 
+variables
+	numeric vCdEmp, vCdUsu, vTpMan
+endvariables
+	poParams = ""
+	vCdEmp = $item("CD_EMPRESA",piParams)
+	vCdUsu = $item("CD_USUARIO",piParams)
+	vTpMan = $item("TP_MANUTENCAO",piParams)
+
+	clear/e "FCC_TPMANUTSVC"
+	if (vTpMan != "")
+		tp_manutencao.fcc_tpmanutsvc/init = vTpMan
+	endif
+	retrieve/e "FCC_TPMANUTSVC"
+	setocc "FCC_TPMANUTSVC",1
+	if ($empty(FCC_TPMANUTSVC) = 0)
+		repeat
+			clear/e "FCC_TPMANUTUSSVC"
+			cd_empresa.fcc_tpmanutussvc/init = vCdEmp
+			cd_usuliberado.fcc_tpmanutussvc/init = vCdUsu
+			tp_manutencao.fcc_tpmanutussvc/init = tp_manutencao.fcc_tpmanutsvc
+			retrieve/e "FCC_TPMANUTUSSVC"
+			setocc "FCC_TPMANUTUSSVC",1
+			if ($empty(FCC_TPMANUTUSSVC) = 0)
+				repeat
+					;if (in_ativo.fcc_tpbaixasvc)
+						if (poParams = "")
+							poParams = "%%tp_manutencao.fcc_tpmanutsvc%%%=%%ds_manutencao.fcc_tpmanutsvc"
+						else
+							poParams = "%%poParams·;%%tp_manutencao.fcc_tpmanutsvc%%%=%%ds_manutencao.fcc_tpmanutsvc"
+						endif
+					;endif
+					setocc "FCC_TPMANUTUSSVC",$curocc(FCC_TPMANUTUSSVC) + 1
+				until ($status < 0)
+			endif
+			$status = 0
+			setocc "FCC_TPMANUTSVC",$curocc(FCC_TPMANUTSVC) + 1
+		until ($status < 0)
+		$status = 0	
+	endif
+	return (0)
+end; CargaTpManutUsu
+;---------------------------------------------------------------------------------------------
+;BAM - 30/08/04	- somente os tipos liberados para o usuario e/ou do tipo informado na consulta
+;---------------------------------------------------------------------------------------------
+
+;-----------------------------
+;public operation CargaTpComiss
+;-----------------------------
+;params
+;	string piParams  : IN
+;	string poParams  : OUT
+;	string poCdErro  : OUT
+;	string poCtxErro : OUT
+;endparams 
+;	poParams = ""
+;	clear/e "FCC_TPCOMISSSVC"
+;	retrieve/e "FNC_TPCOMISSSVC"
+;	setocc "FNC_TPCOMISSSVC",1
+;	if ($empty(FNC_TPCOMISSSVC) = 0)
+;		repeat
+;			if (in_ativo.fnc_tpcomisssvc)
+;				if (poParams = "")
+;					poParams = "%%cd_tpcomiss.fnc_tpcomisssvc%%%=%%ds_tpcomiss.fnc_tpcomisssvc"
+;				else
+;					poParams = "%%poParams·;%%cd_tpcomiss.fnc_tpcomisssvc%%%=%%ds_tpcomiss.fnc_tpcomisssvc"
+;				endif
+;			endif
+;			setocc "FNC_TPCOMISSSVC",$curocc(FNC_TPCOMISSSVC) + 1
+;		until ($status < 0)
+;	endif
+;end; CargaTpComiss
+;----------------------------
+
+;----------------------------
+public operation gravaAutoPag
+;----------------------------
+	params
+		string piGlobal : IN
+		string piParams : IN
+		string poParams : OUT
+		string poCdErro : OUT
+		string poCtxErro : OUT
+	endparams 
+
+	variables
+		date vDtAutorizacao
+		numeric vNrSeqAuto, vNrSeqCheque, vVlTransferencia, vNrCtaPes
+	endvariables
+
+	vDtAutorizacao = $item("DT_AUTORIZACAO", piParams)
+	vNrSeqAuto = $item("NR_SEQAUTO", piParams)
+	vNrSeqCheque = $item("NR_SEQCHEQUE1", piParams)
+	vVlTransferencia = $item("VL_TRANSFERENCIA", piParams)
+	vNrCtaPes = $item("NR_CTAPES", piParams)
+
+	clear/e "FCC_AUTOPAGSVC"
+	DT_AUTORIZACAO.FCC_AUTOPAGSVC = vDtAutorizacao
+	NR_SEQAUTO.FCC_AUTOPAGSVC = vNrSeqAuto
+	NR_SEQCHEQUE.FCC_AUTOPAGSVC = vNrSeqCheque
+	NR_SEQPAG.FCC_AUTOPAGSVC = 1
+	retrieve/o "FCC_AUTOPAGSVC"
+	if ($status = -7)
+		retrieve/x "FCC_AUTOPAGSVC"
+	endif
+
+	CD_OPERADOR.FCC_AUTOPAGSVC = $item("CD_USUARIO", $$gParamGlb)
+	DT_CADASTRO.FCC_AUTOPAGSVC = $datim
+	VL_PAGAMENTO.FCC_AUTOPAGSVC = vVlTransferencia
+	NR_CTAPES.FCC_AUTOPAGSVC = vNrCtaPes
+
+	$collhandle("FCC_AUTOPAGSVC")->Salvar()
+	if ($procerror)
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return (-1)
+	elseif ($status < 0)
+		$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")    
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return (-1)
+	endif									
+
+	return (0)
+end ;gravaAutoPag
+;---------------------------
+public operation LstTpManUsu
+;---------------------------
+params
+	string piParams  : IN
+	string poParams  : OUT
+	string poCdErro  : OUT
+	string poCtxErro : OUT
+endparams 
+variables
+	numeric vCdEmp, vCdUsu
+endvariables
+	poParams = ""
+	vCdEmp = $item("CD_EMPRESA",piParams)
+	vCdUsu = $item("CD_USUARIO",piParams)
+	clear/e "FCC_TPMANUTSVC"
+	retrieve/e "FCC_TPMANUTSVC"
+	setocc "FCC_TPMANUTSVC",1
+	if ($empty(FCC_TPMANUTSVC) = 0)
+		repeat
+			clear/e "FCC_TPMANUTUSSVC"
+			cd_empresa.fcc_tpmanutussvc/init = vCdEmp
+			cd_usuliberado.fcc_tpmanutussvc/init = vCdUsu
+			tp_manutencao.fcc_tpmanutussvc/init = tp_manutencao.fcc_tpmanutsvc
+			retrieve/e "FCC_TPMANUTUSSVC"
+			setocc "FCC_TPMANUTUSSVC",1
+			if ($empty(FCC_TPMANUTUSSVC) = 0)
+				repeat
+					;if (in_ativo.fcc_tpbaixasvc)
+					if (poParams = "")
+						poParams = "%%tp_manutencao.fcc_tpmanutsvc"
+					else
+						poParams = "%%poParams%%%·|%%tp_manutencao.fcc_tpmanutsvc"
+					endif
+					;endif
+					setocc "FCC_TPMANUTUSSVC",$curocc(FCC_TPMANUTUSSVC) + 1
+				until ($status < 0)
+			endif
+			$status = 0
+			setocc "FCC_TPMANUTSVC",$curocc(FCC_TPMANUTSVC) + 1
+		until ($status < 0)
+		$status = 0	
+	endif
+	return (0)
+end; LstTpManUsu
+;------------------------------------------------------------------------------
+;BAM - 29/11/04	- retorna uma lista somente dos tipos liberados para o usuario
+;-----------------------------------------------------------------------------
+
+;-------------------------------
+public operation cargaCxUsuario
+;-------------------------------
+;	Serviço para montar o drop-down do caixa por usuário
+;	Evaldo em 19/12/05
+	params
+		string piGlobal : IN
+		string piParams : IN
+		string poParams : OUT
+		string poCdErro : OUT
+		string poCtxErro : OUT
+	endparams 
+
+	variables
+		numeric vTpManutencao
+		boolean vInInativo
+	endvariables
+
+;	Tipo de Manutencao
+	vTpManutencao = $item("CD_TPMANUT_CXUSUARIO", piParams)
+	if (vTpManutencao = 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Não existe parametro com o código de mantenção da conta para usuário", "ADICIONAL=Operação->FCCSVCO001.cargaCxUsuario")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		exit(-1)
+	endif    
+
+	vInInativo = $item("IN_INATIVO",piParams)
+
+	clear/e "TMP_NR08SVC"
+
+	clear/e "FCC_CTAPESSVC"
+	TP_MANUTENCAO.FCC_CTAPESSVC/init = vTpManutencao
+	if (vInInativo != <True>)
+		IN_ATIVO.FCC_CTAPESSVC/init = <True>
+	endif
+	retrieve/e "FCC_CTAPESSVC"
+	if ($status >= 0)
+		setocc "FCC_CTAPESSVC", 1
+		while ($status >= 0)
+			if (CD_OPERCAIXA.FCC_CTAPESSVC > 0)
+				creocc "TMP_NR08SVC", -1
+				NR_08.TMP_NR08SVC = CD_OPERCAIXA.FCC_CTAPESSVC
+				retrieve/o "TMP_NR08SVC"
+				if ($status = -7)
+					retrieve/x "TMP_NR08SVC"
+				endif
+
+				DS_TITULAR.TMP_NR08SVC = DS_TITULAR.FCC_CTAPESSVC
+			endif
+
+			setocc "FCC_CTAPESSVC", $curocc("FCC_CTAPESSVC") + 1
+		endwhile
+	endif
+
+	poParams = ""
+
+	if ($empty("TMP_NR08SVC") = 0)
+		setocc "TMP_NR08SVC", 1
+		while ($status >= 0)
+			if (poParams = "")
+				poParams = "%%NR_08.TMP_NR08SVC%%%=%%DS_TITULAR.TMP_NR08SVC"
+			else
+				poParams = "%%poParams·;%%NR_08.TMP_NR08SVC%%%=%%DS_TITULAR.TMP_NR08SVC"
+			endif
+
+			setocc "TMP_NR08SVC", $curocc("TMP_NR08SVC") + 1
+		endwhile
+	endif
+
+	exit (0)
+end; CargaCxUsuario
+
+;-----------------------------
+public operation cargaTerminal
+;-----------------------------
+;	Serviço para montar o drop-down de terminal
+;	Hugo Andreo em 22/12/05
+	params
+		string piGlobal : IN
+		string piParams : IN
+		string poParams : OUT
+		string poCdErro : OUT
+		string poCtxErro : OUT
+	endparams 
+
+	variables
+		string vDsLstEmpresa, viParams, voParams
+	endvariables
+
+	viParams = ""
+	putitem/id viParams, "CD_GRUPOEMPRESA", $item("CD_GRUPOEMPRESA", $$gParamGlb)
+	activate "GERSVCO032".buscaLstGrupoEmpresa($$gParamGlb, viParams, voParams, $xCdErro$, $xCtxErro$)
+	if ($procerror)       
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+		return (-1)
+	elseif ($status < 0)
+		$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")
+		return (-1)
+	endif
+
+	vDsLstEmpresa = $item("CD_EMPRESA", voParams)
+
+	viParams = ""
+	putitem/id viParams, "IN_CCUSTO", <TRUE>
+	putitem/id viParams, "CD_EMPRESA", vDsLstEmpresa
+	putitem/id viParams, "CD_EMPVALIDACAO", $item("CD_EMPRESA", $$gParamGlb)
+	activate "SICSVCO002".validaLocal($$gParamGlb, viParams, voParams, $xCdErro$, $xCtxErro$)
+	if ($procerror)       
+		$instancehandle->SetErroProc($procerrorcontext,$xcderro$,$xctxerro$)
+		return(-1)
+	elseif ($xCtxErro$)
+		$instancehandle->SetErroApl($xCtxErro$,$xCdErro$,$xCtxErro$) 
+		return(-1)
+	endif
+
+	vDsLstEmpresa = $item("CD_EMPRESA", voParams)
+
+	clear/e "GER_TERMINALSVC"
+	CD_EMPRESA.GER_TERMINALSVC = vDsLstEmpresa
+	retrieve/e "GER_TERMINALSVC"
+	if ($status >= 0)
+		setocc "GER_TERMINALSVC", 1
+		while ($status >= 0)
+			if (poParams = "")
+				poParams = "%%CD_TERMINAL.GER_TERMINALSVC%%%=%%DS_TERMINAL.GER_TERMINALSVC"
+			else
+				poParams = "%%poParams·;%%CD_TERMINAL.GER_TERMINALSVC%%%=%%DS_TERMINAL.GER_TERMINALSVC"
+			endif
+
+			setocc "GER_TERMINALSVC", $curocc("GER_TERMINALSVC") + 1
+		endwhile
+	endif
+
+	exit (0)
+end; CargaCxUsuario

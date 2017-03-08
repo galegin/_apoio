@@ -1,0 +1,817 @@
+;-------------
+entry getParam
+;-------------
+	params
+		numeric piCdEmpresa : IN
+	endparams
+	
+	if (piCdEmpresa = 0)
+		piCdEmpresa = $item("CD_EMPRESA", $xlpg$)
+	endif
+
+	$xlplemp$ = ""
+	putitem $xlplemp$, -1, "VL_PADRAO_TRANSF_PRD" ;* Claudemir - 16/07/2009 - Prj/Tarefa: 102/632
+	putitem $xlplemp$, -1, "IN_APLIC_DESC_ITEM_VL_LIQ" ;=CANONICO=- (09/02/2011) PRJ 156 TAR 500
+
+	activate "ADMSVCO001".GetParamEmpresa(piCdEmpresa, $xlplemp$, $xlplemp$, $xCdErro$, $xCtxerro$)
+	if ($procerror)
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+		return(-1)
+	elseif ($xCdErro$)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=%%$item("DESCRICAO", $xCtxErro$)", "")
+		return(-1)
+	endif
+	
+	$vlPadraoTransfPrd$ = $item("VL_PADRAO_TRANSF_PRD", $xlplemp$) ;* Claudemir - 16/07/2009 - Prj/Tarefa: 102/632
+	$inAplicDescItemVlLiq$ = $item("IN_APLIC_DESC_ITEM_VL_LIQ", $xlplemp$) ;=CANONICO=- (09/02/2011) PRJ 156 TAR 500
+
+	return(0)
+end
+
+;----------------------------
+public operation GetItemPreco 
+;---------------------------- 
+	params
+		string  piGlobal      :IN
+		entity  PRD_ITEMVDASVC:INOUT
+		string  piParams      :IN
+		string  poParams      :OUT      
+		numeric poCdErro      :OUT
+		string  poCtxErro     :OUT 
+	endparams
+	
+	variables
+		Date    vDataSis,vDtInicio
+		string  vCtxErro,vTpValor,viParams,voParams
+		numeric vVlPromocao,vVlProduto,vVlDesconto,vDescPromocao,vDescPagto,vJuro,vVlUnitLiquido
+		numeric vCdErro,vCdValor,vPrzMedio,vEmpresa,vCdPromocao,vCondPgto,vVlJuro
+	endvariables
+	;Validação de parâmetros.
+	if ($item("CD_CONDPGTO",piParams) = "")
+		$instancehandle->SetErroApl("ERRO=-1·;DESCRICAO=Parâmetro obrigatório não informado.",poCdErro,poCtxErro)
+		return (-1)
+	endif
+	if ($item("CD_OPERACAO",piParams) = "")
+		$instancehandle->SetErroApl("ERRO=-1·;DESCRICAO=Parâmetro obrigatório não informado.",poCdErro,poCtxErro)
+		return (-1)
+	endif
+	;   Implemanetação feita por EVJ 18/10/03.  
+	if ($item("CD_COMPONENTE",piGlobal) = "PDVSVCO011")
+		setocc "PRD_ITEMVDASVC", $item("NR_OCCURS",piGlobal)
+	endif
+	
+	;Inicialização de Valores
+	vl_unitbruto.prd_itemvdasvc   = 0
+	vl_unitliquido.prd_itemvdasvc = 0
+	vl_unitliquido.prd_itemvdasvc = 0
+	pr_desconto.prd_itemvdasvc    = 0
+	vl_unitdesc.prd_itemvdasvc    = 0
+	in_desconto.prd_itemvdasvc    = ""
+	cd_promocao.prd_itemvdasvc    = 0
+	dt_promocao.prd_itemvdasvc    = 0
+	vl_totalbruto.prd_itemvdasvc   = 0
+	vl_totalliquido.prd_itemvdasvc = 0 
+	vl_totaldesc.prd_itemvdasvc    = 0
+	
+	;   Inicializacao de Variaveis
+	poCtxErro = ""
+	poCdErro  = 0 
+	vJuro     = 0
+	vCdValor  = 0
+	vTpValor  = 0
+	vVlProduto= 0
+	vDescPagto= 0
+	vVlDesconto = 0
+	vDescPromocao = 0
+	
+	;   Pega data do Sistema e Empresa
+	vEmpresa= $item("CD_EMPRESA",piGlobal)
+	vDataSis= $item("DT_SISTEMA",piGlobal)
+	vVLUnitLiquido = $item("VL_UNITLIQUIDO",piParams)
+	;   Valida Produto
+	clear/e "prd_produtosvc"
+	if (cd_produto.prd_itemvdasvc = 0)
+		cd_produto.prd_itemvdasvc = $item("CD_PRODUTO",piParams)
+	endif
+	cd_produto.prd_produtosvc/init = cd_produto.prd_itemvdasvc
+	retrieve/e "prd_produtosvc"
+	if ($status < 0)
+		$instancehandle->SetErroApl("ERRO=-40·;DESCRICAO=Produto não encontrado",poCdErro,poCtxErro)
+		return (-1)
+	endif   
+	
+	;   Pega Valor padrao da Operacao (GER_OPERVALOR) 
+	clear/e "GER_OPERVALORSVC"
+	cd_operacao.ger_opervalorsvc/init  = $item("CD_OPERACAO",piParams)
+	in_precobase.ger_opervalorsvc/init = <TRUE> 
+	retrieve/e "GER_OPERVALORSVC"
+	if ($status < 0)
+		if (vVlUnitLiquido <= 0)
+			$instancehandle->SetErroApl("ERRO=-40·;DESCRICAO=Preço ou custo base não definido na operação",poCdErro,poCtxErro)
+			return (-1)
+		endif
+	else
+		vCdValor = cd_unidvalor.ger_opervalorsvc
+		vTpValor = tp_unidvalor.ger_opervalorsvc
+	endif
+	
+	;   Pega Juro da Condição de Pagamento
+	clear/e "GER_CONDPGTOCSVC"
+	cd_condpgto.ger_condpgtocsvc/init = $item("CD_CONDPGTO",piParams)
+	retrieve/e "GER_CONDPGTOCSVC"
+	if ($status < 0)
+		$instancehandle->SetErroProc($procerrorcontext,$xcderro$,$xctxerro$)
+	else
+		vJuro      = pr_juro.ger_condpgtocsvc
+		vDescpagto = pr_desconto.ger_condpgtocsvc
+	endif
+	
+	;   Pega preco (PRD_VALOR)
+	clear/e "PRD_VALORSVC"
+	cd_empresa.prd_valorsvc/init = vEmpresa
+	cd_produto.prd_valorsvc/init = cd_produto.prd_produtosvc
+	tp_valor.prd_valorsvc/init   = vTpValor
+	cd_valor.prd_valorsvc/init   = vCdValor
+	retrieve/e "PRD_VALORSVC"
+	if ($procerror)
+		;       Se não tiver preço para esta empresa o serviço vai pegar da empresa padrão
+		clear/e "ADM_PARAMETROSVC"
+		cd_parametro.adm_parametrosvc/init = "CD_EMPRESA"
+		retrieve/e "ADM_PARAMETROSVC"
+		if (!$procerror)
+			clear/e "PRD_VALORSVC"
+			if (vl_parametro.adm_iprmsvc = "")
+				cd_empresa.prd_valorsvc/init = vl_parametro.adm_parametrosvc
+			else
+				cd_empresa.prd_valorsvc/init = vl_parametro.adm_iprmsvc
+			endif
+			cd_produto.prd_valorsvc/init = cd_produto.prd_produtosvc
+			tp_valor.prd_valorsvc/init   = vTpValor
+			cd_valor.prd_valorsvc/init   = vCdValor
+			retrieve/e "PRD_VALORSVC"
+			if ($procerror)
+				if (vVlUnitLiquido <= 0)
+					$instancehandle->SetErroApl("ERRO=-40·;DESCRICAO=Preço ou custo base não encontrado",poCdErro,poCtxErro)
+					return (-1)
+				endif 
+			endif
+		endif
+	endif
+	
+	if (vVlUnitLiquido > 0)
+		vVlProduto = vVlUnitLiquido
+	else
+		vVlProduto = vl_produto.prd_valorsvc
+	endif
+	
+	;   Pega promocao (PRD_PROMOCAO)
+	;$instancehandle->GetPromocao(piGlobal,piParams,poParams,poCdErro,poCtxErro)
+	;if ($item("CD_PROMOCAO",poParams) != "")
+	;	clear/e "PRD_PROMOCAOISVC"
+	;	cd_promocao.prd_promocaoisvc/init = $item("CD_PROMOCAO",poParams)    
+	;	dt_inicio.prd_promocaoisvc/init   = $item("DT_INICIO",poParams)
+	;	cd_produto.prd_promocaoisvc/init  = cd_produto.prd_produtosvc
+	;	retrieve/e "PRD_PROMOCAOISVC"
+	;	if ($status = 0)
+	;		if (tp_valor.prd_promocaosvc  = tp_valor.prd_valorsvc) & (cd_valor.prd_promocaosvc  = cd_valor.prd_valorsvc)
+	;			;               Busca Prazo médio
+	;			vCondPgto   = $item("CD_CONDPGTO",piParams)  
+	;			vVlPromocao = vl_precoliquido.prd_promocaoisvc
+	;			viParams    = "CD_CONDPGTO=%%vCondPgto·;VL_PRODUTO=%%vVlPromocao"  
+	;			activate "GERSVCO013".CalcPrzMedio(viParams,voParams,vCdErro,vCtxErro)
+	;			if ($procerror)
+	;				$instancehandle->SetErroProc($procerrorcontext)
+	;			elseif (vCdErro)
+	;				$instancehandle->SetErroApl(vCtxErro,vCdErro,vCtxErro)
+	;				return (-1)
+	;			endif
+	;			vVlPromocao = 0
+	;			vPrzMedio   = $item("QT_PRZMEDIO",voParams)
+	;			if (qt_prazomedio.prd_promocaosvc >= vPrzMedio)              
+	;				vCdPromocao   = cd_promocao.prd_promocaoisvc
+	;				vDtInicio     = dt_inicio.prd_promocaoisvc
+	;				vVlPromocao   = vl_precoliquido.prd_promocaoisvc
+	;				vDescPromocao = pr_desconto.prd_promocaoisvc
+	;			endif
+	;		endif
+	;	endif
+	;endif
+	
+	;   Aplica Juro no Valor do Produto e no Valor da Promoção
+	if (vJuro > 0)  & (vVlUnitLiquido <= 0)
+		vVlJuro     = vVlProduto * vJuro / 100
+		vVlJuro     = vVlProduto + vVlJuro
+		vVlProduto  = vVlJuro [Round, 2]
+		vVlJuro     = vVlPromocao * vJuro / 100
+		vVlJuro     = vVlPromocao + vVlJuro
+		vVlPromocao = vVlJuro [Round, 2]
+	endif
+	
+	;   Aplica Desconto que tem na Condição de Pagamento
+	if (vDescPagto  > 0)  & (vVlUnitLiquido <= 0)
+		if (vDescPromocao > 0)
+			vVlProduto    = vVlPromocao
+			vDescPagto    = vDescPromocao
+		endif
+		vVlDesconto = vVlProduto * vDescPagto / 100
+		vVlPromocao = vVlProduto - vVlDesconto
+		vVlPromocao = vVlPromocao [Round, 2]
+	endif
+	
+	;   Retorna erro se não gerar valor
+	if (vVlProduto = 0)
+		$instancehandle->SetErroApl("ERRO=-40·;DESCRICAO=Preço ou custo base não definido no produto",poCdErro,poCtxErro)
+		return (-1)
+	endif      
+	
+	;   Monta Entidade PRD_ITEMVDA
+	vl_unitbruto.prd_itemvdasvc       = vVlProduto
+	if (vVlPromocao > 0)
+		;        vl_unitliquido.prd_itemvdasvc = vVlPromocao
+		pr_desconto.prd_itemvdasvc    = vDescPagto
+		vl_unitdesc.prd_itemvdasvc    = vVlDesconto
+		in_desconto.prd_itemvdasvc    = "I"
+		cd_promocao.prd_itemvdasvc    = vCdPromocao
+		dt_promocao.prd_itemvdasvc    = vDtInicio
+	endif
+	vl_unitliquido.prd_itemvdasvc  = vl_unitbruto.prd_itemvdasvc - vl_unitdesc.prd_itemvdasvc
+	vl_totalbruto.prd_itemvdasvc   = vl_unitbruto.prd_itemvdasvc * qt_solicitada.prd_itemvdasvc
+	vl_totalliquido.prd_itemvdasvc = vl_unitLiquido.prd_itemvdasvc * qt_solicitada.prd_itemvdasvc
+	vl_totaldesc.prd_itemvdasvc    = vl_unitdesc.prd_itemvdasvc * qt_solicitada.prd_itemvdasvc
+
+	putitem/id poParams,"VL_PRODUTO"  ,vVlProduto
+	putitem/id poParams,"VL_PROMOCAO" ,vVlPromocao
+	putitem/id poParams,"CD_PROMOCAO" ,vCdPromocao
+	putitem/id poParams,"PR_JURO"     ,vJuro
+	putitem/id poParams,"PR_DESCONTO" ,vDescPromocao
+	putitem/id poParams,"DT_INICIO"   ,vDtInicio
+	putitem/id poParams,"VL_UNITLIQUIDO", vl_unitliquido.prd_itemvdasvc
+	putitem/id poParams,"VL_UNITBRUTO", vl_unitbruto.prd_itemvdasvc
+	putitem/id poParams,"VL_UNITDESC", vl_unitdesc.prd_itemvdasvc
+
+	return (0)
+End ; operation GetItemPreco
+
+;-----------------------------
+public operation GetPrecoCusto 
+	;----------------------------- 
+	params
+		string  piGlobal      :IN
+		string  piParams      :IN
+		string  poParams      :OUT      
+		numeric poCdErro      :OUT
+		string  poCtxErro     :OUT 
+	endparams
+	
+	variables
+		Date    vDataSis,vDtInicio
+		string  vCtxErro,vTpValor,viParams,voParams
+		numeric vVlPromocao,vVlProduto,vVlDesconto,vDescPromocao,vDescPagto,vJuro
+		numeric vCdErro,vCdValor,vPrzMedio,vEmpresa,vCdPromocao,vCondPgto,vVlJuro
+	endvariables
+	
+	;   Inicializacao de Variaveis
+	poCtxErro = ""
+	poCdErro  = 0 
+	vJuro     = 0
+	vCdValor  = 0
+	vTpValor  = 0
+	vVlProduto= 0
+	vDescPagto= 0
+	vVlDesconto = 0
+	vDescPromocao = 0
+	
+	;   Pega data do Sistema e Empresa
+	vEmpresa= $item("CD_EMPRESA",piGlobal)
+	vDataSis= $item("DT_SISTEMA",piGlobal)
+	
+	;   Valida Produto
+	clear/e "prd_produtosvc"
+	cd_produto.prd_produtosvc/init = $item("CD_PRODUTO",piParams)
+	retrieve/e "prd_produtosvc"
+	if ($status < 0)
+		$instancehandle->SetErroApl("ERRO=-1·;DESCRICAO=Produto não encontrado",poCdErro,poCtxErro)
+		return (-1)
+	endif   
+	
+	;   Pega Valor padrao da Operacao (GER_OPERVALOR) 
+	clear/e "GER_OPERVALORSVC"
+	cd_operacao.ger_opervalorsvc/init  = $item("CD_OPERACAO",piParams)
+	in_precobase.ger_opervalorsvc/init = <TRUE> 
+	retrieve/e "GER_OPERVALORSVC"
+	if ($status < 0)
+		$instancehandle->SetErroApl("ERRO=-1·;DESCRICAO=Preço ou custo base não definido na operação",poCdErro,poCtxErro)
+		return (-1)
+	else
+		vCdValor = cd_unidvalor.ger_opervalorsvc
+		vTpValor = tp_unidvalor.ger_opervalorsvc
+	endif
+	
+	;   Pega Juro da Condição de Pagamento
+	clear/e "GER_CONDPGTOCSVC"
+	cd_condpgto.ger_condpgtocsvc/init = $item("CD_CONDPGTO",piParams)
+	retrieve/e "GER_CONDPGTOCSVC"
+	if (!$procerror)
+		vJuro      = pr_juro.ger_condpgtocsvc
+		vDescpagto = pr_desconto.ger_condpgtocsvc
+	endif
+	
+	;   Pega preco (PRD_VALOR)
+	clear/e "PRD_VALORSVC"
+	cd_empresa.prd_valorsvc/init = vEmpresa
+	cd_produto.prd_valorsvc/init = cd_produto.prd_produtosvc
+	tp_valor.prd_valorsvc/init   = vTpValor
+	cd_valor.prd_valorsvc/init   = vCdValor
+	retrieve/e "PRD_VALORSVC"
+	if ($procerror)
+		;       Se não tiver preço para esta empresa o serviço vai pegar da empresa padrão
+		clear/e "ADM_PARAMETROSVC"
+		cd_parametro.adm_parametrosvc/init = "CD_EMPVALOR"
+		retrieve/e "ADM_PARAMETROSVC"
+		if (!$procerror)
+			clear/e "PRD_VALORSVC"
+			if (vl_parametro.adm_iprmsvc = "")
+				cd_empresa.prd_valorsvc/init = vl_parametro.adm_parametrosvc                
+			else
+				cd_empresa.prd_valorsvc/init = vl_parametro.adm_iprmsvc
+			endif
+			cd_produto.prd_valorsvc/init = cd_produto.prd_produtosvc
+			tp_valor.prd_valorsvc/init   = vTpValor
+			cd_valor.prd_valorsvc/init   = vCdValor
+			retrieve/e "PRD_VALORSVC"
+			if ($procerror)
+				$instancehandle->SetErroApl("ERRO=-1·;DESCRICAO=Preço ou custo base não encontrado.",poCdErro,poCtxErro)
+				return (-1)
+			endif
+		endif
+	endif
+	
+	vVlProduto = vl_produto.prd_valorsvc
+	
+	;   Pega promocao (PRD_PROMOCAO)
+	;    $instancehandle->GetPromocao(piGlobal,piParams,poParams,poCdErro,poCtxErro)
+	;    if ($item("CD_PROMOCAO",poParams) != "")
+	;        clear/e "PRD_PROMOCAOISVC"
+	;        cd_promocao.prd_promocaoisvc/init = $item("CD_PROMOCAO",poParams)    
+	;        dt_inicio.prd_promocaoisvc/init   = $item("DT_INICIO",poParams)
+	;        cd_produto.prd_promocaoisvc/init  = cd_produto.prd_produtosvc
+	;        retrieve/e "PRD_PROMOCAOISVC"
+	;        if ($status = 0)
+	;            if (tp_valor.prd_promocaosvc  = tp_valor.prd_valorsvc) &  %\
+	;            (cd_valor.prd_promocaosvc  = cd_valor.prd_valorsvc)
+	;            ;               Busca Prazo médio
+	;            vCondPgto   = $item("CD_CONDPGTO",piParams)  
+	;            vVlPromocao = vl_precoliquido.prd_promocaoisvc
+	;            viParams    = "CD_CONDPGTO=%%vCondPgto·;VL_PRODUTO=%%vVlPromocao"  
+	;            activate "GERSVCO013".CalcPrzMedio(viParams,voParams,vCdErro,vCtxErro)
+	;            if ($procerror)
+	;                $instancehandle->SetErroProc($procerrorcontext,$xcderro$,$xctxerro$)
+	;            elseif (vCdErro)
+	;                $instancehandle->SetErroApl(vCtxErro,vCdErro,vCtxErro)
+	;                return (-1)
+	;            endif
+	;            vVlPromocao = ""
+	;            vPrzMedio   = $item("QT_PRZMEDIO",voParams)
+	;            if (qt_prazomedio.prd_promocaosvc >= vPrzMedio)              
+	;                vCdPromocao   = cd_promocao.prd_promocaoisvc
+	;                vDtInicio     = dt_inicio.prd_promocaoisvc
+	;                vVlPromocao   = vl_precoliquido.prd_promocaoisvc
+	;                vDescPromocao = pr_desconto.prd_promocaoisvc
+	;            endif
+	;        endif
+	;    endif
+	;endif
+	
+	;   Aplica Juro no Valor do Produto e no Valor da Promoção
+	if (vJuro > 0)
+		vVlJuro     = vVlProduto * vJuro / 100
+		vVlJuro     = vVlProduto + vVlJuro
+		vVlProduto  = vVlJuro [Round, 2]
+		vVlJuro     = vVlPromocao * vJuro / 100
+		vVlJuro     = vVlPromocao + vVlJuro
+		vVlPromocao = vVlJuro [Round, 2]
+	endif
+	
+	;   Retorna erro se não gerar valor
+	if (vVlProduto = "")
+		$instancehandle->SetErroApl("ERRO=-1·;DESCRICAO=Preço ou custo base não definido no produto",poCdErro,poCtxErro)
+		return (-1)
+	endif      
+	
+	poParams = "VL_PRODUTO=%%vVlProduto·;VL_PROMOCAO=%%vVlPromocao·;PR_DESCONTO=%%vDescPromocao·;CD_PROMOCAO=%%vCdPromocao·;DT_INICIO=%%vDtInicio"
+	return (0)
+End ; operation GetPrecoCusto
+
+;---------------------------
+;Desabilitado
+;public operation GetPromocao 
+;---------------------------
+;    params
+;        string  piParamEmp    :IN
+;        string  piParams      :IN
+;        string  poParams      :OUT      
+;        numeric poCdErro      :OUT
+;        string  poCtxErro     :OUT 
+;    endparams
+;    
+;    variables
+;        Date    vDataSis
+;    endvariables
+;    
+;    ;-->Inicializacao Parametro erro
+;    poCdErro = 0 
+;    poCtxErro = "" 
+;    
+;    vDataSis= $item("DT_SISTEMA",piParamEmp)
+;    
+;    clear/e "PRD_PROMOCAOISVC"
+;    
+;    cd_produto.prd_promocaoisvc/init= $item("CD_PRODUTO",piParams)
+;    dt_vencimento.prd_promocaoisvc/init="·>·=%%vDataSis"
+;    
+;    retrieve/e "PRD_PROMOCAOISVC"
+;    if ($status = 0)
+;        if (tp_situacao.prd_promocaoisvc = "A") &                      %\
+;        (dt_vencimento.prd_promocaoisvc >= vDataSis) &              %\
+;        (qt_promovida.prd_promocaoisvc > qt_vendida.prd_promocaoisvc)
+;        ;atribui os parametros de saida
+;        poParams="CD_PROMOCAO=%%cd_promocao.prd_promocaoisvc·;DT_INICIO=%%dt_inicio.prd_promocaoisvc·;PR_DESCONTO=%%pr_desconto.prd_promocaoisvc·;TP_VALOR=%%tp_valor.prd_promocaoisvc·;CD_VALOR=%%cd_valor.prd_promocaoisvc"         
+;    endif
+;endif
+;return (0)
+;AUTOR: BAM
+;DATA : 24/07/2002
+;
+;   Localiza se há uma promocao vigente para um produto
+;
+;Parametros de Entrada
+;            codigo do produto
+;Parametros de Saida
+;            Código da Promocao;
+;            Data de Inicio de Vigencia
+;            Valor
+;            Tipo Valor
+;            Código do Valor
+;            ... demais informações necessárias, acrescentar no POPARAMS
+;
+;End ; operation GetPromocao
+
+;-----------------------------
+public operation AplicJuroItem 
+	;-----------------------------
+	params
+		string  piGlobal      :IN
+		string  piParams      :IN
+		string  poParams      :OUT      
+		numeric poCdErro      :OUT
+		string  poCtxErro     :OUT 
+	endparams
+	
+	variables
+		numeric vPrjuro,vVlJuro,vLiquido,vLimite,vPromocao
+		string  viParams,voParams,vSN
+	endvariables
+	
+	;-->Inicializacao Parametro erro
+	poCdErro = 0 
+	poCtxErro = "" 
+	vPrJuro = $item("PR_JURO",piParams)
+	vSN     = $item("LIMITE_CREDITO",piGlobal)
+	
+	;-->Valida Transacao
+	clear/e "TRA_TRANSACAOSVC"
+	cd_empresa.tra_transacaosvc/init   = $item("CD_EMPRESA", piParams)
+	nr_transacao.tra_transacaosvc/init = $item("NR_TRANSACAO", piParams)
+	dt_transacao.tra_transacaosvc/init = $item("DT_TRANSACAO", piParams)
+	retrieve/e "TRA_TRANSACAOSVC"
+	if (!$procerror)
+		Setocc "TRA_TRANSITEMSVC",1
+		if ($dbocc("TRA_TRANSITEMSVC"))
+			repeat
+				;          Busca preço no serviço GERSVCO012
+				vLiquido = vl_totalliquido.tra_transitemsvc
+				viParams="CD_PRODUTO=%%cd_produto.tra_transitemsvc·;NR_TRANSACAO=%%nr_transacao.tra_transitemsvc·;DT_TRANSACAO=%%dt_transacao.tra_transitemsvc·;CD_CONDPGTO=%%cd_condpgto.tra_transacaosvc·;CD_OPERACAO=%%cd_operacao.tra_transacaosvc"
+				activate "GERSVCO012".GetPrecoCusto(piGlobal,viParams,voParams,$xCdErro$,$xCtxErro$)
+				if ($procerror)
+					$instancehandle->SetErroProc($procerrorcontext,$xcderro$,$xctxerro$)
+				elseif ($xCdErro$)
+					$instancehandle->SetErroApl($xCtxErro$,$xcderro$,$xctxerro$)
+					return (-1) 
+				endif
+				
+				vl_unitbruto.tra_transitemsvc     = $item("VL_PRODUTO",voParams)
+				pr_desconto.tra_transitemsvc      = $item("PR_DESCONTO",voParams)
+				if ($item("VL_PROMOCAO",voParams) != 0)
+					vl_unitliquido.tra_transitemsvc  = $item("VL_PROMOCAO",voParams)
+				else
+					vl_unitliquido.tra_transitemsvc  = vl_unitbruto.tra_transitemsvc
+				endif
+				
+				;          Atualiza Total
+				vl_totalbruto.tra_transitemsvc    = vl_unitbruto.tra_transitemsvc   * qt_solicitada.tra_transitemsvc
+				vl_totalliquido.tra_transitemsvc  = vl_unitliquido.tra_transitemsvc * qt_solicitada.tra_transitemsvc
+				vl_totalliquido.tra_transitemsvc  = vl_totalliquido.tra_transitemsvc [Round, 2]
+				vl_transacao.tra_transacaosvc     = vl_transacao.tra_transacaosvc + vl_totalliquido.tra_transitemsvc
+				vliquido                          = vl_transacao.tra_transacaosvc - vLiquido
+				vl_transacao.tra_transacaosvc     = vLiquido [Round, 2]
+				;          Atualiza Usuário
+				cd_operador.tra_transitemsvc      = $item("CD_USUARIO",piGlobal)
+				dt_cadastro.tra_transitemsvc      = $datim
+				setocc "TRA_TRANSITEMSVC",$curocc(TRA_TRANSITEMSVC)+1
+			until ($status <= 0)
+			$status = 0  
+			
+			;      Busca Limite
+			if (vSN = "S")
+				viParams = "CD_PESSOA=%%cd_pessoa.tra_transacaosvc"
+				activate "PESSVCO011".VerEstatistica(viParams,voParams,$xCdErro$,$xCtxErro$)
+				if ($procerror)
+					$instancehandle->SetErroProc($procerrorcontext,$xcderro$,$xctxerro$)
+					return (0)
+				elseif ($xCdErro$)
+					$instancehandle->SetErroApl($xCtxErro$) 
+					return (0)
+				endif
+				
+				vLimite = $item("VL_LIMITE",voParams)
+				
+				;          Testa Limite
+				clear/e "GER_CONDPGTOCSVC"
+				cd_condpgto.ger_condpgtocsvc/init = $item("CD_CONDPGTO",piParams)
+				retrieve/e "GER_CONDPGTOCSVC"
+				if (!$procerror)
+					if (vl_transacao.tra_transacaosvc > vLimite)
+						if (nr_parcelas.ger_condpgtocsvc > 1) | %\
+						(qt_dia.ger_condpgtoisvc > 0)
+						$Instancehandle->SetErroApl("ERRO=-1·;DESCRICAO=Limite de Crédito Ultrapassado, verifique",poCdErro,poCtxErro)
+						return (0)
+					endif
+				endif
+			endif
+		endif
+		;      Grava Transacao
+		$collhandle("TRA_TRANSACAOSVC")->Salvar()
+		if ($procerror)
+			$instancehandle->SetErroProc($procerrorcontext,poCdErro,poCtxErro)
+		elseif ($status < 0)
+			$instancehandle->SetErroApl($xCtxErro$,poCdErro,poCtxErro)
+		else
+		endif
+	endif
+endif   
+
+End ; operation AplicJuroItem
+
+;-------------------------------
+public operation GetValorProduto 
+	;-------------------------------
+	params
+		string  piGlobal    :IN 
+		string  piParams    :IN
+		string  poParams    :OUT
+		numeric poCdErro    :OUT
+		string  poCtxErro   :OUT
+	endparams
+	
+	clear/e "PRD_VALORSVC"
+	CD_EMPRESA.PRD_VALORSVC = $item("CD_EMPRESA", piParams)
+	CD_PRODUTO.PRD_VALORSVC = $item("CD_PRODUTO", piParams)
+	TP_VALOR.PRD_VALORSVC = $item("TP_VALOR", piParams)
+	CD_VALOR.PRD_VALORSVC = $item("CD_VALOR", piParams)
+	retrieve/x "PRD_VALORSVC"
+	if ($status = -7)
+		retrieve/o "PRD_VALORSVC"
+	endif    
+	
+	putitem/id poParams, "VL_VALOR", VL_PRODUTO.PRD_VALORSVC
+	
+	return(0)
+End ; operation GetValorProduto
+
+;----------------------------------
+public operation buscaValorOperacao
+	;----------------------------------
+	params
+		string  piGlobal    :IN 
+		string  piParams    :IN
+		string  poParams    :OUT
+		string  poCdErro    :OUT
+		string  poCtxErro   :OUT
+	endparams
+	
+	variables
+		numeric vCdEmpresa, vCdProduto, vCdCondPgto, vCdOperacao, vCdValor, vCdPromocao
+		numeric vVlValor, vVlOriginal, vVlBruto, vVlLiquido, vVlDesconto, vVlProduto
+		numeric vPrJuro, vPrDesconto, vNrPrazoMedio, vVlBase
+		string  vTpValor, viParams, viListas, voParams
+		boolean vInPromocao, vInBloqDescPromocao, vInValorPadraoTransf
+		Date	vData
+	endvariables
+	
+	vInBloqDescPromocao = $item("IN_BLOQ_DESC_ITEM_PROM", piGlobal)
+	vData = $item("DT_VALOR", piParams)
+	if(vData = "")
+		vData = $item("DT_SISTEMA", piGlobal)
+	endif
+
+	vCdEmpresa = $item("CD_EMPRESA", piParams)  
+	if (vCdEmpresa = 0)
+		vCdEmpresa = $item("CD_EMPRESA", piGlobal)
+	endif    
+
+	call getParam(vCdEmpresa)
+	if ($procerror)
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+
+	vCdProduto = $item("CD_PRODUTO", piParams)
+	vCdCondPgto = $item("CD_CONDPGTO", piParams)
+	vCdOperacao = $item("CD_OPERACAO", piParams)
+	vInValorPadraoTransf = $item("IN_VALOR_PADRAO_TRANSF", piParams) ;* Claudemir - 16/07/2009 - Prj/Tarefa: 102/632
+	
+	if (vCdProduto = 0)
+		$instancehandle->SetErroApl("ERRO=-1·;DESCRICAO=Código do produto não informado!", $xCdErro$, $xCtxErro$)
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		exit(-1)
+	endif	
+	
+	if (vCdOperacao = 0)
+		$instancehandle->SetErroApl("ERRO=-1·;DESCRICAO=Código da operação não informado!", $xCdErro$, $xCtxErro$)
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		exit(-1)
+	endif
+
+	clear/e "GER_OPERVALORSVC"
+	CD_OPERACAO.GER_OPERVALORSVC/init = vCdOperacao
+	IN_PRECOBASE.GER_OPERVALORSVC/init = <TRUE> 
+	retrieve/e "GER_OPERVALORSVC"
+	if ($status >= 0)
+		vCdValor = CD_UNIDVALOR.GER_OPERVALORSVC
+		vTpValor = TP_UNIDVALOR.GER_OPERVALORSVC
+	else
+		$instancehandle->SetErroApl("ERRO=-1·;DESCRICAO=Operação %%vCdOperacao não possui valor padrão!", $xCdErro$, $xCtxErro$)
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		exit(-1)
+	endif
+
+	vNrPrazoMedio = ""
+	
+	if (vCdCondPgto > 0)
+		clear/e "GER_CONDPGTOCSVC"
+		CD_CONDPGTO.GER_CONDPGTOCSVC/init = vCdCondPgto
+		retrieve/e "GER_CONDPGTOCSVC"
+		if ($status >= 0)
+			vPrJuro = PR_JURO.GER_CONDPGTOCSVC
+			vPrDesconto = PR_DESCONTO.GER_CONDPGTOCSVC
+		else
+			vPrJuro = 0
+			vPrDesconto = 0
+		endif
+		viParams = ""
+		putitem/id viParams, "CD_CONDPGTO", vCdCondPgto
+		activate "GERSVCO013".calcPrzMedio(viParams, voParams, $xCdErro$, $xCtxErro$)
+		if ($procerror)       
+			$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+			poCdErro = $xCdErro$
+			poCtxErro = $xCtxErro$
+			exit(-1)
+		elseif ($status < 0)
+			$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")
+			poCdErro = $xCdErro$
+			poCtxErro = $xCtxErro$
+			exit(-1)
+		endif 
+		vNrPrazoMedio = $item("NR_PRAZOMEDIO", voParams)
+	else
+		vPrJuro = 0
+		vPrDesconto = 0
+	endif
+	
+	;Por Hugo em 20/10/2010 Tarefa 130-1293
+	if (TP_MODALIDADE.GER_OPERACAOSVC = 2) ;Transferência
+		vPrJuro = 0
+		vPrDesconto = 0
+	endif
+	;
+	
+	vInPromocao = <TRUE>
+	
+	viParams = ""
+	putitem/id viParams, "CD_EMPRESA", vCdEmpresa
+	putitem/id viParams, "CD_PRODUTO", vCdProduto
+	putitem/id viParams, "TP_VALOR", vTpValor
+	putitem/id viParams, "CD_VALOR", vCdValor
+	putitem/id viParams, "IN_PROMOCAO", vInPromocao
+	if (vNrPrazoMedio != "")
+		putitem/id viParams, "NR_PRAZOMEDIO", vNrPrazoMedio
+	endif
+	putitem/id viParams, "DT_VALOR", vData
+	viListas = ""    
+	activate "PRDSVCO007".buscaValorData(piGlobal, viParams, viListas, voParams, $xCdErro$, $xCtxErro$)
+	if ($procerror)       
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		exit(-1)
+	elseif ($xCdErro$)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=%%$item("DESCRICAO", $xCtxErro$)", "ADICIONAL=Operação->GERSVCO012.buscaValorOperacao")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		exit(-1)
+	endif
+
+	vCdPromocao = $item("CD_PROMOCAO", voParams)
+	vVlProduto = $item("VL_VALOR", voParams)
+	vVlOriginal = $item("VL_VALOR", voParams)
+	
+	;=CANONICO=- (09/02/2011) PRJ 156 TAR 500
+	if ($inAplicDescItemVlLiq$ = <TRUE>)
+		vVlBase = $item("VL_VALOR", voParams)
+	else
+		vVlBase = 0			
+	endif
+
+	if (vCdPromocao > 0)
+		viParams = ""
+		putitem/id viParams,"CD_EMPRESA", vCdEmpresa
+		putitem/id viParams,"CD_PRODUTO", vCdProduto
+		putitem/id viParams,"TP_VALOR", vTpValor
+		putitem/id viParams,"CD_VALOR", vCdValor
+		putitem/id viParams,"IN_PROMOCAO", <FALSE>
+		putitem/id viParams, "DT_VALOR", vData	
+		viListas = ""    
+		activate "PRDSVCO007".buscaValorData(piGlobal, viParams, viListas, voParams, $xCdErro$, $xCtxErro$)
+		if ($procerror)       
+			$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+			poCdErro = $xCdErro$
+			poCtxErro = $xCtxErro$
+			exit(-1)
+		elseif ($xCdErro$)
+			$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=%%$item("DESCRICAO", $xCtxErro$)", "ADICIONAL=Operação->GERSVCO012.buscaValorOperacao")
+			poCdErro = $xCdErro$
+			poCtxErro = $xCtxErro$
+			exit(-1)
+		endif
+		vVlOriginal = $item("VL_VALOR", voParams)
+	endif
+
+	if (vPrJuro > 0)
+		vVlValor = vVlProduto + (vVlProduto * vPrJuro / 100)
+		vVlBruto = vVlValor[round, 6]
+	else
+		vVlBruto = vVlProduto
+	endif
+	
+	if (vCdPromocao > 0) & (vInBloqDescPromocao = <TRUE>)
+		;Tarefa 102-674 por Hugo em 26/08/09
+		;Promoção com o parametro devera somar o juro, apenas nao da desconto.
+		;vVlBruto = vVlProduto
+		vVlLiquido = vVlBruto
+		vVlDesconto = 0
+	else
+		if (vPrDesconto > 0)
+			vVlValor = vVlBruto - (vVlBruto * vPrDesconto / 100)
+			vVlLiquido = vVlValor[round, 6]   ; Rafael Rodrigo da Silva - PRJ 130 TAR 504 28/05/2009
+			vVlDesconto = vVlBruto - vVlLiquido
+			if ($inAplicDescItemVlLiq$ = <TRUE>)
+				vVlDesconto	 = 0
+				vVlBruto = vVlLiquido
+			endif
+		else
+			vVlLiquido = vVlBruto
+		endif
+	endif
+
+	;* Claudemir - 16/07/2009 - Prj/Tarefa: 102/632
+	if (vVlLiquido <= 0) & (vInValorPadraoTransf = <TRUE>) ; se estiver sem valor, e for para pegar do parametro
+		if ($vlPadraoTransfPrd$ > 0) ; se o parametro VL_PADRAO_TRANSF_PRD, estiver com valor
+			clear/e "PRD_PRDINFOSVC"
+			CD_EMPRESA.PRD_PRDINFOSVC = vCdEmpresa
+			CD_PRODUTO.PRD_PRDINFOSVC = vCdProduto
+			retrieve/e "PRD_PRDINFOSVC"
+			if ($status >= 0)
+				; se for produto acabado e producao propria, jogo o valor cadastrado no parametro
+				if (IN_PRODACABADO.PRD_PRDINFOSVC = <TRUE>) & (IN_PRODPROPRIA.PRD_PRDINFOSVC = <TRUE>) 
+					vVlLiquido = $vlPadraoTransfPrd$
+					vVlBruto = $vlPadraoTransfPrd$
+				endif
+			endif
+		endif
+	endif ;*
+	
+	poParams = ""
+	putitem/id poParams, "VL_ORIGINAL", vVlOriginal
+	putitem/id poParams, "VL_BRUTO", vVlBruto
+	putitem/id poParams, "VL_LIQUIDO", vVlLiquido
+	putitem/id poParams, "VL_DESCONTO", vVlDesconto
+	putitem/id poParams, "CD_PROMOCAO", vCdPromocao
+	putitem/id poParams, "VL_BASE", vVlBase
+	
+	exit(0)
+End ; operation GetValorProduto

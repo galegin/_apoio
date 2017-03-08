@@ -1,0 +1,927 @@
+;-------------
+entry getParam
+	;-------------
+	params
+		numeric piCdEmpresa : IN
+	endparams
+	
+	variables
+		string viParams, voParams
+	endvariables
+	
+	if (piCdEmpresa = 0)
+		piCdEmpresa = $item("CD_EMPRESA", $xlpg$)
+	endif
+	
+	viParams = ""
+	putitem viParams, -1, "CD_CLAS_GRAVA_CLIENTE_PDV"
+	activate "ADMSVCO001".GetParamEmpresa(piCdEmpresa, viParams, voParams, $xCdErro$, $xCtxerro$)
+	if ($procerror)
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+		return(-1)
+	elseif ($xCdErro$)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=%%$item("DESCRICAO", $xCtxErro$)", "ADICIONAL=Operação->PESSVCO011.DadosPessoa")
+		return(-1)
+	endif
+	
+	$cdClasClientePdv$ = $item("CD_CLAS_GRAVA_CLIENTE_PDV", voParams)
+	
+	return(0)
+end
+
+Public Operation VerCondCliente 
+	
+	params
+		string  piParams  :IN
+		string  poParams  :OUT
+		numeric poCdErro  :OUT
+		string  poCtxerro :OUT   
+	endparams
+	
+	variables
+		string  vTpFormaPgto
+	endvariables
+	
+	poCdErro = 0
+	poCtxerro = ""
+	
+	clear/e "pes_clientesvc"
+	cd_cliente.pes_clientesvc/init = $item("CD_PESSOA",piParams)
+	retrieve/e "pes_clientesvc"
+	if ($procerror)
+		$instancehandle->SetErroApl("ERRO=-1·;DESCRICAO=Pessoa não cadastrada como Cliente",poCdErro,poCtxErro)
+		return (-1)
+	else
+		clear/e "ger_condpgtocsvc"
+		cd_condpgto.ger_condpgtocsvc/init = $item("CD_CONDPGTO",piParams)
+		retrieve/e "ger_condpgtocsvc"
+		if ($procerror)
+			$instancehandle->SetErroApl("ERRO=-1·;DESCRICAO=Condição de pagamento não cadastrada.",poCdErro,poCtxErro)
+			return (-1)
+		else
+			;       Testa o Cliente sem crediário. Venda somente a vista
+			setocc "GER_CONDPGTOISVC",1
+			if (tp_formapgto.pes_clientesvc = 1)
+				if (nr_parcelas.ger_condpgtocsvc > 1) | %\
+				(qt_dia.ger_condpgtoisvc > 0)
+				$instancehandle->SetErroApl("ERRO=-1·;DESCRICAO=Venda a Prazo somente no Cartão",poCdErro,poCtxErro)
+				return (0)
+			endif
+		endif
+	endif
+endif
+
+return (0)
+End ; Operation VerCondCliente
+
+;---------------------------------------------------------------------------
+;Verifica a Forma Pagamento da Transação e compara com o Cadastro do Cliente 
+;---------------------------------------------------------------------------
+Public Operation VerFormaPgto 
+	
+	params
+		string  piParams  :IN
+		string  poParams  :OUT
+		numeric poCdErro  :OUT
+		string  poCtxerro :OUT   
+	endparams
+	
+	variables
+		string  vTpFormaPgto
+	endvariables
+	
+	poCdErro = 0
+	poCtxerro = ""
+	
+	vTpFormaPgto = $item("TP_FORMAPGTO",Piparams)
+	
+	clear/e "pes_clientesvc"
+	cd_cliente.pes_clientesvc/init = $item("CD_PESSOA",piParams)
+	retrieve/e "pes_clientesvc"
+	if ($procerror)
+		$instancehandle->SetErroApl("ERRO=-1·;DESCRICAO=Pessoa não cadastrada como Cliente",poCdErro,poCtxErro)
+		return (-1)
+	else
+		if (tp_formapgto.pes_clientesvc = 1)
+			if (vTpFormaPgto = 0) | (vTpFormaPgto = 2) | (vTpFormaPgto = 7)
+				$instancehandle->SetErroApl("ERRO=-1·;DESCRICAO=Forma de Pagamento Somente Espécie ou Cartão",poCdErro,poCtxErro)
+			endif
+		else      
+			if (tp_formapgto.pes_clientesvc = 2)
+				if (vTpFormaPgto = 0)
+					$instancehandle->SetErroApl("ERRO=-1·;DESCRICAO=Não permitido Fatura para este Cliente",poCdErro,poCtxErro)
+				endif
+			endif
+		endif
+	endif
+	
+	return (0)
+End ; Operation VerFormaPgto
+
+;-----------------------------------------------
+;Verifica se o Cliente esta Bloqueado ou Inativo
+;-----------------------------------------------
+Public Operation VerBloqueioCli 
+	
+	params
+		string  piParams  :IN
+		string  poParams  :OUT
+		numeric poCdErro  :OUT
+		string  poCtxerro :OUT   
+	endparams
+	
+	poCdErro = 0
+	poCtxerro = ""
+	
+	clear/e "pes_clientesvc"
+	cd_cliente.pes_clientesvc/init = $item("CD_PESSOA",piParams)
+	retrieve/e "pes_clientesvc"
+	if ($procerror)
+		$instancehandle->SetErroApl("ERRO=-1·;DESCRICAO=Pessoa não cadastrada como Cliente",poCdErro,poCtxErro)
+		return (-1)
+	else
+		if (in_bloqueado.pes_clientesvc)
+			$instancehandle->SetErroApl("ERRO=-1·;DESCRICAO=Cliente Bloqueado, verifique",poCdErro,poCtxErro)
+		else      
+			if (in_inativo.pes_clientesvc)
+				$instancehandle->SetErroApl("ERRO=-1·;DESCRICAO=Cliente Inativo, verifique",poCdErro,poCtxErro)
+			endif
+		endif
+	endif
+	
+	return (0)
+End ; Operation VerBloqueioCli
+
+;-------------------------------
+;Verifica Estatistica do Cliente
+;-------------------------------
+Public Operation VerEstatistica 
+	
+	params
+		string  piParams  :IN
+		string  poParams  :OUT
+		numeric poCdErro  :OUT
+		string  poCtxerro :OUT   
+	endparams
+	
+	variables
+		string  vLimite,vSN
+	endvariables
+	
+	poCdErro = 0
+	poCtxerro = ""
+	vLimite = 0
+	
+	clear/e "pes_clienteessvc"
+	cd_cliente.pes_clienteessvc/init = $item("CD_PESSOA",piParams)
+	retrieve/e "pes_clienteessvc"
+	if (!$procerror)
+		vLimite =  vl_fatorlimite.pes_clienteessvc
+	endif
+	
+	poParams = "VL_LIMITE=%%vLimite"
+	return (0)
+	
+End ; Operation VerEstatistica
+
+;--------------------------
+;Grava Estatistica de Venda
+;--------------------------
+Public Operation GravaEstatistica 
+	
+	params
+		string  piParams  :IN
+		string  poParams  :OUT
+		numeric poCdErro  :OUT
+		string  poCtxerro :OUT   
+	endparams
+	
+	poCdErro = 0
+	poCtxerro = ""
+	
+	clear/e "pes_clienteessvc"
+	cd_cliente.pes_clienteessvc/init = $item("CD_PESSOA",piParams)
+	retrieve/e "pes_clienteessvc"
+	if (!$procerror)
+		vl_ultcompra.pes_clienteessvc       = $item("VL_TOTALNOTA",piParams)
+		dt_ultcompra.pes_clienteessvc       = $item("DT_EMISSAO",piParams)
+		if (vl_ultcompra.pes_clienteessvc   > vl_maiorcompra.pes_clienteessvc)
+			vl_maiorcompra.pes_clienteessvc = $item("VL_TOTALNOTA",piParams)
+			dt_maiorcompra.pes_clienteessvc = $item("DT_EMISSAO",piParams)
+		endif
+		$collhandle("PES_CLIENTEESSVC")->Salvar()
+		if ($procerror)
+			$instancehandle->SetErroProc($procerrorcontext,poCdErro,poCtxErro)
+		elseif ($status < 0)
+			$instancehandle->SetErroApl($xCtxErro$,poCdErro,poCtxErro)
+		endif
+	endif
+	
+	return (0)
+End ; Operation GravaEstatistica
+
+;-----------------------------------------------
+;Verifica se o Cliente pertence ao representante
+;-----------------------------------------------
+Public Operation SetRepCliente 
+	
+	params
+		string  piGlobal  :IN
+		string  piParams  :IN
+		string  poParams  :OUT
+		numeric poCdErro  :OUT
+		string  poCtxerro :OUT   
+	endparams
+	
+	variables
+		string vInDisponivel
+	endvariables
+	
+	poCdErro  = 0
+	poCtxerro = ""
+	vInDisponivel = <False>
+	
+	clear/e "PES_REPRCLIENSVC"
+	cd_representant.pes_reprcliensvc/init = $item("CD_PESSOA",piGlobal)
+	cd_cliente.pes_reprcliensvc/init      = $item("CD_PESSOA",piParams)
+	if (cd_representant.pes_reprcliensvc  = cd_cliente.pes_reprcliensvc)
+		vInDisponivel = <True>
+	else
+		retrieve/o "PES_REPRCLIENSVC"  
+		if ($Status = -7)
+			retrieve/x "PES_REPRCLIENSVC" 
+			if (!$procerror)
+				vInDisponivel = <True>
+			endif
+		endif
+	endif
+	poParams = "IN_DISPONIVEL=%%vInDisponivel"
+	return (0)
+End ; Operation SetRepCliente
+
+;-----------------------------------------------
+;Verifica se o Cliente pertence ao representante
+;-----------------------------------------------
+Public Operation GravaRepCliente 
+	
+	params
+		string  piGlobal  :IN
+		string  piParams  :IN
+		string  poParams  :OUT
+		numeric poCdErro  :OUT
+		string  poCtxerro :OUT   
+	endparams
+
+	poCdErro  = 0
+	poCtxerro = ""
+	
+	creocc "PES_REPRCLIENSVC", -1
+	cd_representant.pes_reprcliensvc/init = $item("CD_PESSOA",piGlobal)
+	cd_cliente.pes_reprcliensvc/init      = $item("CD_PESSOA",piParams)
+	if (cd_representant.pes_reprcliensvc != cd_cliente.pes_reprcliensvc)
+		retrieve/e "PES_REPRCLIENSVC"    
+		if ($Status = -2)
+			cd_operador.pes_reprcliensvc = $item("CD_USUARIO",piglobal)
+			dt_cadastro.pes_reprcliensvc = $datim
+			$collhandle("PES_REPRCLIENSVC")->Salvar()
+			if ($status < 0)
+				return ($Status)
+			endif
+		endif
+	endif
+	return (0)
+End ; Operation GravaRepCliente
+
+;-----------------------------------------------
+;Busca o limite do cliente
+;-----------------------------------------------
+Public Operation BuscaLimite 
+	
+	params
+		string  piGlobal  :IN
+		string  piParams  :IN
+		string  poParams  :OUT
+		numeric poCdErro  :OUT
+		string  poCtxerro :OUT   
+	endparams
+	
+	variables
+		numeric vCdCliente, vCdGrupoEmpresa, vLimite
+	endvariables
+	
+	vCdCliente = $item("CD_CLIENTE", piParams)
+	if (vCdCliente = 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Cliente não informado!", "ADICIONAL=Operação->PESSVCO011.BuscaLimite")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		exit(-1)
+	endif
+	
+	vCdGrupoEmpresa = $item("CD_GRUPOEMPRESA", piParams)
+	if (vCdGrupoEmpresa = 0)
+		vCdGrupoEmpresa = $item("CD_GRUPOEMPRESA", piGlobal)
+	endif
+	
+	clear/e "GER_EMPRESASVC"
+	CD_GRUPOEMPRESA.GER_EMPRESASVC/init = vCdGrupoEmpresa
+	retrieve/e "GER_EMPRESASVC"
+	if ($status >=0 )    
+		setocc "GER_EMPRESASVC", 1
+		while ($status >= 0)
+			clear/e "PES_CLIENTEESSVC"
+			CD_CLIENTE.PES_CLIENTEESSVC/init = vCdCliente
+			CD_EMPRESA.PES_CLIENTEESSVC/init = CD_EMPRESA.GER_EMPRESASVC
+			retrieve/e "PES_CLIENTEESSVC"
+			if ($status >= 0)
+				vLimite = vLimite + VL_FATORLIMITE.PES_CLIENTEESSVC
+			endif
+			setocc "GER_EMPRESASVC", $curocc("GER_EMPRESASVC") + 1
+		endWhile
+	endif
+	
+	putitem/id poParams, "VL_LIMITE", vLimite
+	
+	exit(0)
+	End; BuscaLimite
+	
+
+;---------------------------------------
+public operation habilitaPessoaFornecedor
+;-----------------------------------------
+;
+	params
+		string  piGlobal  :IN
+		string  piParams  :IN
+		string  poParams  :OUT
+		numeric poCdErro  :OUT
+		string  poCtxErro :OUT
+	endparams
+	variables
+		numeric vCdPessoa
+	endvariables
+	
+	vCdPessoa = $item("CD_PESSOA", piParams)
+	if (vCdPessoa = "") | (vCdPessoa = 0)
+		$instancehandle->setStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Código de pessoa não informado para habilitar fornecedor.", "")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	
+	clear/e "PES_FORNECEDOSVC"
+	cd_fornecedor.pes_fornecedosvc/init = vCdPessoa
+	retrieve/e "PES_FORNECEDOSVC"
+	if ($status < 0)
+		;Habilita pessoa como fornecedor.
+		creocc "PES_FORNECEDOSVC", -1
+		cd_fornecedor.pes_fornecedosvc = vCdPessoa
+		in_icmsrecup.pes_fornecedosvc  = <FALSE>
+		in_iso.pes_fornecedosvc        = <FALSE>
+		in_inativo.pes_fornecedosvc    = <FALSE>
+		cd_operador.pes_fornecedosvc   = $item("CD_USUARIO", piGlobal)
+		dt_cadastro.pes_fornecedosvc   = $datim
+		
+		$collhandle("PES_FORNECEDOSVC")->Salvar()
+		if ($procerror)
+			$instancehandle->setStatus(<STS_ERRO>, $procerror, $procerrorcontext, "ADICIONAL=  / PESSVCO011.habilitaPessoaFornecedor()")
+			poCdErro  = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return(-1)
+		elseif ($status < 0)
+			$instancehandle->setStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "ADICIONAL=  / PESSVCO011.habilitaPessoaFornecedor()")
+			poCdErro  = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return(-1)
+		endif
+	endif
+	
+	return(0)
+End ;operation habilitaPessoaFornecedor.
+
+;----------------------------------
+public operation gravaLimiteCliente
+;----------------------------------
+	
+	params
+		string  piGlobal  :IN
+		string  piParams  :IN
+		string  poParams  :OUT
+		numeric poCdErro  :OUT
+		string  poCtxerro :OUT   
+	endparams
+	
+	variables
+		string vDsObs, vDsLstCliente, viParams, voParams
+		numeric vCdCliente, vCdEmpresa, vVlLimite, vCdGrupoEmpresa
+	endvariables
+	
+	vCdEmpresa = $item("CD_EMPRESA", piParams)
+	vCdCliente = $item("CD_CLIENTE", piParams)
+	vVlLimite = $item("VL_LIMITE", piParams)
+	vDsObs = $item("DS_OBS", piParams)
+	
+	if (vCdEmpresa = "")
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Empresa não informada!", "ADICIONAL=Operação->PESSVCO011.gravaLimiteCliente")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	
+	if (vCdCliente = "")
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Cliente não informado!", "ADICIONAL=Operação->PESSVCO011.gravaLimiteCliente")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	
+	if (vDsObs = "")
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Observação (motivo) não informado!", "ADICIONAL=Operação->PESSVCO011.gravaLimiteCliente")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	
+	clear/e "GER_EMPRESASVC"
+	CD_EMPRESA.GER_EMPRESASVC = vCdEmpresa
+	retrieve/e "GER_EMPRESASVC" 
+	if ($status >= 0)
+		vCdGrupoEmpresa = CD_GRUPOEMPRESA.GER_EMPRESASVC
+	endif
+	
+	clear/e "PES_CLIENTESVC"
+	CD_CLIENTE.PES_CLIENTESVC = vCdCliente
+	retrieve/e "PES_CLIENTESVC"
+	if ($status < 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Cliente %%vCdCliente não encontrado!", "ADICIONAL=Operação->PESSVCO011.gravaLimiteCliente")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	
+	clear/e "PES_CLIENTEESSVC"
+	creocc "PES_CLIENTEESSVC", -1
+	CD_EMPRESA.PES_CLIENTEESSVC = vCdEmpresa
+	retrieve/o "PES_CLIENTEESSVC"
+	if ($status = -7)
+		retrieve/x "PES_CLIENTEESSVC"
+	endif
+	
+	VL_FATORLIMITE.PES_CLIENTEESSVC = vVlLimite
+	CD_GRUPOEMPRESA.PES_CLIENTEESSVC = vCdGrupoEmpresa
+	DT_CADASTRO.PES_CLIENTEESSVC = $datim
+	CD_OPERADOR.PES_CLIENTEESSVC = $item("CD_USUARIO", piGlobal)
+	
+	$collhandle("PES_CLIENTEESSVC")->Salvar()
+	if ($procerror)
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	elseif ($status < 0)
+		$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")    
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif      		
+	
+	vDsLstCliente = ""
+	putitem vDsLstCliente, -1, vCdCliente
+	viParams = ""
+	putitem/id viParams, "DS_LSTCLIENTE", vDsLstCliente
+	putitem/id viParams, "CD_COMPONENTE", $componentname
+	putitem/id viParams, "DS_OBSERVACAO", vDsObs
+	activate "PESSVCO014".gravaObsCliente(piGlobal, viParams, voParams, $xCdErro$, $xCtxErro$)
+	if ($procerror)
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext)
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	elseif ($status < 0)
+		$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	
+	return(0)
+end
+
+;---Elia Proj. 94/277 28/09/07--------
+public operation gravaLogLimiteCliente
+;-------------------------------------
+	
+	params
+		string  piGlobal  :IN
+		string  piParams  :IN
+		string  poParams  :OUT
+		numeric poCdErro  :OUT
+		string  poCtxerro :OUT   
+	endparams
+
+	variables 
+		numeric vCdCliente, vCdEmpresa, vNrSequencia, vTpOperacao, vCdEmpOper, vCdAutorizador
+		numeric vVlLimAntes, vVlSalAntes, vVlOperacao, vVlLimApos, vVlSalApos
+		string viParams, voParams, vCdComponente, vDsOperacao, vCdSitAntes, vCdSitApos
+	endvariables
+
+	vCdEmpresa     = $item("CD_EMPRESA", piGlobal)
+	vCdCliente     = $item("CD_CLIENTE", piParams)
+	vCdSitAntes    = $item("CD_SITANTES", piParams)
+	vVlLimAntes    = $item("VL_LIMANTES", piParams)
+	vVlSalAntes    = $item("VL_SALANTES", piParams)
+	vTpOperacao    = $item("TP_OPERACAO", piParams)
+	vDsOperacao    = $item("DS_OPERACAO", piParams)
+	vCdEmpOper     = $item("CD_EMPOPER", piParams)
+	vVlOperacao    = $item("VL_OPERACAO", piParams)
+	vCdSitApos     = $item("CD_SITAPOS", piParams)
+	vVlLimApos     = $item("VL_LIMAPOS", piParams)
+	vVlSalApos     = $item("VL_SALAPOS", piParams)
+	vCdAutorizador = $item("CD_AUTORIZADOR", piParams)
+	vCdComponente  = $item("CD_COMPONENTE", piParams)
+		
+	if (vCdEmpOper = "")
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Empresa de operação não informada!", "ADICIONAL=Operação->PESSVCO011.gravaLogLimiteCliente")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+
+	if (vCdCliente = "")
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Cliente não informado!", "ADICIONAL=Operação->PESSVCO011.gravaLogLimiteCliente")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+
+	if (vTpOperacao = "")
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Operação não informada!", "ADICIONAL=Operação->PESSVCO011.gravaLogLimiteCliente")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+
+	if (vCdComponente = "")
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Componente não informado!", "ADICIONAL=Operação->PESSVCO011.gravaLogLimiteCliente")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+
+	clear/e "PES_CLIENTESVC"
+	CD_CLIENTE.PES_CLIENTESVC = vCdCliente
+	retrieve/e "PES_CLIENTESVC"
+	if ($status < 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Cliente %%vCdCliente não encontrado!", "ADICIONAL=Operação->PESSVCO011.gravaLogLimiteCliente")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+
+	while (vNrSequencia = "")
+		viParams = ""
+		putitem/id viParams, "NM_ENTIDADE", "PES_LIMITE"
+		activate "GERSVCO031".getNumSeq($xlpg$, viParams, voParams, $xCdErro$, $xCtxerro$)
+		if ($procerror)
+			$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+			poCdErro = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return(-1)  
+		elseif ($status < 0)
+			$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")
+			poCdErro = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return(-1)  
+		endif    
+
+		vNrSequencia = $item("NR_SEQUENCIA", voParams)
+
+		clear/e "F_PES_LIMITESVC"
+		NR_SEQUENCIAL.F_PES_LIMITESVC/init = vNrSequencia
+		retrieve/e "F_PES_LIMITESVC"
+		if($status >= 0)
+			vNrSequencia = ""
+		endif
+	endwhile
+
+	if ((vVlLimAntes != "") | (vVlLimApos != "")) & (vVlOperacao = 0)
+		vVlOperacao = vVlLimApos - vVlLimAntes
+	endif
+	
+	if ((vVlSalAntes != "") | (vVlSalApos != "")) & (vVlOperacao = 0)
+		vVlOperacao = vVlSalApos - vVlSalAntes
+	endif
+
+	creocc "PES_LIMITESVC", -1
+	CD_PESSOA.PES_LIMITESVC      = vCdCliente
+	NR_SEQUENCIAL.PES_LIMITESVC  = vNrSequencia 
+	CD_OPERADOR.PES_LIMITESVC    = $item("CD_USUARIO", piGlobal)
+	DT_CADASTRO.PES_LIMITESVC    = $datim
+	CD_EMPRESA.PES_LIMITESVC     = vCdEmpresa
+	CD_SITANTES.PES_LIMITESVC    = vCdSitAntes
+	VL_LIMANTES.PES_LIMITESVC    = vVlLimAntes
+	VL_SALANTES.PES_LIMITESVC    = vVlSalAntes
+	TP_OPERACAO.PES_LIMITESVC    = vTpOperacao  ; 01 - Alteração de Situação / 02 - Alteração de Limite / 21 - Operação de Débito / 61 - Operação de Crédito
+	DS_OPERACAO.PES_LIMITESVC    = vDsOperacao
+	CD_EMPOPER.PES_LIMITESVC     = vCdEmpOper
+	VL_OPERACAO.PES_LIMITESVC    = vVlOperacao
+	CD_SITAPOS.PES_LIMITESVC     = vCdSitApos
+	VL_LIMAPOS.PES_LIMITESVC     = vVlLimApos
+	VL_SALAPOS.PES_LIMITESVC     = vVlSalApos
+	CD_AUTORIZADOR.PES_LIMITESVC = vCdAutorizador
+	CD_COMPONENTE.PES_LIMITESVC  = vCdComponente 
+
+	$collhandle("PES_LIMITESVC")->Salvar()
+	if ($procerror)
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	elseif ($status < 0)
+		$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")    
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif      		
+
+	return (0)
+
+End ; operation gravaLogLimiteCliente
+
+;---------------------------
+public operation gravaPessoa
+;---------------------------
+	params
+		string  piGlobal  :IN
+		string  piParams  :IN
+		string  poParams  :OUT
+		numeric poCdErro  :OUT
+		string  poCtxerro :OUT   
+	endparams
+	
+	variables
+		numeric vCdPessoa, vTpFormaPgto, vPosInicio, vPosFim, vTamParam, vCdTipoClas, vPosVirgula
+		string vTpPessoa, vNmPessoa, vNrCpfCnpj, viParams, voParams, vDsLstValor, vCdClas
+	endvariables
+	
+	$xlpg$ = piGlobal
+
+	vTpPessoa = $item("TP_PESSOA", piParams)
+	vNmPessoa = $item("NM_PESSOA", piParams)
+	vNrCpfCnpj = $item("NR_CPFCNPJ", piParams)
+	vTpFormaPgto = $item("TP_FORMAPGTO", piParams)
+	
+	if (vTpPessoa = "")
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Tipo pessoa não informada!", "ADICIONAL=Operação->PESSVCO011.gravaPessoa")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	
+	if (vNmPessoa = "")
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Nome da pessoa não informada!", "ADICIONAL=Operação->PESSVCO011.gravaPessoa")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	
+	if (vTpFormaPgto = "") & (vTpPessoa = "F")
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Parâmetro empresa PES_CLIENTE_FORMA_PGTO não cadastrado!", "ADICIONAL=Operação->PESSVCO011.gravaPessoa")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+
+;; Marcus Vinicius - 94/1426 - 25/06/2010
+	if (vNrCpfCnpj = "")
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Número do CPF/CNPJ não informado!", "ADICIONAL=Operação->PESSVCO011.gravaPessoa")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+
+	clear/e "PES_S2_PESSOASVC"
+	NR_CPFCNPJ.PES_S2_PESSOASVC/init = vNrCpfCnpj 
+	retrieve/e "PES_S2_PESSOASVC"
+	if($status >= 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Número do CPF/CNPJ já cadastrado para a pessoa %%CD_PESSOA.PES_S2_PESSOASVC!", "ADICIONAL=Operação->PESSVCO011.gravaPessoa")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+;;	
+	call getParam($item("CD_EMPRESA", piGlobal))
+	if ($procerror)
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		exit(-1)
+	endif
+	if ($status < 0)
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		exit(-1)
+	endif
+	
+	viParams = ""
+	activate "PESSVCO007".getSeqPessoa(piGlobal, viParams, voParams, $xCdErro$, $xCtxErro$)
+	if ($procerror)
+		$instancehandle->setStatus(<STS_ERRO>, $procerror, $procerrorcontext, "ADICIONAL=  / PESSVCO011.gravaPessoa()")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	elseif ($status < 0)
+		$instancehandle->setStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "ADICIONAL=  / PESSVCO011.gravaPessoa()")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	vCdPessoa = $item("CD_PESSOA", voParams)
+	creocc "PES_PESSOASVC", -1
+	CD_PESSOA.PES_PESSOASVC = vCdPessoa
+	TP_PESSOA.PES_PESSOASVC = vTpPessoa
+	CD_EMPRESACAD.PES_PESSOASVC = $item("CD_EMPRESA", piGlobal)
+	CD_OPERADORCAD.PES_PESSOASVC = $item("CD_USUARIO", piGlobal)
+	CD_OPERADOR.PES_PESSOASVC = $item("CD_USUARIO", piGlobal)
+	;---Elia 21/08/08 Sem tarefa 
+	;DT_CADASTRO.PES_PESSOASVC = $item("DT_CADASTRO", piGlobal)
+	;DT_INCLUSAO.PES_PESSOASVC = $item("DT_CADASTRO", piGlobal)
+	DT_CADASTRO.PES_PESSOASVC = $datim
+	DT_INCLUSAO.PES_PESSOASVC = $datim
+	;
+	NM_PESSOA.PES_PESSOASVC = vNmPessoa
+	NR_CPFCNPJ.PES_PESSOASVC = vNrCpfCnpj
+
+	if ($cdClasClientePdv$ != "")
+		vDsLstValor = $cdClasClientePdv$
+		vPosInicio = 1
+		vPosFim = 1
+		length vDsLstValor
+		vTamParam = $result
+		repeat 
+;		while (vPosInicio < vTamParam)
+			scan vDsLstValor[vPosInicio,vTamParam], ";" 
+			vPosVirgula = $result;guarda a posicao onde foi encontrada a virgula
+			if (vPosVirgula > 0)
+				vCdTipoClas = vDsLstValor[vPosInicio,vPosVirgula - 1];acha o CD_TIPOCLAS
+				vDsLstValor = vDsLstValor[vPosVirgula + 1, vTamParam];Exclui da variavel o valor extraido
+				length vDsLstValor
+				vTamParam = $result
+;				vPosFim = vPosInicio + $result + 2 
+;				vCdTipoClas = vDsLstValor[vPosInicio,vPosFim]
+;				vPosInicio = vPosFim - 2
+				scan vDsLstValor[vPosInicio,vTamParam], ";" ;verifica se tem mais um CD_TIPOCLAS pra Gravar
+				vPosVirgula = $result;guarda a posicao onde foi encontrada a virgula
+				if (vPosVirgula > 0);se nao tiver outro ponto e virgula dve ser gravado o cd_classificacao
+					vCdClas = vDsLstValor[vPosInicio,vPosVirgula - 1];acha o CD_CLASSIFICACAO
+					vDsLstValor = vDsLstValor[vPosVirgula + 1, vTamParam];Exclui o valor extraido
+					length vDsLstValor
+					vTamParam = $result
+				else;se nao tiver mais nenhum ; deve ser gravado o CD_CLASSIFICACAO
+					vCdClas = vDsLstValor
+					vDsLstValor = vDsLstValor[vPosVirgula + 1, vTamParam]	
+				endif
+
+				clear/e "PES_CLASSIFICSVC"
+				CD_TIPOCLAS.PES_CLASSIFICSVC/init = vCdTipoClas
+				CD_CLASSIFICACAO.PES_CLASSIFICSVC/init = vCdClas
+				retrieve/e "PES_CLASSIFICSVC"
+				if ($status >= 0)
+					creocc "PES_PESSOACLASVC", -1
+					CD_TIPOCLAS.PES_PESSOACLASVC = vCdTipoClas
+					CD_CLASSIFICACAO.PES_PESSOACLASVC = vCdClas
+					retrieve/o "PES_PESSOACLASVC"
+					if ($status = -7)
+						retrieve/x "PES_PESSOACLASVC"
+					endif
+					CD_OPERADOR.PES_PESSOACLASVC = $item("CD_USUARIO", piGlobal)
+					DT_CADASTRO.PES_PESSOACLASVC = $datim
+				endif
+			else
+				break
+			endif
+		until (vDsLstValor = "")
+	endif
+	
+	$collhandle("PES_PESSOASVC")->Salvar()
+	if ($procerror)
+		$instancehandle->setStatus(<STS_ERRO>, $procerror, $procerrorcontext, "ADICIONAL=  / PESSVCO011.gravaPessoa()")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	elseif ($status < 0)
+		$instancehandle->setStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "ADICIONAL=  / PESSVCO011.gravaPessoa()")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	
+	clear/e "PES_CLIENTESVC"
+	
+	creocc "PES_CLIENTESVC", -1
+	CD_CLIENTE.PES_CLIENTESVC = vCdPessoa
+	TP_FORMAPGTO.PES_CLIENTESVC = vTpFormaPgto
+	CD_OPERADOR.PES_CLIENTESVC = $item("CD_USUARIO", piGlobal)
+	DT_CADASTRO.PES_CLIENTESVC = $item("DT_CADASTRO", piGlobal)
+	IN_BLOQUEADO.PES_CLIENTESVC = <FALSE>
+	IN_INATIVO.PES_CLIENTESVC = <FALSE>
+	
+	$collhandle("PES_CLIENTESVC")->Salvar()
+	if ($procerror)
+		$instancehandle->setStatus(<STS_ERRO>, $procerror, $procerrorcontext, "ADICIONAL=  / PESSVCO011.gravaPessoa()")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	elseif ($status < 0)
+		$instancehandle->setStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "ADICIONAL=  / PESSVCO011.gravaPessoa()")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	
+	if (vTpPessoa = "J")
+		clear/e "PES_PESJURIDISVC"
+		
+		creocc "PES_PESJURIDISVC", -1
+		CD_PESSOA.PES_PESJURIDISVC = vCdPessoa
+		CD_OPERADOR.PES_PESJURIDISVC = $item("CD_USUARIO", piGlobal)
+		DT_CADASTRO.PES_PESJURIDISVC = $item("DT_CADASTRO", piGlobal)
+		IN_INATIVO.PES_PESJURIDISVC = <FALSE>
+		NR_CNPJ.PES_PESJURIDISVC = vNrCpfCnpj
+		
+		$collhandle("PES_PESJURIDISVC")->Salvar()
+		if ($procerror)
+			$instancehandle->setStatus(<STS_ERRO>, $procerror, $procerrorcontext, "ADICIONAL=  / PESSVCO011.gravaPessoa()")
+			poCdErro  = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return(-1)
+		elseif ($status < 0)
+			$instancehandle->setStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "ADICIONAL=  / PESSVCO011.gravaPessoa()")
+			poCdErro  = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return(-1)
+		endif
+;; Marcus Vinicius - 94/1426 - 25/06/2010
+	else
+		clear/e "PES_PESFISICASVC"		
+		creocc "PES_PESFISICASVC", -1
+		CD_PESSOA.PES_PESFISICASVC   = vCdPessoa
+		CD_OPERADOR.PES_PESFISICASVC = $item("CD_USUARIO", piGlobal)
+		DT_CADASTRO.PES_PESFISICASVC = $item("DT_CADASTRO", piGlobal)
+		IN_INATIVO.PES_PESFISICASVC  = <FALSE>
+		NR_CPF.PES_PESFISICASVC      = vNrCpfCnpj
+		
+		$collhandle("PES_PESFISICASVC")->Salvar()
+		if ($procerror)
+			$instancehandle->setStatus(<STS_ERRO>, $procerror, $procerrorcontext, "ADICIONAL=  / PESSVCO011.gravaPessoa()")
+			poCdErro  = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return(-1)
+		elseif ($status < 0)
+			$instancehandle->setStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "ADICIONAL=  / PESSVCO011.gravaPessoa()")
+			poCdErro  = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return(-1)
+		endif
+	endif
+;;
+	poParams = ""
+	putitem/id poParams, "CD_PESSOA", vCdPessoa
+	
+	return(0)
+end
+
+;---------------------------------------
+public operation buscaPreferenciaCliente
+;---------------------------------------
+	params
+		string  $xlpg$      :IN
+		string  piParams    :IN
+		string  poParams    :OUT
+		string  poCdErro    :OUT
+		string  poCtxErro   :OUT
+	endparams
+	
+	variables
+		numeric vCdCliente
+	endvariables
+	
+	vCdCliente = $item("CD_CLIENTE", piParams)
+	
+	if (vCdCliente = "")
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Cliente não informado!", "ADICIONAL=Operação->PESSVCO011.buscaPreferenciaCliente")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	
+	poParams = ""
+
+	clear/e "PES_PREFCLIENSVC"
+	CD_CLIENTE.PES_PREFCLIENSVC/init = vCdCliente
+	retrieve/e "PES_PREFCLIENSVC"
+	if ($status >= 0)
+		putlistitems/occ poParams, "PES_PREFCLIENSVC"
+	endif
+	
+	return(0)
+end

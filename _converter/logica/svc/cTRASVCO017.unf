@@ -1,0 +1,1060 @@
+;-------------
+entry getParam
+;-------------
+	params
+		numeric piCdEmpresa : IN
+		string piDsOperacao : IN
+	endparams
+
+	variables
+		string viParams, voParams
+	endvariables
+
+	if (piCdEmpresa = 0)
+		piCdEmpresa = $item("CD_EMPRESA", $xlpg$)
+	endif
+
+	viParams = ""
+	putitem viParams, -1, "IN_SIMULADOR_COND_PGTO"
+	activate "ADMSVCO001".GetParamEmpresa(piCdEmpresa, viParams, voParams, $xCdErro$, $xCtxerro$)
+	if ($procerror)
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+		return(-1)
+	elseif ($xCdErro$)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=%%$item("DESCRICAO", $xCtxErro$)", "ADICIONAL=Operação->TRASVCO017.%%piDsOperacao")
+		return(-1)
+	endif
+	$inSimulador$ = $item("IN_SIMULADOR_COND_PGTO", voParams)
+	
+	return(0)
+end
+
+;-------------------------------------
+public operation carregaFormaPagamento
+;-------------------------------------
+	params
+		string  $xlpg$      :IN    
+		string  piParams    :IN
+		string  poParams    :OUT
+		string  poCdErro    :OUT
+		string  poCtxErro   :OUT
+	endparams
+	
+	variables
+		string vDsLinha, vDsLstFormaPgto, vDsAdicional, viParams, voParams, vDsObservacao
+		numeric vCdEmpresa, vNrTransacao, vVlTransacao, vVlDinheiro, vVlCalc, vVlTotal, vVlTotParcela, vTpMultiploCartao
+		numeric vVlResto, vVlParcela, vNrIndice, vNrParcela, vNrFat, vNrPrazoMedio, vTpDocumento, vNrSeqHistRelSub, vVlCartao
+		numeric vNrPortador
+		date vDtTransacao, vDtVencimento, vDtSistema
+	endvariables
+
+	vCdEmpresa = $item("CD_EMPRESA", piParams)
+	vNrTransacao = $item("NR_TRANSACAO", piParams)
+	vDtTransacao = $item("DT_TRANSACAO", piParams)
+	vTpMultiploCartao = $item("TP_MULTIPLOCARTAO", piParams)
+	
+	if (vCdEmpresa = 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Empresa não informada!", "ADICIONAL=Operação->TRASVCO017.carregaFormaPagamento")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	
+	if (vNrTransacao = 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Número transação não informado!", "ADICIONAL=Operação->TRASVCO017.carregaFormaPagamento")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	
+	if (vDtTransacao = "")
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Data transação não informada!", "ADICIONAL=Operação->TRASVCO017.carregaFormaPagamento")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	
+	clear/e "TRA_TRANSACAOSVC"
+	CD_EMPRESA.TRA_TRANSACAOSVC/init = vCdEmpresa
+	NR_TRANSACAO.TRA_TRANSACAOSVC/init = vNrTransacao
+	DT_TRANSACAO.TRA_TRANSACAOSVC/init = vDtTransacao
+	retrieve/e "TRA_TRANSACAOSVC"
+	if ($status < 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Transação %%vNrTransacao não cadastrada!", "ADICIONAL=Operação->TRASVCO017.carregaFormaPagamento")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1) 
+	endif
+
+	vNrPrazoMedio = ""
+	poParams = ""
+	vDsLstFormaPgto = ""
+	vVlDinheiro = 0
+	vTpDocumento = 0
+	vNrPortador = 0
+	vNrSeqHistRelSub = 0
+	vVlCartao = 0
+	
+	clear/e "SIS_PARCELAMENTO"
+	
+	clear/e "TRA_TRANSCONDSVC"
+	CD_EMPRESA.TRA_TRANSCONDSVC/init = vCdEmpresa
+	NR_TRANSACAO.TRA_TRANSCONDSVC/init = vNrTransacao
+	DT_TRANSACAO.TRA_TRANSCONDSVC/init = vDtTransacao
+	retrieve/e "TRA_TRANSCONDSVC"
+	if ($status >= 0)
+		clear/e "TRA_SIMUPARCESVC"
+		CD_EMPRESA.TRA_SIMUPARCESVC/init = vCdEmpresa
+		NR_TRANSACAO.TRA_SIMUPARCESVC/init = vNrTransacao
+		DT_TRANSACAO.TRA_SIMUPARCESVC/init = vDtTransacao
+		retrieve/e "TRA_SIMUPARCESVC"
+		if ($status >= 0)
+			sort/e "TRA_SIMUPARCESVC", "TP_DOCUMENTO.TRA_SIMUPARCESVC,NR_SEQHISTRELSUB.TRA_SIMUPARCESVC"
+			setocc "TRA_SIMUPARCESVC", 1
+			while ($status >= 0)
+				if (TP_DOCUMENTO.TRA_SIMUPARCESVC = 3)
+					vVlDinheiro = vVlDinheiro + VL_PARCELA.TRA_SIMUPARCESVC
+				else
+					clear/e "GER_CONDPGTOCSVC"
+					if (TP_DOCUMENTO.TRA_TRANSCONDSVC != 4)
+						CD_CONDPGTO.GER_CONDPGTOCSVC/init = CD_CONDPGTO.TRA_TRANSCONDSVC
+						retrieve/e "GER_CONDPGTOCSVC"
+						if ($status < 0)
+							clear/e "GER_CONDPGTOCSVC"
+						endif
+					endif
+					
+					if (DT_VENCIMENTO.TRA_SIMUPARCESVC != "")
+						vDtVencimento = DT_VENCIMENTO.TRA_SIMUPARCESVC
+					else
+						vDtVencimento = $item("DT_SISTEMA", $xlpg$)
+						
+						setocc "GER_CONDPGTOISVC", NR_PARCELA.TRA_SIMUPARCESVC
+						if ($status >= 0)
+							vDtVencimento = vDtVencimento + QT_DIA.GER_CONDPGTOISVC
+						endif
+					endif
+					
+					if (vTpMultiploCartao = 1) & (TP_DOCUMENTO.TRA_SIMUPARCESVC = 4)
+						vVlCartao = vVlCartao + VL_PARCELA.TRA_SIMUPARCESVC
+						
+						if (vNrPortador = 0)
+							clear/e "FCX_HISTRELSUSVC"
+							TP_DOCUMENTO.FCX_HISTRELSUSVC/init = TP_DOCUMENTO.TRA_SIMUPARCESVC
+							NR_SEQHISTRELSUB.FCX_HISTRELSUSVC/init = NR_SEQHISTRELSUB.TRA_SIMUPARCESVC
+							retrieve/e "FCX_HISTRELSUSVC"
+							if ($status >= 0)
+								vNrPortador = NR_PORTADOR.FCX_HISTRELSUSVC
+							endif
+							
+							vNrSeqHistRelSub = NR_SEQHISTRELSUB.TRA_SIMUPARCESVC
+						endif
+					else
+						if (TP_DOCUMENTO.TRA_TRANSCONDSVC = 2) ;Cheque
+							vNrFat = ""
+						else
+							if (vNrFat = 0) | (TP_DOCUMENTO.TRA_SIMUPARCESVC != vTpDocumento) | (NR_SEQHISTRELSUB.TRA_SIMUPARCESVC != vNrSeqHistRelSub)
+								viParams = ""
+								putitem/id viParams, "NM_ENTIDADE", "FCR_FATURAI"
+								activate "GERSVCO031".getNumSeq($$gParamGlb, viParams, voParams, $xCdErro$, $xCtxerro$)
+								if($procerror)
+									$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+									return(-1)
+								elseif ($status < 0)
+									$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")
+									return(-1)
+								endif
+								
+								vNrFat = $item("NR_SEQUENCIA", voParams)
+							endif
+						endif
+						
+						creocc "SIS_PARCELAMENTO", -1
+						VL_DOCUMENTO.SIS_PARCELAMENTO/init = VL_PARCELA.TRA_SIMUPARCESVC
+						TP_DOCUMENTO.SIS_PARCELAMENTO/init = TP_DOCUMENTO.TRA_SIMUPARCESVC
+						NR_DOCUMENTO.SIS_PARCELAMENTO/init = vNrFat
+						DT_VENCIMENTO.SIS_PARCELAMENTO/init = vDtVencimento
+						
+						if (TP_DOCUMENTO.TRA_SIMUPARCESVC = 4) ;Cartao
+							vDsAdicional = ""
+							putitem/id vDsAdicional, "NR_SEQHISTRELSUB", NR_SEQHISTRELSUB.TRA_SIMUPARCESVC
+							DS_ADICIONAL.SIS_PARCELAMENTO/init = vDsAdicional
+							
+							clear/e "FCX_HISTRELSUSVC"
+							TP_DOCUMENTO.FCX_HISTRELSUSVC/init = TP_DOCUMENTO.TRA_SIMUPARCESVC
+							NR_SEQHISTRELSUB.FCX_HISTRELSUSVC/init = NR_SEQHISTRELSUB.TRA_SIMUPARCESVC
+							retrieve/e "FCX_HISTRELSUSVC"
+							if ($status >= 0)
+								vDsAdicional = "Operadora: %%NR_PORTADOR.FCX_HISTRELSUSVC - %%DS_PORTADOR.FGR_PORTADORSVC / %%DS_HISTRELSUB.FCX_HISTRELSUSVC"
+								DS_OBSERVACAO.SIS_PARCELAMENTO/init = vDsAdicional
+							endif
+						endif
+
+						; --- DIONE |179/0008| 07/01/11
+						CD_TIPOCLASFCR.SIS_PARCELAMENTO	= CD_TIPOCLASFCR.TRA_SIMUPARCESVC
+						CD_CLASFCR.SIS_PARCELAMENTO 		= CD_CLASFCR.TRA_SIMUPARCESVC
+						; --- 
+
+						vTpDocumento = TP_DOCUMENTO.TRA_SIMUPARCESVC
+						vNrSeqHistRelSub = NR_SEQHISTRELSUB.TRA_SIMUPARCESVC
+					endif
+				endif
+				
+				setocc "TRA_SIMUPARCESVC", $curocc("TRA_SIMUPARCESVC") + 1
+			endwhile
+			
+			if (vVlDinheiro > 0)
+				viParams = ""
+				putitem/id viParams, "NM_ENTIDADE", "FCR_FATURAI"
+				activate "GERSVCO031".getNumSeq($$gParamGlb, viParams, voParams, $xCdErro$, $xCtxerro$)
+				if($procerror)
+					$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+					return(-1)
+				elseif ($status < 0)
+					$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")
+					return(-1)
+				endif
+				
+				vNrFat = $item("NR_SEQUENCIA", voParams)
+				
+				creocc "SIS_PARCELAMENTO", -1
+				VL_DOCUMENTO.SIS_PARCELAMENTO/init = vVlDinheiro
+				TP_DOCUMENTO.SIS_PARCELAMENTO/init = 3 ;Dinheiro (entrada)
+				DT_VENCIMENTO.SIS_PARCELAMENTO/init = $item("DT_SISTEMA", $xlpg$)
+				NR_DOCUMENTO.SIS_PARCELAMENTO/init = vNrFat
+			endif
+			
+			if (vVlCartao > 0)
+				creocc "SIS_PARCELAMENTO", -1
+				TP_DOCUMENTO.SIS_PARCELAMENTO/init = 4 ;Cartao de credito
+				VL_DOCUMENTO.SIS_PARCELAMENTO/init = vVlCartao
+				
+				vDsAdicional = ""
+				putitem/id vDsAdicional, "NR_PORTADOR", vNrPortador
+				putitem/id vDsAdicional, "NR_SEQHISTRELSUB", vNrSeqHistRelSub
+				DS_ADICIONAL.SIS_PARCELAMENTO/init = vDsAdicional
+			endif
+			
+			viParams = ""
+			putitem/id viParams, "CD_CONDPGTO", CD_CONDPGTO.TRA_TRANSCONDSVC
+			activate "GERSVCO013".calcPrzMedio(viParams, voParams, $xCdErro$, $xCtxErro$)
+			if($procerror)
+				$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+				return(-1)
+			elseif ($status < 0)
+				$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")
+				return(-1)
+			endif
+			
+			vNrPrazoMedio = $item("NR_PRAZOMEDIO", voParams)
+		else
+			vVlTransacao = VL_TOTAL.TRA_TRANSACAOSVC - VL_ENTRADA.TRA_TRANSCONDSVC - VL_ADIANTAMENTO.TRA_TRANSCONDSVC - VL_CREDEV.TRA_TRANSCONDSVC
+			
+			if (vVlTransacao > 0)
+				clear/e "FCX_HISTRELSUSVC"
+				TP_DOCUMENTO.FCX_HISTRELSUSVC/init = TP_DOCUMENTO.TRA_TRANSCONDSVC
+				NR_SEQHISTRELSUB.FCX_HISTRELSUSVC/init = NR_SEQHISTRELSUB.TRA_TRANSCONDSVC
+				retrieve/e "FCX_HISTRELSUSVC"
+				if ($status >= 0)
+					if (VL_ENTRADA.TRA_TRANSCONDSVC > 0) | (TP_DOCUMENTO.TRA_TRANSCONDSVC = 3)
+						viParams = ""
+						putitem/id viParams, "NM_ENTIDADE", "FCR_FATURAI"
+						activate "GERSVCO031".getNumSeq($$gParamGlb, viParams, voParams, $xCdErro$, $xCtxerro$)
+						if($procerror)
+							$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+							return(-1)
+						elseif ($status < 0)
+							$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")
+							return(-1)
+						endif
+						
+						vNrFat = $item("NR_SEQUENCIA", voParams)
+						
+						vVlDinheiro = VL_ENTRADA.TRA_TRANSCONDSVC
+						if (TP_DOCUMENTO.TRA_TRANSCONDSVC = 3)
+							vVlDinheiro = vVlDinheiro + vVlTransacao
+						endif
+						
+						creocc "SIS_PARCELAMENTO", -1
+						VL_DOCUMENTO.SIS_PARCELAMENTO/init = vVlDinheiro
+						TP_DOCUMENTO.SIS_PARCELAMENTO/init = 3 ;Dinheiro (entrada)
+						DT_VENCIMENTO.SIS_PARCELAMENTO/init = $item("DT_SISTEMA", $xlpg$)
+						NR_DOCUMENTO.SIS_PARCELAMENTO/init = vNrFat
+					endif
+					
+					if (VL_ADIANTAMENTO.TRA_TRANSCONDSVC > 0)
+						viParams = ""
+						putitem/id viParams, "NM_ENTIDADE", "FCR_FATURAI"
+						activate "GERSVCO031".getNumSeq($$gParamGlb, viParams, voParams, $xCdErro$, $xCtxerro$)
+						if($procerror)
+							$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+							return(-1)
+						elseif ($status < 0)
+							$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")
+							return(-1)
+						endif
+						
+						vNrFat = $item("NR_SEQUENCIA", voParams)
+						
+						creocc "SIS_PARCELAMENTO", -1
+						VL_DOCUMENTO.SIS_PARCELAMENTO/init = VL_ADIANTAMENTO.TRA_TRANSCONDSVC
+						TP_DOCUMENTO.SIS_PARCELAMENTO/init = 10 ;Adiantamento
+						DT_VENCIMENTO.SIS_PARCELAMENTO/init = $item("DT_SISTEMA", $xlpg$)
+						NR_DOCUMENTO.SIS_PARCELAMENTO/init = vNrFat
+					endif
+					
+					if (VL_CREDEV.TRA_TRANSCONDSVC > 0)
+						viParams = ""
+						putitem/id viParams, "NM_ENTIDADE", "FCR_FATURAI"
+						activate "GERSVCO031".getNumSeq($$gParamGlb, viParams, voParams, $xCdErro$, $xCtxerro$)
+						if($procerror)
+							$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+							return(-1)
+						elseif ($status < 0)
+							$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")
+							return(-1)
+						endif
+						
+						vNrFat = $item("NR_SEQUENCIA", voParams)
+						
+						creocc "SIS_PARCELAMENTO", -1
+						VL_DOCUMENTO.SIS_PARCELAMENTO/init = VL_CREDEV.TRA_TRANSCONDSVC
+						TP_DOCUMENTO.SIS_PARCELAMENTO/init = 20 ;Credev
+						DT_VENCIMENTO.SIS_PARCELAMENTO/init = $item("DT_SISTEMA", $xlpg$)
+						NR_DOCUMENTO.SIS_PARCELAMENTO/init = vNrFat
+					endif
+					
+					if (TP_DOCUMENTO.TRA_TRANSCONDSVC != 3)
+						if (vTpMultiploCartao = 1) & (TP_DOCUMENTO.TRA_TRANSCONDSVC = 4)
+							creocc "SIS_PARCELAMENTO", -1
+							VL_DOCUMENTO.SIS_PARCELAMENTO/init = vVlTransacao
+							TP_DOCUMENTO.SIS_PARCELAMENTO/init = 4 ;Cartao de credito
+							
+							vDsAdicional = ""
+							putitem/id vDsAdicional, "NR_PORTADOR", NR_PORTADOR.FCX_HISTRELSUSVC       
+							putitem/id vDsAdicional, "NR_SEQHISTRELSUB", NR_SEQHISTRELSUB.FCX_HISTRELSUSVC       
+							DS_ADICIONAL.SIS_PARCELAMENTO/init = vDsAdicional
+						else
+							if (TP_DOCUMENTO.TRA_TRANSCONDSVC = 2) ;Cheque
+								vNrFat = ""
+							else
+								viParams = ""
+								putitem/id viParams, "NM_ENTIDADE", "FCR_FATURAI"
+								activate "GERSVCO031".getNumSeq($$gParamGlb, viParams, voParams, $xCdErro$, $xCtxerro$)
+								if($procerror)
+									$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+									return(-1)
+								elseif ($status < 0)
+									$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")
+									return(-1)
+								endif
+								
+								vNrFat = $item("NR_SEQUENCIA", voParams)
+							endif
+							
+							vNrParcela = 1
+							if (TP_DOCUMENTO.TRA_TRANSCONDSVC = 4)
+								vNrParcela = NR_PARCELAS.FCX_HISTRELSUSVC
+							else
+								clear/e "GER_CONDPGTOCSVC"
+								CD_CONDPGTO.GER_CONDPGTOCSVC/init = CD_CONDPGTO.TRA_TRANSCONDSVC
+								retrieve/e "GER_CONDPGTOCSVC"
+								if ($status >= 0)
+									vNrParcela = NR_PARCELAS.GER_CONDPGTOCSVC
+								endif
+							endif
+							
+							vVlCalc = vVlTransacao / vNrParcela
+							vVlParcela = vVlCalc[round, 2]
+							vVlResto = vVlTransacao
+							
+							vNrIndice = 1
+							repeat
+								setocc "GER_CONDPGTOISVC", vNrIndice
+								vDtVencimento = $item("DT_SISTEMA", $xlpg$)
+								
+								if (TP_DOCUMENTO.TRA_TRANSCONDSVC = 1) | (TP_DOCUMENTO.TRA_TRANSCONDSVC = 2) | (TP_DOCUMENTO.TRA_TRANSCONDSVC = 14) ;Fatura/Cheque/Nota Promissória
+									if (DT_BASE.TRA_TRANSCONDSVC != "")
+										vDtVencimento = DT_BASE.TRA_TRANSCONDSVC
+									endif
+								endif
+						
+								vDtVencimento = vDtVencimento + QT_DIA.GER_CONDPGTOISVC
+								
+								creocc "SIS_PARCELAMENTO", -1
+								VL_DOCUMENTO.SIS_PARCELAMENTO/init = vVlParcela
+								TP_DOCUMENTO.SIS_PARCELAMENTO/init = TP_DOCUMENTO.TRA_TRANSCONDSVC
+								DT_VENCIMENTO.SIS_PARCELAMENTO/init = vDtVencimento
+								NR_DOCUMENTO.SIS_PARCELAMENTO/init = vNrFat
+								
+								if (TP_DOCUMENTO.TRA_TRANSCONDSVC = 4 | TP_DOCUMENTO.TRA_TRANSCONDSVC = 5)
+									vDsAdicional = ""
+									putitem/id vDsAdicional, "NR_SEQHISTRELSUB", NR_SEQHISTRELSUB.FCX_HISTRELSUSVC       
+									DS_ADICIONAL.SIS_PARCELAMENTO/init = vDsAdicional
+									vDsAdicional = "Operadora: %%NR_PORTADOR.FCX_HISTRELSUSVC - %%DS_PORTADOR.FGR_PORTADORSVC / %%DS_HISTRELSUB.FCX_HISTRELSUSVC"
+									DS_OBSERVACAO.SIS_PARCELAMENTO/init = vDsAdicional    
+								endif
+								
+								vVlResto = vVlResto - vVlParcela
+								vNrIndice = vNrIndice + 1
+							until (vNrIndice > vNrParcela)
+;							VL_PARCELA.SIS_PARCELAMENTO/init = VL_PARCELA.SIS_PARCELAMENTO + vVlResto
+							VL_DOCUMENTO.SIS_PARCELAMENTO/init = VL_DOCUMENTO.SIS_PARCELAMENTO + vVlResto
+						endif
+					endif
+				endif
+				
+				viParams = ""
+				putitem/id viParams, "CD_CONDPGTO", CD_CONDPGTO.TRA_TRANSCONDSVC
+				activate "GERSVCO013".calcPrzMedio(viParams, voParams, $xCdErro$, $xCtxErro$)
+				if($procerror)
+					$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+					return(-1)
+				elseif ($status < 0)
+					$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")
+					return(-1)
+				endif
+				
+				vNrPrazoMedio = $item("NR_PRAZOMEDIO", voParams)
+			else
+				if (VL_ENTRADA.TRA_TRANSCONDSVC > 0)
+					viParams = ""
+					putitem/id viParams, "NM_ENTIDADE", "FCR_FATURAI"
+					activate "GERSVCO031".getNumSeq($$gParamGlb, viParams, voParams, $xCdErro$, $xCtxerro$)
+					if($procerror)
+						$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+						return(-1)
+					elseif ($status < 0)
+						$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")
+						return(-1)
+					endif
+					
+					vNrFat = $item("NR_SEQUENCIA", voParams)
+					
+					vVlDinheiro = VL_ENTRADA.TRA_TRANSCONDSVC
+					
+					creocc "SIS_PARCELAMENTO", -1
+					VL_DOCUMENTO.SIS_PARCELAMENTO/init = vVlDinheiro
+					TP_DOCUMENTO.SIS_PARCELAMENTO/init = 3 ;Dinheiro (entrada)
+					DT_VENCIMENTO.SIS_PARCELAMENTO/init = $item("DT_SISTEMA", $xlpg$)
+					NR_DOCUMENTO.SIS_PARCELAMENTO/init = vNrFat
+				endif
+				
+				if (VL_ADIANTAMENTO.TRA_TRANSCONDSVC > 0)
+					viParams = ""
+					putitem/id viParams, "NM_ENTIDADE", "FCR_FATURAI"
+					activate "GERSVCO031".getNumSeq($$gParamGlb, viParams, voParams, $xCdErro$, $xCtxerro$)
+					if($procerror)
+						$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+						return(-1)
+					elseif ($status < 0)
+						$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")
+						return(-1)
+					endif
+					
+					vNrFat = $item("NR_SEQUENCIA", voParams)
+					
+					creocc "SIS_PARCELAMENTO", -1
+					VL_DOCUMENTO.SIS_PARCELAMENTO/init = VL_ADIANTAMENTO.TRA_TRANSCONDSVC
+					TP_DOCUMENTO.SIS_PARCELAMENTO/init = 10 ;Adiantamento
+					DT_VENCIMENTO.SIS_PARCELAMENTO/init = $item("DT_SISTEMA", $xlpg$)
+					NR_DOCUMENTO.SIS_PARCELAMENTO/init = vNrFat
+				endif
+				
+				if (VL_CREDEV.TRA_TRANSCONDSVC > 0)
+					viParams = ""
+					putitem/id viParams, "NM_ENTIDADE", "FCR_FATURAI"
+					activate "GERSVCO031".getNumSeq($$gParamGlb, viParams, voParams, $xCdErro$, $xCtxerro$)
+					if($procerror)
+						$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+						return(-1)
+					elseif ($status < 0)
+						$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")
+						return(-1)
+					endif
+					
+					vNrFat = $item("NR_SEQUENCIA", voParams)
+					
+					creocc "SIS_PARCELAMENTO", -1
+					VL_DOCUMENTO.SIS_PARCELAMENTO/init = VL_CREDEV.TRA_TRANSCONDSVC
+					TP_DOCUMENTO.SIS_PARCELAMENTO/init = 20 ;Credev
+					DT_VENCIMENTO.SIS_PARCELAMENTO/init = $item("DT_SISTEMA", $xlpg$)
+					NR_DOCUMENTO.SIS_PARCELAMENTO/init = vNrFat
+				endif
+				
+				vNrPrazoMedio = 0
+			endif
+		endif
+	endif
+	
+	if ($empty("SIS_PARCELAMENTO") = 0)
+		setocc "SIS_PARCELAMENTO", 1            
+		while ($status >= 0)
+			putlistitems/occ vDsLinha, "SIS_PARCELAMENTO"
+			putitem vDsLstFormaPgto, -1, vDsLinha
+			setocc "SIS_PARCELAMENTO", $curocc("SIS_PARCELAMENTO") + 1
+		endwhile
+	endif
+	
+	putitem/id poParams, "DS_FORMAPGTO", vDsLstFormaPgto
+	putitem/id poParams, "NR_PRAZOMEDIO", vNrPrazoMedio
+	
+	return(0)
+end
+
+;-----------------------------------
+public operation gravaFormaPagamento
+;-----------------------------------
+	params
+		string  $xlpg$      :IN    
+		string  piParams    :IN
+		string  poParams    :OUT
+		string  poCdErro    :OUT
+		string  poCtxErro   :OUT
+	endparams
+	
+	variables
+		numeric vCdEmpresa, vNrTransacao, vNrParcela
+		date vDtTransacao
+		string vDsLstParcela, vDsLinha
+	endvariables
+
+	vCdEmpresa = $item("CD_EMPRESA", piParams)
+	vNrTransacao = $item("NR_TRANSACAO", piParams)
+	vDtTransacao = $item("DT_TRANSACAO", piParams)
+	vDsLstParcela = $item("DS_LSTPARCELA", piParams)
+	
+	if (vCdEmpresa = 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Empresa não informada!", "ADICIONAL=Operação->TRASVCO017.gravaFormaPagamento")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	
+	if (vNrTransacao = 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Número transação não informado!", "ADICIONAL=Operação->TRASVCO017.gravaFormaPagamento")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	
+	if (vDtTransacao = "")
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Data transação não informada!", "ADICIONAL=Operação->TRASVCO017.gravaFormaPagamento")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif		
+	
+	clear/e "TRA_TRANSACAOSVC"
+	CD_EMPRESA.TRA_TRANSACAOSVC/init = vCdEmpresa
+	NR_TRANSACAO.TRA_TRANSACAOSVC/init = vNrTransacao
+	DT_TRANSACAO.TRA_TRANSACAOSVC/init = vDtTransacao
+	retrieve/e "TRA_TRANSACAOSVC"
+	if ($status < 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Transação %%vNrTransacao não cadastrada!", "ADICIONAL=Operação->TRASVCO017.gravaItemTransacao")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1) 
+	endif
+	
+	clear/e "TRA_TRANSCONDSVC"
+	creocc "TRA_TRANSCONDSVC", -1
+	getlistitems/occ piParams, "TRA_TRANSCONDSVC"
+	retrieve/o "TRA_TRANSCONDSVC"
+	if ($status = -7)
+		retrieve/x "TRA_TRANSCONDSVC"
+	endif
+	
+	delitem/id piParams, "CD_EMPRESA"
+	delitem/id piParams, "NR_TRANSACAO"
+	delitem/id piParams, "DT_TRANSACAO"
+	delitem/id piParams, "CD_CONDPGTO"
+	delitem/id piParams, "TP_DOCUMENTO"
+	delitem/id piParams, "NR_SEQHISTRELSUB"
+	
+	getlistitems/occ piParams, "TRA_TRANSCONDSVC"
+	CD_OPERADOR.TRA_TRANSCONDSVC = $item("CD_USUARIO", $xlpg$)
+	DT_CADASTRO.TRA_TRANSCONDSVC = $datim
+	
+	$collhandle("TRA_TRANSCONDSVC")->Salvar()
+	if ($procerror)
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	elseif ($status < 0)
+		$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")    
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	;grava a nova condicao de pagamento na transacao
+	if (CD_CONDPGTO.TRA_TRANSCONDSVC != 0)
+		CD_CONDPGTO.TRA_TRANSACAOSVC = CD_CONDPGTO.TRA_TRANSCONDSVC
+	endif
+	
+	$collhandle("TRA_TRANSACAOSVC")->Salvar()
+	if ($procerror)
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	elseif ($status < 0)
+		$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")    
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	
+	if (vDsLstParcela != "")
+		clear/e "TRA_SIMUPARCESVC"
+		repeat
+			getitem vDsLinha, vDsLstParcela, 1
+
+			creocc "TRA_SIMUPARCESVC", -1
+			CD_EMPRESA.TRA_SIMUPARCESVC = vCdEmpresa
+			NR_TRANSACAO.TRA_SIMUPARCESVC = vNrTransacao
+			DT_TRANSACAO.TRA_SIMUPARCESVC = vDtTransacao
+
+			vNrParcela = $item("NR_PARCELA", vDsLinha)
+			if (vNrParcela = "")
+				NR_PARCELA.TRA_SIMUPARCESVC = $curocc("TRA_SIMUPARCESVC")
+			else
+				NR_PARCELA.TRA_SIMUPARCESVC = vNrParcela
+			endif
+			CD_OPERADOR.TRA_SIMUPARCESVC = $item("CD_USUARIO", $xlpg$)
+			DT_CADASTRO.TRA_SIMUPARCESVC = $datim
+			TP_DOCUMENTO.TRA_SIMUPARCESVC = $item("TP_DOCUMENTO", vDsLinha)
+			NR_SEQHISTRELSUB.TRA_SIMUPARCESVC = $item("NR_SEQHISTRELSUB", vDsLinha)
+			VL_PARCELA.TRA_SIMUPARCESVC = $item("VL_PARCELA", vDsLinha)
+			DT_VENCIMENTO.TRA_SIMUPARCESVC = $item("DT_VENCIMENTO", vDsLinha)
+			; --- DIONE |179/0008| 07/01/11
+			CD_TIPOCLASFCR.TRA_SIMUPARCESVC	= $item("CD_TIPOCLASFCR", vDsLinha)
+			CD_CLASFCR.TRA_SIMUPARCESVC 		= $item("CD_CLASFCR", vDsLinha)
+			; ----
+			delitem vDsLstParcela, 1
+		until (vDsLstParcela = "")
+	
+		$collhandle("TRA_SIMUPARCESVC")->Salvar()
+		if ($procerror)
+			$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+			poCdErro = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return(-1)
+		elseif ($status < 0)
+			$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")    
+			poCdErro = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return(-1)
+		endif
+	endif
+
+	return(0)
+end
+
+;----------------------------------
+public operation gravaItemSimulacao
+;----------------------------------
+	params
+		string  $xlpg$      :IN    
+		string  piParams    :IN
+		string  poParams    :OUT
+		string  poCdErro    :OUT
+		string  poCtxErro   :OUT
+	endparams
+	
+	variables
+		numeric vCdEmpresa, vNrTransacao, vNrItem, vCdCondPgto, vTpDocumento, vNrSeqHistRelSub
+		date vDtTransacao
+		string vDsLstParcela, vDsLinha
+	endvariables
+
+	vCdEmpresa = $item("CD_EMPRESA", piParams)
+	vNrTransacao = $item("NR_TRANSACAO", piParams)
+	vDtTransacao = $item("DT_TRANSACAO", piParams)
+	vNrItem = $item("NR_ITEM", piParams)
+	vCdCondPgto = $item("CD_CONDPGTO", piParams)
+	vTpDocumento = $item("TP_DOCUMENTO", piParams)
+	vNrSeqHistRelSub = $item("NR_SEQHISTRELSUB", piParams)
+	
+	if (vCdEmpresa = 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Empresa não informada!", "ADICIONAL=Operação->TRASVCO017.gravaItemSimulacao")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	
+	if (vNrTransacao = 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Número transação não informado!", "ADICIONAL=Operação->TRASVCO017.gravaItemSimulacao")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	
+	if (vDtTransacao = "")
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Data transação não informada!", "ADICIONAL=Operação->TRASVCO017.gravaItemSimulacao")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif		
+	
+	if (vNrItem = 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Item não informado!", "ADICIONAL=Operação->TRASVCO017.gravaItemSimulacao")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	
+	if (vCdCondPgto = 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Condição de pagamento não informada!", "ADICIONAL=Operação->TRASVCO017.gravaItemSimulacao")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	
+	if (vTpDocumento = 0) | (vNrSeqHistRelSub = 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Documento não informado!", "ADICIONAL=Operação->TRASVCO017.gravaItemSimulacao")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	
+	clear/e "TRA_ITEMSIMUSVC"
+	creocc "TRA_ITEMSIMUSVC", -1
+	CD_EMPRESA.TRA_ITEMSIMUSVC = vCdEmpresa
+	NR_TRANSACAO.TRA_ITEMSIMUSVC = vNrTransacao
+	DT_TRANSACAO.TRA_ITEMSIMUSVC = vDtTransacao
+	NR_ITEM.TRA_ITEMSIMUSVC = vNrItem
+	retrieve/o "TRA_ITEMSIMUSVC"
+	if ($status = -7)
+		retrieve/x "TRA_ITEMSIMUSVC"
+	endif
+	
+	CD_CONDPGTO.TRA_ITEMSIMUSVC = vCdCondPgto
+	TP_DOCUMENTO.TRA_ITEMSIMUSVC = vTpDocumento
+	NR_SEQHISTRELSUB.TRA_ITEMSIMUSVC = vNrSeqHistRelSub
+	CD_OPERADOR.TRA_ITEMSIMUSVC = $item("CD_USUARIO", $xlpg$)
+	DT_CADASTRO.TRA_ITEMSIMUSVC = $datim
+	
+	$collhandle("TRA_ITEMSIMUSVC")->Salvar()
+	if ($procerror)
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	elseif ($status < 0)
+		$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")    
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	
+	return(0)
+end
+
+;-------------------------------
+public operation excluiSimulacao
+;-------------------------------
+	params
+		string  $xlpg$      :IN    
+		string  piParams    :IN
+		string  poParams    :OUT
+		string  poCdErro    :OUT
+		string  poCtxErro   :OUT
+	endparams
+	
+	variables
+		string viParams, voParams, vDsLstTransacao, vDsRegistro, vDsLstItem
+		numeric vCdEmpresa, vNrTransacao
+		date vDtTransacao
+		boolean vInPrdFin
+	endvariables
+
+	vCdEmpresa = $item("CD_EMPRESA", piParams)
+	vNrTransacao = $item("NR_TRANSACAO", piParams)
+	vDtTransacao = $item("DT_TRANSACAO", piParams)
+	vDsLstItem	= ""
+	
+	if (vCdEmpresa = 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Empresa não informada!", "ADICIONAL=Operação->TRASVCO017.excluiSimulacao")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	
+	if (vNrTransacao = 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Número transação não informado!", "ADICIONAL=Operação->TRASVCO017.excluiSimulacao")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	
+	if (vDtTransacao = "")
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Data transação não informada!", "ADICIONAL=Operação->TRASVCO017.excluiSimulacao")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif		
+	
+	clear/e "TRA_TRANSACAOSVC"
+	CD_EMPRESA.TRA_TRANSACAOSVC/init = vCdEmpresa
+	NR_TRANSACAO.TRA_TRANSACAOSVC/init = vNrTransacao
+	DT_TRANSACAO.TRA_TRANSACAOSVC/init = vDtTransacao
+	retrieve/e "TRA_TRANSACAOSVC"
+	if ($status < 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Transação %%vNrTransacao não cadastrada!", "ADICIONAL=Operação->TRASVCO017.excluiSimulacao")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1) 
+	endif
+	
+	;Hugo em 23/03/11 Tarefa 156-547
+	call getParam(vCdEmpresa, "excluiSimulacao")
+	if ($procerror)
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	elseif ($status < 0)
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	;
+	
+	clear/e "TRA_ITEMSIMUSVC"
+	CD_EMPRESA.TRA_ITEMSIMUSVC/init = vCdEmpresa
+	NR_TRANSACAO.TRA_ITEMSIMUSVC/init = vNrTransacao
+	DT_TRANSACAO.TRA_ITEMSIMUSVC/init = vDtTransacao
+	retrieve/e "TRA_ITEMSIMUSVC"
+	if ($status >= 0)
+		$collhandle("TRA_ITEMSIMUSVC")->Excluir()
+		if ($procerror)
+			$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+			poCdErro = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return(-1)
+		elseif ($status < 0)
+			$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")    
+			poCdErro = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return(-1)
+		endif
+		
+		$collhandle("TRA_ITEMSIMUSVC")->Salvar()
+		if ($procerror)
+			$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+			poCdErro = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return(-1)
+		elseif ($status < 0)
+			$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")    
+			poCdErro = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return(-1)
+		endif
+	endif
+	
+	clear/e "TRA_SIMUPARCESVC"
+	CD_EMPRESA.TRA_SIMUPARCESVC/init = vCdEmpresa
+	NR_TRANSACAO.TRA_SIMUPARCESVC/init = vNrTransacao
+	DT_TRANSACAO.TRA_SIMUPARCESVC/init = vDtTransacao
+	retrieve/e "TRA_SIMUPARCESVC"
+	if ($status >= 0)
+		$collhandle("TRA_SIMUPARCESVC")->Excluir()
+		if ($procerror)
+			$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+			poCdErro = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return(-1)
+		elseif ($status < 0)
+			$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")    
+			poCdErro = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return(-1)
+		endif
+		
+		$collhandle("TRA_SIMUPARCESVC")->Salvar()
+		if ($procerror)
+			$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+			poCdErro = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return(-1)
+		elseif ($status < 0)
+			$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")    
+			poCdErro = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return(-1)
+		endif
+	endif
+	
+	clear/e "TRA_TRANSCONDSVC"
+	CD_EMPRESA.TRA_TRANSCONDSVC/init = vCdEmpresa
+	NR_TRANSACAO.TRA_TRANSCONDSVC/init = vNrTransacao
+	DT_TRANSACAO.TRA_TRANSCONDSVC/init = vDtTransacao
+	retrieve/e "TRA_TRANSCONDSVC"
+	if ($status >= 0)
+		$collhandle("TRA_TRANSCONDSVC")->Excluir()
+		if ($procerror)
+			$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+			poCdErro = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return(-1)
+		elseif ($status < 0)
+			$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")    
+			poCdErro = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return(-1)
+		endif
+		
+		$collhandle("TRA_TRANSCONDSVC")->Salvar()
+		if ($procerror)
+			$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+			poCdErro = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return(-1)
+		elseif ($status < 0)
+			$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")    
+			poCdErro = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return(-1)
+		endif
+	endif
+	
+	clear/e "TRA_TRANSITEMSVC"
+	CD_EMPRESA.TRA_TRANSITEMSVC/init = vCdEmpresa
+	NR_TRANSACAO.TRA_TRANSITEMSVC/init = vNrTransacao
+	DT_TRANSACAO.TRA_TRANSITEMSVC/init = vDtTransacao
+	retrieve/e "TRA_TRANSITEMSVC"
+	if ($status >= 0)
+		setocc "TRA_TRANSITEMSVC"
+		while ($status >= 0)
+			;Hugo em 23/03/11 Tarefa 156-547
+			vInPrdFin = <FALSE>
+			
+			if ($inSimulador$ = <TRUE>)
+				clear/e "TRA_ITEMPRDFISVC"
+				CD_EMPRESA.TRA_ITEMPRDFISVC/init = CD_EMPRESA.TRA_TRANSITEMSVC
+				NR_TRANSACAO.TRA_ITEMPRDFISVC/init = NR_TRANSACAO.TRA_TRANSITEMSVC
+				DT_TRANSACAO.TRA_ITEMPRDFISVC/init = DT_TRANSACAO.TRA_TRANSITEMSVC
+				NR_ITEM.TRA_ITEMPRDFISVC/init = NR_ITEM.TRA_TRANSITEMSVC
+				retrieve/e "TRA_ITEMPRDFISVC"
+				if ($status >= 0)
+					vInPrdFin = <TRUE>
+					
+					setocc "TRA_ITEMPRDFISVC", 1
+					while ($status >= 0)
+						viParams = ""
+						putitem/id viParams, "CD_EMPRESA", CD_EMPPRDFIN.TRA_ITEMPRDFISVC
+						putitem/id viParams, "NR_PRDFIN", NR_PRDFIN.TRA_ITEMPRDFISVC
+						putitem/id viParams, "CD_COMPONENTE", $componentname
+						putitem/id viParams, "IN_VALIDAENVIO", <TRUE>
+						activate "PRFSVCO001".cancelaProdutoFinanceiro($xlpg$, viParams, voParams, $xCdErro$, $xCtxErro$)
+						if ($procerror)       
+							$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+							poCdErro = $xCdErro$
+							poCtxErro = $xCtxErro$
+							exit(-1)
+						elseif ($status < 0)
+							$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")
+							poCdErro = $xCdErro$
+							poCtxErro = $xCtxErro$
+							exit(-1)
+						endif
+						
+						setocc "TRA_ITEMPRDFISVC", $curocc("TRA_ITEMPRDFISVC") + 1
+					endwhile
+				endif
+			endif
+			;
+			
+			viParams = ""
+			putlistitems/occ viParams, "TRA_TRANSITEMSVC"
+			
+			if (vInPrdFin = <FALSE>) ;Hugo em 23/03/11 Tarefa 156-547
+				putitem vDsLstItem, -1, viParams
+			endif
+
+			activate "TRASVCO004".removeItemTransacao($xlpg$, viParams, voParams, $xCdErro$, $xCtxErro$)
+			if ($procerror)       
+				$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+				poCdErro = $xCdErro$
+				poCtxErro = $xCtxErro$
+				exit(-1)
+			elseif ($status < 0)
+				$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")
+				poCdErro = $xCdErro$
+				poCtxErro = $xCtxErro$
+				exit(-1)
+			endif
+
+			setocc "TRA_TRANSITEMSVC", $curocc("TRA_TRANSITEMSVC") + 1
+		endwhile
+	endif
+
+	repeat
+		getitem vDsRegistro, vDsLstItem, 1
+
+			viParams = ""
+			putitem/id viParams, "CD_EMPRESA", CD_EMPRESA.TRA_TRANSACAOSVC
+			putitem/id viParams, "NR_TRANSACAO", NR_TRANSACAO.TRA_TRANSACAOSVC
+			putitem/id viParams, "DT_TRANSACAO", DT_TRANSACAO.TRA_TRANSACAOSVC
+			putitem/id viParams, "CD_COMPVEND", $item("CD_COMPVEND", vDsRegistro)
+			putitem/id viParams, "CD_BARRAPRD", $item("CD_PRODUTO", vDsRegistro)
+			putitem/id viParams, "IN_CODIGO", <TRUE>
+			putitem/id viParams, "QT_SOLICITADA", $item("QT_SOLICITADA",vDsRegistro)
+			activate "TRASVCO004".validaItemTransacao($xlpg$, viParams, voParams, $xCdErro$, $xCtxErro$)
+			if ($procerror)       
+				$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+				poCdErro = $xCdErro$
+				poCtxErro = $xCtxErro$
+				exit(-1)
+			elseif ($status < 0)
+				$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")
+				poCdErro = $xCdErro$
+				poCtxErro = $xCtxErro$
+				exit(-1)
+			endif
+			
+			viParams = voParams
+			putitem/id viParams, "CD_EMPRESA", CD_EMPRESA.TRA_TRANSACAOSVC
+			putitem/id viParams, "NR_TRANSACAO", NR_TRANSACAO.TRA_TRANSACAOSVC
+			putitem/id viParams, "DT_TRANSACAO", DT_TRANSACAO.TRA_TRANSACAOSVC
+			putitem/id viParams, "IN_SEMMOVIMENTO", <FALSE>
+			activate "TRASVCO004".gravaItemTransacao($xlpg$, viParams, voParams, $xCdErro$, $xCtxErro$)
+			if ($procerror)       
+				$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+				poCdErro = $xCdErro$
+				poCtxErro = $xCtxErro$
+				exit(-1)
+			elseif ($status < 0)
+				$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")
+				poCdErro = $xCdErro$
+				poCtxErro = $xCtxErro$
+				exit(-1)
+			endif
+		delitem vDsLstItem, 1
+   until (vDsLstItem = "")
+	
+	vDsLstTransacao = ""
+	vDsRegistro = ""
+	putitem/id vDsRegistro, "CD_EMPRESA", vCdEmpresa
+	putitem/id vDsRegistro, "NR_TRANSACAO", vNrTransacao
+	putitem/id vDsRegistro, "DT_TRANSACAO", vDtTransacao
+	putitem vDsLstTransacao, -1, vDsRegistro	
+	putitem/id viParams, "DS_LSTTRANSACAO", vDsLstTransacao
+	activate "TRASVCO004".gravaTotalTransacao($$gParamGlb, viParams, voParams, $xCdErro$, $xCtxErro$)
+	if ($procerror)       
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		exit(-1)
+	elseif ($status < 0)
+		$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		exit(-1)
+	endif
+	
+  return(0)
+end

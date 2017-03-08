@@ -1,0 +1,3070 @@
+;-----------------------------
+entry getParam	
+;-----------------------------
+	params
+		numeric piCdEmpresa  : IN
+		string  piDsOperacao : IN
+	endparams
+
+	variables
+		string viParams, voParams
+	endvariables
+
+	;--> VSOUZA PRJ/TAR 175/260 31/10/2011
+	viParams = ""
+	putitem viParams, -1, "IN_CONS_SUBTRIB_CRED_SIMP"
+	activate "ADMSVCO001".GetLstParametro(viParams, voParams, $xCdErro$, $xCtxerro$)
+	if ($procerror)
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+		return(-1)
+	elseif ($xCdErro$)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=%%$item("DESCRICAO", $xCtxErro$)", "ADICIONAL=Operação->FISSVCO034.%%piDsOperacao")
+		return(-1)
+	elseif ($status < 0)
+		return(-1)
+	endif
+	$inConsSubTribCredSimp$ = $item("IN_CONS_SUBTRIB_CRED_SIMP", voParams)
+	;---------------------------------------<
+
+	if (piCdEmpresa = 0)
+		piCdEmpresa = $item("CD_EMPRESA", $xlpg$)
+	endif
+	
+	viParams = ""
+	voParams = ""
+	putitem viParams, -1, "DT_ENCERRAMENTO_FIS"
+	putitem viParams, -1, "IN_UTILIZA_SELO_FISCAL"
+	;-- MAD [Proj/Tar.170/026] - 13/08/2010	
+	putitem viParams, -1, "IN_OPT_SIMPLES"
+	putitem viParams, -1, "PR_ALIQ_SIMPLES_NACIONAL"
+	putitem viParams, -1, "PR_REDUBASE_SIMP_NACIONAL"
+	;;
+	activate "ADMSVCO001".GetParamEmpresa(piCdEmpresa, viParams, voParams, $xCdErro$, $xCtxerro$)
+	if ($procerror)
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+		return -1
+	elseif ($xcdErro$)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=%%$item("DESCRICAO", $xCtxErro$)", "ADICIONAL=Operação->FISSVCO024.%%piDsOperacao")
+		return -1
+	endif
+
+	$dtEncerramento$      = $item("DT_ENCERRAMENTO_FIS", voParams)
+	$inUtilizaSeloFiscal$ = $item("IN_UTILIZA_SELO_FISCAL", voParams)   ; Rodrigo - PRJ 61/734 - 15/12/2009
+	;-- MAD [Proj/Tar.170/026] - 13/08/2010
+	$inOptSimples$           = $item("IN_OPT_SIMPLES", voParams)
+	$prAliqSimplesNacional$  = $replace($item("PR_ALIQ_SIMPLES_NACIONAL" , voParams),1 , "," , ".", -1)
+	$prReduBaseSimpNacional$ = $replace($item("PR_REDUBASE_SIMP_NACIONAL", voParams),1 , "," , ".", -1)
+	;;
+	return(0)
+End ;getParam	
+
+
+;---------------------------------------
+;-- MAD [Proj/Tar.156/001] - 16/09/2009
+entry montaCampo
+;---------------------------------------
+	params
+		numeric piCodigoCampo : IN
+		numeric piTamanho     : IN
+		string  piDsDados     : IN
+		string  piValidaCampo : IN
+		string  poCampo       : OUT
+	endparams
+
+	variables
+		boolean vInGravar
+		numeric vNrSeqEnd, vPos, vVlSimples 
+		string  viParams, voParams, vValor, vCdTipoClas, vDslinha, vDsRegistro, vCdCST
+	endvariables
+
+	poCampo = ""
+	selectcase piCodigoCampo
+
+		case 000115  ; Descrição classificação do produto
+			if (piValidaCampo = <TRUE>)
+				return(0)
+			endif
+			if ($empty("FIS_NFITEMPROSVC") = 0)
+				vCdTipoClas = piDsDados
+				if (vCdTipoClas > 0)
+					viParams = ""
+					voParams = ""
+					putitem/id viParams, "CD_PRODUTO" , CD_PRODUTO.FIS_NFITEMPROSVC
+					putitem/id viParams, "CD_TIPOCLAS", vCdTipoClas
+					activate "GERSVCO046".buscaDadosProduto($$gParamGlb, viParams, voParams, $xCdErro$, $xCtxerro$)
+					if ($procerror)       
+						$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+						return(-1)
+					elseif ($status < 0)
+						$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")
+						return(-1)
+					endif
+					poCampo = $item("DS_CLASSIFICACAO", voParams)
+					if (piDsDados != "") & (poCampo != "")
+						poCampo = "%%piDsDados %%poCampo"
+					endif
+				else
+					poCampo = ""
+				endif
+			else
+				poCampo = ""
+			endif
+
+		case 000346  ; Qt. total NF
+			if (piValidaCampo = <TRUE>)
+				return(0)
+			endif
+			selectcase (NR_QTUNITDEC.GER_MODNFCSVC)
+				case 0
+					$vl12$ = QT_FATURADO.FIS_NFSVC
+					vValor = "%%$vl12$"
+				case 1
+					$vl12D1$ = QT_FATURADO.FIS_NFSVC
+					vValor = "%%$vl12D1$"
+				case 2
+					$vl12D2$ = QT_FATURADO.FIS_NFSVC
+					vValor = "%%$vl12D2$"
+				case 3
+					$vl12D3$ = QT_FATURADO.FIS_NFSVC
+					vValor = "%%$vl12D3$"
+				case 4
+					$vl12D4$ = QT_FATURADO.FIS_NFSVC
+					vValor = "%%$vl12D4$"
+				case 5
+					$vl12D5$ = QT_FATURADO.FIS_NFSVC
+					vValor = "%%$vl12D5$"
+				case 6
+					$vl12D6$ = QT_FATURADO.FIS_NFSVC
+					vValor = "%%$vl12D6$"
+				elsecase
+					$vl12D1$ = QT_FATURADO.FIS_NFSVC
+					vValor = "%%$vl12D1$"
+			endselectcase
+			poCampo = vValor
+			if (piDsDados != "") & (poCampo != "")
+				poCampo = "%%piDsDados %%poCampo"
+			endif
+
+		case 000357  ; Nr. pedido de venda
+			if (piValidaCampo = <TRUE>)
+				return(0)
+			endif
+			viParams = ""
+			voParams = ""
+			putitem/id viParams, "CD_EMPRESA"  , CD_EMPRESAORI.FIS_NFSVC
+			putitem/id viParams, "NR_TRANSACAO", NR_TRANSACAOORI.FIS_NFSVC
+			putitem/id viParams, "DT_TRANSACAO", DT_TRANSACAOORI.FIS_NFSVC
+			activate "PEDSVCO015".retornaDadosPedido($xlpg$, viParams, voParams,$xCdErro$, $xCtxerro$)
+			if ($procerror)       
+				$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+				return(-1)
+			elseif ($status < 0)
+				$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")
+				return(-1)
+			endif
+			poCampo = $item("DS_PEDIDOTRA", voParams)
+			if (piDsDados != "") & (poCampo != "")
+				poCampo = "%%piDsDados %%poCampo"
+			endif
+
+		;-- MAD [Proj/Tar.156/021] - 05/10/2009
+		case 000170  ; Valor total desconto NF
+			if (piValidaCampo = <TRUE>)
+				return(0)
+			endif
+			if (VL_DESCONTO.FIS_NFSVC > 0)
+				poCampo = VL_DESCONTO.FIS_NFSVC
+				if (piDsDados != "") & (poCampo != "")
+					poCampo = "%%piDsDados %%poCampo"
+				endif
+			else
+				poCampo = ""
+			endif
+
+		;-->> ALX - 170/111 - 04/11/2010 --;
+		case 000245 ; Codigo cliente
+			if (piValidaCampo = <TRUE>)
+				return(0)
+			endif
+			viParams = ""
+			voParams = ""
+			putitem/id viParams, "CD_EMPRESA"  , CD_EMPRESAORI.FIS_NFSVC
+			putitem/id viParams, "NR_TRANSACAO", NR_TRANSACAOORI.FIS_NFSVC
+			putitem/id viParams, "DT_TRANSACAO", DT_TRANSACAOORI.FIS_NFSVC
+			activate "PEDSVCO015".retornaDadosPedido($xlpg$, viParams, voParams,$xCdErro$, $xCtxerro$)
+			if ($procerror)
+				$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+				return(-1)
+			elseif ($status < 0)
+				$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")
+				return(-1)
+			endif
+			poCampo = $item("DS_CLIENTE", voParams)
+			if (piDsDados != "") & (poCampo != "")
+				poCampo = "%%piDsDados %%poCampo"
+			endif
+		;--<<
+
+		case 000252 ; Nome transportadora redespacho
+			if (piValidaCampo = <TRUE>)
+				return(0)
+			endif
+			if (NM_TRANSREDESPAC.FIS_NFTRANSPSVC != "")
+				poCampo = NM_TRANSREDESPAC.FIS_NFTRANSPSVC
+				if (piDsDados != "") & (poCampo != "")
+					poCampo = "%%piDsDados %%poCampo"
+				endif
+			else
+				poCampo = ""
+			endif
+
+		case 000253 ; Endereço transportadora redespacho
+			if (piValidaCampo = <TRUE>)
+				return(0)
+			endif
+			if (CD_TRANSREDESPAC.FIS_NFTRANSPSVC != "")
+				vNrSeqEnd = 1
+				viParams = ""
+				voParams = ""
+				putitem/id viParams, "CD_PESSOA", CD_TRANSREDESPAC.FIS_NFTRANSPSVC
+				activate "PESSVCO005".buscaEnderecoFaturamento($xlpg$, viParams, voParams, $xCdErro$, $xCtxErro$)
+				if ($procerror)       
+					$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+					return(-1)
+				elseif ($status < 0)
+					$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")
+					return(-1)
+				else
+					vNrSeqEnd = $item("NR_SEQENDERECO", voParams)
+				endif
+				clear/e "F_V_PES_ENDERSVC"
+				CD_PESSOA.F_V_PES_ENDERSVC/init = CD_TRANSREDESPAC.FIS_NFTRANSPSVC
+				NR_SEQUENCIA.F_V_PES_ENDERSVC/init = vNrSeqEnd
+				retrieve/e "F_V_PES_ENDERSVC"
+				if ($status >= 0)
+					poCampo = "%%DS_SIGLALOGRAD.F_V_PES_ENDERSVC %%NM_LOGRADOURO.F_V_PES_ENDERSVC %%NR_LOGRADOURO.F_V_PES_ENDERSVC"
+					if (piDsDados != "") & (poCampo != "")
+						poCampo = "%%piDsDados %%poCampo"
+					endif
+				else
+					poCampo = ""
+				endif
+			else
+				poCampo = ""
+			endif
+
+		case 000254 ; Município transportadora redespacho
+			if (piValidaCampo = <TRUE>)
+				return(0)
+			endif
+			if (CD_TRANSREDESPAC.FIS_NFTRANSPSVC != "")
+				vNrSeqEnd = 1
+				viParams = ""
+				voParams = ""
+				putitem/id viParams, "CD_PESSOA", CD_TRANSREDESPAC.FIS_NFTRANSPSVC
+				activate "PESSVCO005".buscaEnderecoFaturamento($xlpg$, viParams, voParams, $xCdErro$, $xCtxErro$)
+				if ($procerror)       
+					$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+					return(-1)
+				elseif ($status < 0)
+					$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")
+					return(-1)
+				else
+					vNrSeqEnd = $item("NR_SEQENDERECO", voParams)
+				endif    
+				clear/e "F_V_PES_ENDERSVC"
+				CD_PESSOA.F_V_PES_ENDERSVC/init = CD_TRANSREDESPAC.FIS_NFTRANSPSVC
+				NR_SEQUENCIA.F_V_PES_ENDERSVC/init = vNrSeqEnd
+				retrieve/e "F_V_PES_ENDERSVC"
+				if ($status >= 0)
+					poCampo = NM_MUNICIPIO.F_V_PES_ENDERSVC
+					if (piDsDados != "") & (poCampo != "")
+						poCampo = "%%piDsDados %%poCampo"
+					endif
+				else
+					poCampo = ""
+				endif
+			else
+				poCampo = ""
+			endif
+
+		case 000255 ; UF transportadora redespacho
+			if (piValidaCampo = <TRUE>)
+				return(0)
+			endif
+			if (CD_TRANSREDESPAC.FIS_NFTRANSPSVC != "")
+				vNrSeqEnd = 1
+				viParams = ""
+				voParams = ""
+				putitem/id viParams, "CD_PESSOA", CD_TRANSREDESPAC.FIS_NFTRANSPSVC
+				activate "PESSVCO005".buscaEnderecoFaturamento($xlpg$, viParams, voParams, $xCdErro$, $xCtxErro$)
+				if ($procerror)       
+					$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+					return(-1)
+				elseif ($status < 0)
+					$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")
+					return(-1)
+				else
+					vNrSeqEnd = $item("NR_SEQENDERECO", voParams)
+				endif    
+				clear/e "F_V_PES_ENDERSVC"
+				CD_PESSOA.F_V_PES_ENDERSVC/init = CD_TRANSREDESPAC.FIS_NFTRANSPSVC
+				NR_SEQUENCIA.F_V_PES_ENDERSVC/init = vNrSeqEnd
+				retrieve/e "F_V_PES_ENDERSVC"
+				if ($status >= 0)
+					poCampo = DS_SIGLAESTADO.F_V_PES_ENDERSVC
+					if (piDsDados != "") & (poCampo != "")
+						poCampo = "%%piDsDados %%poCampo"
+					endif
+				else
+					poCampo = ""
+				endif
+			else
+				poCampo = ""
+			endif
+
+		case 000366 ; Número pedido cliente
+			if (piValidaCampo = <TRUE>)
+				return(0)
+			endif
+			viParams = ""
+			voParams = ""
+			putitem/id viParams, "CD_EMPRESA"  , CD_EMPRESAORI.FIS_NFSVC
+			putitem/id viParams, "NR_TRANSACAO", NR_TRANSACAOORI.FIS_NFSVC
+			putitem/id viParams, "DT_TRANSACAO", DT_TRANSACAOORI.FIS_NFSVC
+			activate "PEDSVCO015".retornaDadosPedido($xlpg$, viParams, voParams,$xCdErro$, $xCtxerro$)
+			if ($procerror)       
+				$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+				return(-1)
+			elseif ($status < 0)
+				$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")
+				return(-1)
+			endif
+			poCampo = $item("NR_PEDIDOCLIENTE", voParams)
+			if (piDsDados != "") & (poCampo != "")
+				poCampo = "%%piDsDados %%poCampo"
+			endif
+
+		case 000319 ; Nome do representante
+			if (piValidaCampo = <TRUE>)
+				return(0)
+			endif
+			clear/e "TRA_TRANSACAOSVC"
+			CD_EMPRESA.TRA_TRANSACAOSVC/init   = CD_EMPRESAORI.FIS_NFSVC
+			NR_TRANSACAO.TRA_TRANSACAOSVC/init = NR_TRANSACAOORI.FIS_NFSVC
+			DT_TRANSACAO.TRA_TRANSACAOSVC/init = DT_TRANSACAOORI.FIS_NFSVC
+			retrieve/e "TRA_TRANSACAOSVC"
+			if ($status >= 0)	
+				if (CD_REPRESENTANT.TRA_TRANSACAOSVC != "")
+					viParams = ""
+					voParams = ""
+					putitem/id viParams, "CD_PESSOA", CD_REPRESENTANT.TRA_TRANSACAOSVC
+					activate "PESSVCO005".buscaDadosPessoa($xlpg$, viParams, voParams, $xCdErro$, $xCtxerro$)
+					if ($procerror)       
+						$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+						return(-1)
+					elseif ($status < 0)
+						$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")
+						return(-1)
+					endif
+					poCampo = $item("NM_PESSOA", voParams)
+					if (piDsDados != "") & (poCampo != "")
+						poCampo = "%%piDsDados %%poCampo"
+					endif
+				else
+					poCampo = ""
+				endif
+			else
+				poCampo = ""
+			endif
+		;== BY BIANCHINI [PRJ/TAREFA 170/0099]	 21/10/2010 ==;
+		case 000425			
+			vDsLinha = ""
+			setocc "TRA_TRANSACCOSVC", 1
+			if ($status >= 0)
+				while($status >= 0)
+					if(TP_SITUACAO.TRA_TRANSACCOSVC = 4) 
+						if (vDsLinha = "")
+							vDsLinha = "NR. CONTAGEM %%NR_CONTAGEM.TRA_TRANSACCOSVC"
+						else
+							vDsLinha = "%%vDsLinha / %%NR_CONTAGEM.TRA_TRANSACCOSVC"
+						endif
+					endif
+					setocc "TRA_TRANSACCOSVC", $curocc("TRA_TRANSACCOSVC") + 1
+				endwhile
+				pocampo = vDslinha	
+			endif
+		;==
+		case 000433 ; Telefone do representante
+			if (piValidaCampo = <TRUE>)
+				return(0)
+			endif
+			clear/e "TRA_TRANSACAOSVC"
+			CD_EMPRESA.TRA_TRANSACAOSVC/init   = CD_EMPRESAORI.FIS_NFSVC
+			NR_TRANSACAO.TRA_TRANSACAOSVC/init = NR_TRANSACAOORI.FIS_NFSVC
+			DT_TRANSACAO.TRA_TRANSACAOSVC/init = DT_TRANSACAOORI.FIS_NFSVC
+			retrieve/e "TRA_TRANSACAOSVC"
+			if ($status >= 0)	
+				if (CD_REPRESENTANT.TRA_TRANSACAOSVC != "")
+					viParams = ""
+					voParams = ""
+					putitem/id viParams, "CD_PESSOA", CD_REPRESENTANT.TRA_TRANSACAOSVC
+					activate "PESSVCO005".buscarTelefone(viParams, voParams, $xCdErro$, $xCtxErro$)
+					if ($procerror)       
+						$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+						return(-1)
+					elseif ($status < 0)
+						$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")
+						return(-1)
+					endif		
+					poCampo = $item("NR_TELEFONE", voParams)
+					if (piDsDados != "") & (poCampo != "")
+						poCampo = "%%piDsDados %%poCampo"
+					endif
+				else
+					poCampo = ""
+				endif
+			else
+				poCampo = ""
+			endif
+
+		case 000636 ; Codigo cartela item transação
+			if (piValidaCampo = <TRUE>)
+				return(0)
+			endif
+			if (CD_PRODUTO.FIS_NFITEMPROSVC > 0)
+				viParams = ""
+				voParams = ""
+				putitem/id viParams, "CD_EMPRESA"  , CD_EMPRESAORI.FIS_NFSVC
+				putitem/id viParams, "NR_TRANSACAO", NR_TRANSACAOORI.FIS_NFSVC
+				putitem/id viParams, "DT_TRANSACAO", DT_TRANSACAOORI.FIS_NFSVC
+				putitem/id viParams, "CD_PRODUTO"  , CD_PRODUTO.FIS_NFITEMPROSVC
+				putitem/id viParams, "NR_ITEM"     , NR_ITEM.FIS_NFITEMPROSVC
+				activate "TRASVCO022".buscaDadosCartela($xlpg$, viParams, voParams, $xCdErro$, $xCtxerro$)
+				if ($procerror)       
+					$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+					return(-1)
+				elseif ($status < 0)
+					$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")
+					return(-1)
+				endif
+				poCampo = $item("NR_CARTELA", voParams)
+				if (piDsDados != "") & (poCampo != "")
+					poCampo = "%%piDsDados %%poCampo"
+				endif
+			else
+				poCampo = ""
+			endif
+
+		case 000108 ; Código cor produto
+			if (piValidaCampo = <TRUE>)
+				return(0)
+			endif
+			setocc "FIS_NFITEMPROSVC", -1
+			setocc "FIS_NFITEMPROSVC", 1
+			if ($totocc("FIS_NFITEMPROSVC") = 1 & CD_PRODUTO.FIS_NFITEMPROSVC > 0) | (IN_AGRUPA_GRUPO.GER_MODNFCSVC = "C"); C - Cor
+				clear/e "PRD_PRDGRADESVC"
+				CD_PRODUTO.PRD_PRDGRADESVC/init = CD_PRODUTO.FIS_NFITEMPROSVC
+				retrieve/e "PRD_PRDGRADESVC"
+				if ($status >= 0)
+					poCampo = "%%CD_COR.PRD_PRDGRADESVC"
+					if (piDsDados != "") & (poCampo != "")
+						poCampo = "%%piDsDados %%poCampo"
+					endif
+				else
+					poCampo = ""
+				endif
+			else
+				poCampo = ""
+			endif
+		;;
+
+		;-- MAD [Proj/Tar.149/075] - 20/05/2010
+		case 000110 ; Descricao tamanho produto
+			if (piValidaCampo = <TRUE>)
+				return(0)
+			endif
+			poCampo = ""
+			setocc "FIS_NFITEMPROSVC", -1
+			setocc "FIS_NFITEMPROSVC", 1
+			if($totocc("FIS_NFITEMPROSVC") = 1 & CD_PRODUTO.FIS_NFITEMPROSVC > 0) | (IN_AGRUPA_GRUPO.GER_MODNFCSVC = "A"); A - Tamanho
+				clear/e "PRD_PRDGRADESVC"
+				CD_PRODUTO.PRD_PRDGRADESVC/init = CD_PRODUTO.FIS_NFITEMPROSVC
+				retrieve/e "PRD_PRDGRADESVC"
+				if ($status >= 0)
+					if (CD_GRADE.PRD_GRUPOSVC > 0)
+						clear/e "PRD_GRADEISVC"
+						CD_GRADE.PRD_GRADEISVC/init = CD_GRADE.PRD_GRUPOSVC
+						CD_TAMANHO.PRD_GRADEISVC/init = CD_TAMANHO.PRD_PRDGRADESVC
+						retrieve/e "PRD_GRADEISVC"
+						if ($status >= 0)
+							poCampo = DS_TAMANHO.PRD_GRADEISVC
+							if (piDsDados != "") & (poCampo != "")
+								poCampo = "%%piDsDados %%poCampo"
+							endif
+						endif
+					endif
+				endif
+			endif
+
+		case 000171 ; Percentual desconto NF
+			if (piValidaCampo = <TRUE>)
+				return(0)
+			endif
+			if (PR_DESCONTO.FIS_NFSVC > 0)
+				poCampo = PR_DESCONTO.FIS_NFSVC
+				if (piDsDados != "") & (poCampo != "")
+					poCampo = "%%piDsDados %%poCampo"
+				endif
+			else
+				poCampo = ""
+			endif
+
+		case 000567 ; Data de Agendamento de Entrega
+			if (piValidaCampo = <TRUE>)
+				return(0)
+			endif
+			poCampo  = ""
+			viParams = ""
+			voParams = ""
+			putitem/id viParams, "CD_EMPRESA"  , CD_EMPRESAORI.FIS_NFSVC
+			putitem/id viParams, "NR_TRANSACAO", NR_TRANSACAOORI.FIS_NFSVC
+			putitem/id viParams, "DT_TRANSACAO", DT_TRANSACAOORI.FIS_NFSVC
+			putitem/id viParams, "CD_INDICE"   , 1
+			activate "PEDSVCO015".retornaDadosPedido($xlpg$, viParams, voParams,$xCdErro$, $xCtxerro$)
+			if ($procerror)       
+				$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+				return(-1)
+			elseif ($status < 0)
+				$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")
+				return(-1)
+			endif
+			$dtAgendamento$ = $item("DT_AGENDAMENTO", voParams)
+			poCampo = "%%$dtAgendamento$"
+			if (piDsDados != "") & (poCampo != "")
+				poCampo = "%%piDsDados %%poCampo"
+			endif
+
+		case 000568 ; Intervalo de Hora Agendamento Entrega
+			if (piValidaCampo = <TRUE>)
+				return(0)
+			endif
+			poCampo  = ""
+			viParams = ""
+			voParams = ""
+			putitem/id viParams, "CD_EMPRESA"  , CD_EMPRESAORI.FIS_NFSVC
+			putitem/id viParams, "NR_TRANSACAO", NR_TRANSACAOORI.FIS_NFSVC
+			putitem/id viParams, "DT_TRANSACAO", DT_TRANSACAOORI.FIS_NFSVC
+			putitem/id viParams, "CD_INDICE"   , 1
+			activate "PEDSVCO015".retornaDadosPedido($xlpg$, viParams, voParams,$xCdErro$, $xCtxerro$)
+			if ($procerror)       
+				$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+				return(-1)
+			elseif ($status < 0)
+				$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")
+				return(-1)
+			endif
+			poCampo = $item("HR_AGENDAMENTO", voParams)
+			if (piDsDados != "") & (poCampo != "")
+				poCampo = "%%piDsDados %%poCampo"
+			endif
+
+		case 000569 ; Senha Agendamento Entrega
+			if (piValidaCampo = <TRUE>)
+				return(0)
+			endif
+			poCampo  = ""
+			viParams = ""
+			voParams = ""
+			putitem/id viParams, "CD_EMPRESA"  , CD_EMPRESAORI.FIS_NFSVC
+			putitem/id viParams, "NR_TRANSACAO", NR_TRANSACAOORI.FIS_NFSVC
+			putitem/id viParams, "DT_TRANSACAO", DT_TRANSACAOORI.FIS_NFSVC
+			putitem/id viParams, "CD_INDICE"   , 1
+			activate "PEDSVCO015".retornaDadosPedido($xlpg$, viParams, voParams,$xCdErro$, $xCtxerro$)
+			if ($procerror)       
+				$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+				return(-1)
+			elseif ($status < 0)
+				$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")
+				return(-1)
+			endif
+			poCampo = $item("DS_SENHA", voParams)
+			if (piDsDados != "") & (poCampo != "")
+				poCampo = "%%piDsDados %%poCampo"
+			endif
+
+		case 000570 ; Chave Agendamento Entrega
+			if (piValidaCampo = <TRUE>)
+				return(0)
+			endif
+			poCampo  = ""
+			viParams = ""
+			voParams = ""
+			putitem/id viParams, "CD_EMPRESA"  , CD_EMPRESAORI.FIS_NFSVC
+			putitem/id viParams, "NR_TRANSACAO", NR_TRANSACAOORI.FIS_NFSVC
+			putitem/id viParams, "DT_TRANSACAO", DT_TRANSACAOORI.FIS_NFSVC
+			putitem/id viParams, "CD_INDICE"   , 1
+			activate "PEDSVCO015".retornaDadosPedido($xlpg$, viParams, voParams,$xCdErro$, $xCtxerro$)
+			if ($procerror)       
+				$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+				return(-1)
+			elseif ($status < 0)
+				$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")
+				return(-1)
+			endif
+			poCampo = $item("DS_CHAVE", voParams)
+			if (piDsDados != "") & (poCampo != "")
+				poCampo = "%%piDsDados %%poCampo"
+			endif
+
+		case 000571 ; Portao Agendamento Entrega
+			if (piValidaCampo = <TRUE>)
+				return(0)
+			endif
+			poCampo  = ""
+			viParams = ""
+			voParams = ""
+			putitem/id viParams, "CD_EMPRESA"  , CD_EMPRESAORI.FIS_NFSVC
+			putitem/id viParams, "NR_TRANSACAO", NR_TRANSACAOORI.FIS_NFSVC
+			putitem/id viParams, "DT_TRANSACAO", DT_TRANSACAOORI.FIS_NFSVC
+			putitem/id viParams, "CD_INDICE"   , 1
+			activate "PEDSVCO015".retornaDadosPedido($xlpg$, viParams, voParams,$xCdErro$, $xCtxerro$)
+			if ($procerror)       
+				$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+				return(-1)
+			elseif ($status < 0)
+				$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")
+				return(-1)
+			endif
+			poCampo = $item("DS_PORTAO", voParams)
+			if (piDsDados != "") & (poCampo != "")
+				poCampo = "%%piDsDados %%poCampo"
+			endif
+
+		case 000572 ; Carga Agendamento Entrada Entrega
+			if (piValidaCampo = <TRUE>)
+				return(0)
+			endif
+			poCampo  = ""
+			viParams = ""
+			voParams = ""
+			putitem/id viParams, "CD_EMPRESA"  , CD_EMPRESAORI.FIS_NFSVC
+			putitem/id viParams, "NR_TRANSACAO", NR_TRANSACAOORI.FIS_NFSVC
+			putitem/id viParams, "DT_TRANSACAO", DT_TRANSACAOORI.FIS_NFSVC
+			putitem/id viParams, "CD_INDICE"   , 1
+			activate "PEDSVCO015".retornaDadosPedido($xlpg$, viParams, voParams,$xCdErro$, $xCtxerro$)
+			if ($procerror)       
+				$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+				return(-1)
+			elseif ($status < 0)
+				$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")
+				return(-1)
+			endif
+			poCampo = $item("DS_CARGA", voParams)
+			if (piDsDados != "") & (poCampo != "")
+				poCampo = "%%piDsDados %%poCampo"
+			endif
+
+		case 000618 ; Codigo Produto Pessoa Origem
+			if (piValidaCampo = <TRUE>)
+				return(0)
+			endif
+			poCampo = ""
+			setocc "FIS_NFITEMPROSVC", -1
+			setocc "FIS_NFITEMPROSVC", 1
+			if ($totocc("FIS_NFITEMPROSVC") = 1 & CD_PRODUTO.FIS_NFITEMPROSVC > 0) | (IN_AGRUPA_GRUPO.GER_MODNFCSVC = "A") | (IN_AGRUPA_GRUPO.GER_MODNFCSVC = "C") ; A - Tamanho / C - cor
+				viParams = ""
+				putitem/id viParams, "CD_PRODUTO", CD_PRODUTO.FIS_NFITEMPROSVC
+				putitem/id viParams, "CD_PESSOA" , CD_PESSOA.FIS_NFSVC
+				activate "PRDSVCO023".buscaDadosProduto($xlpg$, viParams, voParams,$xCdErro$, $xCtxerro$)
+				if ($procerror)       
+					$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+					return(-1)
+				elseif ($status < 0)
+					$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")
+					return(-1)
+				endif
+				poCampo = $item("CD_ORIGEM", voParams)
+				if (piDsDados != "") & (poCampo != "")
+					poCampo = "%%piDsDados %%poCampo"
+				endif
+			endif
+
+		case 000619 ; Descricao Produto Pessoa Origem
+			if (piValidaCampo = <TRUE>)
+				return(0)
+			endif
+			poCampo = ""
+			setocc "FIS_NFITEMPROSVC", -1
+			setocc "FIS_NFITEMPROSVC", 1
+			if ($totocc("FIS_NFITEMPROSVC") = 1 & CD_PRODUTO.FIS_NFITEMPROSVC > 0) | (IN_AGRUPA_GRUPO.GER_MODNFCSVC = "A") | (IN_AGRUPA_GRUPO.GER_MODNFCSVC = "C") ; A - Tamanho / C - cor
+				viParams = ""
+				putitem/id viParams, "CD_PRODUTO", CD_PRODUTO.FIS_NFITEMPROSVC
+				putitem/id viParams, "CD_PESSOA" , CD_PESSOA.FIS_NFSVC
+				activate "PRDSVCO023".buscaDadosProduto($xlpg$, viParams, voParams,$xCdErro$, $xCtxerro$)
+				if ($procerror)
+					$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+					return(-1)
+				elseif ($status < 0)
+					$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")
+					return(-1)
+				endif
+				poCampo = $item("DS_ORIGEM", voParams)
+				if (piDsDados != "") & (poCampo != "")
+					poCampo = "%%piDsDados %%poCampo"
+				endif
+			endif
+		;;
+
+		;; ICJ [PROJ/TAR 170/25] (05/08/2010)	
+		case 000332 ; Endereço de entrega
+			if (piValidaCampo = <TRUE>)
+				return(0)
+			endif
+			poCampo = ""
+			viParams = ""
+			voParams = ""
+			putitem/id viParams, "CD_PESSOA", CD_PESSOA.FIS_NFREMDESSVC
+			putitem/id viParams, "CD_TIPOENDERECO", 5 ;ENTREGA
+			activate "PESSVCO005".buscarEndereco(viParams, voParams, $xCdErro$, $xCtxErro$)
+			if ($procerror)       
+				$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+				return(-1)
+			elseif ($status < 0)
+				$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")
+				return(-1)
+			endif    
+
+			poCampo = "%%$item("DS_SIGLALOGRAD", voParams) %%$item("NM_LOGRADOURO", voParams) %%$item("NR_LOGRADOURO", voParams)"
+			if (piDsDados != "") & (poCampo != "")
+				poCampo = "%%piDsDados %%poCampo"
+			endif
+
+		case 000349 ; Cidade de entrega
+			if (piValidaCampo = <TRUE>)
+				return(0)
+			endif
+			poCampo = ""
+			viParams = ""
+			voParams = ""
+			putitem/id viParams, "CD_PESSOA", CD_PESSOA.FIS_NFREMDESSVC
+			putitem/id viParams, "CD_TIPOENDERECO", 5 ;ENTREGA
+			activate "PESSVCO005".buscarEndereco(viParams, voParams, $xCdErro$, $xCtxErro$)
+			if ($procerror)       
+				$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+				return(-1)
+			elseif ($status < 0)
+				$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")
+				return(-1)
+			endif    
+
+			poCampo = "%%$item("NM_MUNICIPIO", voParams) %%$item("DS_SIGLAESTADO", voParams)"
+			if (piDsDados != "") & (poCampo != "")
+				poCampo = "%%piDsDados %%poCampo"
+			endif
+
+		case 000350 ; CEP de entrega
+			if (piValidaCampo = <TRUE>)
+				return(0)
+			endif
+			poCampo = ""
+			viParams = ""
+			voParams = ""
+			putitem/id viParams, "CD_PESSOA", CD_PESSOA.FIS_NFREMDESSVC
+			putitem/id viParams, "CD_TIPOENDERECO", 5 ;ENTREGA
+			activate "PESSVCO005".buscarEndereco(viParams, voParams, $xCdErro$, $xCtxErro$)
+			if ($procerror)       
+				$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+				return(-1)
+			elseif ($status < 0)
+				$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")
+				return(-1)
+			endif    
+
+			poCampo = $item("CD_CEP", voParams)
+			if (piDsDados != "") & (poCampo != "")
+				poCampo = "%%piDsDados %%poCampo"
+			endif
+
+		case 000358 ; Referência de entrega
+			if (piValidaCampo = <TRUE>)
+				return(0)
+			endif
+			poCampo = ""
+			viParams = ""
+			voParams = ""
+			putitem/id viParams, "CD_PESSOA", CD_PESSOA.FIS_NFREMDESSVC
+			putitem/id viParams, "CD_TIPOENDERECO", 5 ;ENTREGA
+			activate "PESSVCO005".buscarEndereco(viParams, voParams, $xCdErro$, $xCtxErro$)
+			if ($procerror)       
+				$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+				return(-1)
+			elseif ($status < 0)
+				$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")
+				return(-1)
+			endif    
+
+			poCampo = $item("DS_REFERENCIA", voParams)
+			if (piDsDados != "") & (poCampo != "")
+				poCampo = "%%piDsDados %%poCampo"
+			endif
+
+		case 000604 ; Bairro de entrega
+			if (piValidaCampo = <TRUE>)
+				return(0)
+			endif
+			poCampo = ""
+			viParams = ""
+			voParams = ""
+			putitem/id viParams, "CD_PESSOA", CD_PESSOA.FIS_NFREMDESSVC
+			putitem/id viParams, "CD_TIPOENDERECO", 5 ;ENTREGA
+			activate "PESSVCO005".buscarEndereco(viParams, voParams, $xCdErro$, $xCtxErro$)
+			if ($procerror)       
+				$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+				return(-1)
+			elseif ($status < 0)
+				$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")
+				return(-1)
+			endif    
+
+			poCampo = $item("DS_BAIRRO", voParams)
+			if (piDsDados != "") & (poCampo != "")
+				poCampo = "%%piDsDados %%poCampo"
+			endif
+
+		case 000605 ; UF de entrega
+			if (piValidaCampo = <TRUE>)
+				return(0)
+			endif
+			poCampo  = ""
+			viParams = ""
+			voParams = ""
+			putitem/id viParams, "CD_PESSOA", CD_PESSOA.FIS_NFREMDESSVC
+			putitem/id viParams, "CD_TIPOENDERECO", 5 ;ENTREGA
+			activate "PESSVCO005".buscarEndereco(viParams, voParams, $xCdErro$, $xCtxErro$)
+			if ($procerror)       
+				$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+				return(-1)
+			elseif ($status < 0)
+				$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")
+				return(-1)
+			endif    
+
+			poCampo = $item("DS_SIGLAESTADO", voParams)
+			if (piDsDados != "") & (poCampo != "")
+				poCampo = "%%piDsDados %%poCampo"
+			endif
+
+		case 000694 ; Complemento de entrega
+			if (piValidaCampo = <TRUE>)
+				return(0)
+			endif
+			poCampo  = ""
+			viParams = ""
+			voParams = ""
+			putitem/id viParams, "CD_PESSOA", CD_PESSOA.FIS_NFREMDESSVC
+			putitem/id viParams, "CD_TIPOENDERECO", 5 ;ENTREGA
+			activate "PESSVCO005".buscarEndereco(viParams, voParams, $xCdErro$, $xCtxErro$)
+			if ($procerror)       
+				$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+				return(-1)
+			elseif ($status < 0)
+				$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")
+				return(-1)
+			endif    
+
+			poCampo = $item("DS_COMPLEMENTO", voParams)
+			if (piDsDados != "") & (poCampo != "")
+				poCampo = "%%piDsDados %%poCampo"
+			endif
+		;;
+
+		;-- MAD [Proj/Tar.149/089] - 22/09/2010
+		case 000417 ; Valor campo adicional produto
+			if (piValidaCampo = <TRUE>)
+				return(0)
+			endif
+			poCampo = ""
+			if ($empty("FIS_NFITEMPROSVC") = 0)
+				viParams = ""
+				voParams = ""
+				putitem/id viParams, "CD_PRODUTO"  , CD_PRODUTO.FIS_NFITEMPROSVC
+				putitem/id viParams, "CD_TIPOCAMPO", piDsDados
+				activate "PRDSVCO018".buscaCampoAdicional($xlpg$, viParams, voParams,$xCdErro$, $xCtxerro$)
+				if ($procerror)       
+					$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+					return(-1)
+				elseif ($status < 0)
+					$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")
+					return(-1)
+				endif
+				vDslinha    = ""
+				vDsRegistro = ""
+				vDsLinha    = $item("DS_LSTCAMPO", voParams)
+				getitem vDsRegistro , vDslinha, 1
+				poCampo     = $item("DS_CAMPO", vDsRegistro)
+			endif
+		;;
+
+		;-- MAD [Proj/Tar.170/026] - 13/08/2010
+		case 000669 ; Valor ICMS simples nacional
+			if (piValidaCampo = <TRUE>)
+				return(0)
+			endif
+			;-- MAD [Proj/Tar.061/913] - 11/01/2011
+			if ($inOptSimples$ != "S")
+				return(0)
+			endif
+
+			;***** Incluído o CST 41 | MAD [Proj/Tar.175/097] - 30/03/2011 *****
+			vVlSimples = 0
+			vInGravar  = <FALSE>
+			vPos = $curocc("FIS_NFITEMSVC")
+			setocc "FIS_NFITEMSVC",1
+			while ($status >= 0)
+				vCdCST = CD_CST.FIS_NFITEMSVC[2 : 2]
+				if (vCdCST = "00" | vCdCST = "10" | vCdCST = "20" | vCdCST = "30" | vCdCST = "41" | vCdCST = "51" | vCdCST = "70")
+					vInGravar = <TRUE>
+
+					if (vCdCST = "00" | vCdCST = "20" | vCdCST = "41" | vCdCST = "51")
+						clear/e "FIS_NFITEMIMPSVC"
+						CD_IMPOSTO.FIS_NFITEMIMPSVC/init = 1
+						retrieve/e "FIS_NFITEMIMPSVC"
+						if ($status >= 0)
+							if (vCdCST = "41")
+								vVlSimples = vVlSimples + VL_ISENTO.FIS_NFITEMIMPSVC				
+							else
+								vVlSimples = vVlSimples + VL_BASECALC.FIS_NFITEMIMPSVC
+							endif
+						endif
+					else
+						;--> VSOUZA PRJ/TAR 175/260 01/11/2011
+						if ($inConsSubTribCredSimp$ = <TRUE>)
+							clear/e "FIS_NFITEMIMPSVC"
+							CD_IMPOSTO.FIS_NFITEMIMPSVC/init = 2
+							retrieve/e "FIS_NFITEMIMPSVC"
+							if ($status >= 0)
+								vVlSimples = vVlSimples + VL_BASECALC.FIS_NFITEMIMPSVC				
+							endif
+						endif
+						;------------------------------------<
+						;--> Comentado para considerar o valor do S.T. apenas se o parâmetro
+						;--> $inConsSubTribCredSimp$ for igual a 1 <------------------------
+						;clear/e "FIS_NFITEMIMPSVC"
+						;CD_IMPOSTO.FIS_NFITEMIMPSVC/init = 2
+						;retrieve/e "FIS_NFITEMIMPSVC"
+						;if ($status >= 0)
+						;	vVlSimples = vVlSimples + VL_BASECALC.FIS_NFITEMIMPSVC
+						;endif
+						;------------------------------------------------------------------<
+					endif
+				endif
+				setocc "FIS_NFITEMSVC", $curocc("FIS_NFITEMSVC") + 1
+			endwhile
+			setocc "FIS_NFITEMSVC", vPos
+
+			if (vInGravar = <TRUE>)
+				if (vCdCST = "00" | vCdCST = "20" | vCdCST = "41" | vCdCST = "51")
+					clear/e "FIS_NFIMPOSTOSVC"
+					CD_IMPOSTO.FIS_NFIMPOSTOSVC/init = 1
+					retrieve/e "FIS_NFIMPOSTOSVC"
+					if ($status >= 0)
+						if (vCdCST = "41")
+							vVlSimples = vVlSimples + VL_ISENTO.FIS_NFIMPOSTOSVC				
+						else
+							vVlSimples = vVlSimples + VL_BASECALC.FIS_NFIMPOSTOSVC
+						endif
+					else
+						clear/e "FIS_NFIMPOSTOSVC"
+						CD_IMPOSTO.FIS_NFIMPOSTOSVC/init = 2
+						retrieve/e "FIS_NFIMPOSTOSVC"
+						if ($status >= 0)
+							if (vCdCST = "41")
+								vVlSimples = vVlSimples + VL_ISENTO.FIS_NFIMPOSTOSVC				
+							else
+								vVlSimples = vVlSimples + VL_BASECALC.FIS_NFIMPOSTOSVC
+							endif
+						endif
+					endif
+				else
+					clear/e "FIS_NFIMPOSTOSVC"
+					CD_IMPOSTO.FIS_NFIMPOSTOSVC/init = 2
+					retrieve/e "FIS_NFIMPOSTOSVC"
+					if ($status >= 0)
+						vVlSimples = vVlSimples + VL_BASECALC.FIS_NFIMPOSTOSVC
+					else
+						clear/e "FIS_NFIMPOSTOSVC"
+						CD_IMPOSTO.FIS_NFIMPOSTOSVC/init = 1
+						retrieve/e "FIS_NFIMPOSTOSVC"
+						if ($status >= 0)
+							vVlSimples = vVlSimples + VL_BASECALC.FIS_NFIMPOSTOSVC
+						endif
+					endif
+				endif
+			else
+				return(0)
+			endif
+			;;
+			poCampo = ""
+			if ($inOptSimples$ = "S")
+				;-- MAD [Proj/Tar.061/913] - 11/01/2011
+				;$vl12d2$ = (VL_TOTALNOTA.FIS_NFSVC - ((VL_TOTALNOTA.FIS_NFSVC * $prReduBaseSimpNacional$) / 100)) * $prAliqSimplesNacional$ / 100
+				$vl12d2$ = (vVlSimples - ((vVlSimples * $prReduBaseSimpNacional$) / 100)) * $prAliqSimplesNacional$ / 100
+				;;
+			else
+				$vl12d2$ = 0
+			endif
+			poCampo = "%%$vl12d2$"
+
+			if (piDsDados != "") & (poCampo != "")
+				poCampo = "%%piDsDados %%poCampo"
+			endif
+
+		case 000670 ; Aliq. ICMS simples nacional
+			if (piValidaCampo = <TRUE>)
+				return(0)
+			endif
+			;-- MAD [Proj/Tar.061/913] - 11/01/2011
+			vInGravar = <FALSE>
+			if ($inOptSimples$ != "S")
+				return(0)
+			endif
+
+			vPos = $curocc("FIS_NFITEMSVC")
+			setocc "FIS_NFITEMSVC",1
+			while ($status >= 0)
+				vCdCST = CD_CST.FIS_NFITEMSVC[2 : 2]
+				if (vCdCST = "00" | vCdCST = "10" | vCdCST = "20" |vCdCST = "30" | vCdCST = "41" | vCdCST = "51" | vCdCST = "70")
+					vInGravar = <TRUE>
+					break
+				endif
+				setocc "FIS_NFITEMSVC", $curocc("FIS_NFITEMSVC") + 1
+			endwhile
+			setocc "FIS_NFITEMSVC", vPos
+
+			if (vInGravar = <FALSE>)
+				return(0)
+			endif
+			;;
+			poCampo = ""
+			if ($inOptSimples$ = "S")
+				poCampo = "%%$prAliqSimplesNacional$"
+			else
+				$prAliqSimplesNacional$ = 0
+				poCampo = "%%$prAliqSimplesNacional$"
+			endif
+
+			if (piDsDados != "") & (poCampo != "")
+				poCampo = "%%piDsDados %%poCampo"
+			endif
+		;;
+
+		;---- WMC - 23/11/2010 - PRJ 170 TAR 133
+		case 000099 ; 
+			if (piValidaCampo = <TRUE>)
+				return(0)
+			endif
+
+			poCampo = "%%NR_TRANSACAOORI.FIS_NFSVC"
+
+			if (piDsDados != "") & (poCampo != "")
+				poCampo = "%%piDsDados %%poCampo"
+			endif
+		;----//----//----
+		elsecase
+			poCampo = ""
+			$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Campo %%piCodigoCampo não preparado para gravar observação na nota fiscal eletrônica!", "ADICIONAL=Proc->FISSVCO024.montaCampo")
+			return(-1)
+	endselectcase    
+
+	return(0)
+
+End ; entry montaCampo
+;;
+
+;----------------------
+entry calculaTotalAliquota
+;----------------------
+	;thamati 30/04/2010 [Proj. 0158 - Tar. 0100]
+
+	VL_DIFALIQ.FIS_DIFALIQCSVC = 0
+
+	if (!$empty("FIS_DIFALIQISVC"))
+		setocc "FIS_DIFALIQISVC", 1
+		while ($status >= 0)
+			VL_DIFALIQ.FIS_DIFALIQCSVC = VL_DIFALIQ.FIS_DIFALIQCSVC + VL_DIFALIQ.FIS_DIFALIQISVC
+			setocc "FIS_DIFALIQISVC", $curocc("FIS_DIFALIQISVC") + 1
+		endwhile
+	endif
+
+	return(0)
+End ;entry calculaTotalAliquota
+
+;----------------------------------
+;CFC 01/06/2007  Tar. 108 Pj. 61 
+;Gravar logs de Notas Fiscais
+public operation gravaLogNF
+;----------------------------------
+	params
+		string  $xlpg$      :IN    
+		string  piParams    :IN
+		string  poParams    :OUT
+		string  poCdErro    :OUT
+		string  poCtxErro   :OUT
+	endparams
+	
+	variables
+		string vDsLinhaLog, vDsLstNF, vDsRegistro
+		numeric vCdEmpresa, vNrFatura, vNrLinha
+		date vDtFatura
+	endvariables
+	
+	vDsLstNF = $item("DS_LSTNF", piParams)
+	vDsLinhaLog = $item("DS_LOG", piParams)
+	
+	if (vDsLstNF = "")
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Lista de nota não informada!", "ADICIONAL=Operação->FISSVCO024.gravaLogNF")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	
+	if (vDsLinhaLog = "")
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Logs não informado!", "ADICIONAL=Operação->FISSVCO024.gravaLogNF")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1) 
+	endif
+	
+	repeat
+		getitem vDsRegistro, vDsLstNF, 1
+		vCdEmpresa = $item("CD_EMPRESA", vDsRegistro)
+		vNrFatura = $item("NR_FATURA", vDsRegistro)
+		vDtFatura = $item("DT_FATURA", vDsRegistro)
+		if (vDtFatura = "")
+			$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Data da fatura não informada!", "ADICIONAL=Operação->FISSVCO024.gravaLogNF")
+			poCdErro = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return(-1)
+		endif
+		
+		if (vNrFatura = 0)
+			$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Número da fatura não informada!", "ADICIONAL=Operação->FISSVCO024.gravaLogNF")
+			poCdErro = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return(-1)
+		endif
+		
+		clear/e "FIS_NFSVC"
+		CD_EMPRESA.FIS_NFSVC/init = vCdEmpresa
+		NR_FATURA.FIS_NFSVC/init = vNrFatura
+		DT_FATURA.FIS_NFSVC/init = vDtFatura
+		retrieve/e "FIS_NFSVC"
+		if ($status < 0)
+			$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=NF %%vNrFatura não cadastrada!", "ADICIONAL=Operação->FISSVCO024.gravaObsNF")
+			poCdErro = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return(-1)
+		else
+			if ($empty("FIS_LOGNFSVC") = 0)
+				setocc "FIS_LOGNFSVC", -1
+				vNrLinha = NR_LINHA.FIS_LOGNFSVC + 1
+			else
+				vNrLinha = 1
+			endif
+			
+			creocc "FIS_LOGNFSVC", -1
+			NR_LINHA.FIS_LOGNFSVC = vNrLinha
+			CD_EMPFAT.FIS_LOGNFSVC = CD_EMPFAT.FIS_NFSVC
+			CD_OPERADOR.FIS_LOGNFSVC = $item("CD_USUARIO", $xlpg$)
+			DT_CADASTRO.FIS_LOGNFSVC = $datim 
+			DS_LOG.FIS_LOGNFSVC = vDsLinhaLog
+			
+			$collhandle("FIS_LOGNFSVC")->Salvar()
+			if ($procerror)
+				$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+				poCdErro = $xCdErro$
+				poCtxErro = $xCtxErro$
+				return(-1)
+			elseif ($status < 0)
+				$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")    
+				poCdErro = $xCdErro$
+				poCtxErro = $xCtxErro$
+				return(-1)
+			endif      
+		endif
+		
+		delitem vDsLstNF, 1
+	until (vDsLstNF = "")
+	
+	return(0)
+	end; gravaLogNf
+	
+;----------------------------------
+public operation alteraRemDes
+	;----------------------------------
+	params
+		string  $xlpg$      :IN    
+		string  piParams    :IN
+		string  poParams    :OUT
+		string  poCdErro    :OUT
+		string  poCtxErro   :OUT
+	endparams
+	variables
+		numeric vCdEmpresa, vNrFatura, vCdEmpTra, vNrTransacao, vCdPessoa
+		date vDtFatura, vDtTransacao
+		string vNrCpfCnpj, vDsNome
+		boolean inMantemTransacao 
+
+	endvariables
+	
+	vCdPessoa = $item("CD_PESSOA", piParams)
+
+	if (vCdPessoa = 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Cliente novo não informado!", "ADICIONAL=Operação->FISSVCO024.alteraRemDes")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	
+	vNrCpfCnpj = $item("NR_CPFCNPJ", piParams) ;-=CANONICO=- (09/07/2009) TAR/567 PRJ/102 - Quando o cpf ou cnpj for informado não vai procurar no pes_pessoa
+	vDsNome = $item("NM_NOME", piParams) ;-=CANONICO=- (09/07/2009) TAR/567 PRJ/102 - Quando o nome for informado não vai procurar no pes_pessoa
+	inMantemTransacao = $item("IN_MANTEMTRANSACAO", piParams) ;* Claudemir - Prj/Tarefa: 102/711 - 25/11/2009
+	
+	if (vDsNome = "") & (vNrCpfCnpj = "")	
+		clear/e "PES_PESSOASVC"
+		CD_PESSOA.PES_PESSOASVC/init = vCdPessoa
+		retrieve/e "PES_PESSOASVC"
+		if ($status >= 0)
+			vNrCpfCnpj = NR_CPFCNPJ.PES_PESSOASVC
+			vDsNome = NM_PESSOA.PES_PESSOASVC
+		else
+			$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Cliente %%vCdPessoa não encontrada!", "ADICIONAL=Operação->FISSVCO024.alteraRemDes")
+			poCdErro = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return(-1)
+		endif
+	endif
+	
+	vCdEmpresa = $item("CD_EMPRESA", piParams)
+	vNrFatura = $item("NR_FATURA", piParams)
+	vDtFatura = $item("DT_FATURA", piParams)
+	
+	if (vCdEmpresa = 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Empresa da nota não informada!", "ADICIONAL=Operação->FISSVCO024.alteraRemDes")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	if (vNrFatura = 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Fatura da nota não informada!", "ADICIONAL=Operação->FISSVCO024.alteraRemDes")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1) 
+	endif
+	if (vDtFatura = "")
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Data da nota não informada!", "ADICIONAL=Operação->FISSVCO024.alteraRemDes")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1) 
+	endif
+	
+	clear/e "FIS_NFSVC"
+	CD_EMPRESA.FIS_NFSVC/init = vCdEmpresa
+	NR_FATURA.FIS_NFSVC/init = vNrFatura
+	DT_FATURA.FIS_NFSVC/init = vDtFatura
+	retrieve/e "FIS_NFSVC"
+	if ($status < 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=NF %%vNrFatura não cadastrada!", "ADICIONAL=Operação->FISSVCO024.alteraRemDes")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	CD_PESSOA.FIS_NFSVC/init = vCdPessoa
+	$collhandle("FIS_NFSVC")->Salvar()
+	if ($procerror)
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	elseif ($status < 0)
+		$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")    
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif   
+	
+	;* Claudemir - Prj/Tarefa: 102/711 - 25/11/2009
+	; se estiver marcado no TRAFP039 "Consumidor final", então somente vai imprimir o cupom
+	; para consumidor final e a transação continuara para o cliente cadastrado
+	if (inMantemTransacao = <FALSE>) ;* Claudemir - Prj/Tarefa: 102/711 - 25/11/2009
+		vCdEmpTra = $item("CD_EMPTRA", piParams)
+		vNrTransacao = $item("NR_TRANSACAO", piParams)
+		vDtTransacao = $item("DT_TRANSACAO", piParams)
+	
+		if (vCdEmpTra = 0)
+			$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Empresa da transação não informada!", "ADICIONAL=Operação->FISSVCO024.alteraRemDes")
+			poCdErro = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return(-1)
+		endif
+		if (vNrTransacao = 0)
+			$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Nr. da transação não informado!", "ADICIONAL=Operação->FISSVCO024.alteraRemDes")
+			poCdErro = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return(-1) 
+		endif
+		if (vDtTransacao = "")
+			$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Data da transação não informada!", "ADICIONAL=Operação->FISSVCO024.alteraRemDes")
+			poCdErro = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return(-1) 
+		endif
+	
+		clear/e "TRA_TRANSACAOSVC"
+		CD_EMPRESA.TRA_TRANSACAOSVC/init = vCdEmpTra
+		NR_TRANSACAO.TRA_TRANSACAOSVC/init = vNrTransacao
+		DT_TRANSACAO.TRA_TRANSACAOSVC/init = vDtTransacao
+		retrieve/e "TRA_TRANSACAOSVC"
+		if ($status < 0)
+			$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Transação %%vNrTransacao não encontrada na empresa %%vCdEmpTra!", "ADICIONAL=Operação->FISSVCO024.alteraRemDes")
+			poCdErro = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return(-1)
+		else
+			CD_PESSOA.TRA_TRANSACAOSVC/init = vCdPessoa
+			$collhandle("TRA_TRANSACAOSVC")->Salvar()
+			if ($procerror)
+				$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+				poCdErro = $xCdErro$
+				poCtxErro = $xCtxErro$
+				return(-1)
+			elseif ($status < 0)
+				$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")    
+				poCdErro = $xCdErro$
+				poCtxErro = $xCtxErro$
+				return(-1)
+			endif
+		endif
+	elseif (inMantemTransacao = <TRUE>) ;-=CANONICO=- (10/05/2010) TAR 156 PRJ 156 -Alterar o FISSVCO024 para quando for passado parametro IN_MANUTEMTRASACAO também alterar o TRA_REMDES
+		clear/e "TRA_TRANSACAOSVC"
+		CD_EMPRESA.TRA_TRANSACAOSVC/init = CD_EMPRESAORI.FIS_NFSVC
+		NR_TRANSACAO.TRA_TRANSACAOSVC/init = NR_TRANSACAOORI.FIS_NFSVC
+		DT_TRANSACAO.TRA_TRANSACAOSVC/init = DT_TRANSACAOORI.FIS_NFSVC
+		retrieve/e "TRA_TRANSACAOSVC"
+		if ($status < 0)
+			$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Transação %%NR_TRANSACAOORI.FIS_NFSVC não encontrada na empresa %%CD_EMPRESAORI.FIS_NFSVC!", "ADICIONAL=Operação->FISSVCO024.alteraRemDes")
+			poCdErro = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return(-1)
+		endif
+	endif
+
+	
+	if ($empty("TRA_REMDESSVC") = 0)
+		CD_PESSOA.TRA_REMDESSVC/init = vCdPessoa
+		NM_NOME.TRA_REMDESSVC/init = vDsNome
+		NR_CPFCNPJ.TRA_REMDESSVC/init = vNrCpfCnpj
+		$collhandle("TRA_REMDESSVC")->Salvar()
+		if ($procerror)
+			$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+			poCdErro = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return(-1)
+		elseif ($status < 0)
+			$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")    
+			poCdErro = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return(-1)
+		endif   
+	endif
+	
+	if ($empty("FIS_NFREMDESSVC") = 0)
+		CD_PESSOA.FIS_NFREMDESSVC/init = vCdPessoa
+		NM_NOME.FIS_NFREMDESSVC/init = vDsNome
+		NR_CPFCNPJ.FIS_NFREMDESSVC/init = vNrCpfCnpj
+		$collhandle("FIS_NFREMDESSVC")->Salvar()
+		if ($procerror)
+			$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+			poCdErro = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return(-1)
+		elseif ($status < 0)
+			$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")    
+			poCdErro = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return(-1)
+		endif
+	endif
+	
+	return(0)
+end
+
+;---Elia Proj. 061/410 14/08/08-
+public operation gravaObsNfFisco 
+	;-------------------------------
+	
+	params
+		string  $xlpg$      :IN    
+		string  piParams    :IN
+		string  poParams    :OUT
+		string  poCdErro    :OUT
+		string  poCtxErro   :OUT
+	endparams
+	
+	variables
+		string vDsLstTransacao, vDsRegistro
+		numeric vCdEmpresa, vNrTransacao, vNrLinha
+		date vDtTransacao
+	endvariables
+	
+	vDsLstTransacao = $item("DS_LSTTRANSACAO", piParams)
+	
+	if (vDsLstTransacao = "")
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Lista de transação não informada!", "ADICIONAL=Operação->FISSVCO024.geraObsNfFisco")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		exit(-1)
+	endif
+	
+	repeat
+		getitem vDsRegistro, vDsLstTransacao, 1
+		vCdEmpresa = $item("CD_EMPRESA", vDsRegistro)
+		vNrTransacao = $item("NR_TRANSACAO", vDsRegistro)
+		vDtTransacao = $item("DT_TRANSACAO", vDsRegistro)
+		
+		if (vCdEmpresa = 0)
+			$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Empresa não informada!", "ADICIONAL=Operação->FISSVCO024.geraObsNfFisco")
+			poCdErro = $xCdErro$
+			poCtxErro = $xCtxErro$
+			exit(-1)
+		endif
+		
+		if (vNrTransacao = 0)
+			$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Número da transação não informado!", "ADICIONAL=Operação->FISSVCO024.geraObsNfFisco")
+			poCdErro = $xCdErro$
+			poCtxErro = $xCtxErro$
+			exit(-1)
+		endif
+		
+		if (vDtTransacao = "")
+			$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Número da transação não informado!", "ADICIONAL=Operação->FISSVCO024.geraObsNfFisco")
+			poCdErro = $xCdErro$
+			poCtxErro = $xCtxErro$
+			exit(-1)
+		endif
+		
+		clear/e "TRA_TRANSACAOSVC"
+		CD_EMPRESA.TRA_TRANSACAOSVC = vCdEmpresa
+		NR_TRANSACAO.TRA_TRANSACAOSVC = vNrTransacao
+		DT_TRANSACAO.TRA_TRANSACAOSVC = vDtTransacao
+		retrieve/e "TRA_TRANSACAOSVC"
+		if ($status < 0)
+			$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Transação %%vNrTransacao não cadastrada!", "ADICIONAL=Operação->FISSVCO024.geraObsNfFisco")
+			poCdErro = $xCdErro$
+			poCtxErro = $xCtxErro$
+			exit(-1)
+		endif
+		
+		if (!$empty("OBS_TRANSFISCSVC"))
+			clear/e "FIS_NFSVC"
+			CD_EMPRESAORI.FIS_NFSVC/init = CD_EMPRESA.TRA_TRANSACAOSVC
+			NR_TRANSACAOORI.FIS_NFSVC/init = NR_TRANSACAO.TRA_TRANSACAOSVC
+			DT_TRANSACAOORI.FIS_NFSVC/init = DT_TRANSACAO.TRA_TRANSACAOSVC
+			retrieve/e "FIS_NFSVC"
+			if ($status >= 0)
+				setocc "FIS_NFSVC", 1
+				while ($status >= 0)
+					setocc "OBS_NFFISCOSVC", -1
+					vNrLinha = NR_LINHA.OBS_NFFISCOSVC
+					setocc "OBS_TRANSFISCSVC", 1
+					while ($status >= 0)
+						creocc "OBS_NFFISCOSVC",-1
+						vNrLinha = vNrLinha + 1
+						NR_LINHA.OBS_NFFISCOSVC = vNrLinha
+						CD_EMPFAT.OBS_NFFISCOSVC = CD_EMPFAT.TRA_TRANSACAOSVC
+						CD_GRUPOEMPRESA.OBS_NFFISCOSVC = CD_GRUPOEMPRESA.FIS_NFSVC
+						CD_OPERADOR.OBS_NFFISCOSVC = $item("CD_USUARIO", $xlpg$)
+						DT_CADASTRO.OBS_NFFISCOSVC= $datim
+						DS_OBSERVACAO.OBS_NFFISCOSVC = DS_OBSERVACAO.OBS_TRANSFISCSVC[1 : 80]
+						setocc "OBS_TRANSFISCSVC", $curocc("OBS_TRANSFISCSVC") + 1
+					endwhile
+					setocc "FIS_NFSVC", $curocc("FIS_NFSVC") + 1
+				endwhile
+			endif
+		endif
+		
+		delitem vDsLstTransacao, 1
+	until (vDsLstTransacao = "")
+	
+	$collhandle("OBS_NFFISCOSVC")->Salvar()
+	if ($procerror)
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	elseif ($status < 0)
+		$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")    
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif      
+	
+	return (0)
+	
+End ; operation gravaObsNfFisco
+
+
+
+;---------------------; leandro 130/156 13/10/2008
+public operation gravaItemDevTerceiroNF
+	;-----------------------------------------
+	params
+		string  piGlobal    :IN    
+		string  piParams    :IN
+		string  poParams    :OUT
+		string  poCdErro    :OUT
+		string  poCtxErro   :OUT
+	endparams
+	
+	variables
+		numeric vCdEmpresa, vNrFatura, vNrItem, vCdProduto, vTpDcto, vCdEmpDcto, vNrDcto
+		numeric vNrSequencia, vTpDevolucao, vTpSituacao, vQtDevolucao, vQtTotal
+		date vDtFatura, vDtDcto, vDtDevolucao
+		string vDsLstDev, vDsItemDev
+	endvariables
+	
+	$xlpg$ = piGlobal
+
+	vCdEmpresa = $item("CD_EMPRESA", piParams)
+	vNrFatura = $item("NR_FATURA", piParams)
+	vDtFatura = $item("DT_FATURA", piParams)
+	vNrItem = $item("NR_ITEM", piParams)
+	vCdProduto = $item("CD_PRODUTO", piParams)
+	vDsLstDev = $item("DS_LSTDEVOLUCAO", piParams)
+
+	if (vCdEmpresa = 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Empresa não informada!", "ADICIONAL=Operação->FISSVCO024.gravaItemDevTerceiroNF")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+
+	if (vNrFatura = 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Fatura não informado!", "ADICIONAL=Operação->FISSVCO024.gravaItemDevTerceiroNF")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	
+	if (vDtFatura = "")
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Data N.F. não informada!", "ADICIONAL=Operação->FISSVCO024.gravaItemDevTerceiroNF")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	
+	if (vNrItem = "")
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Número do item na nota %%vCdEmpresa / %%vNrFatura / %%vDtFatura não informado!", "ADICIONAL=Operação->FISSVCO024.gravaItemDevTerceiroNF")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif 
+
+	if (vCdProduto = "")
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Produto na nota %%vCdEmpresa / %%vNrFatura / %%vDtFatura não informado!", "ADICIONAL=Operação->FISSVCO024.gravaItemDevTerceiroNF")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+
+	if (vDsLstDev = "")
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Lista de itens a devolver para a nota %%vCdEmpresa / %%vNrFatura / %%vDtFatura não informada!", "ADICIONAL=Operação->FISSVCO024.gravaItemDevTerceiroNF")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+
+;	call getParam(vCdEmpresa, "gravaItemDevTerceiroNF")
+;	if ($procerror)
+;		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+;		poCdErro = $xCdErro$
+;		poCtxErro = $xCtxErro$
+;		return(-1)
+;	endif
+;	if ($status < 0)
+;		poCdErro = $xCdErro$
+;		poCtxErro = $xCtxErro$
+;		return(-1)
+;	endif
+
+	clear/e "FIS_NFSVC"
+	CD_EMPRESA.FIS_NFSVC/init = vCdEmpresa
+	NR_FATURA.FIS_NFSVC/init = vNrFatura
+	DT_FATURA.FIS_NFSVC/init = vDtFatura
+	retrieve/e "FIS_NFSVC"    
+	if ($status < 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Nota Fiscal %%vCdEmpresa / %%vNrFatura / %%vDtFatura não encotrada!", "ADICIONAL=Operação->FISSVCO024.gravaItemDevTerceiroNF")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif  
+
+;	if ($dtEncerramento$ != "")
+;		if (DT_SAIDAENTRADA.FIS_NFSVC <= $dtEncerramento$)
+;			$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=NF/Fatura %%NR_NF.FIS_NFSVC%%%/%%NR_FATURA.FIS_NFSVC possui data de movimento anterior ao encerramento do livro fiscal!", "ADICIONAL=Operação->FISSVCO024.gravaItemDevTerceiroNF")
+;			poCdErro = $xCdErro$
+;			poCtxErro = $xCtxErro$
+;			return(-1)
+;		endif
+;	endif 
+		
+	clear/e "FIS_NFITEMSVC"
+	NR_ITEM.FIS_NFITEMSVC/init = vNrItem
+	retrieve/e "FIS_NFITEMSVC"
+	if ($status < 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Item %%vNrItem da Nota Fiscal %%vCdEmpresa / %%vNrFatura / %%vDtFatura não encotrada!", "ADICIONAL=Operação->FISSVCO024.gravaItemDevTerceiroNF")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif  
+		
+	clear/e "FIS_NFITEMPROSVC"
+	CD_PRODUTO.FIS_NFITEMPROSVC/init = vCdProduto
+	retrieve/e "FIS_NFITEMPROSVC"
+	if ($status < 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Produto %%vCdProduto na nota %%vCdEmpresa / %%vNrFatura / %%vDtFatura não encotrado!", "ADICIONAL=Operação->FISSVCO024.gravaItemDevTerceiroNF")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif 
+
+	clear/e "FIS_NFIDEVTSVC"
+	retrieve/e "FIS_NFIDEVTSVC"
+	if ($status >= 0)
+		$collhandle("FIS_NFIDEVTSVC")->Excluir()
+		if ($procerror)
+			$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+			poCdErro = $xCdErro$
+			poCtxErro = $xCtxErro$
+			exit(-1)
+		elseif ($status < 0)
+			$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")    
+			poCdErro = $xCdErro$
+			poCtxErro = $xCtxErro$
+			exit(-1)
+		endif
+	else
+		clear/e "FIS_NFIDEVTSVC"
+	endif
+
+	vQtTotal = 0
+	while (vDsLstDev != "")
+		getitem vDsItemDev, vDsLstDev, 1
+
+		vTpDcto = $item("TP_DCTO", vDsItemDev)
+		vCdEmpDcto = $item("CD_EMPDCTO", vDsItemDev)
+		vNrDcto = $item("NR_DCTO", vDsItemDev)
+		vDtDcto = $item("DT_DCTO", vDsItemDev)
+		vNrSequencia = $item("NR_SEQUENCIA", vDsItemDev)
+		vDtDevolucao = $item("DT_DEVOLUCAO", vDsItemDev)
+		vTpDevolucao = $item("TP_DEVOLUCAO", vDsItemDev)
+		vTpSituacao = $item("TP_SITUACAO", vDsItemDev)
+		vQtDevolucao = $item("QT_DEVOLUCAO", vDsItemDev)
+
+;		if (vQtDevolucao > 0)		
+			if (vDtDevolucao = "")
+				$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Data de devolução não informada para o produto %%vCdProduto na nota %%vCdEmpresa / %%vNrFatura / %%vDtFatura%%%!", "ADICIONAL=Operação->FISSVCO024.gravaItemDevTerceiroNF")
+				poCdErro = $xCdErro$
+				poCtxErro = $xCtxErro$
+				return(-1)
+			endif
+			
+			if (vDtDevolucao > $item("DT_SISTEMA", $xlpg$))
+				$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Data de devolução não pode ser maior que a data atual para o produto %%vCdProduto na nota %%vCdEmpresa / %%vNrFatura / %%vDtFatura%%%!", "ADICIONAL=Operação->FISSVCO024.gravaItemDevTerceiroNF")
+				poCdErro = $xCdErro$
+				poCtxErro = $xCtxErro$
+				return(-1)
+			endif
+			
+			if (vTpDevolucao = "")
+				$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Tipo de devolução não informado para o produto %%vCdProduto na nota %%vCdEmpresa / %%vNrFatura / %%vDtFatura%%%!", "ADICIONAL=Operação->FISSVCO024.gravaItemDevTerceiroNF")
+				poCdErro = $xCdErro$
+				poCtxErro = $xCtxErro$
+				return(-1)
+			endif
+			
+			if (vTpSituacao = "")
+				$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Situação não informada para o produto %%vCdProduto na nota %%vCdEmpresa / %%vNrFatura / %%vDtFatura%%%!!", "ADICIONAL=Operação->FISSVCO024.gravaItemDevTerceiroNF")
+				poCdErro = $xCdErro$
+				poCtxErro = $xCtxErro$
+				return(-1)
+			endif
+
+			if (vNrSequencia = 0)
+				$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Sequência não informada para o produto %%vCdProduto na nota %%vCdEmpresa / %%vNrFatura / %%vDtFatura%%%!!", "ADICIONAL=Operação->FISSVCO024.gravaItemDevTerceiroNF")
+				poCdErro = $xCdErro$
+				poCtxErro = $xCtxErro$
+				return(-1)
+			endif			
+		
+			if (vTpDcto = 1 | vCdEmpDcto != "" | vNrDcto != "" | vDtDcto != "")
+				if (vCdEmpDcto = "")
+					$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Empresa do documento não informada para o produto %%vCdProduto na nota %%vCdEmpresa / %%vNrFatura / %%vDtFatura%%%!", "ADICIONAL=Operação->FISSVCO024.gravaItemDevTerceiroNF")
+					poCdErro = $xCdErro$
+					poCtxErro = $xCtxErro$
+					return(-1)
+				endif
+			
+				if (vNrDcto = "")
+					$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Número do documento não informado para o produto %%vCdProduto na nota %%vCdEmpresa / %%vNrFatura / %%vDtFatura%%%!", "ADICIONAL=Operação->FISSVCO024.gravaItemDevTerceiroNF")
+					poCdErro = $xCdErro$
+					poCtxErro = $xCtxErro$
+					return(-1)
+				endif
+				
+				if (vDtDcto = "")
+					$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Data do documento não informada para o produto %%vCdProduto na nota %%vCdEmpresa / %%vNrFatura / %%vDtFatura%%%!", "ADICIONAL=Operação->FISSVCO024.gravaItemDevTerceiroNF")
+					poCdErro = $xCdErro$
+					poCtxErro = $xCtxErro$
+					return(-1)
+				endif
+				
+				if (vDtDcto > $item("DT_SISTEMA", $xlpg$))
+					$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Data do documento não pode ser maior que a data atual para o produto %%vCdProduto na nota %%vCdEmpresa / %%vNrFatura / %%vDtFatura%%%!", "ADICIONAL=Operação->FISSVCO024.gravaItemDevTerceiroNF")
+					poCdErro = $xCdErro$
+					poCtxErro = $xCtxErro$
+					return(-1)
+				endif
+	
+				clear/e "TRA_TRANSACAOSVC"
+				CD_EMPRESA.TRA_TRANSACAOSVC = vCdEmpDcto 
+				NR_TRANSACAO.TRA_TRANSACAOSVC = vNrDcto 
+				DT_TRANSACAO.TRA_TRANSACAOSVC = vDtDcto 
+				retrieve/e "TRA_TRANSACAOSVC"
+				if ($status < 0)
+					$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Documento não encontrado para o produto %%vCdProduto na nota %%vCdEmpresa / %%vNrFatura / %%vDtFatura%%%!", "ADICIONAL=Operação->FISSVCO024.gravaItemDevTerceiroNF")
+					poCdErro = $xCdErro$
+					poCtxErro = $xCtxErro$
+					return(-1)
+				endif
+			endif 
+		
+			delitem/id vDsItemDev, "CD_EMPRESA"
+			delitem/id vDsItemDev, "NR_FATURA"
+			delitem/id vDsItemDev, "DT_FATURA"
+			delitem/id vDsItemDev, "NR_ITEM"
+			delitem/id vDsItemDev, "CD_PRODUTO"
+			delitem/id vDsItemDev, "NR_SEQUENCIA"
+
+			creocc "FIS_NFIDEVTSVC", -1
+			getlistitems/occ vDsItemDev, "FIS_NFIDEVTSVC"
+
+			NR_SEQUENCIA.FIS_NFIDEVTSVC = vNrSequencia
+			CD_EMPFAT.FIS_NFIDEVTSVC = CD_EMPFAT.FIS_NFSVC
+			CD_GRUPOEMPRESA.FIS_NFIDEVTSVC = CD_GRUPOEMPRESA.FIS_NFSVC
+			QT_DEVOLUCAO.FIS_NFIDEVTSVC = vQtDevolucao
+			CD_OPERADOR.FIS_NFIDEVTSVC = $item("CD_USUARIO", $xlpg$)
+			DT_CADASTRO.FIS_NFIDEVTSVC = $datim
+
+			if (vTpSituacao = 1)
+				vQtTotal = vQtTotal + vQtDevolucao
+				if (vQtTotal > QT_FATURADO.FIS_NFITEMPROSVC)
+					$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Quantidade máxima de devolução atingida para o produto %%vCdProduto na nota %%vCdEmpresa / %%vNrFatura / %%vDtFatura%%%!", "ADICIONAL=Operação->FISSVCO024.gravaItemDevTerceiroNF")
+					poCdErro = $xCdErro$
+					poCtxErro = $xCtxErro$
+					return(-1)
+				endif
+			endif
+;		endif
+
+		delitem vDsLstDev, 1
+	endwhile
+
+	if (!$empty("FIS_NFIDEVTSVC"))
+		$collhandle("FIS_NFIDEVTSVC")->Salvar()
+		if ($procerror)
+			$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+			poCdErro = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return(-1)
+		elseif ($status < 0)
+			$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")
+			poCdErro = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return(-1)
+		endif
+	endif
+	
+	return(0)
+End
+
+;---Elia Proj. 102/464 15/01/09--
+public operation gravaDespesaItem
+;--------------------------------
+
+	params
+		string  $xlpg$      :IN    
+		string  piParams    :IN
+		string  poParams    :OUT
+		string  poCdErro    :OUT
+		string  poCtxErro   :OUT
+	endparams
+	
+	variables
+		numeric vCdEmpresa, vNrFatura, vNrItem, vCdProduto, vCdDespesaItem, vCdCCusto, vPrRateio
+		date vDtFatura
+		string vDsLstDespesa, vDsRegistro
+	endvariables
+	
+	vCdEmpresa = $item("CD_EMPRESA", piParams)
+	vNrFatura = $item("NR_FATURA", piParams)
+	vDtFatura = $item("DT_FATURA", piParams)
+	vNrItem = $item("NR_ITEM", piParams)
+	vCdProduto = $item("CD_PRODUTO", piParams)
+	vDsLstDespesa = $item("DS_LSTDEDESPESA", piParams)
+	vCdDespesaItem = ""
+	vCdCCusto = ""
+
+	if (vCdEmpresa = 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Empresa não informada!", "ADICIONAL=Operação->FISSVCO024.gravaDespesaItem")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+
+	if (vNrFatura = 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Fatura não informado!", "ADICIONAL=Operação->FISSVCO024.gravaDespesaItem")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	
+	if (vDtFatura = "")
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Data N.F. não informada!", "ADICIONAL=Operação->FISSVCO024.gravaDespesaItem")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	
+	if (vNrItem = "")
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Número do item na nota %%vCdEmpresa / %%vNrFatura / %%vDtFatura não informado!", "ADICIONAL=Operação->FISSVCO024.gravaDespesaItem")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif 
+
+	if (vCdProduto = "")
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Produto na nota %%vCdEmpresa / %%vNrFatura / %%vDtFatura não informado!", "ADICIONAL=Operação->FISSVCO024.gravaDespesaItem")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+
+	clear/e "FIS_NFSVC"
+	CD_EMPRESA.FIS_NFSVC/init = vCdEmpresa
+	NR_FATURA.FIS_NFSVC/init = vNrFatura
+	DT_FATURA.FIS_NFSVC/init = vDtFatura
+	retrieve/e "FIS_NFSVC"    
+	if ($status < 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Nota Fiscal %%vCdEmpresa / %%vNrFatura / %%vDtFatura não encotrada!", "ADICIONAL=Operação->FISSVCO024.gravaDespesaItem")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif  
+
+	clear/e "FIS_NFITEMSVC"
+	NR_ITEM.FIS_NFITEMSVC/init = vNrItem
+	retrieve/e "FIS_NFITEMSVC"
+	if ($status < 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Item %%vNrItem da Nota Fiscal %%vCdEmpresa / %%vNrFatura / %%vDtFatura não encotrada!", "ADICIONAL=Operação->FISSVCO024.gravaDespesaItem")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif  
+		
+	clear/e "FIS_NFITEMPROSVC"
+	CD_PRODUTO.FIS_NFITEMPROSVC/init = vCdProduto
+	retrieve/e "FIS_NFITEMPROSVC"
+	if ($status < 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Produto %%vCdProduto na nota %%vCdEmpresa / %%vNrFatura / %%vDtFatura não encotrado!", "ADICIONAL=Operação->FISSVCO024.gravaDespesaItem")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif 
+
+	if (!$empty("FIS_NFITEMDESSVC"))
+		$collhandle("FIS_NFITEMDESSVC")->Excluir()
+		if ($procerror)
+			$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+			poCdErro = $xCdErro$
+			poCtxErro = $xCtxErro$
+			exit(-1)
+		elseif ($status < 0)
+			$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")    
+			poCdErro = $xCdErro$
+			poCtxErro = $xCtxErro$
+			exit(-1)
+		endif
+	endif
+
+	if (vDsLstDespesa != "")			
+		repeat
+			getitem vDsRegistro, vDsLstDespesa, 1
+
+			vCdDespesaItem	= $item("CD_DESPESAITEM", vDsRegistro)
+			if (vCdDespesaItem = "")
+				$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Despesa inválida!", "ADICIONAL=Operação->FISSVCO024.gravaDespesaItem")
+				poCdErro = $xCdErro$
+				poCtxErro = $xCtxErro$
+				return(-1)
+			endif
+
+			vCdCCusto = $item("CD_CCUSTO", vDsRegistro)
+			if (vCdCCusto = "")
+				$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Centro de custo inválido!", "ADICIONAL=Operação->FISSVCO024.gravaDespesaItem")
+				poCdErro = $xCdErro$
+				poCtxErro = $xCtxErro$
+				return(-1)
+			endif
+
+			vPrRateio = $item("PR_RATEIO", vDsRegistro)
+			if (vPrRateio > 0)
+				creocc "FIS_NFITEMDESSVC", -1
+				CD_EMPRESA.FIS_NFITEMDESSVC = vCdEmpresa
+				NR_FATURA.FIS_NFITEMDESSVC = vNrFatura
+				DT_FATURA.FIS_NFITEMDESSVC = vDtFatura
+				NR_ITEM.FIS_NFITEMDESSVC = vNrItem
+				CD_PRODUTO.FIS_NFITEMDESSVC = vCdProduto
+				CD_DESPESAITEM.FIS_NFITEMDESSVC = vCdDespesaItem
+				CD_CCUSTO.FIS_NFITEMDESSVC = vCdCCusto
+				retrieve/o "FIS_NFITEMDESSVC"
+				if ($status = -7)
+					retrieve/x "FIS_NFITEMDESSVC"
+				endif 
+
+				CD_OPERADOR.FIS_NFITEMDESSVC = $item("CD_USUARIO", $xlpg$)
+				DT_CADASTRO.FIS_NFITEMDESSVC = $datim
+				PR_RATEIO.FIS_NFITEMDESSVC   = PR_RATEIO.FIS_NFITEMDESSVC + vPrRateio	
+			endif
+			delitem vDsLstDespesa, 1
+		until (vDsLstDespesa = "")    
+
+		$collhandle("FIS_NFITEMDESSVC")->Salvar()
+		if ($procerror)
+			$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+			poCdErro = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return(-1)
+		elseif ($status < 0)
+			$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")    
+			poCdErro = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return(-1)
+		endif    
+	endif	
+
+	return(0)
+End ; operation gravaDespesaItem
+
+;---------------------------------------------
+public operation gravaItemConsignacaoTransacao
+;---------------------------------------------
+	params
+		string  $xlpg$      :IN    
+		string  piParams    :IN
+		string  poParams    :OUT
+		string  poCdErro    :OUT
+		string  poCtxErro   :OUT
+	endparams
+	
+	variables
+		numeric vCdEmpresa, vNrFatura, vNrItem, vCdProduto, vCdEmpTra, vNrTransacao
+		date vDtFatura, vDtTransacao
+	endvariables
+	
+	vCdEmpresa = $item("CD_EMPRESA", piParams)
+	vNrFatura = $item("NR_FATURA", piParams)
+	vDtFatura = $item("DT_FATURA", piParams)
+	vNrItem = $item("NR_ITEM", piParams)
+	vCdProduto = $item("CD_PRODUTO", piParams)
+	vCdEmpTra = $item("CD_EMPTRA", piParams)
+	vNrTransacao = $item("NR_TRANSACAO", piParams)
+	vDtTransacao = $item("DT_TRANSACAO", piParams)
+	
+	if (vCdEmpresa = 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Empresa da nota não informada!", "ADICIONAL=Operação->FISSVCO024.gravaItemConsignacaoTransacao")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	
+	if (vNrFatura = 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Fatura não informado!", "ADICIONAL=Operação->FISSVCO024.gravaItemConsignacaoTransacao")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	
+	if (vDtFatura = "")
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Data N.F. não informada!", "ADICIONAL=Operação->FISSVCO024.gravaItemConsignacaoTransacao")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	
+	if (vNrItem = "")
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Número do item na nota %%vCdEmpresa / %%vNrFatura / %%vDtFatura não informado!", "ADICIONAL=Operação->FISSVCO024.gravaItemConsignacaoTransacao")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif 
+	
+	if (vCdProduto = "")
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Produto na nota %%vCdEmpresa / %%vNrFatura / %%vDtFatura não informado!", "ADICIONAL=Operação->FISSVCO024.gravaItemConsignacaoTransacao")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	
+	if (vCdEmpTra = 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Empresa da transação não informada!", "ADICIONAL=Operação->FISSVCO024.gravaItemConsignacaoTransacao")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	
+	if (vNrTransacao = 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Número da transação não informada!", "ADICIONAL=Operação->FISSVCO024.gravaItemConsignacaoTransacao")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	
+	if (vDtTransacao = "")
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Data da transação não informada!", "ADICIONAL=Operação->FISSVCO024.gravaItemConsignacaoTransacao")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	
+	clear/e "FIS_ITEMCONSISVC"
+	creocc "FIS_ITEMCONSISVC", -1
+	CD_EMPRESA.FIS_ITEMCONSISVC = vCdEmpresa
+	NR_FATURA.FIS_ITEMCONSISVC = vNrFatura
+	DT_FATURA.FIS_ITEMCONSISVC = vDtFatura
+	NR_ITEM.FIS_ITEMCONSISVC = vNrItem
+	CD_PRODUTO.FIS_ITEMCONSISVC = vCdProduto
+	CD_EMPTRA.FIS_ITEMCONSISVC = vCdEmpTra
+	NR_TRANSACAO.FIS_ITEMCONSISVC = vNrTransacao
+	DT_TRANSACAO.FIS_ITEMCONSISVC = vDtTransacao
+	retrieve/o "FIS_ITEMCONSISVC"
+	if ($status = -7)
+		retrieve/x "FIS_ITEMCONSISVC"
+	endif
+	
+	CD_OPERADOR.FIS_ITEMCONSISVC = $item("CD_USUARIO", $xlpg$)
+	DT_CADASTRO.FIS_ITEMCONSISVC = $datim
+	
+	$collhandle("FIS_ITEMCONSISVC")->Salvar()
+	if ($procerror)
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	elseif ($status < 0)
+		$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")    
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif	
+
+	return(0)
+end
+
+
+;------------------------------------
+public operation gravaFisNfItemVl
+	;------------------------------------
+	params
+		string  $xlpg$      :IN
+		string  piParams    :IN
+		string  poParams    :OUT
+		string  poCdErro    :OUT
+		string  poCtxErro   :OUT
+	endparams
+	
+	variables
+		numeric vCdEmpresa, vNrFatura, vNrItem, vCdProduto
+		date vDtFatura
+		string vDsLstValor, vDsRegistro
+	endvariables
+	
+	vCdEmpresa  = $item("CD_EMPRESA", piParams)
+	vNrFatura   = $item("NR_FATURA", piParams)
+	vDtFatura   = $item("DT_FATURA", piParams)
+	vNrItem     = $item("NR_ITEM", piParams)
+	vCdProduto  = $item("CD_PRODUTO", piParams)
+	vDsLstValor = $item("DS_LSTVALOR", piParams)
+	
+	if (vCdEmpresa = 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Empresa da nota não informada!", "ADICIONAL=Operação->FISSVCO024.gravaFisNfItemVl")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	
+	if (vNrFatura = 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Fatura da nota não informada!", "ADICIONAL=Operação->FISSVCO024.gravaFisNfItemVl")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1) 
+	endif
+	
+	if (vDtFatura = "")
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Data da nota não informada!", "ADICIONAL=Operação->FISSVCO024.gravaFisNfItemVl")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1) 
+	endif
+	
+	clear/e "FIS_NFSVC"
+	CD_EMPRESA.FIS_NFSVC/init = vCdEmpresa
+	NR_FATURA.FIS_NFSVC/init = vNrFatura
+	DT_FATURA.FIS_NFSVC/init = vDtFatura
+	retrieve/e "FIS_NFSVC"
+	if ($status < 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=NF %%vNrFatura não cadastrada!", "ADICIONAL=Operação->FISSVCO024.gravaFisNfItemVl")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	
+	clear/e "FIS_NFITEMSVC"
+	CD_EMPRESA.FIS_NFITEMSVC/init = vCdEmpresa
+	NR_FATURA.FIS_NFITEMSVC/init = vNrFatura
+	DT_FATURA.FIS_NFITEMSVC/init = vDtFatura
+	NR_ITEM.FIS_NFITEMSVC/init = vNrItem
+	retrieve/e "FIS_NFITEMSVC"
+	if ($status < 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Item %%vNrItem da NF %%vNrFatura não cadastrado!", "ADICIONAL=Operação->FISSVCO024.gravaFisNfItemVl")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+
+	clear/e "FIS_NFITEMPROSVC"
+	CD_EMPRESA.FIS_NFITEMPROSVC/init = vCdEmpresa
+	NR_FATURA.FIS_NFITEMPROSVC/init = vNrFatura
+	DT_FATURA.FIS_NFITEMPROSVC/init = vDtFatura
+	NR_ITEM.FIS_NFITEMPROSVC/init = vNrItem
+	CD_PRODUTO.FIS_NFITEMPROSVC/init = vCdProduto
+	retrieve/e "FIS_NFITEMPROSVC"
+	if ($status < 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Produto para item %%vNrItem NF %%vNrFatura não cadastrada!", "ADICIONAL=Operação->FISSVCO024.gravaFisNfItemVl")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	
+	$collhandle("FIS_NFITEMVLSVC")->Excluir()
+	if ($procerror)
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	elseif ($status < 0)
+		$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")    
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	
+	if(vDsLstValor != "")
+		repeat 
+			getitem vDsRegistro, vDsLstValor, 1
+
+			creocc "FIS_NFITEMVLSVC", -1
+			getlistitems/occ vDsRegistro, "FIS_NFITEMVLSVC"
+			CD_OPERADOR.FIS_NFITEMVLSVC = $item("CD_USUARIO", $xlpg$)
+			DT_CADASTRO.FIS_NFITEMVLSVC = $datim
+
+			delitem vDsLstValor, 1
+		until(vDsLstValor = "")
+	endif
+
+	$collhandle("FIS_NFITEMVLSVC")->Salvar()
+	if ($procerror)
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	elseif ($status < 0)
+		$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")    
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	
+	return(0)
+end ;gravaFisNfItemVl
+
+;--------------------------------------
+;HUGO 29/07/09 Projeto 130  Tarefa 617
+public operation vinculaLoteTransacaoNF
+;--------------------------------------
+	params
+		string  $xlpg$      :IN
+		string  piParams    :IN
+		string  poParams    :OUT
+		string  poCdErro    :OUT
+		string  poCtxErro   :OUT
+	endparams
+	
+	variables
+		numeric vCdEmpresa, vNrFatura, vNrNsu
+		date vDtFatura
+	endvariables
+	
+	vCdEmpresa = $item("CD_EMPRESA", piParams)
+	vNrFatura = $item("NR_FATURA", piParams)
+	vDtFatura = $item("DT_FATURA", piParams)
+	
+	if (vCdEmpresa = 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Empresa da nota não informada!", "ADICIONAL=Operação->FISSVCO024.vinculaLoteTransacaoNF")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	
+	if (vNrFatura = 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Fatura da nota não informada!", "ADICIONAL=Operação->FISSVCO024.vinculaLoteTransacaoNF")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1) 
+	endif
+	
+	if (vDtFatura = "")
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Data da nota não informada!", "ADICIONAL=Operação->FISSVCO024.vinculaLoteTransacaoNF")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1) 
+	endif
+	
+	clear/e "PRD_LOTEINFSVC"
+	
+	clear/e "FIS_NFSVC"
+	CD_EMPRESA.FIS_NFSVC/init = vCdEmpresa
+	NR_FATURA.FIS_NFSVC/init = vNrFatura
+	DT_FATURA.FIS_NFSVC/init = vDtFatura
+	retrieve/e "FIS_NFSVC"
+	if ($status < 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=NF %%vNrFatura não cadastrada!", "ADICIONAL=Operação->FISSVCO024.vinculaLoteTransacaoNF")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	elseif (CD_EMPRESAORI.FIS_NFSVC != 0 & NR_TRANSACAOORI.FIS_NFSVC != 0 & DT_TRANSACAOORI.FIS_NFSVC != "")
+		clear/e "TRA_ITEMLOTESVC"
+		CD_EMPRESA.TRA_ITEMLOTESVC/init = CD_EMPRESAORI.FIS_NFSVC
+		NR_TRANSACAO.TRA_ITEMLOTESVC/init = NR_TRANSACAOORI.FIS_NFSVC
+		DT_TRANSACAO.TRA_ITEMLOTESVC/init = DT_TRANSACAOORI.FIS_NFSVC
+		retrieve/e "TRA_ITEMLOTESVC"
+		if ($status >= 0)
+			setocc "TRA_ITEMLOTESVC", 1
+			while ($status >= 0)
+				creocc "PRD_LOTEINFSVC", -1
+				CD_EMPRESA.PRD_LOTEINFSVC = CD_EMPLOTE.TRA_ITEMLOTESVC
+				NR_LOTE.PRD_LOTEINFSVC = NR_LOTE.TRA_ITEMLOTESVC
+				NR_ITEM.PRD_LOTEINFSVC = NR_ITEMLOTE.TRA_ITEMLOTESVC
+				CD_EMPRESANF.PRD_LOTEINFSVC = vCdEmpresa
+				DT_FATURA.PRD_LOTEINFSVC = vDtFatura
+				NR_FATURA.PRD_LOTEINFSVC = vNrFatura
+				retrieve/o "PRD_LOTEINFSVC"
+				if ($status = -7)
+					retrieve/x "PRD_LOTEINFSVC"
+				endif
+				
+				CD_OPERADOR.PRD_LOTEINFSVC = $item("CD_USUARIO", $xlpg$)
+				DT_CADASTRO.PRD_LOTEINFSVC = $datim
+				
+				setocc "TRA_ITEMLOTESVC", $curocc("TRA_ITEMLOTESVC") + 1
+			endwhile
+			
+			$collhandle("PRD_LOTEINFSVC")->Salvar()
+			if ($procerror)
+				$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+				poCdErro = $xCdErro$
+				poCtxErro = $xCtxErro$
+				return(-1)
+			elseif ($status < 0)
+				$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")    
+				poCdErro = $xCdErro$
+				poCtxErro = $xCtxErro$
+				return(-1)
+			endif      
+		endif
+	endif
+	
+	return(0)
+end
+
+;---------------------------------------
+;-- MAD [Proj/Tar.156/001] - 16/09/2009
+public operation gravaObsNfe
+;---------------------------------------
+	params
+		string  $xlpg$      :IN
+		string  piParams    :IN
+		string  poParams    :OUT
+		string  poCdErro    :OUT
+		string  poCtxErro   :OUT
+	endparams
+	
+	variables
+		boolean vInValidaCampo
+		date    vDtFatura
+		numeric vCdEmpresa, vNrFatura, vCdModeloNf, vNrLinha
+		string  vDsDadosItem, vDsCampo
+	endvariables
+	
+	vCdEmpresa     = $item("CD_EMPRESA" , piParams)
+	vNrFatura      = $item("NR_FATURA"  , piParams)
+	vDtFatura      = $item("DT_FATURA"  , piParams)
+	vCdModeloNf    = $item("CD_MODELONF", piParams)
+	vInValidaCampo = <FALSE>
+
+	if (vCdEmpresa = 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Empresa da nota fiscal não informada!", "ADICIONAL=Operação->FISSVCO024.gravaObsNfe")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	
+	if (vNrFatura = 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Fatura da nota fiscal não informada!", "ADICIONAL=Operação->FISSVCO024.gravaObsNfe")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1) 
+	endif
+	
+	if (vDtFatura = "")
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Data da nota fiscal não informada!", "ADICIONAL=Operação->FISSVCO024.gravaObsNfe")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1) 
+	endif
+
+	if (vCdModeloNf = "")
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Modelo da nota fiscal não informado!", "ADICIONAL=Operação->FISSVCO024.gravaObsNfe")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+
+	call getParam(vCdEmpresa, "gravaObsNfe")
+	if ($procerror)
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	elseif ($status < 0)
+		$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")    
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+
+	clear/e "FIS_NFSVC"
+	CD_EMPRESA.FIS_NFSVC/init = vCdEmpresa
+	NR_FATURA.FIS_NFSVC/init  = vNrFatura
+	DT_FATURA.FIS_NFSVC/init  = vDtFatura
+	retrieve/e "FIS_NFSVC"
+	if ($status >= 0) 
+		sort/e "OBS_NFSVC", "NR_LINHA.OBS_NFSVC"
+		setocc "OBS_NFSVC", -1
+		vNrLinha = NR_LINHA.OBS_NFSVC
+
+		clear/e "GER_MODNFCSVC"
+		CD_MODELONF.GER_MODNFCSVC/init = vCdModeloNf
+		retrieve/e "GER_MODNFCSVC"
+		if ($status >= 0)
+			clear/e "GER_MODNFESVC"
+			TP_CAMPO.GER_MODNFESVC/init = 1 ; Capa
+			retrieve/e "GER_MODNFESVC"
+			if ($status >= 0)
+				setocc "GER_MODNFESVC", 1
+				while ($status >= 0)
+					call montaCampo(CD_CAMPO.GER_MODNFESVC, NR_TAMANHO.GER_MODNFESVC, DS_DADOS.GER_MODNFESVC, vInValidaCampo, vDsCampo)
+					if ($procerror)
+						$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+					endif
+
+					if (vDsCampo != "")
+						vNrLinha = vNrLinha + 1
+						creocc "OBS_NFSVC",-1
+						NR_LINHA.OBS_NFSVC        = vNrLinha
+						CD_EMPFAT.OBS_NFSVC       = CD_EMPFAT.FIS_NFSVC
+						CD_GRUPOEMPRESA.OBS_NFSVC = CD_GRUPOEMPRESA.FIS_NFSVC
+						CD_OPERADOR.OBS_NFSVC     = $item("CD_USUARIO", $xlpg$)
+						DT_CADASTRO.OBS_NFSVC     = $datim
+						DS_OBSERVACAO.OBS_NFSVC   = vDsCampo[1:80]
+					endif
+					setocc "GER_MODNFESVC", $curocc("GER_MODNFESVC") + 1
+				endwhile
+
+				if (!$empty("OBS_NFSVC"))
+					$collhandle("OBS_NFSVC")->Salvar()
+					if ($procerror)
+						$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+						poCdErro = $xCdErro$
+						poCtxErro = $xCtxErro$
+						return(-1)
+					elseif ($status < 0)
+						$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")    
+						poCdErro = $xCdErro$
+						poCtxErro = $xCtxErro$
+						return(-1)
+					endif
+				endif
+			endif
+		endif
+	endif
+
+	clear/e "FIS_NFITEMADSVC"
+	setocc "FIS_NFITEMSVC",1
+	while ($status >= 0)
+		vDsDadosItem = ""
+		clear/e "GER_MODNFCSVC"
+		CD_MODELONF.GER_MODNFCSVC/init = vCdModeloNf
+		retrieve/e "GER_MODNFCSVC"
+		if ($status >= 0)
+			clear/e "GER_MODNFESVC"
+			TP_CAMPO.GER_MODNFESVC/init = 2 ; Item
+			retrieve/e "GER_MODNFESVC"
+			if ($status >= 0)
+				setocc "GER_MODNFESVC", 1
+				while ($status >= 0)
+					call montaCampo(CD_CAMPO.GER_MODNFESVC, NR_TAMANHO.GER_MODNFESVC, DS_DADOS.GER_MODNFESVC, vInValidaCampo,vDsCampo)
+					if ($procerror)
+						$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+					endif
+			
+					if (vDsCampo != "")
+						if (vDsDadosItem = "")
+							vDsDadosItem = vDsCampo
+						else
+							vDsDadosItem = "%%vDsDadosItem - %%vDsCampo"
+						endif
+					endif
+					setocc "GER_MODNFESVC", $curocc("GER_MODNFESVC") + 1
+				endwhile
+			
+				if (vDsDadosItem != "")
+					creocc "FIS_NFITEMADSVC",-1
+					CD_EMPRESA.FIS_NFITEMADSVC = CD_EMPRESA.FIS_NFITEMSVC
+					NR_FATURA.FIS_NFITEMADSVC  = NR_FATURA.FIS_NFITEMSVC
+					DT_FATURA.FIS_NFITEMADSVC  = DT_FATURA.FIS_NFITEMSVC
+					NR_ITEM.FIS_NFITEMADSVC    = NR_ITEM.FIS_NFITEMSVC
+					retrieve/o "FIS_NFITEMADSVC"
+					if ($status = -7)
+						retrieve/x "FIS_NFITEMADSVC"
+					endif
+					CD_OPERADOR.FIS_NFITEMADSVC  = $item("CD_USUARIO", $xlpg$)
+					DT_CADASTRO.FIS_NFITEMADSVC  = $datim
+					DS_DADOSADIC.FIS_NFITEMADSVC = vDsDadosItem[1:2000]
+				endif
+			endif
+		endif
+		setocc "FIS_NFITEMSVC", $curocc("FIS_NFITEMSVC") + 1
+	endwhile
+
+	if (!$empty("FIS_NFITEMADSVC"))
+		$collhandle("FIS_NFITEMADSVC")->Salvar()
+		if ($procerror)
+			$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+			poCdErro = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return(-1)
+		elseif ($status < 0)
+			$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")    
+			poCdErro = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return(-1)
+		endif
+	endif
+
+	return(0)
+
+End ; operation gravaObsNfe
+;;
+
+;---------------------------------------
+;-- MAD [Proj/Tar.156/014] - 29/09/2009
+public operation validaCampoNfe
+;---------------------------------------
+	params
+		string  $xlpg$      :IN
+		string  piParams    :IN
+		string  poParams    :OUT
+		string  poCdErro    :OUT
+		string  poCtxErro   :OUT
+	endparams
+	
+	variables
+		boolean vInValidaCampo
+		numeric vCdCampo
+		string vDsCampo
+	endvariables
+	
+	vCdCampo       = $item("CD_CAMPO", piParams)
+	vInValidaCampo = <TRUE>
+
+	if (vCdCampo = "")
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Código do campo não informado!", "ADICIONAL=Operação->FISSVCO024.validaCampoNfe")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+
+	call montaCampo(vCdCampo, "", "", vInValidaCampo, vDsCampo)
+	if ($procerror)
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	elseif ($status < 0)
+		$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")    
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+
+	return(0)
+
+End ; operation validaCampoNfe
+;;
+
+;---------------------------------------
+public operation buscaNrDiaCompensacaoNF
+;---------------------------------------
+	params
+		string  $xlpg$      :IN
+		string  piParams    :IN
+		string  poParams    :OUT
+		string  poCdErro    :OUT
+		string  poCtxErro   :OUT
+	endparams
+	
+	variables
+		numeric vCdEmpresa, vNrFatura, vNrDia
+		date vDtFatura
+		boolean vInDia
+	endvariables
+	
+	vCdEmpresa = $item("CD_EMPRESA", piParams)
+	vNrFatura = $item("NR_FATURA", piParams)
+	vDtFatura = $item("DT_FATURA", piParams)
+	
+	if (vCdEmpresa = 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Empresa da nota não informada!", "ADICIONAL=Operação->FISSVCO024.gravaFisNsu")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	
+	if (vNrFatura = 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Fatura da nota não informada!", "ADICIONAL=Operação->FISSVCO024.gravaFisNsu")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1) 
+	endif
+	
+	if (vDtFatura = "")
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Data da nota não informada!", "ADICIONAL=Operação->FISSVCO024.gravaFisNsu")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1) 
+	endif
+	
+	clear/e "FIS_NFSVC"
+	CD_EMPRESA.FIS_NFSVC/init = vCdEmpresa
+	NR_FATURA.FIS_NFSVC/init = vNrFatura
+	DT_FATURA.FIS_NFSVC/init = vDtFatura
+	retrieve/e "FIS_NFSVC"
+	if ($status < 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=NF %%vNrFatura não cadastrada!", "ADICIONAL=Operação->FISSVCO024.gravaFisNsu")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+;	fiuza - 05/11/09 quando não existir data no DT_BASEPARCELA.TRA_TRANSACADSVC não existe dia de compensação e deve retornar 0	
+;         - isso foi determinado pela dudalina após o término da tarefa
+;	vInDia = <FALSE>
+	
+	clear/e "TRA_TRANSACADSVC"
+	CD_EMPRESA.TRA_TRANSACADSVC/init = CD_EMPRESAORI.FIS_NFSVC
+	NR_TRANSACAO.TRA_TRANSACADSVC/init = NR_TRANSACAOORI.FIS_NFSVC
+	DT_TRANSACAO.TRA_TRANSACADSVC/init = DT_TRANSACAOORI.FIS_NFSVC
+	retrieve/e "TRA_TRANSACADSVC"
+	if ($status >= 0)
+		if (DT_BASEPARCELA.TRA_TRANSACADSVC != "")
+			vNrDia = DT_BASEPARCELA.TRA_TRANSACADSVC - DT_EMISSAO.FIS_NFSVC
+			vInDia = <TRUE>
+		endif
+	endif
+;	fiuza - 05/11/09 quando não existir data no DT_BASEPARCELA.TRA_TRANSACADSVC não existe dia de compensação e deve retornar 0		
+;         - isso foi determinado pela dudalina após o término da tarefa
+;	if (vInDia = <FALSE>)
+;		sort/e "FIS_NFVENCTOSVC", "NR_PARCELA.FIS_NFVENCTOSVC"
+;		setocc "FIS_NFVENCTOSVC", 1
+;		vNrDia =  DT_VENCIMENTO.FIS_NFVENCTOSVC - DT_EMISSAO.FIS_NFSVC
+;	endif
+	
+	poParams = ""
+	putitem/id poParams, "NR_DIA", vNrDia
+	
+	return(0)
+end
+
+;-----------------------
+public operation gravaDiferencialAliqC
+	;-----------------------
+	;thamati 30/04/2010 [Proj. 0158 - Tar. 0100]
+	params
+		string  $xlpg$      :IN
+		string  piParams    :IN
+		string  poParams    :OUT
+		string  poCdErro    :OUT
+		string  poCtxErro   :OUT
+	endparams
+	
+	variables
+		numeric vCdEmpresa, vNrFatura, vCdDetalhamento
+		date vDtFatura
+	endvariables
+
+	vCdEmpresa = $item("CD_EMPRESA", piParams)
+	vNrFatura = $item("NR_FATURA", piParams)
+	vDtFatura = $item("DT_FATURA", piParams)
+	vCdDetalhamento = $item("CD_DETALHAMENTO", piParams)
+
+	if (vCdEmpresa = 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Empresa da nota não informada!", "ADICIONAL=Operação->FISSVCO024.gravaDiferencialAliqC")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	
+	if (vNrFatura = 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Fatura da nota não informada!", "ADICIONAL=Operação->FISSVCO024.gravaDiferencialAliqC")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1) 
+	endif
+	
+	if (vDtFatura = "")
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Data da nota não informada!", "ADICIONAL=Operação->FISSVCO024.gravaDiferencialAliqC")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1) 
+	endif
+
+	if (vCdDetalhamento = 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Detalhamento não informado!", "ADICIONAL=Operação->FISSVCO024.gravaDiferencialAliqC")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1) 
+	endif
+	
+	clear/e "FIS_NFSVC"
+	CD_EMPRESA.FIS_NFSVC/init = vCdEmpresa
+	NR_FATURA.FIS_NFSVC/init = vNrFatura
+	DT_FATURA.FIS_NFSVC/init = vDtFatura
+	retrieve/e "FIS_NFSVC"
+	if ($status < 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Nota Fiscal %%vCdEmpresa / %%vNrFatura / %%vDtFatura não encontrada!", "ADICIONAL=Operação->FISSVCO024.gravaDiferencialAliqC")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+
+	clear/e "FIS_DIFALIQCSVC"
+	CD_DETALHAMENTO.FIS_DIFALIQCSVC/init = vCdDetalhamento 
+	retrieve/e "FIS_DIFALIQCSVC"
+	if ($status >= 0)
+		$collhandle("FIS_DIFALIQCSVC")->Excluir()
+		if ($procerror)
+			$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+			poCdErro = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return(-1)
+		elseif ($status < 0)
+			$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")    
+			poCdErro = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return(-1)
+		endif
+	endif
+
+	getlistitems/occ piParams, "FIS_DIFALIQCSVC"
+	CD_OPERADOR.FIS_DIFALIQCSVC= $item("CD_USUARIO", $xlpg$)
+	DT_CADASTRO.FIS_DIFALIQCSVC= $datim  
+	
+	$collhandle("FIS_NFSVC")->Salvar()
+	if ($procerror)
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	elseif ($status < 0)
+		$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")    
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+
+	return(0)
+End ; operation gravaDiferencialAliqC
+
+;-----------------------
+public operation gravaDiferencialAliqI
+	;-----------------------
+	;thamati 30/04/2010 [Proj. 0158 - Tar. 0100]
+	params
+		string  $xlpg$      :IN
+		string  piParams    :IN
+		string  poParams    :OUT
+		string  poCdErro    :OUT
+		string  poCtxErro   :OUT
+	endparams
+	
+	variables		
+		numeric vCdEmpresa, vNrFatura, vCdDetalhamento, vNrItem
+		string vDsLstAliquota, vDsRegistro
+		date vDtFatura
+	endvariables
+
+	vCdEmpresa = $item("CD_EMPRESA", piParams)
+	vNrFatura = $item("NR_FATURA", piParams)
+	vDtFatura = $item("DT_FATURA", piParams)
+	vCdDetalhamento = $item("CD_DETALHAMENTO", piParams)
+	vDsLstAliquota = $item("DS_LSTALIQUOTA", piParams)
+	
+	if (vCdEmpresa = 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Empresa da nota não informada!", "ADICIONAL=Operação->FISSVCO024.gravaDiferencialAliqI")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	
+	if (vNrFatura = 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Fatura da nota não informada!", "ADICIONAL=Operação->FISSVCO024.gravaDiferencialAliqI")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1) 
+	endif
+	
+	if (vDtFatura = "")
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Data da nota não informada!", "ADICIONAL=Operação->FISSVCO024.gravaDiferencialAliqI")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1) 
+	endif	
+
+	if (vCdDetalhamento = "")
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Detalhamento não informado!", "ADICIONAL=Operação->FISSVCO024.gravaDiferencialAliqI")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1) 
+	endif	
+
+	if (vDsLstAliquota  = "")
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=LIsta de item de alíquota não informada!", "ADICIONAL=Operação->FISSVCO024.gravaDiferencialAliqI")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1) 
+	endif	
+
+	clear/e "FIS_NFSVC"
+	CD_EMPRESA.FIS_NFSVC/init = vCdEmpresa
+	NR_FATURA.FIS_NFSVC/init = vNrFatura
+	DT_FATURA.FIS_NFSVC/init = vDtFatura
+	retrieve/e "FIS_NFSVC"
+	if ($status < 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Nota Fiscal %%vCdEmpresa / %%vNrFatura / %%vDtFatura não encontrada!", "ADICIONAL=Operação->FISSVCO024.gravaDiferencialAliqC")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+
+	clear/e "FIS_DIFALIQCSVC"
+	CD_DETALHAMENTO.FIS_DIFALIQCSVC/init = vCdDetalhamento 
+	retrieve/e "FIS_DIFALIQCSVC"
+	if ($status < 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Nota Fiscal %%vCdEmpresa / %%vNrFatura / %%vDtFatura não encontrada!", "ADICIONAL=Operação->FISSVCO024.gravaDiferencialAliqC")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+
+	$collhandle("FIS_DIFALIQISVC")->Excluir()
+	if ($procerror)
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	elseif ($status < 0)
+		$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")    
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	
+
+	if (vDsLstAliquota  != "")
+		repeat 
+			getitem vDsRegistro, vDsLstAliquota, 1
+
+			if ($item("NR_ITEM", vDsRegistro) = 0)
+				$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Item não informado!", "ADICIONAL=Operação->FISSVCO024.gravaDiferencialAliqI")
+				poCdErro = $xCdErro$
+				poCtxErro = $xCtxErro$
+				return(-1) 
+			endif	
+
+			creocc "FIS_DIFALIQISVC", -1
+			getlistitems/occ vDsRegistro, "FIS_DIFALIQISVC"
+			CD_OPERADOR.FIS_DIFALIQISVC = $item("CD_USUARIO", $xlpg$)
+			DT_CADASTRO.FIS_DIFALIQISVC = $datim
+
+			delitem vDsLstAliquota, 1
+		until(vDsLstAliquota  = "")
+	endif
+
+	call calculaTotalAliquota()
+	if ($procerror)
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+
+	$collhandle("FIS_NFSVC")->Salvar()
+	if ($procerror)
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	elseif ($status < 0)
+		$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")    
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+
+	return(0)
+End ; operation gravaDiferencialAliqC
+
+;-----------------------
+public operation gravaDetalheIcms
+	;-----------------------	
+	;thamati 30/04/2010 [Proj. 0158 - Tar. 0100]
+	params
+		string  $xlpg$      :IN
+		string  piParams    :IN
+		string  poParams    :OUT
+		string  poCdErro    :OUT
+		string  poCtxErro   :OUT
+	endparams
+	
+	variables		
+		numeric vCdEmpresa, vCdImposto, vNrSequencia, vCdDetalhamento
+		string vDtMesAno
+	endvariables
+
+	vCdEmpresa = $item("CD_EMPRESA", piParams)
+	vDtMesAno = $item("DT_MESANO", piParams)
+	vCdImposto = $item("CD_IMPOSTO", piParams)
+	vNrSequencia = $item("NR_SEQUENCIA", piParams)
+	vCdDetalhamento = $item("CD_DETALHAMENTO", piParams)	
+	
+	if (vCdEmpresa = 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Empresa da nota não informada!", "ADICIONAL=Operação->FISSVCO024.gravaDetalheIcms")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	
+	if (vDtMesAno = "")
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Mês/ano não informado!", "ADICIONAL=Operação->FISSVCO024.gravaDetalheIcms")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1) 
+	endif
+	
+	if (vCdImposto = 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Imposto não informado!", "ADICIONAL=Operação->FISSVCO024.gravaDetalheIcms")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1) 
+	endif	
+
+	if (vCdDetalhamento = 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Código do detalhamento não informado!", "ADICIONAL=Operação->FISSVCO024.gravaDetalheIcms")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1) 
+	endif	
+
+	if (vNrSequencia = 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Sequência não informado!", "ADICIONAL=Operação->FISSVCO024.gravaDetalheIcms")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1) 
+	endif	
+
+	creocc "FIS_DETALHEICSVC", -1
+	CD_EMPRESA.FIS_DETALHEICSVC = vCdEmpresa
+	DT_MESANO.FIS_DETALHEICSVC = vDtMesAno
+	CD_IMPOSTO.FIS_DETALHEICSVC = vCdImposto
+	CD_DETALHAMENTO.FIS_DETALHEICSVC = vCdDetalhamento
+	NR_SEQUENCIA.FIS_DETALHEICSVC = vNrSequencia 
+	retrieve/o "FIS_DETALHEICSVC"
+	if ($status = -7)
+		retrieve/x "FIS_DETALHEICSVC"		
+	endif
+
+	delitem/id piParams, "CD_EMPRESA"
+	delitem/id piParams, "DT_MESANO"
+	delitem/id piParams, "CD_IMPOSTO"
+	delitem/id piParams, "CD_DETALHAMENTO"
+	delitem/id piParams, "NR_SEQUENCIA"
+
+	getlistitems/occ piParams, "FIS_DETALHEICSVC"
+	CD_OPERADOR.FIS_DETALHEICSVC = $item("CD_USUARIO", $xlpg$)
+	DT_CADASTRO.FIS_DETALHEICSVC = $datim
+	
+	$collhandle("FIS_DETALHEICSVC")->Salvar()
+	if ($procerror)
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	elseif ($status < 0)
+		$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")    
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+
+	return(0)
+End ; operation gravaDetalheIcms
+
+
+;----------------------------------------
+;-- MAD [Proj/Tar.061/859] - 30/08/2010
+public operation gravaSeloFiscalEnt
+;----------------------------------------
+
+	params
+		string  $xlpg$      :IN
+		string  piParams    :IN
+		string  poParams    :OUT
+		string  poCdErro    :OUT
+		string  poCtxErro   :OUT
+	endparams
+
+	variables		
+		numeric vCdEmpresaTra, vNrTransacao, vCdEmpresaNf, vNrFatura
+		date    vDtTransacao, vDtFatura
+	endvariables
+
+	vCdEmpresaTra = $item("CD_EMPRESATRA", piParams)
+	vNrTransacao  = $item("NR_TRANSACAO" , piParams)
+	vDtTransacao  = $item("DT_TRANSACAO" , piParams)
+	vCdEmpresaNf  = $item("CD_EMPRESANF" , piParams)
+	vNrFatura     = $item("NR_FATURA"    , piParams)
+	vDtFatura     = $item("DT_FATURA"    , piParams)
+	
+	if (vCdEmpresaTra = "")
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Empresa da transação não informada!", "ADICIONAL=Operação->FISSVCO024.gravaSeloFiscalEnt")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+
+	if (vNrTransacao = "")
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Número da transação não informado!", "ADICIONAL=Operação->FISSVCO024.gravaSeloFiscalEnt")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+
+	if (vDtTransacao = "")
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Data da transação não informada!", "ADICIONAL=Operação->FISSVCO024.gravaSeloFiscalEnt")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+
+	if (vCdEmpresaNf = "")
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Empresa da nota fiscal não informada!", "ADICIONAL=Operação->FISSVCO024.gravaSeloFiscalEnt")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+
+	if (vNrFatura = "")
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Número da fatura não informado!", "ADICIONAL=Operação->FISSVCO024.gravaSeloFiscalEnt")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+
+	if (vDtFatura = "")
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Data da fatura não informada!", "ADICIONAL=Operação->FISSVCO024.gravaSeloFiscalEnt")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+
+	clear/e "TRA_SELOENTSVC"
+	CD_EMPRESA.TRA_SELOENTSVC/init   = vCdEmpresaTra
+	NR_TRANSACAO.TRA_SELOENTSVC/init = vNrTransacao
+	DT_TRANSACAO.TRA_SELOENTSVC/init = vDtTransacao
+	retrieve/e "TRA_SELOENTSVC"
+	if ($status >= 0)
+
+		clear/e "FIS_NFSELOENTSVC"
+		creocc "FIS_NFSELOENTSVC", -1
+		CD_EMPRESA.FIS_NFSELOENTSVC = vCdEmpresaNf
+		NR_FATURA.FIS_NFSELOENTSVC  = vNrFatura
+		DT_FATURA.FIS_NFSELOENTSVC  = vDtFatura
+		retrieve/o "FIS_NFSELOENTSVC"
+		if ($status = -7)
+			retrieve/x "FIS_NFSELOENTSVC"
+		endif
+		VL_ANTECIPADO.FIS_NFSELOENTSVC  = VL_ANTECIPADO.TRA_SELOENTSVC
+		VL_SUBSTITUIDO.FIS_NFSELOENTSVC = VL_SUBSTITUIDO.TRA_SELOENTSVC
+		VL_DIFERENCIAL.FIS_NFSELOENTSVC = VL_DIFERENCIAL.TRA_SELOENTSVC
+		CD_OPERADOR.FIS_NFSELOENTSVC    = $item("CD_USUARIO", $xlpg$)
+		DT_CADASTRO.FIS_NFSELOENTSVC    = $datim
+	
+		$collhandle("FIS_NFSELOENTSVC")->Salvar()
+		if ($procerror)
+			$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+			poCdErro  = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return(-1)
+		elseif ($status < 0)
+			$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")    
+			poCdErro  = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return(-1)
+		endif
+	endif
+
+	return(0)
+
+End ;operation gravaSeloFiscalEnt
+;;

@@ -1,0 +1,21 @@
+;------------------------
+entry preEDIT 
+;------------------------
+variables
+	string vTitulo
+endvariables
+	if($XLPI$ = "")
+		message/info "Componente não pode ser chamado pelo atalho!"
+		exit(0)
+	endif
+
+	DS_TITULO.SIS_DUMMY = $item("DS_TITULO",$XLPI$)
+	vTitulo = $item("TITULO",$XLPI$)
+	$formtitle = "%%$componentname - %%vTitulo"
+	ds_mensagem.sis_dummy = $item("MENSAGEM",$XLPI$)
+	if($$GNMUSRSO = "santarita") & ($$gcdempresa = 7)
+		ds_mensagem.sis_dummy = "Identificação do laudo: IFL0122009%%^Nr. CNPJ              : 00.157.585/0001-58%%^Razão social          : JOSE MARCOS NABHAN%%^Endereço              : AV. GOIAS,  SALA 21 - SOBRELOJA%%^Nr. Endereço          : 810%%^Bairro                : CENTRO%%^Contato               : MARCELIA FECCHIO%%^Telefone              : 44 3619-4500%%^Nome aplicativo       : STOREAGE%%^Versão                : 3.0%%^Nome executável       : STOREAGE.EXE%%^Código MD5            : 707499a18b5bb9b8c623633d0fb0ccd6"
+	endif
+
+	return (0)
+End ; operation preEDIT

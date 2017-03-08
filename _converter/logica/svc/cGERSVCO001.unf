@@ -1,0 +1,1029 @@
+entry getParam
+	params
+		numeric piCdEmpresa : IN
+		string piDsOperacao : IN
+	endparams
+
+	variables
+		string viParams, voParams
+	endvariables
+
+	if (piCdEmpresa = 0)
+		piCdEmpresa = $item("CD_EMPRESA", $xlpg$)
+	endif
+
+	viParams = ""
+	putitem viParams, -1, "IN_UTILIZA_NSU"
+	activate "ADMSVCO001".GetLstParametro(viParams, voParams, $xCdErro$, $xCtxerro$)
+	if ($procerror)
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+		return(-1)
+	elseif ($xCdErro$)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=%%$item("DESCRICAO", $xCtxErro$)", "ADICIONAL=Operação->FISSVCI004")
+		return(-1)
+	elseif ($status < 0)
+		return(-1)
+	endif
+	
+	$inUtilizaNsu$ = $item("IN_UTILIZA_NSU", voParams)
+
+	viParams = ""
+	putitem viParams, -1, "IN_UTILIZA_SELO_FISCAL"
+	putitem viParams, -1, "NR_MAX_INTERVALO_NF"
+	activate "ADMSVCO001".GetParamEmpresa(piCdEmpresa, viParams, voParams, $xCdErro$, $xCtxerro$)
+	if ($procerror)
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+		return(-1)
+	elseif ($xCdErro$)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=%%$item("DESCRICAO", $xCtxErro$)", "ADICIONAL=Operação->PEDSVCO001.%%piDsOperacao")
+		return(-1)
+	endif
+
+	$inUtilizaSeloFiscal$ = $item("IN_UTILIZA_SELO_FISCAL", voParams)
+	$nrMaxIntervaloNF$ = $item("NR_MAX_INTERVALO_NF", voParams)
+	if ($nrMaxIntervaloNF$ < 1)
+		$nrMaxIntervaloNF$ = 10
+	endif
+
+	return(0)
+end
+
+;-------------------------
+public operation getNumSeq
+	;-------------------------
+	params
+		string  piGlobal     :IN 
+		string  piNmEntidade :IN
+		string  piNmAtributo :IN
+		numeric piNrFinal    :IN
+		numeric poNrSeq      :OUT
+		string  $xcderro$    :OUT
+		string  $xctxerro$   :OUT 
+	endparams
+	
+	$instancehandle->ResetErro()
+	
+	clear/e "GER_NUMSEQSVC" 
+	nm_entidade.ger_numseqsvc/init = piNmEntidade
+	nm_atributo.ger_numseqsvc/init = piNmAtributo
+	retrieve/e "GER_NUMSEQSVC"
+	if ($status = 0) 
+		if (nr_atual.ger_numseqsvc = nr_final.ger_numseqsvc)
+			if (in_reiniciar.ger_numseqsvc)
+				nr_atual.ger_numseqsvc = 1
+			else
+				$instancehandle->SetStatus(<STS_ERRO>,"GER0001","","") 
+				exit (-1)
+			endif
+		else
+			nr_atual.ger_numseqsvc = nr_atual.ger_numseqsvc + 1 
+		endif
+	elseif ($status = -2) ; Ocorrencia nao encontrada 
+		creocc "GER_NUMSEQSVC", -1 ; -1 indica para criar ocorrencia no final do Hitlist
+		nm_entidade.ger_numseqsvc = piNmEntidade ;instanciou a entidade
+		nm_atributo.ger_numseqsvc = piNmAtributo
+		nr_incremento.ger_numseqsvc = 1
+		nr_atual.ger_numseqsvc = 1
+		nr_inicial.ger_numseqsvc = 1
+		nr_final.ger_numseqsvc = piNrFinal
+	else
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "ADICIONAL=%%$componentname.GETNUMSEQ(%%piNmEntidade%%%,%%piNmAtributo%%%)")
+		exit (-1); finaliza a execuo da operation
+	endif
+	
+	;    atualizar Operador e data
+	cd_operador.ger_numseqsvc = $Item("CD_USUARIO",piGlobal)
+	dt_cadastro.ger_numseqsvc = $Datim
+	
+	$collhandle("GER_NUMSEQSVC")->Salvar()
+	if ($procerror)
+		$instancehandle->SetStatus(<STS_ERRO>,$procerror,$procerrorcontext,"")
+		exit (-1)
+	elseif ($status < 0)
+		exit(-1)
+	else
+		$instancehandle->ResetErro()
+		poNrSeq = nr_atual.ger_numseqsvc ; atribui-se ao parametro de saida o valor do atributo
+	endif
+	exit (0)
+	;=========================================================================
+	;Autor: FSD
+	;
+	;Nome:GetNumSeq
+	;
+	;Data: 12/03/2002
+	;
+;Versao:
+	;
+	;Descrio : Numeracao Sequencial        
+	;
+	;
+	;Parametros Entrada
+	;            Nome Entidade
+	;            Nome do Campo 
+	;            Numero final da sequencia    
+	;Parametros Saa
+	;            Numero da sequencia
+	;            Cigo de Erro
+	;            Contexto do erro
+	;Exemplo Chamada
+	;    activate "GERSVCO001".GetNumSeq($entname,"CD_CODIGO",999999999,CD_CODIGO.ENTIDADE,$xCdErro$,$xCtxErro$)
+;Histico Manuteno:
+	;
+	;Data    Operador    Detalhes
+end ;getNumseq  fecha a operation
+
+;----------------------------
+public operation getNumSeqAnt
+	;----------------------------
+	params
+		string  piGlobal    :IN
+		string  piNmEntidade :IN
+		string  piNmAtributo :IN
+		numeric piNrFinal    :IN
+		numeric poNrSeq     :OUT
+		string  $xcderro$    :OUT
+		string  $xctxerro$   :OUT 
+	endparams
+	
+	$instancehandle->ResetErro()    
+	
+	clear/e "GER_NUMSEQSVC" 
+	nm_entidade.ger_numseqsvc/init = piNmEntidade 
+	nm_atributo.ger_numseqsvc/init = piNmAtributo
+	retrieve/e "GER_NUMSEQSVC" 
+	if ($status = 0) ;Ocorrencia encontrada 
+		nr_atual.ger_numseqsvc = nr_atual.ger_numseqsvc 
+	elseif ($status = -2) ; Ocorrencia nao encontrada 
+		creocc "GER_NUMSEQSVC", -1 ; -1 indica para criar ocorrencia no final do Hitlist
+		nm_entidade.ger_numseqsvc = piNmEntidade ;instanciou a entidade
+		nm_atributo.ger_numseqsvc = piNmAtributo
+		nr_incremento.ger_numseqsvc = 1
+		nr_atual.ger_numseqsvc = 1
+		nr_inicial.ger_numseqsvc = 1
+		nr_final.ger_numseqsvc = piNrFinal
+		cd_operador.ger_numseqsvc = $item("CD_USUARIO",piGlobal)
+		dt_cadastro.ger_numseqsvc = $Datim
+		$collhandle("GER_NUMSEQSVC")->Salvar()
+		if ($procerror)
+			$instancehandle->SetStatus(<STS_ERRO>,$procerror,$procerrorcontext,"")
+			exit (-1)
+		elseif ($status < 0)
+			exit (-1)
+		else
+			$instancehandle->ResetErro()
+		endif
+	else
+		$instancehandle->SetStatus(<STS_ERRO>,$procerror,$procerrorcontext,"ADICIONAL=%%$componentname.GETNUMSEQ(%%piNmEntidade%%%,%%piNmAtributo%%%)")
+		exit (-1); finaliza a execuo da operation
+	endif
+	poNrSeq = nr_atual.ger_numseqsvc ; atribui-se ao parametro de saida o valor do atributo
+	exit (0)
+	;=========================================================================
+	;Autor: FSD
+	;
+	;Nome:GetNumSeqAnt
+	;
+	;Data: 12/03/2002
+	;
+;Vers:
+	;
+	;Descrio : Numeracao Sequencial Anterior        
+	;
+	;
+	;Parametros Entrada
+	;            Nome Entidade
+	;            Nome do Campo 
+	;            Numero final da sequencia    
+	;Parametros Saída
+	;            Numero da sequencia
+	;            Cigo de Erro
+	;            Contexto do erro
+	;Exemplo Chamada
+	;    activate "GERSVCO001".GetNumSeqAnt($entname,"CD_CODIGO",999999999,CD_CODIGO.ENTIDADE,$xCdErro$,$xCtxErro$)
+;Historico Manutencao:
+	;
+	;Data    Operador    Detalhes
+end
+
+;----------------------------
+public operation getNumSeqEmp
+	;----------------------------
+	params
+		string  piGlobal      :IN
+		numeric piCdEmpresa  :IN
+		string  piNmEntidade :IN
+		string  piNmAtributo :IN
+		numeric piNrFinal    :IN
+		numeric poNrSeq      :OUT
+		string  $xcderro$    :OUT
+		string  $xctxerro$   :OUT 
+	endparams
+	
+	variables
+		string vVlParam    
+	endvariables
+	
+	$instancehandle->ResetErro()    
+	
+	clear/e "GER_NREMPSEQSVC" 
+	cd_empresa.ger_nrempseqsvc/init  = piCdEmpresa 
+	nm_entidade.ger_nrempseqsvc/init = piNmEntidade 
+	nm_atributo.ger_nrempseqsvc/init = piNmAtributo
+	retrieve/e "GER_NREMPSEQSVC" 
+	if ($status = 0) 
+		if (nr_atual.ger_nrempseqsvc = nr_final.ger_nrempseqsvc)
+			;            $instancehandle->SetErroApl("ERRO=-1·;DESCRICAO=Ja chegou ao Limite maximo (99999999)",poCdErro,poCtxErro)
+			$instancehandle->SetStatus(<STS_ERRO>,"GER0001","","") 
+			exit (-1)
+		else
+			nr_atual.ger_nrempseqsvc = nr_atual.ger_nrempseqsvc + 1 
+		endif
+	elseif ($status = -2)
+		;        creocc "GER_NREMPSEQSVC", -1 ; -1 indica para criar ocorrencia no final do Hitlist
+		cd_empresa.ger_nrempseqsvc  = piCdEmpresa
+		nm_entidade.ger_nrempseqsvc = piNmEntidade ;instanciou a entidade
+		nm_atributo.ger_nrempseqsvc = piNmAtributo
+		nr_incremento.ger_nrempseqsvc = 1
+		nr_atual.ger_nrempseqsvc = 1
+		nr_inicial.ger_nrempseqsvc = 1
+		nr_final.ger_nrempseqsvc = piNrFinal
+	else
+		;        $instancehandle->SetErroProc($procerrorcontext,poCdErro,poCtxErro) ; chamada de uma operation que retorno o erro diferente de -1 e -2
+		;           $instancehandle->SetStatus(<STS_ERRO>,$procerror,$procerrorcontext,"")
+		$instancehandle->SetStatus(<STS_ERRO>,$procerror,$procerrorcontext,"ADICIONAL=%%$componentname.GETNUMSEQ(%%piCdEmpresa%%%,%%piNmEntidade%%%,%%piNmAtributo%%%)")
+		exit (-1); finaliza a execuo da operation
+	endif
+	
+	;    atualizar operador e Data
+	cd_operador.ger_nrempseqsvc = $item("CD_USUARIO",piGlobal)
+	dt_cadastro.ger_nrempseqsvc = $datim    
+	
+	$collhandle("GER_NREMPSEQSVC")->Salvar()
+	if ($procerror)
+		$instancehandle->SetStatus(<STS_ERRO>,$procerror,$procerrorcontext,"")
+		;        $instancehandle->SetErroProc($procerrorcontext,poCdErro,poCtxErro)
+		exit (-1)
+	elseif ($status < 0)
+		exit (-1)
+	else
+		$instancehandle->ResetErro()
+	endif
+	
+	poNrSeq = nr_atual.ger_nrempseqsvc ; atribui-se ao parametro de saida o valor do atributo
+	exit (0)
+	;=========================================================================
+	;Autor: EVJ
+	;
+	;Nome:GetNumSeqEmp
+	;
+	;Data: 05/09/2002
+	;
+;Vers:
+	;
+	;Descrio : Numeracao Sequencial        
+	;
+	;
+	;Parametros Entrada
+	;            Cigo Empresa
+	;            Nome Entidade
+	;            Nome do Campo 
+	;            Numero final da sequencia    
+	;Parametros Saa
+	;            Numero da sequencia
+	;            Cigo de Erro
+	;            Contexto do erro
+	;Exemplo Chamada
+	;    activate "GERSVCO001".GetNumSeqEmp("CD_EMPRESA",$entname,"CD_CODIGO",999999999,CD_CODIGO.ENTIDADE,$xCdErro$,$xCtxErro$)
+;Histico Manuteno:
+	;
+	;Data    Operador    Detalhes
+end
+
+;------------------------
+public operation GetNumNF
+	;------------------------
+	; Pega Somente o Nr da Ultima NF emitida
+	params
+		string  piGlobal    :IN
+		numeric piCdEmpresa  :IN
+		string  piCdSerie    :IN
+		numeric piNrFinal    :IN
+		numeric poNrNF       :OUT
+		string  $xcderro$    :OUT
+		string  $xctxerro$   :OUT 
+	endparams
+	
+	clear/e "GER_NREMPSEQSVC" 
+	cd_empresa.ger_nrempseqsvc/init  = piCdEmpresa 
+	nm_entidade.ger_nrempseqsvc/init = "FIS_NF"
+	nm_atributo.ger_nrempseqsvc/init = piCdSerie
+	retrieve/e "GER_NREMPSEQSVC" 
+	if ($status = 0) 
+		poNrNF = nr_atual.ger_nrempseqsvc
+	endif
+	
+	exit (0)
+end
+
+;---------------------------
+public operation GetNumSeqNF
+	;---------------------------
+	params
+		string  piGlobal    :IN
+		numeric piCdEmpresa  :IN
+		string  piCdSerie    :IN
+		numeric piNrFinal    :IN
+		numeric poNrNF       :OUT
+		string  $xcderro$    :OUT
+		string  $xctxerro$   :OUT 
+	endparams
+	
+	variables
+		numeric vNrNF, vCdGrupoEmpresa, vNrMaxNF
+		string  vVlParam
+		date vDtSistema
+	endvariables
+	
+	$instancehandle->ResetErro()    
+	
+	;    Testar parametros
+	if (piCdEmpresa = "")
+		$instancehandle->SetStatus(<STS_ERRO>,"PAR0001","","ADICIONAL=Empresa")
+		exit (-1)
+	endif
+	
+	if (piCdSerie = "")
+		$instancehandle->SetStatus(<STS_ERRO>,"PAR0001","","ADICIONAL=Série da nota fiscal") 
+		exit (-1)
+	endif
+	
+	;    Buscar o Grupoempresa
+	clear/e "GER_EMPRESASVC"
+	cd_empresa.ger_empresasvc/init = piCdEmpresa
+	retrieve/o "GER_EMPRESASVC"
+	if ($status = -7)
+		retrieve/x "GER_EMPRESASVC"
+		vCdGrupoEmpresa = $item("CD_GRUPOEMPRESA",piGlobal)
+	else
+		$instancehandle->SetStatus(<STS_ERRO>,"PAR0002","","Empresa") 
+		exit (-1)
+	endif
+	
+	vDtSistema = $item("DT_SISTEMA", piGlobal)
+	
+	poNrNF = 0
+	while (poNrNF = 0)    
+		vNrNF = 0
+		clear/e "GER_NREMPSEQSVC" 
+		cd_empresa.ger_nrempseqsvc/init  = piCdEmpresa 
+		nm_entidade.ger_nrempseqsvc/init = "FIS_NF"
+		nm_atributo.ger_nrempseqsvc/init = piCdSerie
+		retrieve/e "GER_NREMPSEQSVC" 
+		if ($status >= 0) 
+			vNrNF = nr_atual.ger_nrempseqsvc
+			if (nr_atual.ger_nrempseqsvc = nr_final.ger_nrempseqsvc)
+				$instancehandle->SetStatus(<STS_ERRO>,"GER0001","","") 
+				exit (-1)
+			else
+				nr_atual.ger_nrempseqsvc = nr_atual.ger_nrempseqsvc + 1 
+			endif
+		elseif ($status = -2)
+			creocc "GER_NREMPSEQSVC", -1 ; -1 indica para criar ocorrencia no final do Hitlist
+			cd_empresa.ger_nrempseqsvc    = piCdEmpresa
+			nm_entidade.ger_nrempseqsvc   = "FIS_NF"
+			nm_atributo.ger_nrempseqsvc   = piCdSerie
+			nr_incremento.ger_nrempseqsvc = 1
+			nr_atual.ger_nrempseqsvc      = 1
+			nr_inicial.ger_nrempseqsvc    = 1
+			nr_final.ger_nrempseqsvc      = piNrFinal
+		else
+			$instancehandle->SetStatus(<STS_ERRO>,$procerror,$procerrorcontext,"ADICIONAL=%%$componentname.GETNUMSEQ(%%piCdEmpresa%%%,%%piCdSerie%%%)")
+			exit (-1); finaliza a execução da operation
+		endif
+		;        atualizar operador e Data
+		cd_operador.ger_nrempseqsvc = $item("CD_USUARIO",piGlobal)
+		dt_cadastro.ger_nrempseqsvc = $Datim
+		
+		$collhandle("GER_NREMPSEQSVC")->Salvar()
+		if ($procerror)
+			$instancehandle->SetStatus(<STS_ERRO>,$procerror,$procerrorcontext,"")
+			exit (-1)
+		elseif ($status < 0)
+			$instancehandle->SetStatus("", $xcderro$, $xctxerro$, "")
+		else
+			$instancehandle->ResetErro()
+		endif
+		if (vNrNF = 0)
+			vNrNF = 1
+		endif
+		
+		clear/e "FIS_NFSVC"
+		CD_EMPFAT.FIS_NFSVC/init = piCdEmpresa
+		NR_NF.FIS_NFSVC/init = vNrNF
+		CD_SERIE.FIS_NFSVC/init = piCdSerie            
+		TP_ORIGEMEMISSAO.FIS_NFSVC/init= 1
+		retrieve/e "FIS_NFSVC"
+		if ($status = <UIOSERR_OCC_NOT_FOUND>)
+			;            selectdb max(NR_NF) %\
+			;            from "FIS_NFSVC" %\
+			;            u_where (CD_EMPFAT.FIS_NFSVC = piCdEmpresa & %\
+			;            CD_SERIE.FIS_NFSVC = piCdSerie & %\
+			;            TP_ORIGEMEMISSAO.FIS_NFSVC = 1 & %\
+			;            TP_SITUACAO.FIS_NFSVC = "E") %\
+			;            to vNrMaxNF
+			;            if ($status < 0)
+			;                $instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+			;                exit(-1)
+			;            endif
+			;            if (vNrMaxNF > 0)
+			;                if ((vNrNF - vNrMaxNF) > 10)
+			;                    $instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Numeração de NF %%vNrNF superior a 10 números sobre a última numeração %%vNrMaxNF na série %%piCdSerie%%%!", "ADICIONAL=Operação->GERSVCO001.GetNumSeqNF")
+			;                    exit(-1)
+			;                elseif ((vNrMaxNF - vNrNF) > 10)
+			;                    $instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Numeração de NF %%vNrNF inferior a 10 números sobre a última numeração %%vNrMaxNF na série %%piCdSerie%%%!", "ADICIONAL=Operação->GERSVCO001.GetNumSeqNF")
+			;                    exit(-1)
+			;                endif
+			;            endif    
+			
+			clear/e "FIS_NFSVC"
+			CD_EMPFAT.FIS_NFSVC/init = piCdEmpresa
+			NR_NF.FIS_NFSVC/init = "·>%%vNrNF"
+			CD_SERIE.FIS_NFSVC/init = piCdSerie            
+			TP_ORIGEMEMISSAO.FIS_NFSVC/init= 1
+			retrieve/e "FIS_NFSVC"
+			if ($status >= 0)
+				setocc "FIS_NFSVC", 1
+				while ($status >= 0)
+					if (TP_SITUACAO.FIS_NFSVC = "E") ;Emitida
+						if (DT_SAIDAENTRADA.FIS_NFSVC != vDtSistema)
+							$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Numeração de NF %%vNrNF já encontrada em outros períodos na série %%piCdSerie%%%!", "ADICIONAL=Operação->GERSVCO001.GetNumSeqNF")
+							exit(-1)
+						endif
+					endif
+					setocc "FIS_NFSVC", $curocc("FIS_NFSVC") + 1
+				endwhile
+			endif
+			
+			poNrNF = vNrNF
+		endif
+	endwhile
+	
+	exit (0)
+end
+
+;--------------------------
+public operation AlteraNrNF
+	;--------------------------
+	; Altera no Nr da NF apartir do PDVFM017 (com o parametro EXIBE_NR_NF)
+	params
+		string  piGlobal        :IN
+		numeric piCdEmpresa  :IN
+		string  piCdSerie    :IN
+		numeric piNrFinal    :IN
+		numeric piNrNF       :IN
+		string  $xcderro$    :OUT
+		string  $xctxerro$   :OUT 
+	endparams
+	
+	variables
+		string vVlParam
+	endvariables
+	
+	$instancehandle->ResetErro()    
+	
+	
+	clear/e "GER_NREMPSEQSVC" 
+	cd_empresa.ger_nrempseqsvc/init  = piCdEmpresa 
+	nm_entidade.ger_nrempseqsvc/init = "FIS_NF"
+	nm_atributo.ger_nrempseqsvc/init = piCdSerie
+	retrieve/e "GER_NREMPSEQSVC" 
+	if ($status = 0)
+		nr_atual.ger_nrempseqsvc = piNrNF
+	elseif ($status = -2)
+		creocc "GER_NREMPSEQSVC", -1 ; -1 indica para criar ocorrencia no final do Hitlist
+		cd_empresa.ger_nrempseqsvc    = piCdEmpresa
+		nm_entidade.ger_nrempseqsvc   = "FIS_NF"
+		nm_atributo.ger_nrempseqsvc   = piCdSerie
+		nr_incremento.ger_nrempseqsvc = 1
+		nr_atual.ger_nrempseqsvc      = piNrNF
+		nr_inicial.ger_nrempseqsvc    = 1
+		nr_final.ger_nrempseqsvc      = piNrFinal
+	else
+		;    $instancehandle->SetErroProc($procerrorcontext,poCdErro,poCtxErro) ; chamada de uma operation que retorno o erro diferente de -1 e -2
+		$instancehandle->SetStatus(<STS_ERRO>,$procerror,$procerrorcontext,"")
+		exit (-1); finaliza a execução da operation
+	endif
+	
+	;    atualizar operador e Data
+	;cd_operador.ger_nrempseqsvc = Item ("CD_USUARIO",piGlobal)
+	;dt_cadastro.ger_nrempseqsvc = $Datim
+	
+	$collhandle("GER_NREMPSEQSVC")->Salvar()
+	if ($procerror)
+		;    $instancehandle->SetErroProc($procerrorcontext,poCdErro,poCtxErro)
+		$instancehandle->SetStatus(<STS_ERRO>,$procerror,$procerrorcontext,"")
+		exit (-1)
+	elseif ($status < 0)
+		$instancehandle->SetStatus("",$xcderro$,$xctxerro$,"")
+	else
+		$instancehandle->ResetErro()
+	endif
+	
+	exit(0)
+end
+
+;---------------------------
+public operation setNumSeqNF
+	;---------------------------
+	params
+		string  piGlobal      :IN
+		numeric piCdEmpresa  :IN
+		string  piCdSerie    :IN
+		numeric piNrFinal    :IN
+		numeric piNrNF       :IN
+		string  $xcderro$    :OUT
+		string  $xctxerro$   :OUT 
+	endparams
+	
+	variables
+		string vVlParam
+	endvariables
+	
+	$instancehandle->ResetErro()    
+	
+	clear/e "GER_NREMPSEQSVC" 
+	cd_empresa.ger_nrempseqsvc/init  = piCdEmpresa 
+	nm_entidade.ger_nrempseqsvc/init = "FIS_NF"
+	nm_atributo.ger_nrempseqsvc/init = piCdSerie
+	retrieve/e "GER_NREMPSEQSVC" 
+	if ($status = 0)
+		if (nr_atual.ger_nrempseqsvc > piNrNF) 
+			nr_atual.ger_nrempseqsvc = piNrNF
+		endif
+	elseif ($status = -2)
+		creocc "GER_NREMPSEQSVC", -1 ; -1 indica para criar ocorrencia no final do Hitlist
+		cd_empresa.ger_nrempseqsvc    = piCdEmpresa
+		nm_entidade.ger_nrempseqsvc   = "FIS_NF"
+		nm_atributo.ger_nrempseqsvc   = piCdSerie
+		nr_incremento.ger_nrempseqsvc = 1
+		nr_atual.ger_nrempseqsvc      = piNrNF
+		nr_inicial.ger_nrempseqsvc    = 1
+		nr_final.ger_nrempseqsvc      = piNrFinal
+	else
+		;    $instancehandle->SetErroProc($procerrorcontext,poCdErro,poCtxErro) ; chamada de uma operation que retorno o erro diferente de -1 e -2
+		$instancehandle->SetStatus(<STS_ERRO>,$procerror,$procerrorcontext,"ADICIONAL=%%$componentname.GETNUMSEQ(%%piCdEmpresa%%%,%%piCdSerie%%%)")
+		exit (-1); finaliza a execução da operation
+	endif
+	
+	;    atualizar operador e Data
+	cd_operador.ger_nrempseqsvc = $item("CD_USUARIO",piGlobal)
+	dt_cadastro.ger_nrempseqsvc = $Datim
+	
+	$collhandle("GER_NREMPSEQSVC")->Salvar()
+	if ($procerror)
+		;    $instancehandle->SetErroProc($procerrorcontext,poCdErro,poCtxErro)
+		$instancehandle->SetStatus(<STS_ERRO>,$procerror,$procerrorcontext,"")
+		exit (-1)
+	elseif ($status < 0)
+		$instancehandle->SetStatus("",$xcderro$,$xctxerro$,"")
+	else
+		$instancehandle->ResetErro()
+	endif
+	
+	exit(0)
+end
+
+;-----------------------------
+public operation getNumSeqComm
+	;-----------------------------
+	params
+		string  piGlobal     :IN
+		string  piNmEntidade :IN
+		string  piNmAtributo :IN
+		numeric piNrFinal    :IN
+		numeric poNrSeq     :OUT
+		string  $xcderro$    :OUT
+		string  $xctxerro$   :OUT 
+	endparams
+	
+	$instancehandle->ResetErro()    
+	
+	clear/e "GER_NUMSEQSVC" 
+	nm_entidade.ger_numseqsvc/init = piNmEntidade
+	nm_atributo.ger_numseqsvc/init = piNmAtributo
+	retrieve/e "GER_NUMSEQSVC"
+	if ($status = 0) 
+		if (nr_atual.ger_numseqsvc = nr_final.ger_numseqsvc)
+			if (in_reiniciar.ger_numseqsvc)
+				nr_atual.ger_numseqsvc = 0
+			else
+				;$instancehandle->SetErroApl("ERRO=-1·;DESCRICAO=Numeração chegou ao Limite máximo (99999999)",poCdErro,poCtxErro)
+				$instancehandle->SetStatus(<STS_ERRO>,"GER0001","","") 
+				exit (-1)
+			endif
+		else
+			nr_atual.ger_numseqsvc = nr_atual.ger_numseqsvc + 1 
+		endif
+	elseif ($status = -2) ; Ocorrencia nao encontrada 
+		creocc "GER_NUMSEQSVC", -1 ; -1 indica para criar ocorrencia no final do Hitlist
+		nm_entidade.ger_numseqsvc = piNmEntidade ;instanciou a entidade
+		nm_atributo.ger_numseqsvc = piNmAtributo
+		nr_incremento.ger_numseqsvc = 1
+		nr_atual.ger_numseqsvc = 1
+		nr_inicial.ger_numseqsvc = 1
+		nr_final.ger_numseqsvc = piNrFinal
+	else
+		;     $instancehandle->SetErroProc($procerrorcontext,poCdErro,poCtxErro) ; chamada de uma operation que retorno o erro diferente de -1 e -2
+		$instancehandle->SetStatus(<STS_ERRO>,$procerror,$procerrorcontext,"ADICIONAL=%%$componentname.GETNUMSEQ(%%piNmEntidade%%%,%%piNmAtributo%%%)")
+		exit (-1); finaliza a execução da operation
+	endif
+	
+	cd_operador.ger_numseqsvc = $item("CD_USUARIO",piGlobal)
+	dt_cadastro.ger_numseqsvc = $Datim
+	
+	$collhandle("GER_NUMSEQSVC")->Salvar()
+	if ($procerror)
+		;    $instancehandle->SetErroProc($procerrorcontext,poCdErro,poCtxErro)
+		$instancehandle->SetStatus(<STS_ERRO>,$procerror,$procerrorcontext,"")
+		exit (-1)
+	elseif ($status < 0)
+		;    $instancehandle->SetErroApl($xctxerro$,poCdErro,poCtxErro)
+		exit (-1)
+	else
+		$instancehandle->ResetErro()
+		commit  
+	endif
+	
+	poNrSeq = nr_atual.ger_numseqsvc ; atribui-se ao parametro de saida o valor do atributo
+	
+	exit(0)
+	;=========================================================================
+	;Autor: FSD
+	;
+	;Nome:GetNumSeq
+	;
+	;Data: 12/03/2002
+	;
+;Versão:
+	;
+	;Descrição : Numeracao Sequencial        
+	;
+	;
+	;Parametros Entrada
+	;            Nome Entidade
+	;            Nome do Campo 
+	;            Numero final da sequencia    
+	;Parametros Saída
+	;            Numero da sequencia
+	;            Código de Erro
+	;            Contexto do erro
+	;Exemplo Chamada
+	;    activate "GERSVCO001".GetNumSeq($entname,"CD_CODIGO",999999999,CD_CODIGO.ENTIDADE,$xCdErro$,$xCtxErro$)
+;Histórico Manutenção:
+	;
+	;Data    Operador    Detalhes
+end ;getNumseq  fecha a operation
+
+public operation CLEANUP
+	;FSD 16/07/04 
+	;Foi incluido este rollback para desbloquear registro bloqueado na trigger de read 
+	;Situacoes onde tenha saído com erro (exit -1).
+	rollback
+end
+
+;-------------------------
+public operation buscaNrNF
+	;-------------------------
+	params
+		string  $xlpg$      :IN    
+		string  piParams    :IN
+		string  poParams    :OUT
+		string  poCdErro    :OUT
+		string  poCtxErro   :OUT
+	endparams
+	
+	variables
+		numeric vNrNF, vNrNFDef, vCdEmpresa, vNrFatura, vNrMaxNF, vCdEmpFat
+		string vVlParam, vCdSerie, viParams, voParams, vTpModDctoFiscalLocal
+		date vDtFatura, vDtSistema
+	endvariables
+		
+	vCdEmpresa = $item("CD_EMPRESA", piParams)
+	vNrFatura = $item("NR_FATURA", piParams)
+	vDtFatura = $item("DT_FATURA", piParams)
+	vCdEmpFat = $item("CD_EMPFAT", piParams)
+	vCdSerie = $item("CD_SERIE", piParams)
+	vTpModDctoFiscalLocal =  $item("TP_MODDCTOFISCALLOCAL", piParams) ;ICJ [PROJ/TAR 61/867] (23/09/2010)
+	if (vCdEmpresa = 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Empresa não infomado!", "ADICIONAL=Operação->GERSVCO001.buscaNrNF")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		exit(-1)
+	endif
+	
+	if (vNrFatura = 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Nr. fatura não infomada!", "ADICIONAL=Operação->GERSVCO001.buscaNrNF")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		exit(-1)
+	endif
+	
+	if (vDtFatura = "")
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Dt. fatura não infomada!", "ADICIONAL=Operação->GERSVCO001.buscaNrNF")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		exit(-1)
+	endif
+
+	if (vCdEmpFat = 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Empresa de faturamento não infomada!", "ADICIONAL=Operação->GERSVCO001.buscaNrNF")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		exit(-1)
+	endif
+	
+	if (vCdSerie = "")
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Série não infomada!", "ADICIONAL=Operação->GERSVCO001.buscaNrNF")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		exit(-1)
+	endif
+	
+	clear/e "GER_EMPRESASVC"
+	CD_EMPRESA.GER_EMPRESASVC/init = vCdEmpresa
+	retrieve/e "GER_EMPRESASVC"
+	if ($status < 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Empresa %%vCdEmpresa não cadastrada!", "ADICIONAL=Operação->GERSVCO001.buscaNrNF")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		exit(-1)
+	endif
+
+	call getParam(vCdEmpresa, "buscaNrNF")
+	if ($procerror)
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	if ($status < 0)
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	
+	if (vCdSerie = "ECF")
+	else
+		clear/e "FIS_NFSVC"
+		CD_EMPRESA.FIS_NFSVC/init = vCdEmpresa
+		NR_FATURA.FIS_NFSVC/init = vNrFatura
+		DT_FATURA.FIS_NFSVC/init = vDtFatura
+		retrieve/e "FIS_NFSVC"    
+		if ($status < 0)
+			$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=NF %%vCdEmpresa / %%vNrFatura não cadastrada!", "ADICIONAL=Operação->GERSVCO001.getNumSeqNF")
+			poCdErro = $xCdErro$
+			poCtxErro = $xCtxErro$
+			exit(-1) 
+		endif  
+	
+		if (TP_SITUACAO.FIS_NFSVC != "N")
+			$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=NF %%vCdEmpresa / %%vNrFatura não está com a situação Normal!", "ADICIONAL=Operação->GERSVCO001.getNumSeqNF")
+			poCdErro = $xCdErro$
+			poCtxErro = $xCtxErro$
+			exit(-1) 
+		endif
+	
+		if (NR_NF.FIS_NFSVC > 0)
+			poParams = ""
+			putitem/id poParams, "NR_NF", NR_NF.FIS_NFSVC
+			clear/e "FIS_NFSVC"
+			exit(0)
+		endif
+	endif
+	
+	vDtSistema = $item("DT_SISTEMA", $xlpg$)
+	
+	vNrNFDef = 0
+	while (vNrNFDef = 0)
+		vNrNF = 0
+		clear/e "GER_NREMPSEQSVC" 
+		CD_EMPRESA.GER_NREMPSEQSVC/init  = vCdEmpFat
+		NM_ENTIDADE.GER_NREMPSEQSVC/init = "FIS_NF"
+		NM_ATRIBUTO.GER_NREMPSEQSVC/init = vCdSerie
+		retrieve/e "GER_NREMPSEQSVC" 
+		if ($status >= 0) 
+			vNrNF = NR_ATUAL.GER_NREMPSEQSVC
+			if (NR_ATUAL.GER_NREMPSEQSVC = NR_FINAL.GER_NREMPSEQSVC)
+				$instancehandle->SetStatus(<STS_ERRO>, "GER0001", "","ADICIONAL=Operação->GERSVCO001.buscaNrNF") 
+				poCdErro = $xCdErro$
+				poCtxErro = $xCtxErro$
+				exit(-1) 
+			else
+				NR_ATUAL.GER_NREMPSEQSVC = NR_ATUAL.GER_NREMPSEQSVC + 1 
+			endif
+		elseif ($status = -2)
+			creocc "GER_NREMPSEQSVC", -1 ; -1 indica para criar ocorrencia no final do Hitlist
+			CD_EMPRESA.GER_NREMPSEQSVC = vCdEmpFat
+			NM_ENTIDADE.GER_NREMPSEQSVC = "FIS_NF"
+			NM_ATRIBUTO.GER_NREMPSEQSVC = vCdSerie
+			NR_INCREMENTO.GER_NREMPSEQSVC = 1
+			NR_ATUAL.GER_NREMPSEQSVC = 1
+			NR_INICIAL.GER_NREMPSEQSVC = 1
+			NR_FINAL.GER_NREMPSEQSVC = 999999999
+	        CD_OPERADOR.GER_NREMPSEQSVC = $item("CD_USUARIO", $xlpg$)
+		    DT_CADASTRO.GER_NREMPSEQSVC = $datim
+		else
+			$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "ADICIONAL=%%$componentname.buscaNrNF(%%vCdEmpFat%%%, %%vCdSerie%%%)")
+			exit(-1)
+		endif		
+		
+		$collhandle("GER_NREMPSEQSVC")->Salvar()
+		if ($procerror)
+			$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+			poCdErro = $xCdErro$
+			poCtxErro = $xCtxErro$
+			exit(-1)
+		elseif ($status < 0)
+			$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")    
+			poCdErro = $xCdErro$
+			poCtxErro = $xCtxErro$
+			exit(-1)
+		endif
+		
+		if (vNrNF = 0)
+			vNrNF = 1
+		endif
+
+		clear/e "FIS_S_NFSVC"
+		CD_EMPFAT.FIS_S_NFSVC/init = vCdEmpFat
+		NR_NF.FIS_S_NFSVC/init = vNrNF
+		CD_SERIE.FIS_S_NFSVC/init = vCdSerie
+		TP_SITUACAO.FIS_S_NFSVC/init = "·!·=X" ;Excluída
+		TP_ORIGEMEMISSAO.FIS_S_NFSVC/init= 1 ;Emissão própria
+		TP_MODDCTOFISCAL.FIS_S_NFSVC/init = vTpModDctoFiscalLocal ;;ICJ [PROJ/TAR 61/867] (20/09/2010)
+		retrieve/e "FIS_S_NFSVC"
+		if ($status = <UIOSERR_OCC_NOT_FOUND>)
+			clear/e "FIS_S_NFSVC"
+			CD_EMPFAT.FIS_S_NFSVC/init = vCdEmpFat
+			NR_NF.FIS_S_NFSVC/init = "·>%%vNrNF"
+			CD_SERIE.FIS_S_NFSVC/init = vCdSerie            
+			TP_ORIGEMEMISSAO.FIS_S_NFSVC/init= 1
+			TP_MODDCTOFISCAL.FIS_S_NFSVC/init = vTpModDctoFiscalLocal ;;ICJ [PROJ/TAR 61/867] (20/09/2010)
+			retrieve/e "FIS_S_NFSVC"
+			if ($status >= 0)
+				setocc "FIS_S_NFSVC", 1
+				while ($status >= 0)
+					if (TP_SITUACAO.FIS_S_NFSVC = "E") ;Emitida
+						if (DT_SAIDAENTRADA.FIS_S_NFSVC != vDtSistema)
+							$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Numeração de NF %%vNrNF já encontrada em outros períodos na série %%vCdSerie e modelo %%vTpModDctoFiscalLocal%%%!", "ADICIONAL=Operação->GERSVCO001.buscaNrNF")
+							poCdErro = $xCdErro$
+							poCtxErro = $xCtxErro$
+							exit(-1)
+						endif
+					endif
+					setocc "FIS_S_NFSVC", $curocc("FIS_S_NFSVC") + 1
+				endwhile
+			endif
+			if (vCdSerie = "ECF")
+			else
+;				(TP_SITUACAO.FIS_S_NFSVC = "N" | TP_SITUACAO.FIS_S_NFSVC = "E"))
+				selectdb max(NR_NF) %\
+				from "FIS_S_NFSVC" %\
+				u_where (CD_EMPFAT.FIS_S_NFSVC = vCdEmpFat & %\
+				CD_SERIE.FIS_S_NFSVC = vCdSerie & %\
+				TP_ORIGEMEMISSAO.FIS_S_NFSVC = 1 & %\
+				TP_SITUACAO.FIS_S_NFSVC != "X" & %\
+				TP_MODDCTOFISCAL.FIS_S_NFSVC = vTpModDctoFiscalLocal) %\
+				to vNrMaxNF
+				if ($status < 0)
+					$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+					poCdErro = $xCdErro$
+					poCtxErro = $xCtxErro$
+					exit(-1)    
+				endif
+				if (vNrMaxNF > 0)
+					if ((vNrNF - vNrMaxNF) > $nrMaxIntervaloNF$)
+						$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Numeração de NF %%vNrNF superior a %%$nrMaxIntervaloNF$ número(s) sobre a última numeração %%vNrMaxNF na série %%vCdSerie e modelo %%vTpModDctoFiscalLocal%%%!", "ADICIONAL=Operação->GERSVCO001.buscaNrNF")
+						poCdErro = $xCdErro$
+						poCtxErro = $xCtxErro$
+						exit(-1)    
+					elseif ((vNrMaxNF - vNrNF) > $nrMaxIntervaloNF$)
+						$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Numeração de NF %%vNrNF inferior a %%$nrMaxIntervaloNF$ número(s) sobre a última numeração %%vNrMaxNF na série %%vCdSerie e modelo %%vTpModDctoFiscalLocal%%%!", "ADICIONAL=Operação->GERSVCO001.buscaNrNF")
+						poCdErro = $xCdErro$
+						poCtxErro = $xCtxErro$
+						exit(-1)    
+					endif
+				endif	
+			endif
+			
+			vNrNFDef = vNrNF
+		endif
+	endwhile
+	
+	;Quando for ECF o servico de numeracao nao grava/commit o numero na NF
+	;porque existem transacao no banco pendente sobre o FIS_NF(no caso F7)
+	if (vCdSerie = "ECF")
+	else
+		;---- WMC - Proj 170 Tar 277 - 23/05/2011
+		NR_NF.FIS_NFSVC = vNrNFDef
+		CD_SERIE.FIS_NFSVC = vCdSerie	
+		$collhandle("FIS_NFSVC")->Salvar()
+		if ($procerror)
+			$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+			poCdErro = $xCdErro$
+			poCtxErro = $xCtxErro$
+			exit(-1)
+		elseif ($status < 0)
+			$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")    
+			poCdErro = $xCdErro$
+			poCtxErro = $xCtxErro$
+			exit(-1)
+		endif
+		;----//----//----
+
+		if ($inUtilizaNsu$ = <TRUE>)
+			viParams = ""
+			putitem/id viParams, "CD_EMPRESA", vCdEmpresa
+			putitem/id viParams, "NR_FATURA", vNrFatura
+			putitem/id viParams, "DT_FATURA", vDtFatura
+			activate "FISSVCO019".gravaFisNsu($xlpg$, viParams, voParams, $xCdErro$, $xCtxErro$)
+			if ($procerror)
+				$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")        
+				poCdErro = $xCdErro$
+				poCtxErro = $xCtxErro$
+				return(-1)
+			elseif ($xCdErro$)
+				$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")
+				poCdErro = $xCdErro$
+				poCtxErro = $xCtxErro$
+				return(-1)
+			endif
+
+			;---- WMC - Proj 170 Tar 277 - 23/05/2011
+			commit
+
+			if ($status < 0)				
+				$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")
+				poCdErro = $xCdErro$
+				poCtxErro = $xCtxErro$
+				rollback
+				return(-1)
+			endif
+			;----//----//----
+		endif
+
+		if($inUtilizaSeloFiscal$ = <TRUE>)
+			viParams = ""
+			putitem/id viParams, "CD_EMPRESA", vCdEmpresa
+			putitem/id viParams, "NR_FATURA", vNrFatura
+			putitem/id viParams, "DT_FATURA", vDtFatura
+			activate "FISSVCO019".gravaSelo($xlpg$, viParams, voParams, $xCdErro$, $xCtxErro$)
+			if ($procerror)
+				$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")        
+				poCdErro = $xCdErro$
+				poCtxErro = $xCtxErro$
+				return(-1)
+			elseif ($xCdErro$)
+				$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")
+				poCdErro = $xCdErro$
+				poCtxErro = $xCtxErro$
+				return(-1)
+			endif
+
+			;---- WMC - Proj 170 Tar 277 - 23/05/2011
+			commit
+
+			if ($status < 0)				
+				$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")
+				poCdErro = $xCdErro$
+				poCtxErro = $xCtxErro$
+				rollback
+				return(-1)
+			endif
+			;----//----//----
+		endif
+
+		;---- WMC - Proj 170 Tar 277 - 23/05/2011
+		;NR_NF.FIS_NFSVC = vNrNFDef
+		;CD_SERIE.FIS_NFSVC = vCdSerie	
+		;$collhandle("FIS_NFSVC")->Salvar()
+		;if ($procerror)
+		;	$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+		;	poCdErro = $xCdErro$
+		;	poCtxErro = $xCtxErro$
+		;	exit(-1)
+		;elseif ($status < 0)
+		;	$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")    
+		;	poCdErro = $xCdErro$
+		;	poCtxErro = $xCtxErro$
+		;	exit(-1)
+		;endif
+		;----//----//----
+	endif
+	
+	poParams = ""
+	putitem/id poParams, "NR_NF", vNrNFDef
+	
+	exit(0)
+end

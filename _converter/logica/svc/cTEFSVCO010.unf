@@ -1,0 +1,949 @@
+;-------------
+entry getParam
+	;-------------
+	variables
+		numeric vCdEmpresa
+		string viParams, voParams
+	endvariables
+	
+	vCdEmpresa = $item("CD_EMPRESA", $xlpg$)
+	viParams = ""
+	putitem viParams, -1, "TEF_TIPO"
+	putitem viParams, -1, "TEF_ARQ_REQ_DEDICADO"
+	putitem viParams, -1, "TEF_ARQ_RES_DEDICADO"
+	;putitem viParams, -1, "TEF_ARQ_REQ_DIAL"
+	;putitem viParams, -1, "TEF_ARQ_RES_DIAL"
+	putitem viParams, -1, "TEF_ARQ_NOME"
+	putitem viParams, -1, "TEF_TIMEOUT"
+	putitem viParams, -1, "PADRAO_ECF"
+	putitem viParams, -1, "TEF_COMUNICACAO_GP"
+	putitem viParams, -1, "TP_IMPRESSAO_TEF_PAYGO" ;-=CANONICO=- (21-12-2011) Leitura do Parametro cupom resumido, para não efetuar o tratamento de foco do tef
+	activate "ADMSVCO001".GetParamEmpresa(vCdEmpresa, viParams, voParams, $xCdErro$, $xCtxerro$)
+	if ($procerror)
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+		return(-1)
+	elseif ($xCdErro$)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=%%$item("DESCRICAO", $xCtxErro$)", "")
+		return(-1)
+	endif
+
+	$tpImpressaoTefPaygo$ = $item("TP_IMPRESSAO_TEF_PAYGO", voParams) ;-=CANONICO=- (21-12-2011) Leitura do Parametro cupom resumido, para não efetuar o tratamento de foco do tef
+
+	$PadraoECF$ = $item("PADRAO_ECF", voParams)
+	$tefComunicacaoGP$ = $item("TEF_COMUNICACAO_GP", voParams)
+	$tpTEF$ = $item("TEF_TIPO", voParams)
+	if ($tpTEF$ = 2)
+		$dsDirReq$ = $item("TEF_ARQ_REQ_DIAL", voParams)
+		if ($dsDirReq$ = "")
+			call recuperaUnidade($vUnidade$)
+			if ($procerror)
+				$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+				return(-1)
+			elseif ($status < 0)
+				$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Não foi possível mapear unidade C:\ !", "ADICIONAL=Operação->TEFSVCO010.geraArquivo")
+				return(-1)
+			endif
+			$dsDirReq$ = "%%$vUnidade$:\TEF_DIAL\REQ\"
+		endif
+		$dsDirResp$ = $item("TEF_ARQ_RES_DIAL", voParams)
+		if ($dsDirResp$ = "")
+			call recuperaUnidade($vUnidade$)
+			if ($procerror)
+				$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+				return(-1)
+			elseif ($status < 0)
+				$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Não foi possível mapear unidade C:\ !", "ADICIONAL=Operação->TEFSVCO010.geraArquivo")
+				return(-1)
+			endif
+			$dsDirResp$ = "%%$vUnidade$:\TEF_DIAL\RESP\"
+		endif		
+	elseif ($tpTEF$ = 1)
+		$dsDirReq$ = $item("TEF_ARQ_REQ_DEDICADO", voParams)
+		;if ($dsDirReq$ = "") ;-=CANONICO=- (30/03/2010) TAR 240 - PRJ 102 -
+			call recuperaUnidade($vUnidade$)
+			if ($procerror)
+				$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+				return(-1)
+			elseif ($status < 0)
+				$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Não foi possível mapear unidade C:\ !", "ADICIONAL=Operação->TEFSVCO010.geraArquivo")
+				return(-1)
+			endif
+			$dsDirReq$ = "%%$vUnidade$:\CLIENT\REQ\"
+		;endif
+		$dsDirResp$ = $item("TEF_ARQ_RES_DEDICADO", voParams)
+		;if ($dsDirResp$ = "") ;-=CANONICO=- (30/03/2010) TAR 240 - PRJ 102 -
+			call recuperaUnidade($vUnidade$)
+			if ($procerror)
+				$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+				return(-1)
+			elseif ($status < 0)
+				$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Não foi possível mapear unidade C:\ !", "ADICIONAL=Operação->TEFSVCO010.geraArquivo")
+				return(-1)
+			endif
+			$dsDirResp$ = "%%$vUnidade$:\CLIENT\RESP\"
+		;endif
+	endif
+	$dsArquivo$ = $item("TEF_ARQ_NOME", voParams)
+	if ($dsArquivo$ = "")
+		$dsArquivo$ = "INTPOS"
+	endif
+	$nrTimeOUT$ = $item("TEF_TIMEOUT", voParams)
+	if ($nrTimeOUT$ = 0)
+		$nrTimeOUT$ = 7
+	endif
+	
+	return(0)
+end
+
+;------------------------
+entry recuperaArquivoRESP
+	;------------------------
+	params
+		string piDsExtensao : IN
+		boolean piInTimeOUT : IN
+		string poDsConteudo : OUT        
+	endparams
+	
+	variables
+		string viParams, voParams, vDsConteudo, vDsArquivo
+		numeric vNrIdentificacao, vQtTentativa
+		boolean vInOK
+	endvariables
+
+	if ($item("IN_LOG_TEMPO_VENDA", $$gParamGlb) = 1)
+		$hrFim$ = $clock
+		putmess "TEFSVCO010: call recuperaArquivoRESP - Inicio recuperaArquivoRESP: %%$hrFim$"
+	endif 
+
+	vDsConteudo = ""
+	vQtTentativa = 0
+	vDsArquivo = "%%$dsDirResp$%%$dsArquivo$%%%.%%piDsExtensao"
+	poDsConteudo = ""
+	
+	repeat
+;		fileload/raw vDsArquivo, vDsConteudo
+		fileload vDsArquivo, vDsConteudo
+		if ($procerror) | ($status = 0)
+			activate "KERNEL32".SLEEP(1000)
+			if (piInTimeOUT = <TRUE>)        
+				vQtTentativa = vQtTentativa + 1
+				if (vQtTentativa > $nrTimeOUT$)
+					if (piDsExtensao = "STS")
+						if ($tpTEF$ = 1) ;Dedicado
+							$instancehandle->SetStatus(<STS_ERRO>, "TEF0011", "", "")
+						else
+							;$instancehandle->SetStatus(<STS_ERRO>, "TEF0002", "", "")
+							$instancehandle->SetStatus(<STS_ERRO>, "TEF0002", "DESCRICAO=O Gerenciador Padrão não esta ativo.", "")
+						endif
+					else
+						$instancehandle->SetStatus(<STS_ERRO>, "TEF0005", "", "ADICIONAL=%%vDsArquivo")
+					endif
+					return(-1)    
+				endif
+			endif
+		else
+			activate "WINAPI".deletefile(vDsArquivo)
+			if ($procerror)
+				$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+				return(-1)
+			elseif($status <= 0)
+				$instancehandle->SetStatus(<STS_ERRO>, "TEF0004", "", "ADICIONAL=%%vDsArquivo")
+				return(-1)
+			endif
+			
+			call converteArquivoRESP(vDsConteudo, vDsConteudo)
+			if ($procerror)
+				$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+				return(-1)
+			endif
+			if ($status < 0)
+				return(-1)
+			endif    
+			
+			if (vDsConteudo = "")
+				$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Arquivo de retorno %%vDsArquivo não possui conteúdo válido!", "ADICIONAL=Operação->TEFSVCO010.geraArquivoREQ")
+				return(-1)
+			endif
+			
+			if (piDsExtensao = "STS")
+				vNrIdentificacao = $item("001-000", vDsConteudo)
+				if (vNrIdentificacao != $nrIdentificacao$)
+					$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Identificação do arquivo de retorno diferente do arquivode requisição!", "ADICIONAL=Operação->TEFSVCO010.geraArquivoREQ")
+					return(-1)
+				endif
+			endif   
+			if ($tpTEF$ = 2)
+				if (piDsExtensao = "001")
+					vNrIdentificacao = $item("001-000", vDsConteudo)
+					if (vNrIdentificacao != $nrIdentificacao$)
+						;$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Identificação do arquivo de retorno diferente do arquivode requisição!", "ADICIONAL=Operação->TEFSVCO010.geraArquivoREQ")
+						;return(-1)
+						;não emite mensagem somente fica aguardando o arquivo correto
+						vDsConteudo = ""
+					endif
+				endif 
+			endif         
+		endif
+	until (vDsConteudo != "") 
+	
+	poDsConteudo = vDsConteudo
+	
+	if ($item("IN_LOG_TEMPO_VENDA", $$gParamGlb) = 1)
+		$hrFim$ = $clock
+		putmess "TEFSVCO010: call recuperaArquivoRESP - Fim recuperaArquivoRESP: %%$hrFim$"
+	endif 
+
+	return(0)
+end
+
+;------------------------
+entry converteArquivoRESP
+	;------------------------
+	params
+		string piDsConteudo :IN
+		string poDsConteudo :OUT
+	endparams
+	
+	variables
+		string vDsLinha, vDsItem, vNmItem, vNmArq, vDirArq, vDsArq
+		numeric vNrIdentificacao, vNrLinha
+	endvariables
+
+	if ($item("IN_LOG_TEMPO_VENDA", $$gParamGlb) = 1)
+		$hrFim$ = $clock
+		putmess "TEFSVCO010: call converteArquivoRESP - Inicio converteArquivoRESP: %%$hrFim$"
+	endif 
+	
+	$instancehandle->SetStatus(<STS_LOG>, "CFI0002", "", "ADICIONAL=%%$COMPONENTNAME%%%.converteArqRESP·;LOG=%%piDsConteudo")
+	
+	poDsConteudo = ""
+	
+	length piDsConteudo
+	while($result > 0)
+;		scan piDsConteudo,"{.{+"
+		scan piDsConteudo, "%%^"
+		if ($result > 0)
+			vDsLinha = piDsConteudo[1, $result - 1]                            
+			piDsConteudo = piDsConteudo[$result + 1]            
+		else
+			vDsLinha = piDsConteudo
+			piDsConteudo = ""        
+		endif
+		putitem/id poDsConteudo, vDsLinha[1,7], vDsLinha[11]
+		vNrLinha = vNrLinha + 1
+		length piDsConteudo
+	endwhile
+	
+	if ($item("IN_LOG_TEMPO_VENDA", $$gParamGlb) = 1)
+		$hrFim$ = $clock
+		putmess "TEFSVCO010: call converteArquivoRESP - Fim converteArquivoRESP: %%$hrFim$"
+	endif 
+
+	return(0)
+end
+
+;-----------------------------
+entry recuperaUnidade
+;-----------------------------
+	params
+		string vDrive : OUT
+	endparams
+	variables
+		string vMapeamento, vUnidade, vDiretorio, vArquivo
+		boolean vFlag
+	endvariables
+	
+	if ($item("DS_UNIDTERMINAL",$$gParamGlb) != "")
+		vDrive = $item("DS_UNIDTERMINAL",$$gParamGlb)
+		return(0)
+	endif	
+
+	if ($tefComunicacaoGP$ = 1)
+		vMapeamento = "C·;D·;"
+	else
+		vMapeamento = "E·;F·;G·;H·;I·;J·;K·;L·;M·;N·;O·;P·;Q·;R·;S·;T·;U·;V·;X·;Z·;"
+	endif
+	repeat
+		getitem vUnidade, vMapeamento, 1
+		vDiretorio = "%%vUnidade:\WINDOWS\SYSTEM32"
+		activate "vbfileman".direxiste(vFlag,vDiretorio)
+		if ($procerror)       
+			$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+			return(-1)
+		endif
+		;se diretorio existe
+		if (vFlag = <FALSE>)
+			vDiretorio = "%%vUnidade:\WINNT\SYSTEM32"
+			activate "vbfileman".direxiste(vFlag,vDiretorio)
+			if ($procerror)       
+				$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+				return(-1)
+			endif			
+		endif
+		if (vFlag = <TRUE>)
+			putitem/id $$gParamGlb, "DS_UNIDTERMINAL", vUnidade
+			break
+		endif
+		delitem vMapeamento, 1
+	until (vMapeamento = "")
+	vDrive = vUnidade
+	return(0)
+end;
+
+;-------------
+entry ajustaNmRede
+	;-------------
+	params
+		string vDsNmRede : INOUT
+	endparams
+	variables
+		numeric vTam, vNrCont
+		string vDsByte, vDsResult
+	endvariables
+	;foi criado esse proc para tratar o nome da rede, pois quando não vier o código da rede no caso do TEF DEDICADO
+	;transação VISA deve-se considerar o nome "VISA" como parametro de pesquisa na tabela, também existe uma situação
+	;no TEF DEDICADO quando for VISA DÉBITO (venda CDC) esta retornando o nome da rede como "VISA ELECTRON" e o código 
+    ;da mesma igual a "AP", acontece não existe uma rede chamada "VISA ELECTRON" e sim somente "VISA", 
+	;portanto estou pegando a string "VISA ELECTRON"
+	;e transformando para "·*VISA·*·|·*ELECTRON·*" sendo assim ele vai achar a rede "VISA" no retrieve.
+	length vDsNmRede
+	vTam = $result
+	
+	;tira os espaços do final da string
+	vNrCont = vTam
+	repeat
+		vDsByte = vDsNmRede[vNrCont,vNrCont]	
+		vNrCont = vNrCont - 1
+		if (vDsByte = " ")
+			vDsNmRede = vDsNmRede[1,vNrCont]
+		endif	
+	until (vDsByte != " ")
+
+	length vDsNmRede
+	vTam = $result	
+
+	vNrCont = 1
+	repeat	
+		vDsByte = vDsNmRede[vNrCont,vNrCont]
+		if (vNrCont = 1)
+			vDsResult = "·*%%vDsByte"
+		elseif (vDsByte = " ")
+			vDsResult = "%%vDsResult·*·|·*"
+		else
+			vDsResult = "%%vDsResult%%vDsByte"
+		endif
+		vNrCont = vNrCont + 1
+	until (vNrCont > vTam) 
+
+	vDsNmRede = "%%vDsResult·*"
+
+	return(0)
+end;
+
+;---------------------------
+public operation geraArquivoREQ
+	;---------------------------
+	params
+		string  $xlpg$      :IN    
+		string  $xlpi$      :IN
+		string  $xlpo$      :OUT
+		string  poCdErro    :OUT
+		string  poCtxErro   :OUT
+	endparams
+	
+	variables
+		string vCdArquivo, vDsConteudoREQ, vDsConteudoRESP, vDsLinha, vDsValor, vNmRedeTEF
+		string viParams, voParams, vDsExtensao, vDsArquivo, vDsCampo010, vDsCaminho
+		boolean vInP1, vInTimeOUT
+		numeric vlValor, vCdEmpresa, vNrSeq
+        date vDtMovimento
+	endvariables
+	
+	if ($item("IN_LOG_TEMPO_VENDA", $$gParamGlb) = 1)
+		$hrFim$ = $clock
+		putmess "TEFSVCO010: geraArquivoREQ - Inicio geraArquivoREQ requisição TEF %%vCdArquivo: %%$hrFim$"
+	endif 
+
+	call getParam()
+	if ($procerror)
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		exit(-1)
+	endif
+	if ($status < 0)
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		exit(-1)
+	endif
+	
+	if ($tpTEF$ != 1) & ($tpTEF$ != 2)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Parametro p/ empresa TEF_TIPO inválido!", "ADICIONAL=Operação->TEFSVCO010.geraArquivo")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		exit(-1)
+	endif
+	
+	;-=CANONICO=- TAR 494 PRJ 102 (01/04/2009) - Inclusão de outras bandeiras - TECBAN - HIPERCARD
+	if ($tpTEF$ = 2) ;2 = TEF Discado
+		vDsCaminho = $item("DS_CAMINHO", $xlpi$)
+		vNmRedeTEF = $item("NM_REDETEF", $xlpi$) ;Quando é feito uma requisição de venda não e informada a REDETEF - Somente depois da transação criada tem a REDETEF
+		if ($item("010-000", $xlpi$) != "") ;010-000 = Nome da RedeTEF 
+			vNmRedeTEF = $item("010-000", $xlpi$)
+		endif
+		if (vDsCaminho = "")
+			;if (vNmRedeTEF != "") ;-=CANONICO=- (02/03/2010) - Utilizando o PayGo não é devolvido o nome da rede em transações ADM, por isso efetuei o comentario
+				selectcase vNmRedeTEF
+				case "TECBAN" ;TEF/TECBAN
+					vDsCaminho= ":\TEF_DISC" 
+				case "BANRISUL" ;TEF/BANRISUL   ;-=CANONICO=- (22/07/2010) - TAR 908 PRJ 102
+					vDsCaminho= ":\TEF_DISC" 
+				case "GETNET" ;TEF/GETNET       ;-=CANONICO=- (22/07/2010) - TAR 908 PRJ 102
+					vDsCaminho= ":\TEF_DISC" 
+				case "SICREDI" ;TEF/SICRED       ;-=CANONICO=- (22/07/2010) - TAR 908 PRJ 102
+					vDsCaminho= ":\TEF_DISC" 
+				case "HCARD" ;TEF/HIPERCARD
+					vDsCaminho= ":\HiperTEF" 
+				elsecase
+					vDsCaminho= ":\TEF_DIAL" 
+				endselectcase    
+			;endif
+			$dsDirReq$ = "%%$vUnidade$%%vDsCaminho\REQ\" ;-=CANONICO=- (03/03/2010) - TAR 822 PRJ 102
+			$dsDirResp$ = "%%$vUnidade$%%vDsCaminho\RESP\" ;-=CANONICO=- (03/03/2010) - TAR 822 PRJ 102
+		else
+			$dsDirReq$ = "%%$vUnidade$%%vDsCaminho\REQ\"
+			$dsDirResp$ = "%%$vUnidade$%%vDsCaminho\RESP\"
+		endif
+	endif
+	;------------------------------------------------------------------------------------------------
+
+	if ($dsDirReq$ = "")
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Diretório de requisição TEF não informado!", "ADICIONAL=Operação->TEFSVCO010.geraArquivo")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		exit(-1)
+	endif
+
+	if ($dsDirResp$ = "")
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Diretório de resposta TEF não informado!", "ADICIONAL=Operação->TEFSVCO010.geraArquivo")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		exit(-1)
+	endif
+	
+	vCdArquivo = $item("000-000", $xlpi$)
+	if (vCdArquivo = "")
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Campo 000-000 não informado!", "ADICIONAL=Operação->TEFSVCO010.geraArquivo")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		exit(-1)
+	endif
+	
+	$nrIdentificacao$ = $item("001-000", $xlpi$)
+	if ($nrIdentificacao$ = 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Campo 000-001 não informado!", "ADICIONAL=Operação->TEFSVCO010.geraArquivo")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		exit(-1)
+	endif
+
+	;quando for TEF DISCADO o campo 003-000 "valor" não dever conter vírgula
+	if ($tpTEF$ = 2)
+		vDsValor = $item("003-000", $xlpi$)
+		vDsValor = $replace(vDsValor, 1, ".", "", -1)
+		vDsValor =	 $replace(vDsValor, 1, ",", "", -1)
+
+;		scan vDsValor, ","
+;		if ($result > 0)
+;			vDsValor = "%%vDsValor[1 : $result -1]%%vDsValor[$result +1 : 2]"
+;		endif
+		putitem/id $xlpi$, "003-000", vDsValor
+	endif	
+	
+	vDsExtensao = $item("DS_EXTENSAO", $xlpi$)
+	if (vDsExtensao = "")
+		vDsExtensao = "001"
+	endif
+	
+	vInP1 = $item("IN_P1", $xlpi$)
+
+	vDsArquivo = "%%$dsDirResp$%%$dsArquivo$%%%.STS"
+	activate "WINAPI".deletefile(vDsArquivo)
+	if ($procerror)
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+		return(-1)
+	endif
+
+	vDsArquivo = "%%$dsDirResp$%%$dsArquivo$%%%.%%vDsExtensao"
+	activate "WINAPI".deletefile(vDsArquivo)
+	if ($procerror)
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+		return(-1)
+	endif
+	
+	clear/e "TEF_ARQUIVOSVC"
+	CD_ARQUIVO.TEF_ARQUIVOSVC/init = vCdArquivo
+	TP_TEF.TEF_ARQUIVOSVC/init = $tpTEF$
+	retrieve/e "TEF_ARQUIVOSVC"
+	if ($status < 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Tipo de arquivo %%vCdArquivo não cadastrado!", "ADICIONAL=Operação->TEFSVCO010.geraArquivo")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		exit(-1)
+	endif
+	
+	if ($empty("TEF_CAMPOARQSVC") != 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Tipo de arquivo %%vCdArquivo não possuir campos cadastrados!", "ADICIONAL=Operação->TEFSVCO010.geraArquivo")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		exit(-1)
+	endif
+ 
+	vCdEmpresa = $item("CD_EMPRESA",$xlpi$)
+	vDtMovimento = $item("DT_MOVIMENTO",$xlpi$)
+	vNrSeq = $item("NR_SEQ",$xlpi$)
+	if (vCdEmpresa > 0 & vDtMovimento != "" & vNrSeq > 0)
+		clear/e "TEF_TRANSACAOSVC"
+		CD_EMPRESA.TEF_TRANSACAOSVC/init = vCdEmpresa
+		DT_MOVIMENTO.TEF_TRANSACAOSVC/init = vDtMovimento
+		NR_SEQ.TEF_TRANSACAOSVC/init = vNrSeq
+		retrieve/e "TEF_TRANSACAOSVC"
+	else
+		clear/e "TEF_TRANSACAOSVC"	
+	endif
+
+	;no TEF DEDICADO quando não vir o campo 012-000 não poderá ser enviado na confirmacao CNF (transações OFF-LINE)
+
+	vDsConteudoREQ = ""
+
+	sort/e "TEF_CAMPOARQSVC", "NR_CAMPO.TEF_CAMPOARQSVC"	
+	setocc "TEF_CAMPOARQSVC", 1            
+	while ($status >= 0)
+		;no caso do TEF DISCADO existe algumas funçoes administrativas que não retornam NSU. Caso de fechamento de lote.
+		;por isso o teste no campo CD_ARQUIVO.TEF_TRANSACAOSVC, se a transação for do tipo administrativa mandar nulo para 012-000
+		vDsValor = $item(NR_CAMPO.TEF_CAMPOARQSVC, $xlpi$)
+		if (vDsValor = "") & (IN_OBRIGATORIO.TEF_CAMPOARQSVC = <TRUE>) & (CD_ARQUIVO.TEF_TRANSACAOSVC != "ADM")
+			if (NR_CAMPO.TEF_CAMPOARQSVC = "027-000") & (NM_REDETEF.TEF_TRANSACAOSVC = "HCARD")
+			else
+				if (NR_CAMPO.TEF_CAMPOARQSVC != "012-000")
+					$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Campo %%NR_CAMPO.TEF_CAMPOARQSVC não informado!", "ADICIONAL=Operação->TEFSVCO010.geraArquivo")
+					poCdErro = $xCdErro$
+					poCtxErro = $xCtxErro$
+					exit(-1)
+				endif
+			endif
+		endif
+		vDsLinha = "%%NR_CAMPO.TEF_CAMPOARQSVC = %%vDsValor"
+		if (NR_CAMPO.TEF_CAMPOARQSVC = "012-000") & (vDsValor = "") 
+			;no caso do TEF DISCADO existe algumas funçoes administrativas que não retornam NSU. Caso de fechamento de lote.
+			;por isso o arquivo não deve compor o campo 012-000
+		else
+			vDsConteudoREQ = "%%vDsConteudoREQ%%vDsLinha%%^"
+		endif
+		setocc "TEF_CAMPOARQSVC", $curocc("TEF_CAMPOARQSVC") + 1
+	endwhile
+
+	if ($item("IN_LOG_TEMPO_VENDA", $$gParamGlb) = 1)
+		$hrFim$ = $clock
+		putmess "TEFSVCO010: geraArquivoREQ - Inicio filedump geraArquivoREQ: %%$hrFim$"
+	endif 
+
+	;criar  com outro nome e renomear arquivo
+	vDsArquivo = "%%$dsDirReq$%%$dsArquivo$%%%.TMP"
+	filedump vDsConteudoREQ, vDsArquivo
+	if ($procerror)
+		$instancehandle->SetStatus(<STS_ERRO>, "TEF0001", "", "ADICIONAL=%%vDsArquivo")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		exit(-1)
+	endif
+	if ($status < 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "TEF0001", "", "ADICIONAL=%%vDsArquivo")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		exit(-1)
+	endif
+
+	;-=CANONICO=- (21-11-2011) Teste de perfomace. Testa o parametro e não faz tratamento do foco
+	if ($tpImpressaoTefPaygo$ != 1) ;Impressão resumida
+		;;faz o tratamento do foco no tef quando roda via JTI
+		if ($PadraoECF$ = <PADRAO_LOCALIMPFIM>) & (vCdArquivo = "CNC" | vCdArquivo = "ADM" | vCdArquivo = "CRT") & ($tefComunicacaoGP$ = 0)
+			viParams = ""
+			putitem/id viParams "IN_MINIMIZA", <TRUE>
+			activate "ECFSVCO011".trataFocoTEF(viParams, voParams, $xCdErro$, $xCtxErro$)
+			if ($procerror)       
+				$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+				poCdErro = $xCdErro$
+				poCtxErro = $xCtxErro$
+				return (<STS_ERRO>)
+			elseif ($status < 0)
+				$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")
+				poCdErro = $xCdErro$
+				poCtxErro = $xCtxErro$
+				return (<STS_ERRO>)
+			endif
+		endif
+	endif	
+
+	viParams = ""
+	putitem/id viParams, "PATH_ARQUIVO", vDsArquivo
+	putitem/id viParams, "NOME_ARQUIVO", $dsArquivo$
+	putitem/id viParams, "EXT_ARQUIVO", vDsExtensao
+	activate "GERSVCO100".RenomeaArquivo($$gParamGlb, viParams, voParams, $xCdErro$, $xCtxErro$)
+	if ($procerror)       
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return (<STS_ERRO>)
+	elseif ($status < 0)
+		$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return (<STS_ERRO>)
+	endif
+
+	if ($item("IN_LOG_TEMPO_VENDA", $$gParamGlb) = 1)
+		$hrFim$ = $clock
+		putmess "TEFSVCO010: geraArquivoREQ - Fim filedump geraArquivoREQ: %%$hrFim$"
+	endif 
+
+	vInTimeOUT = <TRUE>
+	call recuperaArquivoRESP("STS", vInTimeOUT, vDsConteudoRESP)
+	if ($procerror)
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		exit(-1)
+	endif
+	if ($status < 0)
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		exit(-1)
+	endif
+
+	if (vInP1 = <TRUE>) 
+		vInTimeOUT = <FALSE>
+		call recuperaArquivoRESP(vDsExtensao, vInTimeOUT, vDsConteudoRESP)
+		if ($procerror)
+			$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+			poCdErro = $xCdErro$
+			poCtxErro = $xCtxErro$
+			exit(-1)
+		endif
+		if ($status < 0)
+			poCdErro = $xCdErro$
+			poCtxErro = $xCtxErro$
+			exit(-1)
+		endif
+	endif
+
+	;-=CANONICO=- (21-11-2011) Teste de Perfomarce
+	if ($tpImpressaoTefPaygo$ != 1) ;Impressão resumida
+		;faz o tratamento do foco no tef quando roda via JTI
+		if ($PadraoECF$ = <PADRAO_LOCALIMPFIM>) & (vCdArquivo = "CNC" | vCdArquivo = "ADM" | vCdArquivo = "CRT") & ($tefComunicacaoGP$ = 0)
+			viParams = ""
+			putitem/id viParams "IN_MINIMIZA", <FALSE>
+			activate "ECFSVCO011".trataFocoTEF(viParams, voParams, $xCdErro$, $xCtxErro$)
+			if ($procerror)       
+				$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+				poCdErro = $xCdErro$ ;-=CANONICO=- 03/01/2011 TAR 3 PRJ 181
+				poCtxErro = $xCtxErro$
+				return (<STS_ERRO>)
+			elseif ($status < 0)
+				$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")
+				poCdErro = $xCdErro$
+				poCtxErro = $xCtxErro$
+				return (<STS_ERRO>)
+			endif
+		endif
+	endif
+
+	$xlpo$ = vDsConteudoRESP
+
+	if ($item("IN_LOG_TEMPO_VENDA", $$gParamGlb) = 1)
+		$hrFim$ = $clock
+		putmess "TEFSVCO010: geraArquivoREQ - Fim geraArquivoREQ requisição TEF %%vCdArquivo: %%$hrFim$"
+	endif 
+	
+	exit(0)
+end
+
+;-------------------------------
+public operation buscaDadoCartao
+;-------------------------------
+	params
+		string  $xlpg$      :IN    
+		string  $xlpi$      :IN
+		string  $xlpo$      :OUT
+		string  poCdErro    :OUT
+		string  poCtxErro   :OUT
+	endparams
+
+	variables
+		numeric vNrParcela, vCdRede, vCdTransacao, vTpJuros
+		string vDsRede, vDsAdministradora
+	endvariables
+
+	call getParam()
+	if ($procerror)
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		exit(-1)
+	endif
+	if ($status < 0)
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		exit(-1)
+	endif
+
+	vCdRede = $item("010-001", $xlpi$)
+	vDsRede = $uppercase($item("010-000", $xlpi$)) ;-=CANONICO=- (10/06/2011) TAR 21 PRJ 181 - "A rede XCARD devolve o nome da rede em minusculo, sendo necessario efetuar a conversão para maisculo."
+	vCdTransacao = $item("011-000", $xlpi$)
+	vTpJuros = $item("017-000", $xlpi$)
+	;vTpJuros (0) Loja (1) Operadora
+	vNrParcela = $item("018-000", $xlpi$)
+	vDsAdministradora = $item("040-000", $xlpi$) ;-=CANONICO=- (11/2/2011) TAR 1762 PRJ 22 "Nome da administradora, esta linha devolve realmente qual cartão foi utilizado na transação)
+	vDsAdministradora = $rtrim($uppercase(vDsAdministradora)," ");-=CANONICO=- (17/03/2011) TAR 010 PRJ 181 "Muda para maiscula e remove espacos ao final"
+	;if ($tpTEF$ = 1);validacao para TEF DEDICADO
+	;	if (vCdRede = 0)
+	;		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Campo 010-001 não encontrado no arquivo de resposta!", "ADICIONAL=Operação->TEFSVCO010.buscaDadoCartao")
+	;		poCdErro = $xCdErro$
+	;		poCtxErro = $xCtxErro$
+	;		exit(-1)
+	;	endif	
+	;else
+	;	if (vDsRede = "")
+	;		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Campo 010-000 não encontrado no arquivo de resposta!", "ADICIONAL=Operação->TEFSVCO010.buscaDadoCartao")
+	;		poCdErro = $xCdErro$
+	;		poCtxErro = $xCtxErro$
+	;		exit(-1)			
+	;	endif
+	;endif
+
+	if (vCdRede = 0) & (vDsRede = "")
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Campo 010-000 e campo 010-001 estão nulos no arquivo de resposta!", "ADICIONAL=Operação->TEFSVCO010.buscaDadoCartao")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		exit(-1)			
+	endif
+	if (vCdRede = 0)
+		vCdRede = ""
+	endif	
+
+	if (vCdTransacao = 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Campo 011-001 não encontrado no arquivo de resposta!", "ADICIONAL=Operação->TEFSVCO010.buscaDadoCartao")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		exit(-1)
+	endif	
+
+	if (vNrParcela = 0)
+		vNrParcela = 1
+	endif
+
+	call ajustaNmRede(vDsRede)
+	if ($procerror)
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+		exit(-1)
+	endif
+
+	if (vDsAdministradora != "") ;-=CANONICO=- (05/4/2011) TAR 13 PRJ 181 - 
+		call ajustaNmRede(vDsAdministradora)
+		if ($procerror)
+			$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+			exit(-1)
+		endif
+	endif
+
+	clear/e "TEF_REDETEFSVC"
+	TP_TEF.TEF_REDETEFSVC/init = $tpTEF$
+	;Em virtude da centralização das operadoras de cartão foi adaptado o código abaixo. Pois hoje em dia
+    ;esta usando apenas uma máquina pra passar todos os cartões. Fiuza/Canonico/Miria -Lojão 01/12/2010
+	if ($tpTEF$ = 1)
+		NM_REDETEF.TEF_REDETEFSVC/init = vDsRede
+		if (vDsAdministradora != "")
+			NM_REDETEF.TEF_REDETEFSVC/init = vDsAdministradora
+		endif
+	else
+		;if ($tpTEF$ = 1)
+			CD_REDETEF.TEF_REDETEFSVC/init = vCdRede
+		;else
+			NM_REDETEF.TEF_REDETEFSVC/init = vDsRede
+		;endif
+		if (vDsAdministradora != "");-=CANONICO=- (11/2/2011) TAR 1762 PRJ 22 "Nome da administradora, esta linha devolve realmente qual cartão foi utilizado na transação)
+			NM_REDETEF.TEF_REDETEFSVC/init = vDsAdministradora
+		endif
+	endif
+	retrieve/e "TEF_REDETEFSVC"
+	if ($status < 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Rede %%CD_REDETEF.TEF_REDETEFSVC não cadastrada!", "ADICIONAL=Operação->TEFSVCO010.buscaDadoCartao")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		exit(-1)
+	endif
+
+	clear/e "TEF_TIPOTRANSSVC"
+	TP_TEF.TEF_TIPOTRANSSVC/init = $tpTEF$
+	TP_TRANSACAO.TEF_TIPOTRANSSVC/init = vCdTransacao
+	retrieve/e "TEF_TIPOTRANSSVC"
+	if ($status < 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Transação TEF %%vCdTransacao não cadastrada!", "ADICIONAL=Operação->TEFSVCO010.buscaDadoCartao")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		exit(-1)
+	endif	
+
+	if ($tpTEF$ = 1)
+		if (TP_OPERCREDITO.TEF_TIPOTRANSSVC != 1) & (TP_OPERCREDITO.TEF_TIPOTRANSSVC != 2) ;Cartão crédito / Cartão débito
+			$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Transação TEF %%vCdTransacao não esta cadastrada como cartão de crédito/débito!", "ADICIONAL=Operação->TEFSVCO010.buscaDadoCartao")
+			poCdErro = $xCdErro$
+			poCtxErro = $xCtxErro$
+			exit(-1)
+		endif
+	endif
+
+	clear/e "TEF_RELOPERSVC"
+	TP_TEF.TEF_RELOPERSVC/init = $tpTEF$
+	CD_REDETEF.TEF_RELOPERSVC/init = CD_REDETEF.TEF_REDETEFSVC
+	TP_TRANSACAO.TEF_RELOPERSVC/init = vCdTransacao
+	retrieve/e "TEF_RELOPERSVC"
+	if ($status < 0) | (NR_PORTADOR.TEF_RELOPERSVC < 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Nenhum portador cadastrado para transação TEF %%vCdTransacao na rede %%CD_REDETEF.TEF_REDETEFSVC%%%!", "ADICIONAL=Operação->TEFSVCO010.buscaDadoCartao")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		exit(-1)
+	endif	
+
+	clear/e "FCX_HISTRELSUSVC"
+	if (TP_OPERCREDITO.TEF_TIPOTRANSSVC = 1) ;Cartão crédito
+		TP_DOCUMENTO.FCX_HISTRELSUSVC/init = 4 ; Cartão crédito
+	elseif (TP_OPERCREDITO.TEF_TIPOTRANSSVC = 2) | (TP_OPERCREDITO.TEF_TIPOTRANSSVC = 4)		
+		TP_DOCUMENTO.FCX_HISTRELSUSVC/init = 5 ; Cartão débito
+	elseif (TP_OPERCREDITO.TEF_TIPOTRANSSVC = 3)		
+		TP_DOCUMENTO.FCX_HISTRELSUSVC/init = 2 ; Cheque
+	endif
+	if (TP_OPERCREDITO.TEF_TIPOTRANSSVC = 3)
+		vNrParcela = ""
+	else
+		if ($tpTEF$ = 1)
+			if (vNrParcela = 1) & (TP_OPERCREDITO.TEF_TIPOTRANSSVC = 1)	
+				clear/e "TEF_RELOPERSVC"
+				TP_TEF.TEF_RELOPERSVC/init = $tpTEF$
+				CD_REDETEF.TEF_RELOPERSVC/init = CD_REDETEF.TEF_REDETEFSVC
+				TP_TRANSACAO.TEF_RELOPERSVC/init = 48 ;compra cartao credito rotativo
+				retrieve/e "TEF_RELOPERSVC"
+				if ($status < 0) | (NR_PORTADOR.TEF_RELOPERSVC < 0)
+					$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Nenhum portador cadastrado para transação TEF %%vCdTransacao na rede %%CD_REDETEF.TEF_REDETEFSVC%%%!", "ADICIONAL=Operação->TEFSVCO010.buscaDadoCartao")
+					poCdErro = $xCdErro$
+					poCtxErro = $xCtxErro$
+					exit(-1)
+				endif
+				NR_PORTADOR.FCX_HISTRELSUSVC/init = NR_PORTADOR.TEF_RELOPERSVC
+			else
+				if (vTpJuros = 1)
+					if (NR_PORTADOROPER.TEF_RELOPERSVC > 0)
+						NR_PORTADOR.FCX_HISTRELSUSVC/init = NR_PORTADOROPER.TEF_RELOPERSVC
+					else
+						NR_PORTADOR.FCX_HISTRELSUSVC/init = NR_PORTADOR.TEF_RELOPERSVC
+					endif
+				else
+					NR_PORTADOR.FCX_HISTRELSUSVC/init = NR_PORTADOR.TEF_RELOPERSVC
+				endif
+			endif
+		else
+			NR_PORTADOR.FCX_HISTRELSUSVC/init = NR_PORTADOR.TEF_RELOPERSVC
+		endif
+	endif
+
+	NR_PARCELAS.FCX_HISTRELSUSVC/init = vNrParcela
+	retrieve/e "FCX_HISTRELSUSVC"
+	if ($status < 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Nenhum histórico auxiliar de parcelamento relacionado à transação %%vCdTransacao na rede %%CD_REDETEF.TEF_REDETEFSVC%%!", "ADICIONAL=Operação->TEFSVCO010.buscaDadoCartao")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		exit(-1)
+	endif	
+
+	$xlpo$ = ""
+	putitem/id $xlpo$, "TP_DOCUMENTO", TP_DOCUMENTO.FCX_HISTRELSUSVC
+	putitem/id $xlpo$, "NR_SEQHISTRELSUB", NR_SEQHISTRELSUB.FCX_HISTRELSUSVC
+
+	exit(0)
+end
+
+;-------------------------------
+public operation buscaViaCartao
+;-------------------------------
+	params
+		string  $xlpg$      :IN    
+		string  $xlpi$      :IN
+		string  $xlpo$      :OUT
+		string  poCdErro    :OUT
+		string  poCtxErro   :OUT
+	endparams
+	variables
+		string vTpVia, vDsCupom, vDsLinha, vDs1Via, vDs2Via, vDsConteudo
+		boolean vInAchouCorte
+	endvariables
+
+	vTpVia = $item("TP_VIA", $xlpi$)
+	if (vTpVia = 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Tipo de via de cupom não informada!", "ADICIONAL=Operação->TEFSVCO010.buscaViaCartao")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		exit(-1)
+	endif
+	;vTpVia  (1) ambas	
+	;        (2) via do cliente
+	;	     (3) via do estabelecimento 
+
+	;vDs1Via via do cliente
+	;vDs2Via via do estabelecimento 
+
+	vDsCupom = $item("DS_CUPOM", $xlpi$)
+	if (vDsCupom = "")
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Lista de cupom não informada!", "ADICIONAL=Operação->TEFSVCO010.buscaViaCartao")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		exit(-1)
+	endif
+
+	vInAchouCorte = <FALSE>
+
+	length vDsCupom
+	while($result > 0)
+		scan vDsCupom, "%%^"
+		if ($result > 0)
+			vDsLinha = vDsCupom[1, $result - 1]                            
+			vDsCupom = vDsCupom[$result + 1]            
+		else
+			vDsLinha = vDsCupom
+			vDsCupom = ""
+		endif
+		;onde se encontra a divisao entre a 1º e a 2º via
+		if (vDsLinha = "***VIRTUAL***")
+			vInAchouCorte = <TRUE>
+		endif
+		if (vDsLinha != "***VIRTUAL***")
+			if (!vInAchouCorte)
+				vDs1Via = "%%vDs1Via%%vDsLinha%%^"
+			else
+				vDs2Via = "%%vDs2Via%%vDsLinha%%^"
+			endif
+		endif
+		length vDsCupom
+	endwhile
+	selectcase (vTpVia)
+		case 01
+			vDsConteudo = "%%vDs1Via%%vDs2Via"		
+		case 02
+			vDsConteudo = vDs1Via	
+		case 03
+			vDsConteudo = vDs2Via	
+	endselectcase
+
+	putitem/id $xlpo$, "DS_CUPOM", vDsConteudo
+
+	exit(0)
+end

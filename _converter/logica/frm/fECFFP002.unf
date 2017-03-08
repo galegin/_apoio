@@ -1,0 +1,1277 @@
+;-------------------------
+entry posCLEAR 
+;-------------------------
+$instancehandle->valorPadrao()
+if ($procerror)
+	$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+endif 
+return(0)
+End ; operation posCLEAR
+
+;------------------------
+entry preEDIT 
+;------------------------
+$InFlag$ = $item("IN_FLAG", $xlpi$)
+; 1 - REDUCAOZ
+; 2 - LEITURA FISCAL
+; 3 - SUPRIMENTO
+; 4 - ABERTURA DO DIA
+; 5 - SANGRIA
+; 6 - PROGRAMA HORARIO VERÃO LSC (13/12/2006) - Tarefa: 126 - Projeto: 41 - Programa horário verão
+; 7 - GERAR ARQUIVO NFP(Nota Fiscal Paulista)
+
+$TpLeituraMem$ = $item("TP_LEITURA",$xlpi$)
+;(1) leitura por data ECF
+;(2) leitura por reduçãoZ ECF
+;(3) leitura por data para Arquivo
+;(4) leitura por reduçãoZ para Arquivo
+
+$instancehandle->obtemNumeroSerie()
+if ($procerror)
+	$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+	return(-1)
+endif
+
+$instancehandle->valorPadrao()
+if ($procerror)
+	$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+endif 
+
+DS_DATA.SIS_ECF = $datim
+DS_DATAFIM.SIS_ECF = $datim
+
+return(0)
+End ; operation preEDIT
+
+#include <LIB_PADRAO>:DEF_TEMPLATE
+;---------------------
+partner operation INIT 
+	;---------------------
+	;;Parametros por empresa
+	$xlplemp$ = ""
+	putitem $xlplemp$, -1, "IN_PDV_OTIMIZADO"
+	putitem $xlplemp$, -1, "IN_GRAVA_REDUCAOZ"
+	putitem $xlplemp$, -1, "UF_ORIGEM"
+	activate "ADMSVCO001".GetParamEmpresa($item("CD_EMPRESA", $$gParamGlb), $xlplemp$, $xlplemp$, $xcderro$, $xctxerro$)
+	if ($procerror)
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+	elseif ($xcdErro$)
+		$instancehandle->SetErroApl($xCtxErro$, $xCdErro$, $xCtxErro$)
+	endif
+	$inPdvOtimizado$ = $item("IN_PDV_OTIMIZADO", $xlplemp$)
+	$inGravaReducaoZ$ = $item("IN_GRAVA_REDUCAOZ", $xlplemp$)	
+	$ufOrigem$ = $item("UF_ORIGEM", $xlplemp$)
+
+	$formtitle = "%%$componentname - Entrada de Valor ECF (Emissor de Cupom Fiscal)"
+End ; operation INIT
+
+;------------------------
+partner operation CLEANUP 
+	;------------------------
+	
+End ; operation CLEANUP
+
+;------------------------
+partner operation chamaFuncao 
+	;------------------------
+	variables
+		string viParams, voparams, vDtini, vDtFim, vNrCupom, vDsMsg, vDsAux, vDsPath, vTpSituacao   
+		numeric  vDadoIni, vDadoFim 
+		date vDataIni, vDataFim
+		boolean vTermica, vFlag, vInMonitorDLL
+	endvariables
+
+	$instancehandle->obtemNumeroSerie()
+	if ($procerror)
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+		return(-1)
+	endif
+
+	$instancehandle->verificaECFTermica()
+	if ($procerror)
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+		return(-1)
+	endif			
+
+	;* Claudemir - Prj/Tarefa: 102/877 - 19/05/2010
+	vInMonitorDLL = <FALSE>
+	clear/e "FIS_ECF"
+	CD_EMPRESA.FIS_ECF/init   = $item("CD_EMPRESA",$$gParamGlb)
+	CD_SERIEFAB.FIS_ECF/init  = $vNrSerie$
+	retrieve/e "FIS_ECF"
+	if ($status >= 0)
+		clear/e "FIS_ECFADIC"
+		CD_EMPRESA.FIS_ECFADIC/init = CD_EMPRESA.FIS_ECF
+		NR_ECF.FIS_ECFADIC/init     = NR_ECF.FIS_ECF
+		retrieve/e "FIS_ECFADIC"
+		if ($status >= 0)
+			if (TP_MONITOR.FIS_ECFADIC = 01)
+				vInMonitorDLL = <TRUE>
+			endif 
+		endif 
+	endif ;*
+
+;  ;LSCanonico 17/11/06 - projeto 26 tarefa 15 - Adicionar Sangria no Monitor(Modelo Bematech)
+;	viParams = ""
+;	putitem/id viParams, "NM_FUNCAO", <ECF_NUMERO_SERIE>
+;	activate "ECFSVCO001".LeInformacaoImpressora(viParams,voParams,$xcderro$,$xctxerro$)
+;	if ($procerror)       
+;     $instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+;		return(-1)
+;	elseif ($status = -10)
+;		viParams = ""
+;		voParams = ""
+;		putitem/id viParams,"TITULO", "Erro de comunicação com a ECF"
+;		putitem/id viParams,"MENSAGEM", $item("DESCRICAO",$xctxerro$)
+;		activate "GERFP008".EXEC(viParams,voParams,$xCdErro$,$xCtxErro$)
+;		if ($procerror)       
+;			$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+;			return(-1)
+;		endif
+;		return(-1)
+;	elseif ($status < 0) & ($status != -11)
+;		$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")
+;		return(-1)
+;	endif
+;	$vNrSerie$ = $item("NR_SERIE",voParams)	
+;	if ($vNrSerie$ = "")
+;		$vNrSerie$ = $item("CD_SERIEECF",$$gParamGlb)
+;	endif
+
+    ;---------------------------------------------
+	;fiuza 20/07/06 - projeto 51 tarefa 28 - agora valida a impressora de acordo com a empresa de cadastro
+	;viParams = ""
+	;putitem/id viParams, "NR_SERIE", $item("CD_SERIEECF",$$gParamGlb)
+	;activate "ECFSVCO010".validaImpressoraFiscal($$gParamGlb,viParams,voParams,$xcderro$,$xctxerro$)
+	;if ($procerror)       
+    ;  $instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+	;	return(-1)
+	;elseif ($status < 0)
+	;	$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")
+	;	return(-1)
+	;endif
+	;---------------------------------------------
+	viParams = ""
+	if($InFlag$ = 1)
+
+		if ($ufOrigem$ = "")
+			$instancehandle->SetStatus(<STS_ERRO>,"GEN0001","DESCRICAO=Parâmetro empresa UF_ORIGEM não configurado!","")
+			return(-1)
+		endif
+
+		;-=LSC=- (20/02/2008) TAR 181 PRJ 102 -Verifica se impressora fiscal e da Epson caso nao seja faz a reducao depois de gerar tipo60
+		;* Claudemir - Prj/Tarefa: 102/845 - 19/04/2010 - a impressora Interway também deve ser gerado o registro tipo60 antes da redução z
+		;if ($vNrSerie$[1:2] != "EP") & ($vNrSerie$[1:2] != "ZP") & ($vNrSerie$[1:2] != "DR") 
+		;* Claudemir - Prj/Tarefa: 102/877 - 19/05/2010
+		;if ($vNrSerie$[1:2] != "EP") & ($vNrSerie$[1:2] != "ZP") & ($vNrSerie$[1:2] != "DR") & ($vNrSerie$[1:2] != "IW")
+		; Verifica se o monitor está cadastrado como Monitor DLL, se for, a redução z será emitida antes da geração do registro tipo 60
+		if (vInMonitorDLL = <TRUE>) | (($vNrSerie$[1:2] != "EP") & ($vNrSerie$[1:2] != "ZP") & ($vNrSerie$[1:2] != "DR") & ($vNrSerie$[1:2] != "IW"))
+			activate "ECFSVCO001".ReducaoZ(viParams,voParams,$xcderro$,$xctxerro$)
+			if ($procerror)       
+				$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+				return(-1)
+			elseif ($status = -10)
+				viParams = ""
+				voParams = ""
+				putitem/id viParams,"TITULO", "Erro de comunicação com a ECF"
+				putitem/id viParams,"MENSAGEM", $item("DESCRICAO",$xctxerro$)
+				activate "GERFP008".EXEC(viParams,voParams,$xCdErro$,$xCtxErro$)
+				if ($procerror)       
+					$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+					return(-1)
+				endif
+				return(-1)
+			elseif ($status < 0)
+				$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")
+				return(-1)
+			endif
+		endif
+		
+		if ($inGravaReducaoZ$ = <TRUE>)
+			if ($item("CD_SERIEECF",$$gParamGlb) = "")
+				;---------------------------
+				;Busca a série da impressora
+				;---------------------------
+				viParams = ""
+				voParams = ""
+				putitem/id viParams, "NM_FUNCAO", <ECF_NUMERO_SERIE>
+				activate "ECFSVCO001".leInformacaoImpressora(viParams,voParams,$xcderro$,$xctxerro$)
+				if ($procerror)       
+					$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+					return(-1)
+				elseif ($status = -10)
+					viParams = ""
+					voParams = ""
+					putitem/id viParams,"TITULO", "Erro de comunicação com a ECF"
+					putitem/id viParams,"MENSAGEM", $item("DESCRICAO",$xctxerro$)
+					activate "GERFP008".EXEC(viParams,voParams,$xCdErro$,$xCtxErro$)
+					if ($procerror)       
+						$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+						return(-1)
+					endif
+					return(-1)
+				elseif ($status < 0)
+					$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")
+					return(-1)
+				endif
+				$vNrSerie$ = $item("NR_SERIE",voParams)
+			else
+				$vNrSerie$ = $item("CD_SERIEECF",$$gParamGlb)
+			endif
+			;---------------------------
+			;Gera relatorio para gravar mapa fiscal
+			;---------------------------
+			viParams = ""
+			voParams = ""
+			putitem/id viParams, "NR_SERIE", $vNrSerie$
+			activate "ECFSVCO001".registroTipo60(viParams,voParams,$xcderro$,$xctxerro$)
+			if ($procerror)
+				$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+				return(-1)
+			elseif ($status = -10)
+				viParams = ""
+				voParams = ""
+				putitem/id viParams,"TITULO", "Erro de comunicação com a ECF"
+				putitem/id viParams,"MENSAGEM", $item("DESCRICAO",$xctxerro$)
+				activate "GERFP008".EXEC(viParams,voParams,$xCdErro$,$xCtxErro$)
+				if ($procerror)       
+					$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+					return(-1)
+				endif
+				return(-1)
+			elseif ($status < 0)
+				$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")
+				return(-1)
+			endif
+			
+			commit
+			if ($status < 0)
+				rollback
+				return (-1) 
+			else
+				$instancehandle->SetHint("ID=APLINFO002")
+			endif
+		endif
+		
+		;length($vNrSerie$) ;impressoras fiscais bematech termicas possuim numero de serie superior a 15 no manual consta 20 caracteres
+		;if ($result > 15)
+		;	vTermica = <TRUE>
+		;endif
+
+		if (($vNrSerie$[1:2] = "BE") & ($ufOrigem$="SP") & ($vInTermica$=<TRUE>)) ;-=CANONICO=- 08/07/2008 incluido porque no lojão ao efetuar reducaoZ o sistema trava.
+			;-=CANONICO=- (09/12/2009) - PRJ 102 - TAR 750
+			$data$ = $datim
+			putitem/id viParams, "DS_DATA", $data$
+			putitem/id viParams, "DS_DATAFIM", $data$
+			activate "ECFSVCO001".geraRegistrosCAT52MFD(viParams,voParams,$xcderro$,$xctxerro$)
+			if ($procerror)       
+				$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+				return(-1)
+			elseif ($status = -10)
+				viParams = ""
+				voParams = ""
+				putitem/id viParams,"TITULO", "Erro de comunicação com a ECF"
+				putitem/id viParams,"MENSAGEM", $item("DESCRICAO",$xctxerro$)
+				activate "GERFP008".EXEC(viParams,voParams,$xCdErro$,$xCtxErro$)	
+				if ($procerror)       
+					$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+					return(-1)
+				endif
+				return(-1)
+			elseif ($status < 0)
+				$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")
+				return(-1)
+			endif
+		endif
+
+		;* Claudemir - Prj/Tarefa: 102/845 - 19/04/2010 - a impressora Interway também deve ser emitido a redução z depois do registro tipo60.
+		;if ($vNrSerie$[1:2] = "EP") | ($vNrSerie$[1:2] = "ZP") | ($vNrSerie$[1:2] = "DR");-=LSC=- (20/02/2008) TAR 181 PRJ 102 -Verifica se impressora fiscal e da Epson caso seja faz a reducao e emitida depois do tipo60
+		;* Claudemir - Prj/Tarefa: 102/877 - 19/05/2010
+		if (vInMonitorDLL = <FALSE>) ; se estiver configurado como Monitor DLL a redução z já foi efetuada, portando não deverá entrar 
+			if ($vNrSerie$[1:2] = "EP") | ($vNrSerie$[1:2] = "ZP") | ($vNrSerie$[1:2] = "DR") | ($vNrSerie$[1:2] = "IW")
+				activate "ECFSVCO001".ReducaoZ(viParams,voParams,$xcderro$,$xctxerro$)
+				if ($procerror)       
+					$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+					return(-1)
+				elseif ($status = -10)
+					viParams = ""
+					voParams = ""
+					putitem/id viParams,"TITULO", "Erro de comunicação com a ECF"
+					putitem/id viParams,"MENSAGEM", $item("DESCRICAO",$xctxerro$)
+					activate "GERFP008".EXEC(viParams,voParams,$xCdErro$,$xCtxErro$)
+					if ($procerror)       
+						$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+						return(-1)
+					endif
+					return(-1)
+				elseif ($status < 0)
+					$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")
+					return(-1)
+				endif
+			endif
+		endif	
+
+		;-=LSC=- (04/09/2008) TAR 469 PRJ 061 
+		if ($vNrSerie$[1:2] = "EP") & ($ufOrigem$="SP") & ($vInTermica$=<TRUE>)
+			askmess "Deseja gerar arquivo digital da Nota Fiscal Paulista?", "Sim,Não"
+			if ($status = 1) 
+				putitem/id viParams, "DS_DATA", $datim
+				activate "ECFSVCO001".geraRegistrosCAT52MFD(viParams,voParams,$xcderro$,$xctxerro$)
+				if ($procerror)       
+					$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+					return(-1)
+				elseif ($status = -10)
+					viParams = ""
+					voParams = ""
+					putitem/id viParams,"TITULO", "Erro de comunicação com a ECF"
+					putitem/id viParams,"MENSAGEM", $item("DESCRICAO",$xctxerro$)
+					activate "GERFP008".EXEC(viParams,voParams,$xCdErro$,$xCtxErro$)	
+					if ($procerror)       
+						$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+						return(-1)
+					endif
+					return(-1)
+				elseif ($status < 0)
+					$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")
+					return(-1)
+				endif
+				$instancehandle->SetStatus(<STS_INFO>,"","DESCRICAO=Arquivo digital Nota Fiscal Paulista, gerado com sucesso.","")	
+			endif		
+		endif
+	elseif($InFlag$ = 2)
+		;Para esse comando a data tem que ir no formato DD/MM/YYYY
+		if (DS_DADOINI.SIS_ECF = "" | DS_DADOFIM.SIS_ECF = "")
+			if ($TpLeituraMem$ = 1)
+				$DataINI$ = $date
+				$DataFIM$ = $date
+				DS_DADOINI.SIS_ECF/init = "%%$DataINI$"
+				DS_DADOFIM.SIS_ECF/init = "%%$DataFIM$"
+			else
+				DS_DADOINI.SIS_ECF/init = 1
+				DS_DADOFIM.SIS_ECF/init = 1
+			endif
+		endif
+
+		$nomeArquivo$ = "%%DS_DADOINI.SIS_ECF%%DS_DADOFIM.SIS_ECF"
+
+		if ($TpLeituraMem$ = 1) | ($TpLeituraMem$ = 3)
+			$Data$ = DS_DADOINI.SIS_ECF
+			DS_DADOINI.SIS_ECF/init = "%%$Data$"
+			$Data$ = DS_DADOFIM.SIS_ECF
+			DS_DADOFIM.SIS_ECF/init = "%%$Data$"
+			putitem/id viParams, "DT_INICIO", DS_DADOINI.SIS_ECF
+			putitem/id viParams, "DT_FIM", DS_DADOFIM.SIS_ECF
+			if ($TpLeituraMem$ = 1)
+				activate "ECFSVCO001".LeituraMemoriaFiscalData(viParams,voParams,$xcderro$,$xctxerro$)
+			else
+				putitem/id viParams "TP_TIPO", "c" ;c = COMPLETA
+				activate "ECFSVCO001".leMemoriaFiscalSerialDataMFD(viParams,voParams,$xcderro$,$xctxerro$)
+				$vDsPath$ = $item("DS_PATH", voParams)
+				activate "KERNEL32".SLEEP(2000)
+				activate "vbfileman".arqexiste(vFlag,"%%$vDsPath$%%%RETORNO.TXT") 
+				if (vFlag = <TRUE>)
+					viParams = ""
+					voParams = ""
+					putitem/id viParams "DS_PATH", "%%$vDsPath$%%%RETORNO.TXT"
+					putitem/id viParams "DS_NOMEARQ", "%%$vDsPath$%%$nomeArquivo$%%%.TXT" 
+					activate "ECFSVCO002".geraEAD(viParams,voParams,$xcderro$,$xctxerro$)
+					if ($procerror)       
+				      $instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+						return(-1)
+					elseif ($status < 0)
+						$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")
+						return(-1)
+					endif
+	
+					vDsMsg = $item("DS_MENSAGEM", voParams)
+					if (vDsMsg != "")
+						$instancehandle->SetStatus(<STS_INFO>, "GEN0001", "DESCRICAO=%%vDsMsg", "")
+					endif
+				endif
+			endif	
+		elseif ($TpLeituraMem$ = 2) | ($TpLeituraMem$ = 4)
+			putitem/id viParams, "NR_REDINI", DS_DADOINI.SIS_ECF
+			putitem/id viParams, "NR_REDFIM", DS_DADOFIM.SIS_ECF
+			if ($TpLeituraMem$ = 2)
+				activate "ECFSVCO001".LeituraMemoriaFiscalReducao(viParams,voParams,$xcderro$,$xctxerro$)
+			else
+				putitem/id viParams "TP_TIPO", "c" ;c = COMPLETA
+				activate "ECFSVCO001".leMemoriaFiscalSerialReducaoMFD(viParams,voParams,$xcderro$,$xctxerro$)
+				$vDsPath$ = $item("DS_PATH", voParams)
+				activate "KERNEL32".SLEEP(2000)
+				activate "vbfileman".arqexiste(vFlag,"%%$vDsPath$%%%RETORNO.TXT") 
+				if (vFlag = <TRUE>)
+					viParams = ""
+					voParams = ""
+					putitem/id viParams "DS_PATH", "%%$vDsPath$%%%RETORNO.TXT"
+					putitem/id viParams "DS_NOMEARQ", "%%$vDsPath$%%$nomeArquivo$%%%.TXT" 
+					activate "ECFSVCO002".geraEAD(viParams,voParams,$xcderro$,$xctxerro$)
+					if ($procerror)       
+				      $instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+						return(-1)
+					elseif ($status < 0)
+						$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")
+						return(-1)
+					endif
+	
+					vDsMsg = $item("DS_MENSAGEM", voParams)
+					if (vDsMsg != "")
+						$instancehandle->SetStatus(<STS_INFO>, "GEN0001", "DESCRICAO=%%vDsMsg", "")
+					endif
+				endif
+			endif
+		endif
+		if ($procerror)       
+			$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+			return(-1)
+		elseif ($status = -10)
+			viParams = ""
+			voParams = ""
+			putitem/id viParams,"TITULO", "Erro de comunicação com a ECF"
+			putitem/id viParams,"MENSAGEM", $item("DESCRICAO",$xctxerro$)
+			activate "GERFP008".EXEC(viParams,voParams,$xCdErro$,$xCtxErro$)
+			if ($procerror)       
+				$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+				return(-1)
+			endif
+			return(-1)
+		elseif ($status < 0)
+			$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")
+			return(-1)
+		endif
+	elseif($InFlag$ = 3)
+		if (VL_LANCAMENTO.SIS_ECF <= 0)
+			message/error "Valor não informado!"
+			return(-1)
+		endif
+		putitem/id viParams, "VL_SUPRIMENTO", VL_LANCAMENTO.SIS_ECF
+		activate "ECFSVCO001".Suprimento(viParams,voParams,$xcderro$,$xctxerro$)
+		if ($procerror)       
+			$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+			return(-1)
+		elseif ($status = -10)
+			viParams = ""
+			voParams = ""
+			putitem/id viParams,"TITULO", "Erro de comunicação com a ECF"
+			putitem/id viParams,"MENSAGEM", $item("DESCRICAO",$xctxerro$)
+			activate "GERFP008".EXEC(viParams,voParams,$xCdErro$,$xCtxErro$)
+			if ($procerror)       
+				$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+				return(-1)
+			endif
+			return(-1)
+		elseif ($status < 0)
+			$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")
+			return(-1)
+		endif
+	elseif($InFlag$ = 4)
+		if (VL_LANCAMENTO.SIS_ECF <= 0)
+			message/error "Valor não informado!"
+			return(-1)
+		endif
+		putitem/id viParams, "VL_ABERTURADIA", VL_LANCAMENTO.SIS_ECF
+		activate "ECFSVCO001".AberturadoDia(viParams,voParams,$xcderro$,$xctxerro$)
+		if ($procerror)       
+			$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+			return(-1)
+		elseif ($status = -10)
+			viParams = ""
+			voParams = ""
+			putitem/id viParams,"TITULO", "Erro de comunicação com a ECF"
+			putitem/id viParams,"MENSAGEM", $item("DESCRICAO",$xctxerro$)
+			activate "GERFP008".EXEC(viParams,voParams,$xCdErro$,$xCtxErro$)
+			if ($procerror)       
+				$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+				return(-1)
+			endif
+			return(-1)
+		elseif ($status < 0)
+			$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")
+			return(-1)
+		endif
+	elseif($InFlag$ = 5)
+		if (VL_LANCAMENTO.SIS_ECF <= 0)
+			message/error "Valor não informado!"
+			return(-1)
+		endif
+		putitem/id viParams, "VL_SANGRIA", VL_LANCAMENTO.SIS_ECF
+		activate "ECFSVCO001".Sangria(viParams,voParams,$xcderro$,$xctxerro$)
+		if ($procerror)       
+			$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+			return(-1)
+		elseif ($status = -10)
+			viParams = ""
+			voParams = ""
+			putitem/id viParams,"TITULO", "Erro de comunicação com a ECF"
+			putitem/id viParams,"MENSAGEM", $item("DESCRICAO",$xctxerro$)
+			activate "GERFP008".EXEC(viParams,voParams,$xCdErro$,$xCtxErro$)
+			if ($procerror)       
+				$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+				return(-1)
+			endif
+			return(-1)
+		elseif ($status < 0)
+			$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")
+			return(-1)
+		endif
+	elseif($InFlag$ = 6) 
+		activate "ECFSVCO001".progHoraVerao(viParams,voParams,$xcderro$,$xctxerro$)
+		if ($procerror)       
+			$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+			return(-1)
+		elseif ($status = -10)
+			viParams = ""
+			voParams = ""
+			putitem/id viParams,"TITULO", "Erro de comunicação com a ECF"
+			putitem/id viParams,"MENSAGEM", $item("DESCRICAO",$xctxerro$)
+			activate "GERFP008".EXEC(viParams,voParams,$xCdErro$,$xCtxErro$)
+			if ($procerror)       
+				$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+				return(-1)
+			endif
+			return(-1)
+		elseif ($status < 0)
+			$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")
+			return(-1)
+		endif
+	elseif($InFlag$ = 7) ;-=LSC=- (08/04/2008) TAR 230 PRJ 61
+		if ($vNrSerie$[1:2] = "ZP") ;-=LSC=- (16/05/2008) TAR 313 PRJ 102 "Impressora Elgin aceita apenas por intervalo de redução"
+			vDadoIni = DS_DADOINI.SIS_ECF
+			vDadoFim = DS_DADOFIM.SIS_ECF
+
+			while (vDadoFim >= vDadoIni )
+				putitem/id viParams, "DS_DATA", vDataIni
+				activate "ECFSVCO001".geraRegistrosCAT52MFD(viParams,voParams,$xcderro$,$xctxerro$)
+				if ($procerror)       
+					$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+					return(-1)
+				elseif ($status = -10)
+					viParams = ""
+					voParams = ""
+					putitem/id viParams,"TITULO", "Erro de comunicação com a ECF"
+					putitem/id viParams,"MENSAGEM", $item("DESCRICAO",$xctxerro$)
+					activate "GERFP008".EXEC(viParams,voParams,$xCdErro$,$xCtxErro$)	
+					if ($procerror)       
+						$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+						return(-1)
+					endif
+					return(-1)
+				elseif ($status < 0)
+					$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")
+					return(-1)
+				endif
+				vDadoIni = vDadoIni + 1
+			endwhile
+		else
+			;-=LSC=- (06/06/2008) TAR 336 PRJ 61 -  "intervalo de redução default por data para todos os ecfs"
+			vDataIni = DS_DATA.SIS_ECF
+			vDataFim = DS_DATAFIM.SIS_ECF
+		
+			;while (vDataFim  >= vDataIni )
+				putitem/id viParams, "DS_DATA", vDataIni
+				putitem/id viParams, "DS_DATAFIM", vDataFim
+				activate "ECFSVCO001".geraRegistrosCAT52MFD(viParams,voParams,$xcderro$,$xctxerro$)
+				if ($procerror)       
+					$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+					return(-1)
+				elseif ($status = -10)
+					viParams = ""
+					voParams = ""
+					putitem/id viParams,"TITULO", "Erro de comunicação com a ECF"
+					putitem/id viParams,"MENSAGEM", $item("DESCRICAO",$xctxerro$)
+					activate "GERFP008".EXEC(viParams,voParams,$xCdErro$,$xCtxErro$)	
+					if ($procerror)       
+						$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+						return(-1)
+					endif
+					return(-1)
+				elseif ($status < 0)
+					$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")
+					return(-1)
+				endif
+				;vDataIni = vDataIni + 1
+			;endwhile
+
+		endif
+	elseif ($InFlag$ = 8)
+		
+		vDataIni = DS_DATA.SIS_ECF
+		vDataFim = DS_DATAFIM.SIS_ECF
+		vTpSituacao = $item("TP_SITUACAO", $xlpi$) ;1 = Gerar somente no banco - 2 = Criar o arquivo
+
+		if (vTpSituacao = 1) ;1 = Gerar somente no banco
+			;-=CANONICO=- 27/10/2009 - HOMOLOGACAO PAF-ECF
+			putitem/id viParams, "DS_DADOINI", vDataIni
+			putitem/id viParams, "DS_DADOFIM", vDataFim 
+			putitem/id viParams,	"NR_TPDOWNLOAD", "1"
+			activate "ECFSVCO011".efetuaLeituraArqMFD($xlpg$,viParams,voParams,$xcderro$,$xctxerro$)
+			if ($procerror)       
+				$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+				return(-1)
+			elseif ($status < 0)
+				$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")
+				return(-1)
+			endif
+			vDsPath = $item("DS_PATH",voParams) 
+
+			commit
+			if ($status < 0)
+				rollback
+				return (-1) 
+			else
+				$instancehandle->SetHint("ID=APLINFO002")
+			endif
+		endif
+
+		if (vTpSituacao = 2) ; 2 = Criar o arquivo
+			while (vDataFim  >= vDataIni )
+				putitem/id viParams, "DT_EMISSAO", vDataIni
+				putitem/id viParams, "CD_ECF", 1
+				putitem/id viParams, "CD_EMPRESA", $item("CD_EMPRESA", $$gParamGlb)
+				putitem/id viParams, "DS_PATH", vDsPath 
+				activate "FISSVCO047".movimentoPorECF($xlpg$,viParams,voParams,$xcderro$,$xctxerro$)
+				if ($procerror)       
+					$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+					return(-1)
+				elseif ($status < 0)
+					$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")
+					return(-1)
+				endif
+				vDataIni = vDataIni + 1
+			endwhile
+		endif
+	elseif($InFlag$ = 9)
+		;Para esse comando a data tem que ir no formato DD/MM/YYYY
+		if (DS_DADOINI.SIS_ECF = "" | DS_DADOFIM.SIS_ECF = "")
+			if ($TpLeituraMem$ = 1)
+				$DataINI$ = $date
+				$DataFIM$ = $date
+				DS_DADOINI.SIS_ECF/init = "%%$DataINI$"
+				DS_DADOFIM.SIS_ECF/init = "%%$DataFIM$"
+			else
+				DS_DADOINI.SIS_ECF/init = 1
+				DS_DADOFIM.SIS_ECF/init = 1
+			endif
+		endif
+
+		if ($TpLeituraMem$ = 1) | ($TpLeituraMem$ = 3)
+
+			$Data$ = DS_DADOINI.SIS_ECF
+			DS_DADOINI.SIS_ECF/init = "%%$Data$"
+			$Data$ = DS_DADOFIM.SIS_ECF
+			DS_DADOFIM.SIS_ECF/init = "%%$Data$"
+			putitem/id viParams, "DT_INICIO", DS_DADOINI.SIS_ECF
+			putitem/id viParams, "DT_FIM", DS_DADOFIM.SIS_ECF
+			putitem/id viParams, "TP_TIPO", "s"
+
+			$nomeArquivo$ = "%%DS_DADOINI.SIS_ECF%%DS_DADOFIM.SIS_ECF"
+
+			if ($TpLeituraMem$ = 1)
+				activate "ECFSVCO001".LeituraMemoriaFiscalDataMFD(viParams,voParams,$xcderro$,$xctxerro$)
+			else
+				activate "ECFSVCO001".leMemoriaFiscalSerialDataMFD(viParams,voParams,$xcderro$,$xctxerro$)
+				;-=CANONICO=- HOMOLOGACAO
+				$vDsPath$ = $item("DS_PATH", voParams)
+				activate "KERNEL32".SLEEP(2000)
+				activate "vbfileman".arqexiste(vFlag,"%%$vDsPath$%%%RETORNO.TXT") 
+				if (vFlag = <TRUE>)
+					$vDsConteudo$ = ""
+					viParams = ""
+					voParams = ""
+					putitem/id viParams "DS_PATH", "%%$vDsPath$%%%RETORNO.TXT"
+					putitem/id viParams "DS_NOMEARQ", "%%$vDsPath$%%$nomeArquivo$%%%.TXT" 
+					activate "ECFSVCO002".geraEAD(viParams,voParams,$xcderro$,$xctxerro$)
+					if ($procerror)       
+				      $instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+						return(-1)
+					elseif ($status < 0)
+						$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")
+						return(-1)
+					endif
+	
+					vDsMsg = $item("DS_MENSAGEM", voParams)
+					if (vDsMsg != "")
+						$instancehandle->SetStatus(<STS_INFO>, "GEN0001", "DESCRICAO=%%vDsMsg", "")
+					endif
+				endif
+				;:)
+			endif	
+			elseif ($TpLeituraMem$ = 2) | ($TpLeituraMem$ = 4)
+				putitem/id viParams, "NR_REDINI", DS_DADOINI.SIS_ECF
+				putitem/id viParams, "NR_REDFIM", DS_DADOFIM.SIS_ECF
+				putitem/id viParams, "TP_TIPO", "s"
+				$nomeArquivo$ = "%%DS_DADOINI.SIS_ECF%%DS_DADOFIM.SIS_ECF"
+			if ($TpLeituraMem$ = 2)
+				activate "ECFSVCO001".LeituraMemoriaFiscalReducaoMFD(viParams,voParams,$xcderro$,$xctxerro$)
+			else
+				activate "ECFSVCO001".leMemoriaFiscalSerialReducaoMFD(viParams,voParams,$xcderro$,$xctxerro$)
+				;-=CANONICO=- HOMOLOGACAO
+				$vDsPath$ = $item("DS_PATH", voParams)
+				activate "KERNEL32".SLEEP(2000)
+				activate "vbfileman".arqexiste(vFlag,"%%$vDsPath$%%%RETORNO.TXT") 
+				if (vFlag = <TRUE>)
+					;-=CANONICO=- 21/10/2009 - HOMOLOGACAO PAF-ECF
+					viParams = ""
+					voParams = ""
+					putitem/id viParams "DS_PATH", "%%$vDsPath$%%%RETORNO.TXT"
+					putitem/id viParams "DS_NOMEARQ", "%%$vDsPath$%%$nomeArquivo$%%%.TXT" 
+					activate "ECFSVCO002".geraEAD(viParams,voParams,$xcderro$,$xctxerro$)
+					if ($procerror)       
+				      $instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+						return(-1)
+					elseif ($status < 0)
+						$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")
+						return(-1)
+					endif
+	
+					vDsMsg = $item("DS_MENSAGEM", voParams)
+					if (vDsMsg != "")
+						$instancehandle->SetStatus(<STS_INFO>, "GEN0001", "DESCRICAO=%%vDsMsg", "")
+					endif
+				endif
+				;:)
+			endif
+		endif
+		if ($procerror)       
+			$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+			return(-1)
+		elseif ($status = -10)
+			viParams = ""
+			voParams = ""
+			putitem/id viParams,"TITULO", "Erro de comunicação com a ECF"
+			putitem/id viParams,"MENSAGEM", $item("DESCRICAO",$xctxerro$)
+			activate "GERFP008".EXEC(viParams,voParams,$xCdErro$,$xCtxErro$)
+			if ($procerror)       
+				$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+				return(-1)
+			endif
+			return(-1)
+		elseif ($status < 0)
+			$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")
+			return(-1)
+		endif
+	elseif($InFlag$ = 10) 
+		$instancehandle->meiosDePagamento()
+		if ($procerror)
+			$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+			return(-1)
+		elseif ($status < 0)
+			$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")
+			return(-1)
+		endif
+	elseif($InFlag$ = 11)
+		;Para esse comando a data tem que ir no formato DD/MM/YYYY
+		if (DS_DADOINI.SIS_ECF != "" | DS_DADOFIM.SIS_ECF != "")
+
+			viParams = ""
+			voParams = ""	
+			if ($TpLeituraMem$ = 1)
+				$vDtIni$ = DS_DADOINI.SIS_ECF
+				$vDtFIM$ = DS_DADOFIM.SIS_ECF
+				DS_DADOINI.SIS_ECF/init = "%%$vDtINI$"
+				DS_DADOFIM.SIS_ECF/init = "%%$vDtFIM$"
+				putitem/id viParams, "TP_DOWNLOAD", "1"
+				putitem/id viParams, "DS_DADOINI", "%%$vDtINI$"
+				putitem/id viParams, "DS_DADOFIM", "%%$vDtFIM$"
+			else
+				putitem/id viParams, "DS_DADOINI", DS_DADOINI.SIS_ECF
+				putitem/id viParams, "DS_DADOFIM", DS_DADOFIM.SIS_ECF
+				putitem/id viParams, "TP_DOWNLOAD", "2"
+			endif
+
+			$nomeArquivo$ = "%%%Cotep1704%%DS_DADOINI.SIS_ECF%%DS_DADOFIM.SIS_ECF"	
+
+			message/hint "Efetuando download da MFD..."
+
+			putitem/id viParams, "DS_ARQUIVO", "DOWNLOAD.MFD" ; somente o nome do arquivo porque o caminho e colocado pelo serviço
+			putitem/id viParams, "TP_FORMATO", "0" ;0 TXT - 1 RTF - 2 MDB
+			putitem/id viParams, "NR_USUARIO", "1"
+			activate "ECFSVCO001".downloadMFD(viParams,voParams,$xcderro$,$xctxerro$)
+			if ($procerror)       
+				$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+				return(-1)
+			elseif ($status = -10)
+				viParams = ""
+				voParams = ""
+				putitem/id viParams,"TITULO", "Erro de comunicação com a ECF"
+				putitem/id viParams,"MENSAGEM", $item("DESCRICAO",$xctxerro$)
+				activate "GERFP008".EXEC(viParams,voParams,$xCdErro$,$xCtxErro$)
+				if ($procerror)       
+					$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+					return(-1)
+				endif
+				return(-1)
+			elseif ($status < 0)
+				$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")
+				return(-1)
+			endif
+
+			$vDsPath$ = $item("DS_PATH", voParams)
+
+			message/hint "Download da MFD concluído..."
+
+			
+			;-=CANONICO=- 28/10/2009 - HOMOLOGACAO PAF-ECF	
+			if ($TpLeituraMem$ != 1)
+				viParams = ""
+				voParams = ""
+				putitem/id viParams, "DS_ARQUIVO", "%%$vDsPath$%%%DOWNLOAD.TXT"
+				activate "ECFSVCO011".extrairCOO($xlpg$,viParams,voParams,$xcderro$,$xctxerro$)
+				if ($procerror)       
+					$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+					return(-1)
+				elseif ($status < 0)
+					$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")
+					return(-1)
+				endif
+				$DataINI$ = $item("DS_DATAINI", voparams)	
+				$DataFIM$ = $item("DS_DATAFIM", voparams)
+			endif
+
+			message/hint "Gerando arquivo AC17/04..."
+			viParams = ""
+			putitem/id viParams, "DS_ARQMFD", "DOWNLOAD.MFD"
+			putitem/id viParams, "DS_ARQTXT", "%%$nomeArquivo$%%%.TXT"
+			putitem/id viParams, "DS_RAZAO", "EMPRESA TESTE"
+			putitem/id viParams, "DS_ENDERECO", "R. Teste"
+			putitem/id viParams, "DS_DADOINI", "%%$vDtIni$"
+			putitem/id viParams, "DS_DADOFIM", "%%$vDtFIM$"
+			;* Claudemir - Prj/Tarefa: 102/875 - 26/05/2010
+			if ($TpLeituraMem$ = 1)
+				putitem/id viParams, "TP_DOWNLOAD", "1"
+			else
+				putitem/id viParams, "TP_DOWNLOAD", "2"
+			endif ;*
+			activate "ECFSVCO001".geraAtoCotep(viParams,voParams,$xcderro$,$xctxerro$)
+			if ($procerror)       
+			    $instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+				return(-1)
+			elseif ($status < 0)
+				$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")
+				return(-1)
+			endif
+
+			message/hint "Arquivo AC17/04 concluído..."
+			
+			activate "vbfileman".arqexiste(vFlag,"%%$vDsPath$%%$nomeArquivo$%%%.TXT") 
+			if (vFlag = <TRUE>)
+				message/hint "Efetuando assinatura digital..."
+	
+				viParams = ""
+				voParams = ""
+				putitem/id viParams "DS_PATH", "%%$vDsPath$%%$nomeArquivo$%%%.TXT"
+				activate "ECFSVCO011".geraEAD(viParams,voParams,$xcderro$,$xctxerro$)
+				if ($procerror)       
+				    $instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+					return(-1)
+				elseif ($status < 0)
+					$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")
+					return(-1)
+				endif
+		
+				vDsMsg = $item("DS_MENSAGEM", voParams)
+				if (vDsMsg != "")
+					$instancehandle->SetStatus(<STS_INFO>, "GEN0001", "DESCRICAO=%%vDsMsg", "")
+				endif
+			
+				message/hint "Assinatura digital concluída..."
+			endif
+		endif
+	endif
+	
+	return(0)
+End ; operation chamaFuncao
+
+;------------------------
+partner operation valorPadrao 
+	;------------------------
+	variables
+		string vDsMensagem
+	endvariables
+	DS_FRAME.SIS_ECF/init = $item("DS_FRAME", $xlpi$)
+	selectcase $InFlag$
+		case 1
+			fieldsyntax "VL_LANCAMENTO.SIS_ECF","HID"
+			fieldsyntax "DS_DADOINI.SIS_ECF","HID"
+			fieldsyntax "DS_DADOFIM.SIS_ECF","HID"
+			LB_REDZ.SIS_ECF = "A redução Z acarretará o fechamento do dia!"
+			fieldsyntax "LB_REDZ.SIS_ECF",""
+			fieldsyntax "DS_LABEL.SIS_ECF","HID"
+			fieldsyntax "DS_DATA.SIS_ECF","HID"
+			fieldsyntax "DS_LABEL1.SIS_ECF","HID"  
+			fieldsyntax "DS_DATAFIM.SIS_ECF","HID"
+		case 2
+			fieldsyntax "VL_LANCAMENTO.SIS_ECF","HID"
+			fieldsyntax "DS_DADOINI.SIS_ECF",""
+			fieldsyntax "DS_DADOFIM.SIS_ECF",""
+			fieldsyntax "LB_REDZ.SIS_ECF","HID"
+			if ($TpLeituraMem$ = 1) | ($TpLeituraMem$ = 3)
+				DS_LABEL.SIS_ECF/init = "Intervalo de data"
+			elseif ($TpLeituraMem$ = 2) | ($TpLeituraMem$ = 4)
+				DS_LABEL.SIS_ECF/init = "Intervalo de Redução"
+			endif   
+			fieldsyntax "DS_DATA.SIS_ECF","HID"
+			fieldsyntax "DS_LABEL1.SIS_ECF","HID"  
+			fieldsyntax "DS_DATAFIM.SIS_ECF","HID"
+		case 6 ;-=LSC=- - 13/12/2006	
+			fieldsyntax "VL_LANCAMENTO.SIS_ECF","HID"
+			fieldsyntax "DS_DADOINI.SIS_ECF","HID"
+			fieldsyntax "DS_DADOFIM.SIS_ECF","HID"
+			vDsMensagem = "A programação do horário de verão será realizada%%^"
+			vDsMensagem = "%%vDsMensagem%%% somente após uma Redução Z"
+			LB_REDZ.SIS_ECF = vDsMensagem
+			fieldsyntax "LB_REDZ.SIS_ECF",""
+			fieldsyntax "DS_LABEL.SIS_ECF","HID"
+			fieldsyntax "DS_DATA.SIS_ECF","HID"
+			fieldsyntax "DS_LABEL1.SIS_ECF","HID"  
+			fieldsyntax "DS_DATAFIM.SIS_ECF","HID"
+		case 7 ;-=LSC=- (08/04/2008) TAR 230 PRJ 61
+			fieldsyntax "VL_LANCAMENTO.SIS_ECF","HID"
+			fieldsyntax "LB_REDZ.SIS_ECF","HID"
+			if ($vNrSerie$[1:2] = "ZP")
+				DS_LABEL.SIS_ECF/init = "Intervalo de redução"
+				fieldsyntax "DS_DATA.SIS_ECF","HID"
+				fieldsyntax "DS_DATAFIM.SIS_ECF","HID"
+				fieldsyntax "DS_LABEL1.SIS_ECF","HID"
+			;elseif ($vNrSerie$[1:2] = "BE") ;-=LSC=- (06/06/2008) TAR 336 PRJ 61
+			else
+				DS_LABEL1.SIS_ECF/init = "Data movimento"
+				fieldsyntax "DS_DADOINI.SIS_ECF","HID"
+				fieldsyntax "DS_DADOFIM.SIS_ECF","HID"
+				fieldsyntax "DS_LABEL.SIS_ECF","HID"
+			endif
+		case 8 
+			fieldsyntax "VL_LANCAMENTO.SIS_ECF","HID"
+			fieldsyntax "LB_REDZ.SIS_ECF","HID"
+			DS_LABEL1.SIS_ECF/init = "Data movimento"
+			fieldsyntax "DS_DADOINI.SIS_ECF","HID"
+			fieldsyntax "DS_DADOFIM.SIS_ECF","HID"
+			fieldsyntax "DS_LABEL.SIS_ECF","HID"
+		case 9
+			fieldsyntax "VL_LANCAMENTO.SIS_ECF","HID"
+			fieldsyntax "DS_DADOINI.SIS_ECF",""
+			fieldsyntax "DS_DADOFIM.SIS_ECF",""
+			fieldsyntax "LB_REDZ.SIS_ECF","HID"
+			if ($TpLeituraMem$ = 1) | ($TpLeituraMem$ = 3)
+				DS_LABEL.SIS_ECF/init = "Intervalo de data"
+			elseif ($TpLeituraMem$ = 2) | ($TpLeituraMem$ = 4)
+				DS_LABEL.SIS_ECF/init = "Intervalo de Redução"
+			endif   
+			fieldsyntax "DS_DATA.SIS_ECF","HID"
+			fieldsyntax "DS_LABEL1.SIS_ECF","HID"  
+			fieldsyntax "DS_DATAFIM.SIS_ECF","HID"
+		case 10
+			fieldsyntax "VL_LANCAMENTO.SIS_ECF","HID"
+			fieldsyntax "DS_DADOINI.SIS_ECF","HID"
+			fieldsyntax "DS_DADOFIM.SIS_ECF","HID"
+			fieldsyntax "LB_REDZ.SIS_ECF","HID"
+			DS_LABEL1.SIS_ECF/init = "Intervalo de Meio Pagto"  
+			fieldsyntax "DS_DATA.SIS_ECF",""
+			fieldsyntax "DS_LABEL.SIS_ECF","HID"  
+			fieldsyntax "DS_DATAFIM.SIS_ECF",""
+		case 11
+			fieldsyntax "VL_LANCAMENTO.SIS_ECF","HID"
+			fieldsyntax "DS_DADOINI.SIS_ECF",""
+			fieldsyntax "DS_DADOFIM.SIS_ECF",""
+			fieldsyntax "LB_REDZ.SIS_ECF","HID"
+			if ($TpLeituraMem$ = 1) | ($TpLeituraMem$ = 3)
+				DS_LABEL.SIS_ECF/init = "Intervalo de data"
+			elseif ($TpLeituraMem$ = 2) | ($TpLeituraMem$ = 4)
+				DS_LABEL.SIS_ECF/init = "Intervalo de COO"
+			endif   
+			fieldsyntax "DS_DATA.SIS_ECF","HID"
+			fieldsyntax "DS_LABEL1.SIS_ECF","HID"  
+			fieldsyntax "DS_DATAFIM.SIS_ECF","HID"
+		elsecase
+			fieldsyntax "VL_LANCAMENTO.SIS_ECF",""
+			fieldsyntax "DS_DADOINI.SIS_ECF","HID"
+			fieldsyntax "DS_DADOFIM.SIS_ECF","HID"
+			fieldsyntax "DS_DATA.SIS_ECF","HID"
+			fieldsyntax "LB_REDZ.SIS_ECF","HID"  
+			fieldsyntax "DS_LABEL.SIS_ECF","HID"  
+			fieldsyntax "DS_LABEL1.SIS_ECF","HID"  
+			fieldsyntax "DS_DATAFIM.SIS_ECF","HID"
+	endselectcase  
+ 	return(0)
+End ; operation valorPadrao
+
+;-----------------------------------
+partner operation obtemNumeroSerie
+	;--------------------------------
+	variables
+		string viParams, voparams
+	endvariables
+
+	;LSCanonico 17/11/06 - projeto 26 tarefa 15 - Adicionar Sangria no Monitor(Modelo Bematech)
+	viParams = ""
+	putitem/id viParams, "NM_FUNCAO", <ECF_NUMERO_SERIE>
+	activate "ECFSVCO001".LeInformacaoImpressora(viParams,voParams,$xcderro$,$xctxerro$)
+	if ($procerror)       
+      $instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+		return(-1)
+	elseif ($status = -10)
+		viParams = ""
+		voParams = ""
+		putitem/id viParams,"TITULO", "Erro de comunicação com a ECF"
+		putitem/id viParams,"MENSAGEM", $item("DESCRICAO",$xctxerro$)
+		activate "GERFP008".EXEC(viParams,voParams,$xCdErro$,$xCtxErro$)
+		if ($procerror)       
+			$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+			return(-1)
+		endif
+		return(-1)
+	elseif ($status < 0) & ($status != -11)
+		$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")
+		return(-1)
+	endif
+	$vNrSerie$ = $item("NR_SERIE",voParams)	
+	if ($vNrSerie$ = "")
+		$vNrSerie$ = $item("CD_SERIEECF",$$gParamGlb)
+	endif
+	return(0)
+End ; operation obtemNumeroSerie
+
+;-------------------------------------
+;-=LSC=- (18/09/2008) TAR 397 PRJ 102
+partner operation verificaECFTermica
+	;----------------------------------
+	variables
+		string viParams, voparams
+	endvariables
+
+	viParams = ""
+	activate "ECFSVCO001".verificaTermica(viParams,voParams,$xcderro$,$xctxerro$)
+	if ($procerror)       
+      $instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+		return(-1)
+	elseif ($status = -10)
+		viParams = ""
+		voParams = ""
+		putitem/id viParams,"TITULO", "Erro de comunicação com a ECF"
+		putitem/id viParams,"MENSAGEM", $item("DESCRICAO",$xctxerro$)
+		activate "GERFP008".EXEC(viParams,voParams,$xCdErro$,$xCtxErro$)
+		if ($procerror)       
+			$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+			return(-1)
+		endif
+		return(-1)
+	elseif ($status < 0) & ($status != -11)
+		$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")
+		return(-1)
+	endif
+	$vInTermica$ = $item("IN_TERMICA",voParams)	
+	return(0)
+End ; operation verificaECFTermica
+
+;------------------------------------
+partner operation meiosDePagamento
+;---------------------------------
+	variables
+		date vDtInicial, vDtFinal
+		string vDsRegFormaPagto, viParams, voParams, vDsMsg, vDsRegistro, vDsLstCartao  
+		numeric vCdEmpLiq, vNrSeqLiq, vDtLiq, vDtAnterior
+		numeric vVlTroco, vVlFatura, vVlDinheiro, vVlCheque, vVlCartaoCredito, vVlCartaoDebito
+	endvariables
+
+	vDtInicial = DS_DATA.SIS_ECF
+	vDtFinal   = DS_DATAFIM.SIS_ECF
+
+	if (vDtInicial = "")
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Data inicial não informada!", "ADICIONAL=Operação->ECFFP002.acumulaMeioPagtoECF")
+		return(-1)
+	endif
+	
+	if (vDtFinal = "")
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Data final não informada!", "ADICIONAL=Operação->ECFFP002.acumulaMeioPagtoECF")
+		return(-1)
+	endif
+	
+	vDsRegFormaPagto = ""
+
+	clear/e "FCR_FATURAI"
+
+	clear/e "TRA_TRANSACAO"
+	CD_EMPRESA.TRA_TRANSACAO/init = $item("CD_EMPRESA", $xlpg$)
+	DT_TRANSACAO.TRA_TRANSACAO/init = "·>·= %%vDtInicial ·&·<·= %%vDtFinal"
+	TP_SITUACAO.TRA_TRANSACAO/init = 4;Atendida
+	TP_OPERACAO.TRA_TRANSACAO/init = "S";Saida
+	retrieve/e "TRA_TRANSACAO"
+	if ($status >= 0)
+		setocc "TRA_TRANSACAO", -1
+		setocc "TRA_TRANSACAO", 1
+		while ($status >= 0)
+
+			if (TP_DOCTO.GER_OPERACAO = 3) ;ECF CONCOMITANTE
+
+				clear/e "FGR_LIQITEMCR"
+				CD_EMPTRANSACAO.FGR_LIQITEMCR/init = CD_EMPRESA.TRA_TRANSACAO
+				NR_TRANSACAO.FGR_LIQITEMCR/init = NR_TRANSACAO.TRA_TRANSACAO
+				DT_TRANSACAO.FGR_LIQITEMCR/init = DT_TRANSACAO.TRA_TRANSACAO
+				retrieve/e "FGR_LIQITEMCR"	
+				if ($status >= 0)
+					vCdEmpLiq = CD_EMPLIQ.FGR_LIQITEMCR
+					vDtLiq = DT_LIQ.FGR_LIQITEMCR
+					vNrSeqLiq = NR_SEQLIQ.FGR_LIQITEMCR
+
+					clear/e "FGR_LIQITEMCR"
+					CD_EMPLIQ.FGR_LIQITEMCR/init = vCdEmpLiq
+					DT_LIQ.FGR_LIQITEMCR/init = vDtLiq
+					NR_SEQLIQ.FGR_LIQITEMCR/init = vNrSeqLiq
+					TP_TIPOREG.FGR_LIQITEMCR/init = 2
+					retrieve/e "FGR_LIQITEMCR"
+					if ($status >= 0)
+						setocc "FGR_LIQITEMCR", -1
+						setocc "FGR_LIQITEMCR", 1
+						while ($status >= 0)						
+							if (NR_FAT.FGR_LIQITEMCR > 0)
+								creocc "FCR_FATURAI", -1
+								CD_EMPRESA.FCR_FATURAI/init = CD_EMPFAT.FGR_LIQITEMCR
+								CD_CLIENTE.FCR_FATURAI/init = CD_CLIENTE.FGR_LIQITEMCR
+								NR_FAT.FCR_FATURAI/init = NR_FAT.FGR_LIQITEMCR
+								NR_PARCELA.FCR_FATURAI/init = NR_PARCELA.FGR_LIQITEMCR
+								retrieve/o "FCR_FATURAI"
+								if ($status = -7)
+									retrieve/x "FCR_FATURAI"
+								endif
+							endif
+							setocc "FGR_LIQITEMCR", $curocc("FGR_LIQITEMCR") + 1
+						endwhile
+					endif
+				endif
+					
+			endif
+
+			setocc "TRA_TRANSACAO", $curocc("TRA_TRANSACAO") + 1
+		endwhile	
+
+		if ($empty("FCR_FATURAI") = 0)
+			vVlFatura = 0
+			vVlCheque = 0
+			vVlDinheiro = 0
+			vVlCartaoCredito = 0
+			vVlCartaoDebito = 0
+			vVlTroco = 0
+			setocc "FCR_FATURAI", 1
+			while ($status >= 0)
+				selectcase (TP_DOCUMENTO.FCR_FATURAI)
+					case 1
+						vVlFatura = vVlFatura + VL_FATURA.FCR_FATURAI
+						creocc "TMP_K02DS", -1
+						DS_K01.TMP_K02DS = DT_EMISSAO.FCR_FATURAI
+						DS_K02.TMP_K02DS = "Fatura"
+						retrieve/o "TMP_K02DS"
+						VL_TOTAL.TMP_K02DS = VL_TOTAL.TMP_K02DS + VL_FATURA.FCR_FATURAI
+					case 2
+						vVlCheque = vVlCheque + VL_FATURA.FCR_FATURAI
+						creocc "TMP_K02DS", -1
+						DS_K01.TMP_K02DS = DT_EMISSAO.FCR_FATURAI
+						DS_K02.TMP_K02DS = "Cheque"
+						retrieve/o "TMP_K02DS"
+						VL_TOTAL.TMP_K02DS = VL_TOTAL.TMP_K02DS + VL_FATURA.FCR_FATURAI
+					case 3
+						vVlDinheiro = vVlDinheiro + VL_FATURA.FCR_FATURAI
+						creocc "TMP_K02DS", -1
+						DS_K01.TMP_K02DS = DT_EMISSAO.FCR_FATURAI
+						DS_K02.TMP_K02DS = "Dinheiro"
+						retrieve/o "TMP_K02DS"
+						VL_TOTAL.TMP_K02DS = VL_TOTAL.TMP_K02DS + VL_FATURA.FCR_FATURAI
+					case 4
+						vVlCartaoCredito = vVlCartaoCredito + VL_FATURA.FCR_FATURAI
+						creocc "TMP_K02DS", -1
+						DS_K01.TMP_K02DS = DT_EMISSAO.FCR_FATURAI
+						DS_K02.TMP_K02DS = "Cartao credito"
+						retrieve/o "TMP_K02DS"
+						VL_TOTAL.TMP_K02DS = VL_TOTAL.TMP_K02DS + VL_FATURA.FCR_FATURAI
+					case 5
+						vVlCartaoDebito = vVlCartaoDebito + VL_FATURA.FCR_FATURAI
+						creocc "TMP_K02DS", -1
+						DS_K01.TMP_K02DS = DT_EMISSAO.FCR_FATURAI
+						DS_K02.TMP_K02DS = "Cartao Debito"
+						retrieve/o "TMP_K02DS"
+						VL_TOTAL.TMP_K02DS = VL_TOTAL.TMP_K02DS + VL_FATURA.FCR_FATURAI
+					case 9
+						vVlTroco = vVlTroco + VL_FATURA.FCR_FATURAI
+						creocc "TMP_K02DS", -1
+						DS_K01.TMP_K02DS = DT_EMISSAO.FCR_FATURAI
+						DS_K02.TMP_K02DS = "Troco"
+						retrieve/o "TMP_K02DS"
+						VL_TOTAL.TMP_K02DS = VL_TOTAL.TMP_K02DS + VL_FATURA.FCR_FATURAI
+				endselectcase
+				setocc "FCR_FATURAI", $curocc("FCR_FATURAI") + 1				
+			endwhile
+
+			vDsRegFormaPagto = "%%^MEIOS DE PAGAMENTO%%^"
+			$vData$ = vDtInicial	
+			vDsRegFormaPagto = "%%vDsRegFormaPagto Data Inicial...: %%$vData$%%^"
+			$vData$ = vDtFinal	
+			vDsRegFormaPagto = "%%vDsRegFormaPagto Data Final.....: %%$vData$%%^%%^"
+			vDsRegFormaPagto = "%%vDsRegFormaPagto Resumo por data...:%%^"
+			setocc "TMP_K02DS", -1
+			setocc "TMP_K02DS", 1
+			sort/e "TMP_K02DS", "DS_K01.TMP_K02DS"
+			setocc "TMP_K02DS", 1
+			while($status >= 0)
+				if(vDtAnterior != DS_K01.TMP_K02DS)
+					vDtAnterior = DS_K01.TMP_K02DS
+					$vData$ = DS_K01.TMP_K02DS	
+				    vDsRegFormaPagto = "%%vDsRegFormaPagto %%^%%%Data...: %%$vData$%%^"
+					vDsRegFormaPagto = "%%vDsRegFormaPagto %%DS_K02.TMP_K02DS%%%: %%VL_TOTAL.TMP_K02DS%%^"
+				else
+					vDsRegFormaPagto = "%%vDsRegFormaPagto %%DS_K02.TMP_K02DS%%%: %%VL_TOTAL.TMP_K02DS%%^"
+				endif
+				setocc "TMP_K02DS", $curocc("TMP_K02DS") + 1
+			endwhile
+			
+			vDsRegFormaPagto = "%%vDsRegFormaPagto%%^ %%%Resumo Total...:%%^"
+			vDsRegFormaPagto = "%%vDsRegFormaPagto Dinheiro.......: %%vVlDinheiro%%^"	
+			vDsRegFormaPagto = "%%vDsRegFormaPagto Fatura.........: %%vVlFatura%%^"
+			vDsRegFormaPagto = "%%vDsRegFormaPagto Cheque.........: %%vVlCheque%%^"
+			vDsRegFormaPagto = "%%vDsRegFormaPagto Cartao credito.: %%vVlCartaoCredito%%^"
+			vDsRegFormaPagto = "%%vDsRegFormaPagto Cartao Debito..: %%vVlCartaoDebito%%^"
+			vDsRegFormaPagto = "%%vDsRegFormaPagto Troco..........: %%vVlTroco%%^"
+		endif	
+	endif
+
+	if (vDsRegFormaPagto != "")
+		vDsRegistro = ""
+		putitem/id vDsRegistro, "DS_CUPOM", vDsRegFormaPagto 
+		vDsLstCartao = ""
+		putitem vDsLstCartao, -1, vDsRegistro
+
+		viParams = ""
+		putitem/id viParams, "IN_IMPRIMEVIA", <TRUE>
+		putitem/id viParams, "DS_LSTCUPOM", vDsLstCartao
+		activate "ECFSVCO011".geraRelatorioGerencial(viParams,voParams,$xcderro$,$xctxerro$)
+		if ($procerror)       
+			$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+			return(-1)
+		elseif ($status = -10)
+			viParams = ""
+			voParams = ""
+			putitem/id viParams,"TITULO", "Erro de comunicação com a ECF"
+			putitem/id viParams,"MENSAGEM", $item("DESCRICAO",$xctxerro$)
+			activate "GERFP008".EXEC(viParams,voParams,$xCdErro$,$xCtxErro$)
+			if ($procerror)       
+				$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+				return(-1)
+			endif
+			return(-1)
+		elseif ($status < 0)
+			$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")
+			return(-1)
+		endif
+
+		viParams = ""
+		voParams = ""
+		putitem/id viParams, "NM_FUNCAO", <ECF_NUMERO_CUPOM>
+		activate "ECFSVCO001".leInformacaoImpressora(viParams,voParams,$xcderro$,$xctxerro$)
+		if ($procerror)       
+			$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+			return(-1)
+		elseif ($status < 0)
+			$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")
+			return(-1)
+		endif
+	endif
+	return(0)
+End; operation meiosDePagamento

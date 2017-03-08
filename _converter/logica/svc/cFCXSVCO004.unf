@@ -1,0 +1,1126 @@
+entry getParam
+	params
+		numeric vCdEmpresa : IN
+	endparams
+	
+	variables
+		string viParams, voParams
+	endvariables
+
+	viParams = ""
+	putitem viParams, -1, "IN_LOG_MOV_CTAPES" ;Projeto 078 - Tarefa 3602 - Aloisio Gargantini - 06/08/2010
+	activate "ADMSVCO001".GetLstParametro(viParams, voParams, $xCdErro$, $xCtxerro$)
+	if ($procerror)
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+		return(-1)
+	elseif ($xCdErro$)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN001", "DESCRICAO=%%$item("DESCRICAO", $xCtxErro$)", "ADICIONAL=Operação->FCCSVCO002.getParam")
+		return(-1)
+	elseif ($status < 0)
+		return(-1)
+	endif
+	$inLogMovCtaPes$ = $item("IN_LOG_MOV_CTAPES", voParams) ;Projeto 078 - Tarefa 3602 - Aloisio Gargantini - 06/08/2010
+	
+	if (vCdEmpresa = 0)
+		vCdEmpresa = $item("CD_EMPRESA", $xlpg$)
+	endif
+	
+	viParams = ""
+	putitem viParams, -1, "IN_UTILIZA_CXFILIAL"
+	activate "ADMSVCO001".GetParamEmpresa(vCdEmpresa, viParams, voParams, $xCdErro$, $xCtxerro$)
+	if ($procerror)
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+		return(-1)
+	elseif ($xCdErro$)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN001", "DESCRICAO=%%$item("DESCRICAO", $xCtxErro$)", "ADICIONAL=Operação->FCCSVCO002.getParam")
+		return(-1)
+	elseif ($status < 0)
+		return(-1)
+	endif
+	
+	$inCxFilial$ = $item("IN_UTILIZA_CXFILIAL", voParams)
+	return(0)
+end
+
+;-----------------------------
+public operation gravarSobraCx
+;-----------------------------
+	params
+		string $xlpg$    :IN    
+		string piParams  :IN
+		string poParams  :OUT
+		string poCdErro  :OUT
+		string poCtxErro :OUT
+	endparams
+	
+	variables
+		string  viParams, voParams, viValores, vTpSobra
+		numeric vCdEmpresa, vCdTerminal, vNrCtaPes, vNrSeq, vVlSobra, vTpDocumento, vNrSeqMovRel, vVlSaldoAntDoc, vVlSaldoAnt, vNrCtaPesFCC
+		numeric vTpProcesso, vNrSeqMovFCC, vVlSaldoAtualDoc, vVlSaldoAtual, vNrSeqHistRelSub
+		date    vDtAbertura, vDtMovimFCC
+	endvariables    
+	
+	vCdEmpresa       = $item("CD_EMPRESA"      , piParams)
+	vCdTerminal      = $item("CD_TERMINAL"     , piParams)
+	vDtAbertura      = $item("DT_ABERTURA"     , piParams)
+	vNrSeq           = $item("NR_SEQ"          , piParams)
+	vTpDocumento     = $item("TP_DOCUMENTO"    , piParams)
+	vNrSeqHistRelSub = $item("NR_SEQHISTRELSUB", piParams) ;==BY BIANCHINI[186/108] 30/06/2011 ==;
+	vVlSobra         = $item("VL_SOBRA"        , piParams)
+	vTpSobra         = $item("TP_SOBRA"        , piParams)
+	vNrCtaPes        = $item("NR_CTAPES"       , piParams)
+	vTpProcesso      = $item("TP_PROCESSO"     , piParams) ;Projeto 078 - Tarefa 3602 - Aloisio Gargantini - 09/08/2010
+	
+	if (vCdEmpresa = 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Empresa não informada!", "ADICIONAL=Operação->FCXSVCO004.gravarSobraCx")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		exit(-1)
+	endif
+	if (vCdTerminal = 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Terminal não informado!", "ADICIONAL=Operação->FCXSVCO004.gravarSobraCx")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		exit(-1)
+	endif
+	if (vDtAbertura = "")
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Data de abertura não informada!", "ADICIONAL=Operação->FCXSVCO004.gravarSobraCx")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		exit(-1)
+	endif
+	if (vNrSeq = 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Sequência de abertura não informada!", "ADICIONAL=Operação->FCXSVCO004.gravarSobraCx")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		exit(-1)
+	endif
+	if (vTpDocumento = 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Tipo de documento não informado!", "ADICIONAL=Operação->FCXSVCO004.gravarSobraCx")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		exit(-1)
+	endif
+	;==BY BIANCHINI[186/108] 30/06/2011 ==;
+	if (vNrSeqHistRelSub = 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Sub item do tipo de documento não informado!", "ADICIONAL=Operação->FCXSVCO004.gravarSobraCx")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		exit(-1)
+	endif
+	;==
+	if (vVlSobra = 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Valor de sobra não informado!", "ADICIONAL=Operação->FCXSVCO004.gravarSobraCx")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		exit(-1)
+	endif
+	if (vTpSobra = "")
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Tipo de sobra não informado!", "ADICIONAL=Operação->FCXSVCO004.gravarSobraCx")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		exit(-1)
+	endif
+	
+	call getParam(vCdEmpresa)
+	if ($procerror)
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		exit(-1)
+	elseif ($status < 0)
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	;Projeto 078 - Tarefa 3602 - Aloisio Gargantini - 09/08/2010
+	if ($inLogMovCtaPes$ = <TRUE>) & ((vTpProcesso = "") | (vTpProcesso = 0))
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Tipo de processo não informado!", "ADICIONAL=Operação->FCXSVCO002.supreCaixa")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		exit(-1)
+	endif
+	;	
+
+	clear/e "FCX_SOBRACXSVC"
+	creocc "FCX_SOBRACXSVC", -1
+	CD_EMPRESA.FCX_SOBRACXSVC       = vCdEmpresa
+	CD_TERMINAL.FCX_SOBRACXSVC      = vCdTerminal
+	DT_ABERTURA.FCX_SOBRACXSVC      = vDtAbertura
+	NR_SEQ.FCX_SOBRACXSVC           = vNrSeq
+	TP_DOCUMENTO.FCX_SOBRACXSVC     = vTpDocumento
+	NR_SEQHISTRELSUB.FCX_SOBRACXSVC = vNrSeqHistRelSub ;==BY BIANCHINI[186/108] 30/06/2011 ==;
+	retrieve/o "FCX_SOBRACXSVC"
+	if ($status = -7)
+		retrieve/x "FCX_SOBRACXSVC"
+	endif
+	
+	CD_OPERADOR.FCX_SOBRACXSVC = $item("CD_USUARIO", $xlpg$)
+	DT_CADASTRO.FCX_SOBRACXSVC = $datim
+	VL_SOBRACX.FCX_SOBRACXSVC  = vVlSobra
+	TP_SOBRACX.FCX_SOBRACXSVC  = vTpSobra
+	
+	if ($inCxFilial$ = <FALSE>)
+		;Projeto 078 - Tarefa 1675 - Aloisio Gargantini - 05/08/2008
+		viParams  = ""
+		viValores = ""
+		voParams  = ""
+
+		activate "FCCSVCO017".getNumMovRel($xLpg$, viParams, voParams, $xCdErro$, $xCtxerro$)
+		if ($procerror)       
+			$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "ADICIONAL=Operação->FCXSVCO004.gravarSobraCx")
+			poCdErro  = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return(-1)
+		endif
+		if ($status < 0)
+			$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "ADICIONAL=Operação->FCXSVCO004.gravarSobraCx")
+			poCdErro  = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return(-1)
+		endif
+		vNrSeqMovRel = $item("NR_SEQMOVREL", voParams)
+		;	
+		;Projeto 078 - Tarefa 3602 - Aloisio Gargantini - 06/08/2010
+		if ($inLogMovCtaPes$ = <TRUE>)
+			;buscar saldo Cta.
+			viParams = ""
+			putitem/id viParams, "NR_CTAPES", vNrCtaPes
+			putitem/id viParams, "DT_SALDO",  $item("DT_SISTEMA", $xLpg$)
+			activate "FCCSVCO002".buscaSaldoConta($xLpg$, viParams, "", voParams, $xCdErro$, $xCtxerro$)
+			if ($procerror)       
+				$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+				poCdErro  = $xCdErro$
+				poCtxErro = $xCtxErro$
+				rollback
+				return(-1)
+			elseif ($status < 0)
+				$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")
+				poCdErro  = $xCdErro$
+				poCtxErro = $xCtxErro$
+				rollback
+				return(-1)
+			endif
+			vVlSaldoAnt = $item("VL_SALDO", voParams)
+
+			;buscar saldo Cta. por tipo de documento
+			viParams = ""
+			putitem/id viParams, "NR_CTAPES",        vNrCtaPes
+			putitem/id viParams, "TP_DOCUMENTO",     vTpDocumento
+			;==BY BIANCHINI[186/108] 30/06/2011 ==;	
+			;putitem/id viParams, "NR_SEQHISTRELSUB", 1 
+			putitem/id viParams, "NR_SEQHISTRELSUB", vNrSeqHistRelSub
+			;==
+			putitem/id viParams, "DT_SALDO",         $item("DT_SISTEMA", $xLpg$)
+			activate "FCCSVCO002".buscaSaldoCtaTp($xLpg$, viParams, "", voParams, $xCdErro$, $xCtxerro$)
+			if ($procerror)       
+				$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+				poCdErro  = $xCdErro$
+				poCtxErro = $xCtxErro$
+				rollback
+				return(-1)
+			elseif ($status < 0)
+				$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")
+				poCdErro  = $xCdErro$
+				poCtxErro = $xCtxErro$
+				rollback
+				return(-1)
+			endif
+			vVlSaldoAntDoc = $item("VL_SALDO", voParams)
+		endif
+		;
+
+		viValores = ""
+		viParams  = ""
+		putitem/id viParams, "CD_EMPRESA"  ,     vCdEmpresa
+		putitem/id viParams, "NR_CTAPES"   ,     vNrCtaPes
+		putitem/id viParams, "DT_MOVIMENTO",     $item("DT_SISTEMA", $xlpg$)
+		if (vTpSobra = "C")
+			putitem/id viParams, "CD_HISTORICO", 1038
+		else
+			putitem/id viParams, "CD_HISTORICO", 1039
+		endif
+		putitem/id viParams, "TP_DOCUMENTO"    , vTpDocumento ; - 3 - DINHEIRO
+		;==BY BIANCHINI[186/108] 30/06/2011 ==;	
+		;putitem/id viParams, "NR_SEQHISTRELSUB", 1 ; /
+		putitem/id viParams, "NR_SEQHISTRELSUB", vNrSeqHistRelSub
+		;==
+		putitem/id viParams, "VL_LANCTO"       , vVlSobra
+		putitem/id viParams, "IN_ESTORNO"      , <FALSE>
+		;Projeto 078 - Tarefa 1674 - Aloisio Gargantini - 18/07/2008 - comentadas as linhas abaixo
+		;putitem/id viParams, "IN_CAIXA",    <TRUE>
+		;putitem/id viParams, "CD_TERMINAL", vCdTerminal
+		;putitem/id viParams, "DT_ABERTURA", vDtAbertura
+		;putitem/id viParams, "NR_SEQCAIXA", vNrSeq
+		;
+		;Projeto 078 - Tarefa 1675 - Aloisio Gargantini - 05/08/2008
+		if (vNrSeqMovRel > 0)
+			putitem/id viParams, "NR_SEQMOVREL", vNrSeqMovRel
+		endif
+		;
+		activate "FCCSVCO002".movimentaConta($xlpg$, viParams, viValores, voParams, $xCdErro$, $xCtxerro$)
+		if ($procerror)       
+			$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+			poCdErro  = $xCdErro$
+			poCtxErro = $xCtxErro$
+			rollback
+			exit(-1)
+		elseif ($status < 0)
+			$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")
+			poCdErro  = $xCdErro$
+			poCtxErro = $xCtxErro$
+			rollback
+			exit(-1)
+		endif
+		
+		NR_CTAPES.FCX_SOBRACXSVC = vNrCtaPes
+		DT_MOVIM.FCX_SOBRACXSVC  = $item("DT_MOVIM" , voParams)
+		NR_SEQMOV.FCX_SOBRACXSVC = $item("NR_SEQMOV", voParams)
+		
+		;Projeto 078 - Tarefa 3602 - Aloisio Gargantini - 06/08/2010
+		if ($inLogMovCtaPes$ = <TRUE>)
+			vNrCtaPesFCC = $item("NR_CTAPES", voParams)
+			vDtMovimFCC  = $item("DT_MOVIM" , voParams)
+			vNrSeqMovFCC = $item("NR_SEQMOV", voParams)
+
+			;buscar saldo Cta.
+			viParams = ""
+			putitem/id viParams, "NR_CTAPES", vNrCtaPes
+			putitem/id viParams, "DT_SALDO",  $item("DT_SISTEMA", $xLpg$)
+			activate "FCCSVCO002".buscaSaldoConta($xLpg$, viParams, "", voParams, $xCdErro$, $xCtxerro$)
+			if ($procerror)       
+				$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+				poCdErro  = $xCdErro$
+				poCtxErro = $xCtxErro$
+				rollback
+				return(-1)
+			elseif ($status < 0)
+				$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")
+				poCdErro  = $xCdErro$
+				poCtxErro = $xCtxErro$
+				rollback
+				return(-1)
+			endif
+			vVlSaldoAtual = $item("VL_SALDO", voParams)
+
+			;buscar saldo Cta. por tipo de documento
+			viParams = ""
+			putitem/id viParams, "NR_CTAPES"       , vNrCtaPes
+			putitem/id viParams, "TP_DOCUMENTO"    , vTpDocumento
+			;==BY BIANCHINI[186/108] 30/06/2011 ==;	
+			;putitem/id viParams, "NR_SEQHISTRELSUB", 1 
+			putitem/id viParams, "NR_SEQHISTRELSUB", vNrSeqHistRelSub
+			;==
+			putitem/id viParams, "DT_SALDO",         $item("DT_SISTEMA", $xLpg$)
+			activate "FCCSVCO002".buscaSaldoCtaTp($xLpg$, viParams, "", voParams, $xCdErro$, $xCtxerro$)
+			if ($procerror)       
+				$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+				poCdErro  = $xCdErro$
+				poCtxErro = $xCtxErro$
+				rollback
+				return(-1)
+			elseif ($status < 0)
+				$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")
+				poCdErro  = $xCdErro$
+				poCtxErro = $xCtxErro$
+				rollback
+				return(-1)
+			endif
+			vVlSaldoAtualDoc = $item("VL_SALDO", voParams)
+
+			;gravação do log
+			viParams = ""
+			putitem/id viParams, "TP_PROCESSO",    vTpProcesso
+			putitem/id viParams, "TP_DOCUMENTO",   vTpDocumento
+			putitem/id viParams, "NR_CTAPES",      vNrCtaPes
+			putitem/id viParams, "VL_LANCAMENTO",  vVlSobra
+			putitem/id viParams, "VL_SALDODOC",    vVlSaldoAtualDoc
+			putitem/id viParams, "VL_SALDOCTA",    vVlSaldoAtual
+			putitem/id viParams, "VL_SALDOANTDOC", vVlSaldoAntDoc
+			putitem/id viParams, "VL_SALDOANTCTA", vVlSaldoAnt
+			putitem/id viParams, "NR_CTAPESFCC",   vNrCtaPesFCC
+			putitem/id viParams, "DT_MOVIMFCC",    vDtMovimFCC
+			putitem/id viParams, "NR_SEQMOVFCC",   vNrSeqMovFCC
+			activate "FCCSVCO018".gravarLogMovtoCtaPes($xLpg$, viParams, voParams, $xCdErro$, $xCtxErro$)
+			if ($procerror)
+				$instancehandle->setStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+				poCdErro  = $xCdErro$
+				poCtxErro = $xCtxErro$
+				rollback
+				return(-1)
+			elseif ($status < 0)
+				$instancehandle->setStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")
+				poCdErro  = $xCdErro$
+				poCtxErro = $xCtxErro$
+				rollback
+				return(-1)
+			endif
+		endif
+		;
+	endif
+	
+	$collhandle("FCX_SOBRACXSVC")->Salvar()
+	if ($procerror)
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		rollback
+		exit(-1)
+	elseif ($status < 0)
+		$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")    
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		rollback
+		exit(-1)
+	endif
+	
+	exit(0)
+end
+
+;-----------------------------------
+public operation gravarMaloteSobraCx
+;-----------------------------------
+	params
+		string $xlpg$    :IN    
+		string piParams  :IN
+		string poParams  :OUT
+		string poCdErro  :OUT
+		string poCtxErro :OUT
+	endparams
+	
+	variables
+		string  viParams, voParams, viValores, vTpSobra, vNulo
+		numeric vCdEmpresa, vCdTerminal, vNrSeq, vTpDocumento, vNrSeqMalote, vCdGrupoEmpresa
+		date    vDtAbertura, vDtMalote
+	endvariables
+	
+	vCdEmpresa      = $item("CD_EMPRESA"     , piParams)
+	vCdGrupoEmpresa = $item("CD_GRUPOEMPRESA", piParams)
+	vDtMalote       = $item("DT_MALOTE"      , piParams)
+	vNrSeqMalote    = $item("NR_SEQMALOTE"   , piParams)
+	
+	if (vCdEmpresa = 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Empresa não informada!", "ADICIONAL=Operação->FCXSVCO004.gravarMaloteSobraCx")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		exit(-1)
+	endif
+	
+	if (vCdGrupoEmpresa = 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Grupo empresa não informado!", "ADICIONAL=Operação->FCXSVCO004.gravarMaloteSobraCx")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		exit(-1)
+	endif
+	
+	if (vDtMalote = "")
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Data do malote não informado!", "ADICIONAL=Operação->FCXSVCO004.gravarMaloteSobraCx")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		exit(-1)
+	endif
+	
+	if (vNrSeqMalote = 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Sequência do malote não informado!", "ADICIONAL=Operação->FCXSVCO004.gravarMaloteSobraCx")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		exit(-1)
+	endif
+	
+	vNulo = ""
+	
+	clear/e "FCX_SOBRACXSVC"
+	CD_EMPRESA.FCX_SOBRACXSVC = vCdEmpresa
+	DT_MALOTE.FCX_SOBRACXSVC  = "·=%%vNulo"
+	retrieve/e "FCX_SOBRACXSVC"
+	if ($status >= 0)
+		setocc "FCX_SOBRACXSVC", 1
+		while ($status >= 0)
+			CD_OPERADOR.FCX_SOBRACXSVC     = $item("CD_USUARIO", $xlpg$)
+			DT_CADASTRO.FCX_SOBRACXSVC     = $datim
+			CD_GRUPOEMPRESA.FCX_SOBRACXSVC = vCdGrupoEmpresa
+			DT_MALOTE.FCX_SOBRACXSVC       = vDtMalote
+			NR_SEQMALOTE.FCX_SOBRACXSVC    = vNrSeqMalote
+			
+			setocc "FCX_SOBRACXSVC", $curocc("FCX_SOBRACXSVC") + 1
+		endwhile
+	
+		$collhandle("FCX_SOBRACXSVC")->Salvar()
+		if ($procerror)
+			$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+			poCdErro  = $xCdErro$
+			poCtxErro = $xCtxErro$
+			exit(-1)
+		elseif ($status < 0)
+			$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")    
+			poCdErro  = $xCdErro$
+			poCtxErro = $xCtxErro$
+			exit(-1)
+		endif
+	endif	
+	
+	exit(0)
+end
+
+;--------------------------------------
+public operation gravarMovimentoSobraCx
+;--------------------------------------
+	params
+		string $xlpg$    :IN    
+		string piParams  :IN
+		string poParams  :OUT
+		string poCdErro  :OUT
+		string poCtxErro :OUT
+	endparams
+	
+	variables
+		string  viParams, voParams, viValores
+		numeric vCdEmpresa, vCdTerminal, vNrCtaPes, vNrSeq, vTpDocumento, vNrSeqMovRel, vVlSaldoAntDoc, vVlSaldoAnt, vNrCtaPesFCC
+		numeric vTpProcesso, vNrSeqMovFCC, vVlSaldoAtualDoc, vVlSaldoAtual, vNrSeqHistRelSub
+		date    vDtAbertura, vDtMovimFCC
+	endvariables    
+	
+	vCdEmpresa       = $item("CD_EMPRESA"      , piParams)
+	vCdTerminal      = $item("CD_TERMINAL"     , piParams)
+	vDtAbertura      = $item("DT_ABERTURA"     , piParams)
+	vNrSeq           = $item("NR_SEQ"          , piParams)
+	vTpDocumento     = $item("TP_DOCUMENTO"    , piParams)
+	vNrSeqHistRelSub = $item("NR_SEQHISTRELSUB", piParams) ;==BY BIANCHINI[186/108] 30/06/2011 ==;
+	vNrCtaPes        = $item("NR_CTAPES"       , piParams)
+	vTpProcesso      = $item("TP_PROCESSO"     , piParams) ;Projeto 078 - Tarefa 3602 - Aloisio Gargantini - 09/08/2010
+	
+	if (vCdEmpresa = 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Empresa não informada!", "ADICIONAL=Operação->FCXSVCO004.gravarMovimentoSobraCx")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		exit(-1)
+	endif
+	
+	if (vCdTerminal = 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Terminal não informado!", "ADICIONAL=Operação->FCXSVCO004.gravarMovimentoSobraCx")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		exit(-1)
+	endif
+	
+	if (vDtAbertura = "")
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Data de abertura não informada!", "ADICIONAL=Operação->FCXSVCO004.gravarMovimentoSobraCx")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		exit(-1)
+	endif
+	
+	if (vNrSeq = 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Sequência de abertura não informada!", "ADICIONAL=Operação->FCXSVCO004.gravarMovimentoSobraCx")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		exit(-1)
+	endif
+	
+	if (vTpDocumento = 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Tipo de documento não informado!", "ADICIONAL=Operação->FCXSVCO004.gravarMovimentoSobraCx")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		exit(-1)
+	endif
+	;==BY BIANCHINI[186/108] 30/06/2011 ==;
+	if (vNrSeqHistRelSub = 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Sub item tipo de documento não informado!","ADICIONAL=Operação->FCXSVCO004.gravarMovimentoSobraCx")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		exit(-1)
+	endif
+	;==	
+	if (vNrCtaPes = 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Conta não informada!", "ADICIONAL=Operação->FCXSVCO004.gravarMovimentoSobraCx")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		exit(-1)
+	endif
+	;Projeto 078 - Tarefa 3602 - Aloisio Gargantini - 09/08/2010
+	call getParam(vCdEmpresa)
+	if ($procerror)
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		exit(-1)
+	elseif ($status < 0)
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+
+	if ($inLogMovCtaPes$ = <TRUE>) & ((vTpProcesso = "") | (vTpProcesso = 0))
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Tipo de processo não informado!", "ADICIONAL=Operação->FCXSVCO002.supreCaixa")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		exit(-1)
+	endif
+	;	
+	clear/e "FCX_SOBRACXSVC"
+	CD_EMPRESA.FCX_SOBRACXSVC       = vCdEmpresa
+	CD_TERMINAL.FCX_SOBRACXSVC      = vCdTerminal
+	DT_ABERTURA.FCX_SOBRACXSVC      = vDtAbertura
+	NR_SEQ.FCX_SOBRACXSVC           = vNrSeq
+	TP_DOCUMENTO.FCX_SOBRACXSVC     = vTpDocumento
+	NR_SEQHISTRELSUB.FCX_SOBRACXSVC = vNrSeqHistRelSub ;==BY BIANCHINI[186/108] 30/06/2011 ==;
+	retrieve/e "FCX_SOBRACXSVC"
+	if ($status < 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Sobra de caixa não encontrada!", "ADICIONAL=Operação->FCXSVCO004.gravarMovimentoSobraCx")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		exit(-1)
+	endif
+	
+	;Projeto 078 - Tarefa 1675 - Aloisio Gargantini - 05/08/2008
+	viParams  = ""
+	viValores = ""
+	voParams  = ""
+
+	activate "FCCSVCO017".getNumMovRel($xLpg$, viParams, voParams, $xCdErro$, $xCtxerro$)
+	if ($procerror)       
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "ADICIONAL=Operação->FCXSVCO004.gravarMovimentoSobraCx")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		rollback
+		return(-1)
+	elseif ($status < 0)
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "ADICIONAL=Operação->FCXSVCO004.gravarMovimentoSobraCx")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		rollback
+		return(-1)
+	endif
+	vNrSeqMovRel = $item("NR_SEQMOVREL", voParams)
+	;	
+	;Projeto 078 - Tarefa 3602 - Aloisio Gargantini - 06/08/2010
+	if ($inLogMovCtaPes$ = <TRUE>)
+		;buscar saldo Cta.
+		viParams = ""
+		putitem/id viParams, "NR_CTAPES", vNrCtaPes
+		putitem/id viParams, "DT_SALDO",  $item("DT_SISTEMA", $xLpg$)
+		activate "FCCSVCO002".buscaSaldoConta($xLpg$, viParams, "", voParams, $xCdErro$, $xCtxerro$)
+		if ($procerror)       
+			$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+			poCdErro  = $xCdErro$
+			poCtxErro = $xCtxErro$
+			rollback
+			return(-1)
+		elseif ($status < 0)
+			$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")
+			poCdErro  = $xCdErro$
+			poCtxErro = $xCtxErro$
+			rollback
+			return(-1)
+		endif
+		vVlSaldoAnt = $item("VL_SALDO", voParams)
+
+		;buscar saldo Cta. por tipo de documento
+		viParams = ""
+		putitem/id viParams, "NR_CTAPES"       , vNrCtaPes
+		putitem/id viParams, "TP_DOCUMENTO"    , vTpDocumento
+		;==BY BIANCHINI[186/108] 30/06/2011 ==;
+		;putitem/id viParams, "NR_SEQHISTRELSUB", 1 
+		putitem/id viParams, "NR_SEQHISTRELSUB", vNrSeqHistRelSub
+		;==
+		putitem/id viParams, "DT_SALDO"        , $item("DT_SISTEMA", $xLpg$)
+		activate "FCCSVCO002".buscaSaldoCtaTp($xLpg$, viParams, "", voParams, $xCdErro$, $xCtxerro$)
+		if ($procerror)       
+			$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+			poCdErro  = $xCdErro$
+			poCtxErro = $xCtxErro$
+			rollback
+			return(-1)
+		elseif ($status < 0)
+			$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")
+			poCdErro  = $xCdErro$
+			poCtxErro = $xCtxErro$
+			rollback
+			return(-1)
+		endif
+		vVlSaldoAntDoc = $item("VL_SALDO", voParams)
+	endif
+	;
+	viValores = ""
+	viParams = ""
+	putitem/id viParams, "CD_EMPRESA"      , vCdEmpresa
+	putitem/id viParams, "NR_CTAPES"       , vNrCtaPes
+	putitem/id viParams, "DT_MOVIMENTO"    , $item("DT_SISTEMA", $xlpg$)
+	if (TP_SOBRACX.FCX_SOBRACXSVC = "C")
+		putitem/id viParams, "CD_HISTORICO", 1038
+	else
+		putitem/id viParams, "CD_HISTORICO", 1039
+	endif
+	putitem/id viParams, "TP_DOCUMENTO"    , vTpDocumento     ; - 3 - DINHEIRO
+	;==BY BIANCHINI[186/108] 30/06/2011 ==;
+	;putitem/id viParams, "NR_SEQHISTRELSUB", 1 ; /
+	putitem/id viParams, "NR_SEQHISTRELSUB", vNrSeqHistRelSub
+	;==
+	putitem/id viParams, "VL_LANCTO"       , VL_SOBRACX.FCX_SOBRACXSVC
+	putitem/id viParams, "IN_ESTORNO"      , <FALSE>
+	;Projeto 078 - Tarefa 1674 - Aloisio Gargantini - 18/07/2008 - comentadas as linhas abaixo
+	;putitem/id viParams, "IN_CAIXA", <TRUE>
+	;putitem/id viParams, "CD_TERMINAL", vCdTerminal
+	;putitem/id viParams, "DT_ABERTURA", vDtAbertura
+	;putitem/id viParams, "NR_SEQCAIXA", vNrSeq
+	;
+	;Projeto 078 - Tarefa 1675 - Aloisio Gargantini - 05/08/2008
+	if (vNrSeqMovRel > 0)
+		putitem/id viParams, "NR_SEQMOVREL", vNrSeqMovRel
+	endif
+	;
+	activate "FCCSVCO002".movimentaConta($xlpg$, viParams, viValores, voParams, $xCdErro$, $xCtxerro$)
+	if ($procerror)       
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		rollback
+		exit(-1)
+	elseif ($status < 0)
+		$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		rollback
+		exit(-1)
+	endif
+	
+	;Projeto 078 - Tarefa 3602 - Aloisio Gargantini - 09/08/2010
+	vNrCtaPesFCC = $item("NR_CTAPES", voParams)
+	vDtMovimFCC  = $item("DT_MOVIM" , voParams)
+	vNrSeqMovFCC = $item("NR_SEQMOV", voParams)	
+	if ($inLogMovCtaPes$ = <TRUE>)
+		;buscar saldo Cta.
+		viParams = ""
+		putitem/id viParams, "NR_CTAPES", vNrCtaPes
+		putitem/id viParams, "DT_SALDO",  $item("DT_SISTEMA", $xLpg$)
+		activate "FCCSVCO002".buscaSaldoConta($xLpg$, viParams, "", voParams, $xCdErro$, $xCtxerro$)
+		if ($procerror)       
+			$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+			poCdErro  = $xCdErro$
+			poCtxErro = $xCtxErro$
+			rollback
+			return(-1)
+		elseif ($status < 0)
+			$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")
+			poCdErro  = $xCdErro$
+			poCtxErro = $xCtxErro$
+			rollback
+			return(-1)
+		endif
+		vVlSaldoAtual = $item("VL_SALDO", voParams)
+
+		;buscar saldo Cta. por tipo de documento
+		viParams = ""
+		putitem/id viParams, "NR_CTAPES"        , vNrCtaPes
+		putitem/id viParams, "TP_DOCUMENTO"     , vTpDocumento
+		;==BY BIANCHINI[186/108] 30/06/2011 ==;
+		;putitem/id viParams, "NR_SEQHISTRELSUB", 1 
+		putitem/id viParams, "NR_SEQHISTRELSUB", vNrSeqHistRelSub
+		;==
+		putitem/id viParams, "DT_SALDO"        , $item("DT_SISTEMA", $xLpg$)
+		activate "FCCSVCO002".buscaSaldoCtaTp($xLpg$, viParams, "", voParams, $xCdErro$, $xCtxerro$)
+		if ($procerror)       
+			$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+			poCdErro  = $xCdErro$
+			poCtxErro = $xCtxErro$
+			rollback
+			return(-1)
+		elseif ($status < 0)
+			$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")
+			poCdErro  = $xCdErro$
+			poCtxErro = $xCtxErro$
+			rollback
+			return(-1)
+		endif
+		vVlSaldoAtualDoc = $item("VL_SALDO", voParams)
+
+		;gravação do log
+		viParams = ""
+		putitem/id viParams, "TP_PROCESSO",     vTpProcesso
+		putitem/id viParams, "TP_DOCUMENTO",    vTpDocumento
+		putitem/id viParams, "NR_CTAPES",       vNrCtaPes
+		putitem/id viParams, "VL_LANCAMENTO",   VL_SOBRACX.FCX_SOBRACXSVC
+		putitem/id viParams, "VL_SALDODOC",     vVlSaldoAtualDoc
+		putitem/id viParams, "VL_SALDOCTA",     vVlSaldoAtual
+		putitem/id viParams, "VL_SALDOANTDOC",  vVlSaldoAntDoc
+		putitem/id viParams, "VL_SALDOANTCTA",  vVlSaldoAnt
+		putitem/id viParams, "NR_CTAPESFCC",    vNrCtaPesFCC
+		putitem/id viParams, "DT_MOVIMFCC",     vDtMovimFCC
+		putitem/id viParams, "NR_SEQMOVFCC",    vNrSeqMovFCC
+		activate "FCCSVCO018".gravarLogMovtoCtaPes($xLpg$, viParams, voParams, $xCdErro$, $xCtxErro$)
+		if ($procerror)
+			$instancehandle->setStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+			poCdErro  = $xCdErro$
+			poCtxErro = $xCtxErro$
+			rollback
+			return(-1)
+		elseif ($status < 0)
+			$instancehandle->setStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")
+			poCdErro  = $xCdErro$
+			poCtxErro = $xCtxErro$
+			rollback
+			return(-1)
+		endif
+	endif
+	;
+	
+	;Projeto 078 - Tarefa 3602 - Aloisio Gargantini - 09/08/2010
+	;NR_CTAPES.FCX_SOBRACXSVC = vNrCtaPes
+	;DT_MOVIM.FCX_SOBRACXSVC = $item("DT_MOVIM", voParams)
+	;CD_OPERADOR.FCX_SOBRACXSVC = $item("CD_USUARIO", $xlpg$)
+	;DT_CADASTRO.FCX_SOBRACXSVC = $datim
+	;NR_SEQMOV.FCX_SOBRACXSVC = $item("NR_SEQMOV", voParams)
+	
+	NR_CTAPES.FCX_SOBRACXSVC   = vNrCtaPes
+	DT_MOVIM.FCX_SOBRACXSVC    = vDtMovimFCC
+	NR_SEQMOV.FCX_SOBRACXSVC   = vNrSeqMovFCC
+	CD_OPERADOR.FCX_SOBRACXSVC = $item("CD_USUARIO", $xlpg$)
+	DT_CADASTRO.FCX_SOBRACXSVC = $datim
+	;
+	$collhandle("FCX_SOBRACXSVC")->Salvar()
+	if ($procerror)
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		rollback
+		exit(-1)
+	elseif ($status < 0)
+		$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")    
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		rollback
+		exit(-1)
+	endif
+	
+	exit(0)
+end
+
+
+;----------------------------
+public operation buscaSobraCX
+;----------------------------
+	params
+		string $xlpg$    :IN    
+		string piParams  :IN
+		string poParams  :OUT
+		string poCdErro  :OUT
+		string poCtxErro :OUT
+	endparams
+	
+	variables
+		string  viValores, vNulo
+		numeric vCdEmpresa, vVlSobra
+	endvariables    
+	
+	vCdEmpresa   = $item("CD_EMPRESA"  , piParams)
+	if (vCdEmpresa = 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Empresa não informada!", "ADICIONAL=Operação->FCXSVCO004.buscaSobraCx")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		exit(-1)
+	endif
+	
+	vVlSobra = 0
+	vNulo = ""
+	
+	clear/e "FCX_SOBRACXSVC"
+	CD_EMPRESA.FCX_SOBRACXSVC = vCdEmpresa
+	DT_MALOTE.FCX_SOBRACXSVC  = "·=%%vNulo"
+	retrieve/e "FCX_SOBRACXSVC"
+	if ($status >= 0)
+		setocc "FCX_SOBRACXSVC", 1
+		while ($status >= 0)
+			if (TP_SOBRACX.FCX_SOBRACXSVC = "C")
+				vVlSobra = vVlSobra + VL_SOBRACX.FCX_SOBRACXSVC
+			else
+				vVlSobra = vVlSobra - VL_SOBRACX.FCX_SOBRACXSVC
+			endif
+			
+			setocc "FCX_SOBRACXSVC", $curocc("FCX_SOBRACXSVC") + 1
+		endwhile
+	endif
+	
+	poParams = ""
+	putitem/id poParams, "VL_SOBRA", vVlSobra
+	
+	exit(0)
+end
+
+;==BY BIANCHINI[PRJ/TAREFA 186/0043] 22/06/2011==;
+;----------------------------
+public operation buscaSobraCxTpDoc
+;----------------------------
+	params
+		string $xlpg$    :IN    
+		string piParams  :IN
+		string poParams  :OUT
+		string poCdErro  :OUT
+		string poCtxErro :OUT
+	endparams
+	
+	variables
+		string viValores, vNulo
+		numeric vCdEmpresa, vVlSobra, vTpDocumento, vNrSeqHistRelSub
+	endvariables    
+	
+	vCdEmpresa       = $item("CD_EMPRESA"      , piParams)
+	vTpDocumento     = $item("TP_DOCUMENTO"    , piParams)
+	vNrSeqHistRelSub = $item("NR_SEQHISTRELSUB", piParams)
+
+	if (vCdEmpresa = 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Empresa não informada!", "ADICIONAL=Operação->FCXSVCO004.buscaSobraCxTpDoc")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		exit(-1)
+	endif
+	
+	vVlSobra = 0
+	vNulo    = ""
+	
+	clear/e "FCX_SOBRACXSVC"
+	CD_EMPRESA.FCX_SOBRACXSVC       = vCdEmpresa
+	DT_MALOTE.FCX_SOBRACXSVC        = "·=%%vNulo"
+	TP_DOCUMENTO.FCX_SOBRACXSVC     = vTpDocumento
+	NR_SEQHISTRELSUB.FCX_SOBRACXSVC = vNrSeqHistRelSub
+	retrieve/e "FCX_SOBRACXSVC"
+	if ($status >= 0)
+		setocc "FCX_SOBRACXSVC", 1
+		while ($status >= 0)
+			;clear/e "FCX_CAIXAISVC"
+			;CD_EMPRESA.FCX_CAIXAISVC/init       = CD_EMPRESA.FCX_SOBRACXSVC
+			;CD_TERMINAL.FCX_CAIXAISVC/init      = CD_TERMINAL.FCX_SOBRACXSVC
+			;DT_ABERTURA.FCX_CAIXAISVC/init      = DT_ABERTURA.FCX_SOBRACXSVC
+			;NR_SEQ.FCX_CAIXAISVC/init           = NR_SEQ.FCX_SOBRACXSVC
+			;TP_DOCUMENTO.FCX_CAIXAISVC/init     = TP_DOCUMENTO.FCX_SOBRACXSVC
+			;NR_SEQHISTRELSUB.FCX_CAIXAISVC/init = NR_SEQHISTRELSUB.FCX_SOBRACXSVC
+			;retrieve/e "FCX_CAIXAISVC"
+			;if ($status >= 0)
+			;	if (TP_SOBRACX.FCX_SOBRACXSVC = "C")
+			;		vVlSobra = vVlSobra + VL_DIFERENCA.FCX_CAIXAISVC
+			;	else
+			;		vVlSobra = vVlSobra - VL_DIFERENCA.FCX_CAIXAISVC
+			;	endif
+			;endif
+			if (TP_SOBRACX.FCX_SOBRACXSVC = "C")
+				vVlSobra = vVlSobra + VL_SOBRACX.FCX_SOBRACXSVC
+			else
+				vVlSobra = vVlSobra - VL_SOBRACX.FCX_SOBRACXSVC
+			endif
+			setocc "FCX_SOBRACXSVC", $curocc("FCX_SOBRACXSVC") + 1
+		endwhile
+	endif
+	
+	poParams = ""
+	putitem/id poParams, "VL_SOBRA", vVlSobra
+	
+	exit(0)
+end
+;==
+
+;----------------------------------
+public operation buscaSobraCxMalote
+;----------------------------------
+	params
+		string $xlpg$    :IN    
+		string piParams  :IN
+		string poParams  :OUT
+		string poCdErro  :OUT
+		string poCtxErro :OUT
+	endparams
+	
+	variables
+		numeric vCdGrupoEmpresa, vNrSeqMalote, vVlSobra
+		date vDtMalote
+	endvariables    
+	
+	vCdGrupoEmpresa = $item("CD_GRUPOEMPRESA", piParams)
+	vDtMalote       = $item("DT_MALOTE",       piParams)
+	vNrSeqMalote    = $item("NR_SEQMALOTE",    piParams)
+	
+	if (vCdGrupoEmpresa = 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Grupo empresa não informado!", "ADICIONAL=Operação->FCXSVCO004.gravarMaloteSobraCx")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		exit(-1)
+	endif
+	
+	if (vDtMalote = "")
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Data do malote não informado!", "ADICIONAL=Operação->FCXSVCO004.gravarMaloteSobraCx")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		exit(-1)
+	endif
+	
+	if (vNrSeqMalote = 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Sequência do malote não informado!", "ADICIONAL=Operação->FCXSVCO004.gravarMaloteSobraCx")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		exit(-1)
+	endif
+	
+	
+	vVlSobra = 0
+	
+	clear/e "FCX_SOBRACXSVC"
+	CD_GRUPOEMPRESA.FCX_SOBRACXSVC = vCdGrupoEmpresa
+	DT_MALOTE.FCX_SOBRACXSVC       = vDtMalote
+	NR_SEQMALOTE.FCX_SOBRACXSVC    = vNrSeqMalote
+	retrieve/e "FCX_SOBRACXSVC"
+	if ($status >= 0)
+		setocc "FCX_SOBRACXSVC", 1
+		while ($status >= 0)
+			if (TP_SOBRACX.FCX_SOBRACXSVC = "C")
+				vVlSobra = vVlSobra + VL_SOBRACX.FCX_SOBRACXSVC
+			else
+				vVlSobra = vVlSobra - VL_SOBRACX.FCX_SOBRACXSVC
+			endif
+			
+			setocc "FCX_SOBRACXSVC", $curocc("FCX_SOBRACXSVC") + 1
+		endwhile
+	endif
+	
+	poParams = ""
+	putitem/id poParams, "VL_SOBRA", vVlSobra
+	
+	exit(0)
+end
+
+
+
+;-----------------------------------------------------------;
+public operation gravarMovimentoEnvioMalote                 ;
+;-----------------------------------------------------------;
+;Projeto 168 - Tarefa 0024 - Aloisio Gargantini - 16/07/2010
+;
+	params
+		string $xlpg$    :IN    
+		string piParams  :IN
+		string poParams  :OUT
+		string poCdErro  :OUT
+		string poCtxErro :OUT
+	endparams
+	
+	variables
+		string  viParams, voParams, viValores, vLstDocumentos, vDsRegistros
+		numeric vCdGrupoEmpresa, vNrCtaPes, vTpDocumento, vNrSeqHistRelSub, vNrSeqMalote, vVlSaldo, vVlEnvio
+		date    vDtMovimento
+	endvariables    
+	
+	vCdGrupoEmpresa  = $item("CD_GRUPOEMPRESA" , piParams)
+	vNrCtaPes        = $item("NR_CTAPES"       , piParams)
+	vDtMovimento     = $item("DT_MOVIMENTO"    , piParams)
+	vTpDocumento     = $item("TP_DOCUMENTO"    , piParams)
+	vNrSeqHistRelSub = $item("NR_SEQHISTRELSUB", piParams)
+	vNrSeqMalote     = $item("NR_SEQMALOTE"    , piParams)
+	vVlSaldo         = $item("VL_SALDO"        , piParams)
+	vVlEnvio         = $item("VL_ENVIO"        , piParams)
+	vLstDocumentos   = $item("LST_DOCUMENTOS"  , piParams)	;==BY BIANCHINI[PRJ/TAREFA 180/0134] 31/03/2011==;
+	if (vCdGrupoEmpresa = 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Grupo Empresa não informado!", "ADICIONAL=Operação->FCXSVCO004.gravarMovimentoEnvioMalote")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		exit(-1)
+	endif
+
+	if (vNrCtaPes = 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Conta não informada!", "ADICIONAL=Operação->FCXSVCO004.gravarMovimentoEnvioMalote")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		exit(-1)
+	endif
+	
+	if (vDtMovimento = "")
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Data de movimento não informada!", "ADICIONAL=Operação->FCXSVCO004.gravarMovimentoEnvioMalote")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		exit(-1)
+	endif
+
+	if (vTpDocumento = 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Tipo de documento não informado!", "ADICIONAL=Operação->FCXSVCO004.gravarMovimentoEnvioMalote")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		exit(-1)
+	endif
+	
+	if (vNrSeqHistRelSub = 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Sequência de histórico não informado!", "ADICIONAL=Operação->FCXSVCO004.gravarMovimentoEnvioMalote")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		exit(-1)
+	endif
+
+	;==========
+	clear/e "FCX_MALOTEENVSVC"
+	creocc "FCX_MALOTEENVSVC", -1
+	CD_GRUPOEMPRESA.FCX_MALOTEENVSVC  = vCdGrupoEmpresa
+	NR_CTAPES.FCX_MALOTEENVSVC        = vNrCtaPes
+	DT_MOVIMENTO.FCX_MALOTEENVSVC     = vDtMovimento
+	TP_DOCUMENTO.FCX_MALOTEENVSVC     = vTpDocumento
+	NR_SEQHISTRELSUB.FCX_MALOTEENVSVC = vNrSeqHistRelSub
+	NR_SEQMALOTE.FCX_MALOTEENVSVC     = vNrSeqMalote
+	retrieve/o "FCX_MALOTEENVSVC"
+	if ($status = -7)
+		retrieve/x "FCX_MALOTEENVSVC"
+		VL_ENVIO.FCX_MALOTEENVSVC      = VL_ENVIO.FCX_MALOTEENVSVC + vVlEnvio
+	else
+		VL_SALDO.FCX_MALOTEENVSVC      = vVlSaldo 
+		VL_ENVIO.FCX_MALOTEENVSVC      = vVlEnvio
+	endif
+	if (VL_ENVIO.FCX_MALOTEENVSVC = "")
+		VL_ENVIO.FCX_MALOTEENVSVC = 0
+	endif
+	if (VL_SALDO.FCX_MALOTEENVSVC = "")
+		VL_SALDO.FCX_MALOTEENVSVC = 0
+	endif
+	CD_OPERADOR.FCX_MALOTEENVSVC = $item("CD_USUARIO", $xlpg$)
+	DT_CADASTRO.FCX_MALOTEENVSVC = $datim
+
+	$collhandle("FCX_MALOTEENVSVC")->Salvar()
+	if ($procerror)
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		exit(-1)
+	elseif ($status < 0)
+		$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")    
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		exit(-1)
+	endif
+
+	;==BY BIANCHINI[PRJ/TAREFA 180/0134] 31/03/2011==;
+	if(vLstDocumentos != "")	
+		repeat
+			getitem vDsRegistros, vLstDocumentos, 1	
+			creocc "FCX_MALOTEFATSVC", -1
+			CD_GRUPOEMPRESA.FCX_MALOTEFATSVC	 = vCdGrupoEmpresa
+			NR_CTAPES.FCX_MALOTEFATSVC			 = vNrCtaPes
+			DT_MOVIMENTO.FCX_MALOTEFATSVC		 = vDtMovimento
+			TP_DOCUMENTO.FCX_MALOTEFATSVC		 = vTpDocumento
+			NR_SEQHISTRELSUB.FCX_MALOTEFATSVC	 = vNrSeqHistRelSub
+			NR_SEQMALOTE.FCX_MALOTEFATSVC		 = vNrSeqMalote
+			CD_EMPRESA.FCX_MALOTEFATSVC	   	 = $item("CD_EMPRESA", vDsRegistros)
+			CD_CLIENTE.FCX_MALOTEFATSVC	  	 = $item("CD_CLIENTE", vDsRegistros)
+			NR_FAT.FCX_MALOTEFATSVC				 = $item("NR_FAT"    , vDsRegistros)
+			NR_PARCELA.FCX_MALOTEFATSVC		 = $item("NR_PARCELA", vDsRegistros)
+			DT_CADASTRO.FCX_MALOTEFATSVC		 = $item("DT_SISTEMA", $$gParamGlb)
+			CD_OPERADOR.FCX_MALOTEFATSVC		 = $item("CD_USUARIO", $$gParamGlb)
+			$collhandle("FCX_MALOTEFATSVC")->Salvar()
+			if ($procerror)
+				$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+				poCdErro  = $xCdErro$
+				poCtxErro = $xCtxErro$
+				exit (-1)
+			elseif ($status < 0)
+				$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")    
+				poCdErro  = $xCdErro$
+				poCtxErro = $xCtxErro$
+				exit (-1)
+			endif
+			delitem vLstDocumentos,1
+		until (vLstDocumentos = "")
+	endif
+	;==
+	exit(0)
+end ;operation gravarMovimentoEnvioMalote

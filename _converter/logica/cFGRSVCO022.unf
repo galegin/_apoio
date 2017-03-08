@@ -1,0 +1,296 @@
+;----------------------------------------------------;
+public operation validaFechamentoFinanceiro          ;
+;----------------------------------------------------;
+; MTF    : 09/05/2006        Projeto 063, tarefa 030 ;
+; Funcao : Verifica se permite efetuar processo fora ;
+;          do periodo de fechamento do financeiro.   ;
+; Chamada: FCRFM025 - cancelaDofni()                 ;
+;                     baixaAdiantamento()            ;
+;          FCRFP003 - processarCancelamento()        ;
+;          FCPFP005 - confirma()                     ;
+;          FCPFP026 - bt_confirma_dummy - detail()   ;
+;          FGRFM015 - validaDtEncerramento()         ;
+;          FCRFP008 - seleciona()                    ;
+;          FCRFP016 - validaInformacao()             ;
+;          FCCFM004 - bt_ok.dummy2 - detail()        ;
+;          FCRFP002 - validaRestricoesUsuario()      ;
+;          FCRFP011 - validaRestricoesUsuario()      ;
+;----------------------------------------------------;
+;
+	params
+		string  piGlobal  :IN
+		string  piParams  :IN
+		string  poParams  :OUT
+		numeric poCdErro  :OUT
+		string  poCtxErro :OUT
+	endparams
+	variables
+		string  vTpModelo, vpiParams, vpoParams
+		date    vDtRetroativa, vDtSistema, vDtProcesso
+	endvariables
+	
+	if ($item("TP_MODELO", piParams) = "")
+		$instancehandle->setStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Favor informar o código do módulo a ser processado.", "")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	if ($item("DT_PROCESSO", piParams) = "")
+		$instancehandle->setStatus(<STS_ERRO>, "GEN001", "DESCRICAO=Favor informar a data do processo a ser executado.", "")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	
+	$dtretroativa$ = ""
+	$dtsistema$    = $item("DT_SISTEMA", $$gParamGlb)
+	$dtprocesso$   = $item("DT_PROCESSO", piParams)
+	
+	clear/e "FGR_ENCERRAMESVC"
+	tp_modelo.fgr_encerramesvc/init = $item("TP_MODELO", piParams)
+	retrieve/e "FGR_ENCERRAMESVC"
+	if ($status >= 0)
+		;Se nr_dias.ger_encerramesvc tiver conteudo, validar o periodo de encerramento com relacao a data do sistema
+		;retrocedendo a data de acordo com o numero de dias informados. Se a data do processo a ser executado nao
+		;estiver dentro do periodo estipulado nao permitir executar o processo.
+		if (nr_dias.fgr_encerramesvc > 0)
+			$dtretroativa$ = $dtsistema$ - nr_dias.fgr_encerramesvc
+			if ($dtprocesso$ < $dtretroativa$)
+				;Verifica se o usuario possui permissao para lancar data retroativa a ultima data informada.
+				vpiParams = ""
+				putitem/id vpiParams, "CD_COMPONENTE", $componentname
+				putitem/id vpiParams, "DS_CAMPO",      "IN_ENCERRA_FINANC"
+				putitem/id vpiParams, "CD_EMPRESA",    $item("CD_EMPRESA", $$gParamGlb)
+				putitem/id vpiParams, "CD_USUARIO",    $item("CD_USUARIO", $$gParamGlb)
+				putitem/id vpiParams, "VL_VALOR",      ""
+				activate "ADMSVCO009".VerificaRestricao(vpiParams, vpoParams, $xCdErro$, $xCtxerro$)
+				if ($procerror)       
+					$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxerro$, "ADICIONAL=  Problema na consulta de restrição")
+					poCdErro  = $xCdErro$
+					poCtxErro = $xCtxErro$
+					return(-1)
+				elseif ($status < 0)
+				;	$instancehandle->setStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$ , "")
+				;	poCdErro  = $xCdErro$
+				;	poCtxErro = $xCtxErro$
+				;	
+				;	vpiParams = ""
+				;	putitem/id vpiParams, "CD_COMPONENTE",  $item("CD_COMPONENTE", piParams)
+				;	putitem/id vpiParams, "DS_COMPLEMENTO", $item("DS_COMPLEMENTO", piParams)
+				;	putitem/id vpiParams, "TP_LOG",        1 ;Recusada.
+				;	$instancehandle->gravaLogEncerramento(piGlobal, vpiParams, vpoParams, $xCdErro$, $xCtxErro$)
+				;	if ($procerror)
+				;		$instancehandle->setStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+				;		poCdErro  = $xCdErro$
+				;		poCtxErro = $xCtxErro$
+				;	elseif ($status < 0)
+				;		$instancehandle->setStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")
+				;		poCdErro  = $xCdErro$
+				;		poCtxErro = $xCtxErro$
+				;	endif
+				;	return(-1)
+				;elseif ($item("DS_PERMITE", vpoParams) = "NAO")
+					
+					$instancehandle->setStatus(<STS_AVISO>, "GEN001", "DESCRICAO=Processo não permitido.%%^Data do processo %%$dtprocesso$ é inferior a data de fechamento financeiro %%$dtretroativa$", "")
+					poCdErro  = $xCdErro$
+					poCtxErro = $xCtxErro$
+					
+					vpiParams = ""
+					putitem/id vpiParams, "CD_COMPONENTE",  $item("CD_COMPONENTE", piParams)
+					putitem/id vpiParams, "DS_COMPLEMENTO", $item("DS_COMPLEMENTO", piParams)
+					putitem/id vpiParams, "TP_LOG",        1 ;Recusada.
+					$instancehandle->gravaLogEncerramento(piGlobal, vpiParams, vpoParams, $xCdErro$, $xCtxErro$)
+					if ($procerror)
+						$instancehandle->setStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+						poCdErro  = $xCdErro$
+						poCtxErro = $xCtxErro$
+					elseif ($status < 0)
+						$instancehandle->setStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")
+						poCdErro  = $xCdErro$
+						poCtxErro = $xCtxErro$
+					endif
+					return(-1)
+				else
+					vpiParams = ""
+					putitem/id vpiParams, "CD_COMPONENTE",  $item("CD_COMPONENTE", piParams)
+					putitem/id vpiParams, "DS_COMPLEMENTO", $item("DS_COMPLEMENTO", piParams)
+					putitem/id vpiParams, "TP_LOG",        2 ;Aceita por senha de restricao.
+					$instancehandle->gravaLogEncerramento(piGlobal, vpiParams, vpoParams, $xCdErro$, $xCtxErro$)
+					if ($procerror)
+						$instancehandle->setStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+						poCdErro  = $xCdErro$
+						poCtxErro = $xCtxErro$
+						return(-1)
+					elseif ($status < 0)
+						$instancehandle->setStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")
+						poCdErro  = $xCdErro$
+						poCtxErro = $xCtxErro$
+						return(-1)
+					endif
+				endif
+			endif
+		else
+			;Valida de acordo com a data de encerramento.
+			if ($dtprocesso$ < dt_encerramento.fgr_encerramesvc)
+				$dtencerramento$ = dt_encerramento.fgr_encerramesvc
+				
+				;Verifica se o usuario possui permissao para lancar data retroativa a da de encerramento.
+				vpiParams = ""
+				putitem/id vpiParams, "CD_COMPONENTE", $componentname
+				putitem/id vpiParams, "DS_CAMPO",      "IN_ENCERRA_FINANC"
+				putitem/id vpiParams, "CD_EMPRESA",    $item("CD_EMPRESA", $$gParamGlb)
+				putitem/id vpiParams, "CD_USUARIO",    $item("CD_USUARIO", $$gParamGlb)
+				putitem/id vpiParams, "VL_VALOR",      ""
+				activate "ADMSVCO009".VerificaRestricao(vpiParams, vpoParams, $xCdErro$, $xCtxerro$)
+				if ($procerror)       
+					$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxerro$, "ADICIONAL=  Problema na consulta de restrição")
+					poCdErro  = $xCdErro$
+					poCtxErro = $xCtxErro$
+					return(-1)
+				elseif ($status < 0)
+				;	$instancehandle->setStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$ , "")
+				;	poCdErro  = $xCdErro$
+				;	poCtxErro = $xCtxErro$
+				;	
+				;	vpiParams = ""
+				;	putitem/id vpiParams, "CD_COMPONENTE",  $item("CD_COMPONENTE", piParams)
+				;	putitem/id vpiParams, "DS_COMPLEMENTO", $item("DS_COMPLEMENTO", piParams)
+				;	putitem/id vpiParams, "TP_LOG",        1 ;Recusada.
+				;	$instancehandle->gravaLogEncerramento(piGlobal, vpiParams, vpoParams, $xCdErro$, $xCtxErro$)
+				;	if ($procerror)
+				;		$instancehandle->setStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+				;		poCdErro  = $xCdErro$
+				;		poCtxErro = $xCtxErro$
+				;	elseif ($status < 0)
+				;		$instancehandle->setStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")
+				;		poCdErro  = $xCdErro$
+				;		poCtxErro = $xCtxErro$
+				;	endif
+				;	return(-1)
+				;elseif ($item("DS_PERMITE", vpoParams) = "NAO")
+					
+					$instancehandle->setStatus(<STS_AVISO>, "GEN001", "DESCRICAO=Processo não permitido.%%^Data do processo %%$dtprocesso$ é inferior a data de fechamento financeiro %%$dtencerramento$", "")
+					poCdErro  = $xCdErro$
+					poCtxErro = $xCtxErro$
+					
+					vpiParams = ""
+					putitem/id vpiParams, "CD_COMPONENTE",  $item("CD_COMPONENTE", piParams)
+					putitem/id vpiParams, "DS_COMPLEMENTO", $item("DS_COMPLEMENTO", piParams)
+					putitem/id vpiParams, "TP_LOG",        1 ;Recusada.
+					$instancehandle->gravaLogEncerramento(piGlobal, vpiParams, vpoParams, $xCdErro$, $xCtxErro$)
+					if ($procerror)
+						$instancehandle->setStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+						poCdErro  = $xCdErro$
+						poCtxErro = $xCtxErro$
+					elseif ($status < 0)
+						$instancehandle->setStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")
+						poCdErro  = $xCdErro$
+						poCtxErro = $xCtxErro$
+					endif
+					return(-1)
+				else
+					vpiParams = ""
+					putitem/id vpiParams, "CD_COMPONENTE",  $item("CD_COMPONENTE", piParams)
+					putitem/id vpiParams, "DS_COMPLEMENTO", $item("DS_COMPLEMENTO", piParams)
+					putitem/id vpiParams, "TP_LOG",        2 ;Aceita por senha de restricao.
+					$instancehandle->gravaLogEncerramento(piGlobal, vpiParams, vpoParams, $xCdErro$, $xCtxErro$)
+					if ($procerror)
+						$instancehandle->setStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+						poCdErro  = $xCdErro$
+						poCtxErro = $xCtxErro$
+						return(-1)
+					elseif ($status < 0)
+						$instancehandle->setStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")
+						poCdErro  = $xCdErro$
+						poCtxErro = $xCtxErro$
+						return(-1)
+					endif
+				endif
+			endif
+		endif
+	endif
+	
+	return(0)
+End ;operation validaFechamentoFinanceiro.
+
+
+;-----------------------------------------------------;
+public operation gravaLogEncerramento                 ;
+;-----------------------------------------------------;
+; MTF    : 09/05/2006         Projeto 063, tarefa 030 ;
+; Funcao : Grava log de encerramento quando rejeitado ;
+;          ou liberado por restricao.                 ;
+; Chamada: operation - validaFechamentoFinanceiro()   ;
+;-----------------------------------------------------;
+;
+	params
+		string  piGlobal  :IN
+		string  piParams  :IN
+		string  poParams  :OUT
+		numeric poCdErro  :OUT
+		string  poCtxErro :OUT
+	endparams
+	variables
+		string vpiParams, vpoParams
+	endvariables
+	
+	if ($item("CD_COMPONENTE", piParams) = "")
+		$instancehandle->setStatus(<STS_AVISO>, "GEN001", "DESCRICAO=Falta informar o componente para gravação do log de encerramento.", "")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	if ($item("TP_LOG", piParams) = "")
+		$instancehandle->setStatus(<STS_AVISO>, "GEN001", "DESCRICAO=Falta informar o tipo de log para gravação do log de encerramento.", "")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	
+	vpiParams = ""
+	putitem/id vpiParams, "NM_ENTIDADE", "FGR_LOGENCERRA"
+	activate "GERSVCO031".getNumSeq($xlpg$, vpiParams, vpoParams, $xCdErro$, $xCtxerro$)	
+	if ($procerror)
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)  
+	elseif ($status < 0)
+		$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)  
+	endif    
+	
+	creocc "FGR_LOGENCERRSVC", -1
+	nr_seq.fgr_logencerrsvc         = $item("NR_SEQUENCIA", vpoParams)
+	dt_tentativa.fgr_logencerrsvc   = $item("DT_SISTEMA", piGlobal)
+	cd_componente.fgr_logencerrsvc  = $item("CD_COMPONENTE", piParams)
+	ds_complemento.fgr_logencerrsvc = $item("DS_COMPLEMENTO", piParams)
+	tp_log.fgr_logencerrsvc         = $item("TP_LOG", piParams)
+	cd_operador.fgr_logencerrsvc    = $item("CD_USUARIO", piGlobal)
+	dt_cadastro.fgr_logencerrsvc    = $datim
+	
+	$collhandle("FGR_LOGENCERRSVC")->Salvar()
+	if ($procerror)
+		$instancehandle->setStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	elseif ($status < 0)
+		$instancehandle->setStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+;oda
+;	commit
+;	if ($status < 0)
+;		$instancehandle->setStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")
+;		poCdErro  = $xCdErro$
+;		poCtxErro = $xCtxErro$
+;		return(-1)
+;	endif
+	
+	return(0)
+End ;operation gravaLogEncerramento.

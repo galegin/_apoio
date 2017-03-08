@@ -1,0 +1,1339 @@
+;-------------
+entry getParam
+;-------------
+	params
+		numeric piCdEmpresa : IN
+	endparams
+
+	variables
+		string viParams, voParams
+	endvariables
+
+	viParams = ""
+	putitem viParams, -1, "DT_IMPLANTACAO_V3"
+	activate "ADMSVCO001".GetLstParametro(viParams, voParams, $xCdErro$, $xCtxerro$)
+	if ($procerror)
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+		return(-1)
+	elseif ($xCdErro$)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=%%$item("DESCRICAO", $xCtxErro$)", "")
+		return(-1)
+	endif
+
+	$dtImplantacaoV3$ = $item("DT_IMPLANTACAO_V3", voParams)
+
+	if (piCdEmpresa = 0)
+		piCdEmpresa = $item("CD_EMPRESA", $xlpg$)
+	endif
+	viParams = ""
+	putitem viParams, -1, "CD_OPER_DEV_TROCA"
+	putitem viParams, -1, "CD_OPER_TROCA"
+	;>-- MAC - PRJ 156/304 - 17/05/2010 ---
+	putitem viParams, -1, "TIN_TINTURARIA"
+	putitem viParams, -1, "CD_ESPECIE_KG"
+	putitem viParams, -1, "CD_ESPECIE_CONE"
+	;--<
+	putitem viParams, -1, "DS_LST_ESPECIE_CALC_PESO" ;-- ALX - 22/1761 - 02/01/2011 --;
+	putitem viParams, -1, "TP_CALC_PESOLIQ_ITEM_TRA"
+	activate "ADMSVCO001".GetParamEmpresa(piCdEmpresa, viParams, voParams, $xCdErro$, $xCtxerro$)
+	if ($procerror)
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+		return(-1)
+	elseif ($xCdErro$)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=%%$item("DESCRICAO", $xCtxErro$)", "")
+		return(-1)
+	endif
+	
+	$cdOperacaoValeTroca$ = $item("CD_OPER_DEV_TROCA", voParams)
+	$cdOperacaoTroca$ = $item("CD_OPER_TROCA", voParams)
+	;>-- MAC - PRJ 156/304 - 17/05/2010 ---
+	$tinTinturaria$ = $item("TIN_TINTURARIA", voParams)
+	$cdEspecieKG$   = $item("CD_ESPECIE_KG", voParams)
+	$cdEspecieCone$ = $item("CD_ESPECIE_CONE", voParams)
+	;>--
+	$dsLstEspecieCalcPeso$ = $item("DS_LST_ESPECIE_CALC_PESO", voParams) ;-- ALX - 22/1761 - 02/01/2011 --;
+	$dsLstEspecieCalcPeso$ = $replace($dsLstEspecieCalcPeso$, 1, ";", "·;", -1)
+
+	$tpCalcPesoLiqItemTra$ = $item("TP_CALC_PESOLIQ_ITEM_TRA", voParams)
+	return(0)
+end
+
+;------------------------------------
+public operation buscaVlAbertoCliente
+	;------------------------------------
+	params
+		string  $xlpg$      :IN    
+		string  piParams    :IN
+		string  poParams    :OUT
+		string  poCdErro    :OUT
+		string  poCtxErro   :OUT
+	endparams
+	
+	variables
+		string vCdEmpresa, viParams, voParams
+		numeric vCdGrupoEmpresa, vCdCliente, vVlAberto
+	endvariables
+	
+	vCdGrupoEmpresa = $item("CD_GRUPOEMPRESA", piParams)
+	if (vCdGrupoEmpresa = 0)
+		vCdGrupoEmpresa = $item("CD_GRUPOEMPRESA", $xlpg$)
+	endif
+	
+	vCdCliente = $item("CD_CLIENTE", piParams)
+	if (vCdCliente = 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Cliente não informado!", "ADICIONAL=Operação->TRASVCO012.buscaSaldoAberto")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		exit(-1)
+	endif
+
+;<ANO Pjt156 Trf254 - 13/04/2010>	
+;	clear/e "GER_EMPRESASVC"
+;	CD_GRUPOEMPRESA.GER_EMPRESASVC/init = vCdGrupoEmpresa
+;	retrieve/e "GER_EMPRESASVC"
+;	if ($status >= 0)
+;		setocc "GER_EMPRESASVC", -1
+;		setocc "GER_EMPRESASVC", 1
+;		putlistitems vCdEmpresa, CD_EMPRESA.GER_EMPRESASVC
+;	endif
+	viParams = ""
+	putitem/id viParams, "CD_GRUPOEMPRESA", vCdGrupoEmpresa
+	putitem/id viParams, "IN_VALIDALOCAL", <False>
+	activate "GERSVCO032".buscaLstGrupoEmpresa($xlpg$, viParams, voParams, $xCdErro$, $xCtxErro$)
+	if ($procerror)       
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+		return(-1)
+	elseif ($status < 0)
+		$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")
+		return(-1)
+	endif
+
+	vCdEmpresa = $item("CD_EMPRESA", voParams)
+;<;ANO Pjt156 Trf254 - 13/04/2010>
+	
+	vVlAberto = 0
+	
+	clear/e "TRA_TRANSACAOSVC"
+	CD_EMPRESA.TRA_TRANSACAOSVC/init = vCdEmpresa
+	CD_PESSOA.TRA_TRANSACAOSVC/init = vCdCliente
+	TP_SITUACAO.TRA_TRANSACAOSVC/init = 05 ;Encerrada
+	TP_OPERACAO.TRA_TRANSACAOSVC/init = "S" ;Saída
+	retrieve/e "TRA_TRANSACAOSVC"
+	if ($status >= 0)
+		setocc "TRA_TRANSACAOSVC", 1
+		while ($status >=0)
+			if (TP_MODALIDADE.GER_OPERACAOSVC = 4) ;Venda/Compra
+				vVlAberto = vVlAberto + VL_TRANSACAO.TRA_TRANSACAOSVC
+				;            elseif (TP_MODALIDE.GER_OPERACAOSVC = 3) ;Devolução
+			endif
+			setocc "TRA_TRANSACAOSVC" , $curocc("TRA_TRANSACAOSVC") + 1
+		endwhile
+	endif    
+	
+	poParams = ""
+	putitem/id poParams, "VL_ABERTO", vVlAberto
+	
+	exit(0)
+end
+
+;----------------------------------------
+public operation validaTransacaoEncerrada
+	;------------------------------------
+	params
+		string  $xlpg$      :IN    
+		string  piParams    :IN
+		string  poParams    :OUT
+		string  poCdErro    :OUT
+		string  poCtxErro   :OUT
+	endparams
+	
+	variables
+		string vCdEmpresa, vDsErro, viParams, voParams, vNmUsuario
+		numeric vCdUsuario
+		date vDtMovimento
+	endvariables
+	
+	vCdEmpresa = $item("CD_EMPRESA", piParams)
+	if (vCdEmpresa = "")
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Empresa não informada!", "ADICIONAL=Operação->TRASVCO012.validaTransacaoEncerrada")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		exit(-1)
+	endif    
+	
+	call getParam(vCdEmpresa)
+	if ($procerror)
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		exit(-1)
+	endif
+	if ($status < 0)
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		exit(-1)
+	endif
+	
+	vCdUsuario = $item("CD_USUARIO", piParams)
+	vDtMovimento = $item("DT_MOVIMENTO", piParams)
+	
+	vDsErro = ""
+	clear/e "TRA_TRANSACAOSVC"
+	if ($dtImplantacaoV3$ != "")
+		DT_TRANSACAO.TRA_TRANSACAOSVC/init = "·>·=%%$dtImplantacaoV3$"
+	endif
+	CD_EMPFAT.TRA_TRANSACAOSVC/init = vCdEmpresa
+	TP_ORIGEMEMISSAO.TRA_TRANSACAOSVC/init = 1 ;Emissão própria
+	TP_SITUACAO.TRA_TRANSACAOSVC/init = 5
+	if (vCdUsuario > 0)
+		CD_OPERADOR.TRA_TRANSACAOSVC/init = vCdUsuario
+	endif
+	if (vDtMovimento != "")
+		DT_TRANSACAO.TRA_TRANSACAOSVC/init = vDtMovimento
+	endif
+	retrieve/e "TRA_TRANSACAOSVC"
+	if ($status >= 0)
+		setocc "TRA_TRANSACAOSVC", 1
+		while($status >= 0)
+			;---Elia Proj. 102/47 02/05/07
+			;vDsErro = "%%vDsErro%%%Empresa/Transação/Data: %%CD_EMPFAT.TRA_TRANSACAOSVC / %%NR_TRANSACAO.TRA_TRANSACAOSVC / %%DT_TRANSACAO.TRA_TRANSACAOSVC %%^"    
+			clear/e "ADM_USUARIOSVC"
+			CD_USUARIO.ADM_USUARIOSVC/init = CD_OPERADOR.TRA_TRANSACAOSVC
+			retrieve/e "ADM_USUARIOSVC"
+			if($status >= 0)
+				;--->MNT - Prj 094/1320 - 18/03/2010
+				if (CD_USUARIO.ADM_USUARIOSVC > 0)
+					viParams = ""
+					voParams = ""
+					vNmUsuario = ""		
+					putitem/id viParams, "CD_USUARIO", CD_USUARIO.ADM_USUARIOSVC
+					activate "ADMSVCO027".validaUsuarioEspecial($$gParamGlb, viParams, voParams, $xCdErro$, $xCtxErro$)	
+					if ($procerror)		
+						$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+						return(-1)
+					elseif ($status < 0)
+						$instancehandle->SetStatus("",$xCdErro$, $xCtxErro$, "")
+						return(-1)
+					endif
+
+					if(voParams != "")
+						vNmUsuario  = $item("NM_USUARIO", voParams)
+					endif
+				else	
+					vNmUsuario = ""
+				endif
+				;<---
+			endif
+			vDsErro = "%%vDsErro%%%Emp./Trans./Data/Usu.: %%CD_EMPFAT.TRA_TRANSACAOSVC / %%NR_TRANSACAO.TRA_TRANSACAOSVC / %%DT_TRANSACAO.TRA_TRANSACAOSVC / %%CD_OPERADOR.TRA_TRANSACAOSVC - %%vNmUsuario %%^"    
+			;
+			setocc "TRA_TRANSACAOSVC", $curocc("TRA_TRANSACAOSVC") + 1
+		endWhile
+	endif
+	
+	poParams = ""
+	if (vDsErro != "")
+		putitem/id poParams, "DS_LOGERRO", vDsErro
+		exit(-1)
+	endif
+	
+	exit(0)
+end
+
+;---------------------------
+public operation validaTroca
+;---------------------------
+	params
+		string  $xlpg$      :IN    
+		string  piParams    :IN
+		string  poParams    :OUT
+		string  poCdErro    :OUT
+		string  poCtxErro   :OUT
+	endparams
+	
+	variables
+		string vCdEmpresa, vDsErro, vDsRegistro, vDsLstTroca
+		numeric vCdUsuario, vTpSituacaoDev, vTpSituacaoVen
+		date vDtMovimento
+		boolean vInErro
+	endvariables
+	
+	vCdEmpresa = $item("CD_EMPRESA", piParams)
+	if (vCdEmpresa = "")
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Empresa não informada!", "ADICIONAL=Operação->TRASVCO012.validaTroca")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		exit(-1)
+	endif    
+	
+	call getParam(vCdEmpresa)
+	if ($procerror)
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		exit(-1)
+	endif
+	if ($status < 0)
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		exit(-1)
+	endif
+
+	if ($cdOperacaoValeTroca$ = 0)		
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Parametro empresa CD_OPER_DEV_TROCA sem valor cadastrado!", "ADICIONAL=Operação->TRASVCO012.validaTroca")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		exit(-1)
+	endif
+
+	if ($cdOperacaoTroca$ = 0)		
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Parametro empresa CD_OPER_TROCA sem valor cadastrado!", "ADICIONAL=Operação->TRASVCO012.validaTroca")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		exit(-1)
+	endif
+	
+	vDtMovimento = $item("DT_MOVIMENTO", piParams)
+	
+	vDsErro = ""
+	vDsLstTroca = ""
+
+	clear/e "TRA_TRANSACAOSVC"
+	if ($dtImplantacaoV3$ != "")
+		DT_TRANSACAO.TRA_TRANSACAOSVC/init = "·>·=%%$dtImplantacaoV3$"
+	endif
+	CD_EMPFAT.TRA_TRANSACAOSVC/init = vCdEmpresa
+	TP_ORIGEMEMISSAO.TRA_TRANSACAOSVC/init = 1 ;Emissão própria
+	TP_SITUACAO.TRA_TRANSACAOSVC/init = 4 ;Atendida
+	CD_OPERACAO.TRA_TRANSACAOSVC/init = $cdOperacaoValeTroca$
+	if (vDtMovimento != "")
+		DT_TRANSACAO.TRA_TRANSACAOSVC/init = vDtMovimento
+	endif
+	retrieve/e "TRA_TRANSACAOSVC"
+	if ($status >= 0)
+		setocc "TRA_TRANSACAOSVC", 1
+		while($status >= 0)
+			clear/e "TRA_TROCASVC"
+			CD_EMPDEV.TRA_TROCASVC/init = CD_EMPRESA.TRA_TRANSACAOSVC
+			NR_TRADEV.TRA_TROCASVC/init = NR_TRANSACAO.TRA_TRANSACAOSVC
+			DT_TRADEV.TRA_TROCASVC/init = DT_TRANSACAO.TRA_TRANSACAOSVC
+			retrieve/e "TRA_TROCASVC"
+			if ($status < 0)
+				vDsRegistro = ""
+				putitem/id vDsRegistro, "CD_EMPDEV", CD_EMPRESA.TRA_TRANSACAOSVC
+				putitem/id vDsRegistro, "NR_TRADEV", NR_TRANSACAO.TRA_TRANSACAOSVC
+				putitem/id vDsRegistro, "DT_TRADEV", DT_TRANSACAO.TRA_TRANSACAOSVC
+				putitem/id vDsRegistro, "DS_MOTIVO", "Vale troca sem troca vinculada"
+				putitem vDsLstTroca, -1, vDsRegistro
+				vDsErro = "%%vDsErro%%%Vale troca sem troca vinculada: %%CD_EMPFAT.TRA_TRANSACAOSVC / %%NR_TRANSACAO.TRA_TRANSACAOSVC / %%DT_TRANSACAO.TRA_TRANSACAOSVC %%^"
+			endif
+			setocc "TRA_TRANSACAOSVC", $curocc("TRA_TRANSACAOSVC") + 1
+		endwhile
+	endif
+
+	clear/e "TRA_TRANSACAOSVC"
+	if ($dtImplantacaoV3$ != "")
+		DT_TRANSACAO.TRA_TRANSACAOSVC/init = "·>·=%%$dtImplantacaoV3$"
+	endif
+	CD_EMPFAT.TRA_TRANSACAOSVC/init = vCdEmpresa
+	TP_ORIGEMEMISSAO.TRA_TRANSACAOSVC/init = 1 ;Emissão própria
+	TP_SITUACAO.TRA_TRANSACAOSVC/init = 4 ;Atendida
+	CD_OPERACAO.TRA_TRANSACAOSVC/init = $cdOperacaoTroca$
+	if (vDtMovimento != "")
+		DT_TRANSACAO.TRA_TRANSACAOSVC/init = vDtMovimento
+	endif
+	retrieve/e "TRA_TRANSACAOSVC"
+	if ($status >= 0)
+		setocc "TRA_TRANSACAOSVC", 1
+		while($status >= 0)
+			clear/e "TRA_TROCASVC"
+			CD_EMPVEN.TRA_TROCASVC/init = CD_EMPRESA.TRA_TRANSACAOSVC
+			NR_TRAVEN.TRA_TROCASVC/init = NR_TRANSACAO.TRA_TRANSACAOSVC
+			DT_TRAVEN.TRA_TROCASVC/init = DT_TRANSACAO.TRA_TRANSACAOSVC
+			retrieve/e "TRA_TROCASVC"
+			if ($status < 0)
+				vDsRegistro = ""
+				putitem/id vDsRegistro, "CD_EMPVEN", CD_EMPRESA.TRA_TRANSACAOSVC
+				putitem/id vDsRegistro, "NR_TRAVEN", NR_TRANSACAO.TRA_TRANSACAOSVC
+				putitem/id vDsRegistro, "DT_TRAVEN", DT_TRANSACAO.TRA_TRANSACAOSVC
+				putitem/id vDsRegistro, "DS_MOTIVO", "Troca sem vale troca vinculado"
+				putitem vDsLstTroca, -1, vDsRegistro
+				vDsErro = "%%vDsErro%%%Troca sem vale troca vinculado: %%CD_EMPFAT.TRA_TRANSACAOSVC / %%NR_TRANSACAO.TRA_TRANSACAOSVC / %%DT_TRANSACAO.TRA_TRANSACAOSVC %%^"
+			endif
+			setocc "TRA_TRANSACAOSVC", $curocc("TRA_TRANSACAOSVC") + 1
+		endwhile
+	endif
+
+	clear/e "TRA_TROCASVC"
+	if ($dtImplantacaoV3$ != "")
+		DT_TRADEV.TRA_TROCASVC/init = "·>·=%%$dtImplantacaoV3$"
+		DT_TRAVEN.TRA_TROCASVC/init = "·>·=%%$dtImplantacaoV3$"
+	endif
+	CD_EMPFATDEV.TRA_TROCASVC/init = vCdEmpresa
+	CD_EMPFATVEN.TRA_TROCASVC/init = vCdEmpresa
+	if (vDtMovimento != "")
+		DT_TRADEV.TRA_TROCASVC/init = vDtMovimento
+		DT_TRAVEN.TRA_TROCASVC/init = vDtMovimento
+	endif
+	retrieve/e "TRA_TROCASVC"
+	if ($status >= 0)
+		setocc "TRA_TROCASVC", 1
+		while($status >= 0)
+			vInErro = <FALSE>
+
+			vTpSituacaoDev = ""
+			clear/e "TRA_TRANSACAOSVC"
+			CD_EMPRESA.TRA_TRANSACAOSVC/init = CD_EMPDEV.TRA_TROCASVC
+			NR_TRANSACAO.TRA_TRANSACAOSVC/init = NR_TRADEV.TRA_TROCASVC
+			DT_TRANSACAO.TRA_TRANSACAOSVC/init = DT_TRADEV.TRA_TROCASVC
+			retrieve/e "TRA_TRANSACAOSVC"
+			if ($status < 0)
+				vInErro = <TRUE>
+			else
+				if (TP_SITUACAO.TRA_TRANSACAOSVC != 4) & (TP_SITUACAO.TRA_TRANSACAOSVC != 6) ;Atendida / Cancelada
+					vInErro = <TRUE>				
+				endif
+				vTpSituacaoDev = TP_SITUACAO.TRA_TRANSACAOSVC
+			endif
+
+			vTpSituacaoVen = ""
+			clear/e "TRA_TRANSACAOSVC"
+			CD_EMPRESA.TRA_TRANSACAOSVC/init = CD_EMPVEN.TRA_TROCASVC
+			NR_TRANSACAO.TRA_TRANSACAOSVC/init = NR_TRAVEN.TRA_TROCASVC
+			DT_TRANSACAO.TRA_TRANSACAOSVC/init = DT_TRAVEN.TRA_TROCASVC
+			retrieve/e "TRA_TRANSACAOSVC"
+			if ($status < 0)
+				vInErro = <TRUE>
+			else
+				if (TP_SITUACAO.TRA_TRANSACAOSVC != 4) & (TP_SITUACAO.TRA_TRANSACAOSVC != 6) ;Atendida / Cancelada
+					vInErro = <TRUE>
+				endif
+				vTpSituacaoVen = TP_SITUACAO.TRA_TRANSACAOSVC
+			endif
+
+			if (vInErro = <FALSE>)
+				if (vTpSituacaoDev != vTpSituacaoVen)
+					vInErro = <TRUE>
+				endif
+			endif
+
+			if (vInErro = <TRUE>)
+				vDsRegistro = ""
+				putitem/id vDsRegistro, "CD_EMPDEV", CD_EMPDEV.TRA_TROCASVC
+				putitem/id vDsRegistro, "NR_TRADEV", NR_TRADEV.TRA_TROCASVC
+				putitem/id vDsRegistro, "DT_TRADEV", DT_TRADEV.TRA_TROCASVC
+				putitem/id vDsRegistro, "CD_EMPVEN", CD_EMPVEN.TRA_TROCASVC
+				putitem/id vDsRegistro, "NR_TRAVEN", NR_TRAVEN.TRA_TROCASVC
+				putitem/id vDsRegistro, "DT_TRAVEN", DT_TRAVEN.TRA_TROCASVC
+				putitem/id vDsRegistro, "DS_MOTIVO", "Troca / Vale troca com situacao invalida"
+				putitem vDsLstTroca, -1, vDsRegistro
+				vDsErro = "%%vDsErro%%%Troca / Vale troca com situação inválida: %%CD_EMPFATDEV.TRA_TROCASVC / %%NR_TRADEV.TRA_TROCASVC / %%DT_TRADEV.TRA_TROCASVC - %%CD_EMPFATVEN.TRA_TROCASVC / %%NR_TRAVEN.TRA_TROCASVC / %%DT_TRAVEN.TRA_TROCASVC %%^"
+			endif
+
+			setocc "TRA_TROCASVC", $curocc("TRA_TROCASVC") + 1
+		endwhile
+	endif
+	
+	poParams = ""
+	if (vDsErro != "")
+		putitem/id poParams, "DS_LOGERRO", vDsErro
+		putitem/id poParams, "DS_LSTTROCA", vDsLstTroca
+		exit(-1)
+	endif
+	
+	exit(0)
+end
+
+;----------------------------------------
+public operation calculaPeso
+	;------------------------------------
+	params
+		string  $xlpg$      :IN    
+		string  piParams    :IN
+		string  poParams    :OUT
+		string  poCdErro    :OUT
+		string  poCtxErro   :OUT
+	endparams
+	
+	variables
+		string vDsLstEspecieCalcPeso, vCdEspecieCalcPeso
+		numeric vCdEmpresa, vNrTransacao, vQtPeso, vQtTotContagem
+		date vDtTransacao
+		numeric vQtTara, vQtPesoLiquido, vQtPesoBruto, vQtPesoEmb, vQtEmbalagem, vQtFracao
+		boolean vInAchouEspecieProduto
+	endvariables
+
+	vCdEmpresa = $item("CD_EMPRESA", piParams)
+	vNrTransacao = $item("NR_TRANSACAO", piParams)
+	vDtTransacao = $item("DT_TRANSACAO", piParams)
+	
+	if (vCdEmpresa = 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Empresa da transação de devolução não informada!", "ADICIONAL=Operação->TRASVCO012.calculaPeso")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		exit(-1)
+	endif
+	
+	if (vNrTransacao = 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Número da transação de devolução não informado!", "ADICIONAL=Operação->TRASVCO012.calculaPeso")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		exit(-1)
+	endif
+	
+	if (vDtTransacao = "")
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Data da transação de devolução não informada!", "ADICIONAL=Operação->TRASVCO012.calculaPeso")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		exit(-1)
+	endif
+	
+	clear/e "TRA_TRANSACAOSVC"
+	CD_EMPRESA.TRA_TRANSACAOSVC/init = vCdEmpresa
+	NR_TRANSACAO.TRA_TRANSACAOSVC/init = vNrTransacao
+	DT_TRANSACAO.TRA_TRANSACAOSVC/init = vDtTransacao
+	retrieve/e "TRA_TRANSACAOSVC"
+	if ($status < 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Transação %%vNrTransacao não cadastrada!", "ADICIONAL=Operação->TRASVCO012.calculaPeso")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		exit(-1)
+	endif
+
+	call getParam(vCdEmpresa)
+	if ($procerror)
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		exit(-1)
+	endif
+	if ($status < 0)
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		exit(-1)
+	endif
+	
+	;Hugo em 22/02/11 Tarefa 22-1771
+	vQtPesoEmb = 0
+	vQtEmbalagem = 0
+	vQtFracao = 0
+	;
+	
+	vQtPeso        = 0
+	vQtPesoLiquido = 0
+	vQtPesoBruto   = 0
+   ; --- DIONE |182/0057| 15/06/2011 
+	if($tpCalcPesoLiqItemTra$ = 1)
+		clear/e "TRA_ITEMADICSVC"
+		CD_EMPRESA.TRA_ITEMADICSVC/init = vCdEmpresa
+		NR_TRANSACAO.TRA_ITEMADICSVC/init = vNrTransacao
+		DT_TRANSACAO.TRA_ITEMADICSVC/init = vDtTransacao
+		retrieve/e "TRA_ITEMADICSVC"
+		if ($status >= 0)
+			setocc "TRA_ITEMADICSVC", 1
+			while ($status >=0)	
+				vQtPesoLiquido = vQtPesoLiquido + QT_PESOLIQUIDO.TRA_ITEMADICSVC
+				vQtPesoBruto   = vQtPesoBruto + QT_PESOBRUTO.TRA_ITEMADICSVC
+				vQtPeso = vQtPesoLiquido
+				setocc ("TRA_ITEMADICSVC"), $curocc("TRA_ITEMADICSVC") + 1
+			endwhile
+		endif
+	;---
+	else
+		;>-- MAC - PRJ 156/304 - 17/05/2010 ---
+		; Alteração da rotina para devolver peso bruto e liquido;
+		if ($empty("TRA_TRANSITEMSVC") = 0)
+			setocc "TRA_TRANSITEMSVC", 1
+			while ($status >=0)
+				if ($tinTinturaria$ = 1)
+					;-->> ALX - 22/1761	 - 02/02/2011 --;
+					vInAchouEspecieProduto = <false>
+					vDsLstEspecieCalcPeso = $dsLstEspecieCalcPeso$
+	
+					repeat
+						getitem vCdEspecieCalcPeso, vDsLstEspecieCalcPeso, 1
+		
+						if(vCdEspecieCalcPeso = CD_ESPECIE.PRD_PRODUTOSVC)
+							vInAchouEspecieProduto = <true>
+						endif
+	
+						delitem vDsLstEspecieCalcPeso, 1
+					until(vDsLstEspecieCalcPeso = "")
+	
+					if(vInAchouEspecieProduto = <true>)
+						if ($cdEspecieKG$ != "") & ($cdEspecieKG$ = CD_ESPECIE.PRD_PRODUTOSVC)
+							vQtTara = 0
+							clear/e "TRA_ITEMLOTESVC"
+							CD_EMPRESA.TRA_ITEMLOTESVC/init   = CD_EMPRESA.TRA_TRANSITEMSVC
+							NR_TRANSACAO.TRA_ITEMLOTESVC/init = NR_TRANSACAO.TRA_TRANSITEMSVC
+							DT_TRANSACAO.TRA_ITEMLOTESVC/init = DT_TRANSACAO.TRA_TRANSITEMSVC
+							NR_ITEM.TRA_ITEMLOTESVC/init      = NR_ITEM.TRA_TRANSITEMSVC
+							retrieve/e "TRA_ITEMLOTESVC"
+							if ($status >= 0)
+								setocc "TRA_ITEMLOTESVC", 1
+								while ($status >= 0)							
+									clear/e "PRD_LOTEISVC"
+									CD_EMPRESA.PRD_LOTEISVC/init = CD_EMPLOTE.TRA_ITEMLOTESVC
+									NR_LOTE.PRD_LOTEISVC/init    = NR_LOTE.TRA_ITEMLOTESVC
+									NR_ITEM.PRD_LOTEISVC/init    = NR_ITEMLOTE.TRA_ITEMLOTESVC
+									retrieve/e "PRD_LOTEISVC"
+									if ($status >= 0)
+										setocc "PRD_LOTEISVC", 1	
+										while ($status >=0 )
+											vQtTara = vQtTara + QT_TARA.PRD_LOTEISVC
+											setocc ("PRD_LOTEISVC"), $curocc("PRD_LOTEISVC") + 1
+										endwhile
+									endif
+									setocc ("TRA_ITEMLOTESVC"), $curocc("TRA_ITEMLOTESVC") + 1
+								endwhile
+							endif
+							vQtPesoLiquido = vQtPesoLiquido + QT_SOLICITADA.TRA_TRANSITEMSVC
+							vQtPesoBruto   = vQtPesoBruto + (QT_SOLICITADA.TRA_TRANSITEMSVC + vQtTara)
+							vQtPeso = vQtPesoLiquido
+						else
+							if (QT_PESO.PRD_PRODUTOSVC > 0)
+								;Hugo em 22/02/11 Tarefa 22-1771
+								;vQtPesoEmb = 0
+								;vQtEmbalagem = 0
+								;vQtFracao = 0
+								;
+								if (!$empty("PRD_PRODUTOFSVC"))
+									if (vQtPesoEmb = 0) ;Hugo em 22/02/11 Tarefa 22-1771
+										clear/e "GER_TIPOEMBALSVC"
+										CD_TIPOEMBALAGEM.GER_TIPOEMBALSVC/init = CD_TIPOEMBALAGEM.PRD_PRODUTOFSVC
+										retrieve/e "GER_TIPOEMBALSVC"
+										if ($status >= 0)
+											vQtPesoEmb = QT_PESO.GER_TIPOEMBALSVC
+										endif
+										
+										;Hugo em 22/02/11 Tarefa 22-1771
+										;vQtEmbalagem = (QT_SOLICITADA.TRA_TRANSITEMSVC / QT_EMBALAGEM.PRD_PRODUTOFSVC)
+										;vQtFracao = vQtEmbalagem[fraction]
+										;if (vQtFracao > 0)
+										;	vQtEmbalagem = vQtEmbalagem[trunc] + 1
+										;endif
+										vQtEmbalagem = QT_EMBALAGEM.PRD_PRODUTOFSVC
+										;
+									endif
+								endif
+								
+								vQtTotContagem = vQtTotContagem + QT_SOLICITADA.TRA_TRANSITEMSVC ;Hugo em 22/02/11 Tarefa 22-1771
+								vQtPesoLiquido = vQtPesoLiquido + (QT_PESO.PRD_PRODUTOSVC * QT_SOLICITADA.TRA_TRANSITEMSVC)
+								
+								;Hugo em 22/02/11 Tarefa 22-1771
+								;vQtPesoBruto = vQtPesoBruto + ((QT_PESO.PRD_PRODUTOSVC + QT_TARA.PRD_PRODUTOFSVC) * QT_SOLICITADA.TRA_TRANSITEMSVC) + (vQtPesoEmb * vQtEmbalagem)
+								vQtPesoBruto = vQtPesoBruto + ((QT_PESO.PRD_PRODUTOSVC + QT_TARA.PRD_PRODUTOFSVC) * QT_SOLICITADA.TRA_TRANSITEMSVC)
+								;
+								vQtPeso = vQtPesoLiquido
+							endif
+						endif
+					endif
+					;--<<
+	
+					;if ($cdEspecieKG$ != "") & ($cdEspecieKG$ = CD_ESPECIE.PRD_PRODUTOSVC)
+					;	vQtTara = 0
+					;	clear/e "TRA_ITEMLOTESVC"
+					;	CD_EMPRESA.TRA_ITEMLOTESVC/init   = CD_EMPRESA.TRA_TRANSITEMSVC
+					;	NR_TRANSACAO.TRA_ITEMLOTESVC/init = NR_TRANSACAO.TRA_TRANSITEMSVC
+					;	DT_TRANSACAO.TRA_ITEMLOTESVC/init = DT_TRANSACAO.TRA_TRANSITEMSVC
+					;	NR_ITEM.TRA_ITEMLOTESVC/init      = NR_ITEM.TRA_TRANSITEMSVC
+					;	retrieve/e "TRA_ITEMLOTESVC"
+					;	if ($status >= 0)
+					;		setocc "TRA_ITEMLOTESVC", 1
+					;		while ($status >= 0)							
+					;			clear/e "PRD_LOTEISVC"
+					;			CD_EMPRESA.PRD_LOTEISVC/init = CD_EMPLOTE.TRA_ITEMLOTESVC
+					;			NR_LOTE.PRD_LOTEISVC/init    = NR_LOTE.TRA_ITEMLOTESVC
+					;			NR_ITEM.PRD_LOTEISVC/init    = NR_ITEMLOTE.TRA_ITEMLOTESVC
+					;			retrieve/e "PRD_LOTEISVC"
+					;			if ($status >= 0)
+					;				setocc "PRD_LOTEISVC", 1	
+					;				while ($status >=0 )
+					;					vQtTara = vQtTara + QT_TARA.PRD_LOTEISVC
+					;					setocc ("PRD_LOTEISVC"), $curocc("PRD_LOTEISVC") + 1
+					;				endwhile
+					;			endif
+					;			setocc ("TRA_ITEMLOTESVC"), $curocc("TRA_ITEMLOTESVC") + 1
+					;		endwhile
+					;	endif
+					;	vQtPesoLiquido = vQtPesoLiquido + QT_SOLICITADA.TRA_TRANSITEMSVC
+					;	vQtPesoBruto   = vQtPesoBruto + (QT_SOLICITADA.TRA_TRANSITEMSVC + vQtTara)
+					;	vQtPeso = vQtPesoLiquido
+					;elseif ($cdEspecieCone$ != "") & ($cdEspecieCone$ = CD_ESPECIE.PRD_PRODUTOSVC)
+					;	if (QT_PESO.PRD_PRODUTOSVC > 0)
+					;		vQtPesoEmb   = 0
+					;		vQtEmbalagem = 0
+					;		vQtFracao    = 0 						
+					;		if (!$empty("PRD_PRODUTOFSVC"))
+					;			clear/e "GER_TIPOEMBALSVC"
+					;			CD_TIPOEMBALAGEM.GER_TIPOEMBALSVC/init = CD_TIPOEMBALAGEM.PRD_PRODUTOFSVC
+					;			retrieve/e "GER_TIPOEMBALSVC"
+					;			if ($status >= 0)
+					;				vQtPesoEmb = QT_PESO.GER_TIPOEMBALSVC
+					;			endif
+					;			vQtEmbalagem = (QT_SOLICITADA.TRA_TRANSITEMSVC / QT_EMBALAGEM.PRD_PRODUTOFSVC)
+					;			vQtFracao    = vQtEmbalagem[fraction]
+					;			if (vQtFracao > 0)
+					;				vQtEmbalagem = vQtEmbalagem[trunc] + 1
+					;			endif
+					;		endif
+					;		vQtPesoLiquido = vQtPesoLiquido + (QT_PESO.PRD_PRODUTOSVC * QT_SOLICITADA.TRA_TRANSITEMSVC)
+					;		vQtPesoBruto   = vQtPesoBruto   + ((QT_PESO.PRD_PRODUTOSVC + QT_TARA.PRD_PRODUTOFSVC) * QT_SOLICITADA.TRA_TRANSITEMSVC) + (vQtPesoEmb * vQtEmbalagem)
+					;		vQtPeso = vQtPesoLiquido
+					;	endif
+					;else
+					;	if (QT_PESO.PRD_PRODUTOSVC > 0)
+					;		;vQtPeso = vQtPeso + (QT_SOLICITADA.TRA_TRANSITEMSVC * QT_PESO.PRD_PRODUTOSVC)
+					;		vQtPesoLiquido = vQtPesoLiquido + (QT_SOLICITADA.TRA_TRANSITEMSVC * QT_PESO.PRD_PRODUTOSVC)
+					;		vQtPesoBruto   = vQtPesoBruto   + (QT_SOLICITADA.TRA_TRANSITEMSVC * QT_PESO.PRD_PRODUTOSVC)
+					;		vQtPeso        = vQtPesoLiquido
+					;	endif
+					;endif
+				else
+					if (QT_PESO.PRD_PRODUTOSVC > 0)
+						;vQtPeso = vQtPeso + (QT_SOLICITADA.TRA_TRANSITEMSVC * QT_PESO.PRD_PRODUTOSVC)
+						vQtPesoLiquido = vQtPesoLiquido + (QT_SOLICITADA.TRA_TRANSITEMSVC * QT_PESO.PRD_PRODUTOSVC)
+						vQtPesoBruto   = vQtPesoBruto   + (QT_SOLICITADA.TRA_TRANSITEMSVC * QT_PESO.PRD_PRODUTOSVC)
+						vQtPeso        = vQtPesoLiquido
+					endif
+				endif
+				setocc "TRA_TRANSITEMSVC" , $curocc("TRA_TRANSITEMSVC") + 1
+			endwhile
+		endif	
+	endif
+	
+	;Hugo em 22/02/11 Tarefa 22-1771
+	vQtEmbalagem = (vQtTotContagem / vQtEmbalagem)
+	vQtFracao = vQtEmbalagem[fraction]
+	
+	if (vQtFracao > 0)
+		vQtEmbalagem = vQtEmbalagem[trunc] + 1
+	endif
+	
+	vQtPesoBruto = vQtPesoBruto + (vQtEmbalagem * vQtPesoEmb)
+	;
+	
+	poParams = ""
+	putitem/id poParams, "QT_PESO", vQtPeso
+	putitem/id poParams, "QT_PESOLIQUIDO", vQtPesoLiquido
+	putitem/id poParams, "QT_PESOBRUTO", vQtPesoBruto
+	;--<
+	exit(0)
+end
+
+;----------------------------------------
+public operation calculaVolume
+	;------------------------------------
+	params
+		string  $xlpg$      :IN    
+		string  piParams    :IN
+		string  poParams    :OUT
+		string  poCdErro    :OUT
+		string  poCtxErro   :OUT
+	endparams
+	
+	variables
+		numeric vCdEmpresa, vNrTransacao, vQtVolume, vResto, vQtEmbalagem
+
+		date vDtTransacao
+	endvariables
+	
+	vCdEmpresa = $item("CD_EMPRESA", piParams)
+	vNrTransacao = $item("NR_TRANSACAO", piParams)
+	vDtTransacao = $item("DT_TRANSACAO", piParams)
+	
+	if (vCdEmpresa = 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Empresa da transação de devolução não informada!", "ADICIONAL=Operação->TRASVCO012.calculaPeso")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		exit(-1)
+	endif
+	
+	if (vNrTransacao = 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Número da transação de devolução não informado!", "ADICIONAL=Operação->TRASVCO012.calculaPeso")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		exit(-1)
+	endif
+	
+	if (vDtTransacao = "")
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Data da transação de devolução não informada!", "ADICIONAL=Operação->TRASVCO012.calculaPeso")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		exit(-1)
+	endif
+	
+	clear/e "TRA_TRANSACAOSVC"
+	CD_EMPRESA.TRA_TRANSACAOSVC/init = vCdEmpresa
+	NR_TRANSACAO.TRA_TRANSACAOSVC/init = vNrTransacao
+	DT_TRANSACAO.TRA_TRANSACAOSVC/init = vDtTransacao
+	retrieve/e "TRA_TRANSACAOSVC"
+	if ($status < 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Transação %%vNrTransacao não cadastrada!", "ADICIONAL=Operação->TRASVCO012.calculaPeso")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		exit(-1)
+	endif
+	
+	vQtVolume = 0
+	
+	if ($empty("TRA_TRANSITEMSVC") = 0)
+		setocc "TRA_TRANSITEMSVC", 1
+		while ($status >=0)		
+			clear/e "PRD_EMBALAGEMSVC"
+			CD_PRODUTO.PRD_EMBALAGEMSVC/init = CD_PRODUTO.TRA_TRANSITEMSVC
+			retrieve/e "PRD_EMBALAGEMSVC"
+			if ($status < 0)
+				vQtEmbalagem = 0
+			else
+				setocc "PRD_EMBALAGEMSVC", -1
+				sort/e "PRD_EMBALAGEMSVC","CD_PRODUTO.PRD_EMBALAGEMSVC,QT_EMBALAGEM.PRD_EMBALAGEMSVC"
+				setocc "PRD_EMBALAGEMSVC",  1
+				vQtEmbalagem = QT_EMBALAGEM.PRD_EMBALAGEMSVC					
+			endif
+
+			vResto = ""
+			if (vQtEmbalagem = 0)
+			    vQtVolume = vQtVolume + QT_SOLICITADA.TRA_TRANSITEMSVC 
+			elseif (vQtEmbalagem <= QT_SOLICITADA.TRA_TRANSITEMSVC)
+				vResto = (QT_SOLICITADA.TRA_TRANSITEMSVC % vQtEmbalagem)
+				if (vResto = 0)
+					vQtVolume = vQtVolume + (QT_SOLICITADA.TRA_TRANSITEMSVC / vQtEmbalagem)
+				else
+				    vQtVolume = vQtVolume + QT_SOLICITADA.TRA_TRANSITEMSVC 
+				endif
+			endif
+			setocc "TRA_TRANSITEMSVC" , $curocc("TRA_TRANSITEMSVC") + 1
+		endwhile
+	endif	
+	
+	poParams = ""
+	putitem/id poParams, "QT_VOLUME", vQtVolume
+	
+	exit(0)
+end
+
+;----------------------------------------
+public operation buscaDadosdoPedido
+	;------------------------------------
+;Busch projeto 102 tarefa 11
+	params
+		string  $xlpg$      :IN    
+		string  piParams    :IN
+		string  poParams    :OUT
+		string  poCdErro    :OUT
+		string  poCtxErro   :OUT
+	endparams
+
+	variables
+		numeric vCdEmpresa, vNrTransacao
+		date vDtTransacao
+		string vCdPedido, vPrDesconto
+	endvariables
+	
+	vCdEmpresa = $item("CD_EMPTRANSACAO", piParams)
+	vNrTransacao = $item("NR_TRANSACAO", piParams)
+	vDtTransacao = $item("DT_TRANSACAO", piParams)
+	vCdPedido = ""
+	
+	if (vCdEmpresa = 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Empresa da transação não informada!", "ADICIONAL=Operação->TRASVCO012.buscaDadosdoPedido")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		exit(-1)
+	endif
+	
+	if (vNrTransacao = 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Número da transação não informado!", "ADICIONAL=Operação->TRASVCO012.buscaDadosdoPedido")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		exit(-1)
+	endif
+	
+	if (vDtTransacao = "")
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Data da transação não informada!", "ADICIONAL=Operação->TRASVCO012.buscaDadosdoPedido")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		exit(-1)
+	endif
+
+	clear/e "PED_PEDIDOTRASVC"
+	CD_EMPTRANSACAO.PED_PEDIDOTRASVC    = vCdEmpresa
+	NR_TRANSACAO.PED_PEDIDOTRASVC       = vNrTransacao
+	DT_TRANSACAO.PED_PEDIDOTRASVC       = vDtTransacao
+	retrieve/e "PED_PEDIDOTRASVC"
+	if ($empty("PED_PEDIDOTRASVC") = 0)
+		setocc "PED_PEDIDOTRASVC", 1
+		while ($status >=0)
+			if (vCdPedido = "")
+				vCdPedido = NR_PEDIDOCLIENTE.PED_PEDIDOCSVC	
+				vPrDesconto = PR_DESCONTO.PED_PEDIDOCSVC		
+			else
+				vCdPedido = "%%vCdPedido / %%NR_PEDIDOCLIENTE.PED_PEDIDOCSVC"
+				vPrDesconto = "%%vPrDesconto / %%PR_DESCONTO.PED_PEDIDOCSVC"
+			endif
+			setocc "PED_PEDIDOTRASVC", $curocc("PED_PEDIDOTRASVC") + 1
+		endwhile
+	endif
+	putitem/id poParams, "CD_PEDIDO", vCdPedido
+	putitem/id poParams, "PR_DESCONTO", vPrDesconto
+
+	exit(0)
+end
+
+;----------------------------------------
+public operation buscaDadosSimulador
+	;------------------------------------
+	params
+		string  $xlpg$      :IN    
+		string  piParams    :IN
+		string  poParams    :OUT
+		string  poCdErro    :OUT
+		string  poCtxErro   :OUT
+	endparams
+
+	variables
+		numeric vCdEmpresa, vNrTransacao, vPrVariacao, vVlAbatimento, vNrParcela, vVlParcela
+		date vDtTransacao
+
+	endvariables
+	
+	vCdEmpresa = $item("CD_EMPRESA", piParams)
+	vNrTransacao = $item("NR_TRANSACAO", piParams)
+	vDtTransacao = $item("DT_TRANSACAO", piParams)
+	
+	if (vCdEmpresa = 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Empresa da transação não informada!", "ADICIONAL=Operação->TRASVCO012.buscaDadosSimulador")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		exit(-1)
+	endif
+	
+	if (vNrTransacao = 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Número da transação não informado!", "ADICIONAL=Operação->TRASVCO012.buscaDadosSimulador")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		exit(-1)
+	endif
+	
+	if (vDtTransacao = "")
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Data da transação não informada!", "ADICIONAL=Operação->TRASVCO012.buscaDadosSimulador")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		exit(-1)
+	endif
+
+	clear/e "TRA_TRANSACAOSVC"
+	CD_EMPRESA.TRA_TRANSACAOSVC = vCdEmpresa
+	NR_TRANSACAO.TRA_TRANSACAOSVC = vNrTransacao
+	DT_TRANSACAO.TRA_TRANSACAOSVC = vDtTransacao
+	retrieve/e "TRA_TRANSACAOSVC"
+	if($status < 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Transação não encontrada!", "ADICIONAL=Operação->TRASVCO012.buscaDadosSimulador")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		exit(-1)
+	endif
+
+	if($empty("TRA_TRANSCONDSVC") = 1)
+		exit(0)
+	endif
+
+;calcula valor da parcela
+	vVlAbatimento = VL_ADIANTAMENTO.TRA_TRANSCONDSVC + VL_CREDEV.TRA_TRANSCONDSVC + VL_ENTRADA.TRA_TRANSCONDSVC; + VL_DESCONTO.TRA_TRANSCONDSVC
+	;busca numero de parcelas
+	vNrParcela = 1
+	if (TP_DOCUMENTO.GER_CONDPGTOHSVC = 4) ; Cartao Credito
+		clear/e "FCX_HISTRELSUSVC"
+		TP_DOCUMENTO.FCX_HISTRELSUSVC/init = TP_DOCUMENTO.GER_CONDPGTOHSVC
+		NR_SEQHISTRELSUB.FCX_HISTRELSUSVC/init = NR_SEQHISTRELSUB.GER_CONDPGTOHSVC
+		retrieve/e "FCX_HISTRELSUSVC"
+		if ($status >= 0)
+			vNrParcela = NR_PARCELAS.FCX_HISTRELSUSVC
+		endif
+	else
+		clear/e "GER_CONDPGTOCSVC"
+		CD_CONDPGTO.GER_CONDPGTOCSVC/init = CD_CONDPGTO.GER_CONDPGTOHSVC
+		retrieve/e "GER_CONDPGTOCSVC"
+		if ($status >= 0)
+			if(NR_PARCELAS.GER_CONDPGTOCSVC > 1)
+				vNrParcela = NR_PARCELAS.GER_CONDPGTOCSVC
+			endif
+		endif
+	endif
+	;calcula o valor das parcelas			
+	vVlParcela = (VL_TRANSACAO.TRA_TRANSACAOSVC - vVlAbatimento) / vNrParcela
+	vVlParcela = vVlParcela[round, 2]
+
+	putitem/id poParams, "PR_VARIACAO", PR_VARIACAO.GER_CONDPGTOHSVC
+	putitem/id poParams, "DS_RESUMIDA", DS_RESUMIDA.GER_CONDPGTOHSVC
+	putitem/id poParams, "VL_ENTRADA", VL_ENTRADA.TRA_TRANSCONDSVC
+	putitem/id poParams, "VL_DESCONTO", VL_DESCONTO.TRA_TRANSCONDSVC
+	putitem/id poParams, "VL_CREDEV", VL_CREDEV.TRA_TRANSCONDSVC
+	putitem/id poParams, "VL_ADIANTAMENTO", VL_ADIANTAMENTO.TRA_TRANSCONDSVC
+	putitem/id poParams, "VL_PARCELA", vVlParcela
+	putitem/id poParams, "NR_PARCELA", vNrParcela
+	putitem/id poParams, "VL_ABATIMENTO", vVlAbatimento;credev + entrada + adiantamento 
+
+	exit(0)
+end
+
+;---Elia Proj. 102/156 07/11/07------------
+public operation validaTransacaoAndamento
+;------------------------------------------
+	params
+		string  $xlpg$      :IN    
+		string  piParams    :IN
+		string  poParams    :OUT
+		string  poCdErro    :OUT
+		string  poCtxErro   :OUT
+	endparams
+	
+	variables
+		string vCdEmpresa, vDsErro, viParams, voParams, vNmUsuario
+		numeric vCdUsuario
+		date vDtMovimento
+	endvariables
+	
+	vCdEmpresa = $item("CD_EMPRESA", piParams)
+	if (vCdEmpresa = "")
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Empresa não informada!", "ADICIONAL=Operação->TRASVCO012.validaTransacaoEncerrada")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		exit(-1)
+	endif    
+	
+	call getParam(vCdEmpresa)
+	if ($procerror)
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		exit(-1)
+	endif
+	if ($status < 0)
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		exit(-1)
+	endif
+	
+	vCdUsuario = $item("CD_USUARIO", piParams)
+	vDtMovimento = $item("DT_MOVIMENTO", piParams)
+	
+	vDsErro = ""
+	clear/e "TRA_TRANSACAOSVC"
+	if ($dtImplantacaoV3$ != "")
+		DT_TRANSACAO.TRA_TRANSACAOSVC/init = "·>·=%%$dtImplantacaoV3$"
+	endif
+	CD_EMPFAT.TRA_TRANSACAOSVC/init = vCdEmpresa
+	TP_ORIGEMEMISSAO.TRA_TRANSACAOSVC/init = 1 ;Emissão própria
+	TP_SITUACAO.TRA_TRANSACAOSVC/init = 1 ; 1 Em Andamento
+	if (vCdUsuario > 0)
+		CD_OPERADOR.TRA_TRANSACAOSVC/init = vCdUsuario
+	endif
+	if (vDtMovimento != "")
+		DT_TRANSACAO.TRA_TRANSACAOSVC/init = vDtMovimento
+	endif
+	retrieve/e "TRA_TRANSACAOSVC"
+	if ($status >= 0)
+		setocc "TRA_TRANSACAOSVC", 1
+		while($status >= 0)
+			clear/e "ADM_USUARIOSVC"
+			CD_USUARIO.ADM_USUARIOSVC/init = CD_OPERADOR.TRA_TRANSACAOSVC
+			retrieve/e "ADM_USUARIOSVC"
+			if($status >= 0)
+				;--->MNT - Prj 094/1320 - 18/03/2010
+				if (CD_USUARIO.ADM_USUARIOSVC > 0)
+					viParams = ""
+					voParams = ""
+					vNmUsuario = ""		
+					putitem/id viParams, "CD_USUARIO", CD_USUARIO.ADM_USUARIOSVC
+					activate "ADMSVCO027".validaUsuarioEspecial($$gParamGlb, viParams, voParams, $xCdErro$, $xCtxErro$)	
+					if ($procerror)		
+						$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+						return(-1)
+					elseif ($status < 0)
+						$instancehandle->SetStatus("",$xCdErro$, $xCtxErro$, "")
+						return(-1)
+					endif
+
+					if(voParams != "")
+						vNmUsuario  = $item("NM_USUARIO", voParams)
+					endif
+				else	
+					vNmUsuario = ""
+				endif
+				;<---
+			endif
+			vDsErro = "%%vDsErro%%%Emp./Trans. And./Data/Usu.: %%CD_EMPFAT.TRA_TRANSACAOSVC / %%NR_TRANSACAO.TRA_TRANSACAOSVC / %%DT_TRANSACAO.TRA_TRANSACAOSVC / %%CD_OPERADOR.TRA_TRANSACAOSVC - %%vNmUsuario %%^"    
+			setocc "TRA_TRANSACAOSVC", $curocc("TRA_TRANSACAOSVC") + 1
+		endWhile
+	endif
+	
+	poParams = ""
+	if (vDsErro != "")
+		putitem/id poParams, "DS_LOGERRO", vDsErro
+		exit(-1)
+	endif
+	
+	exit(0)
+End ; operation validaTransacaoAndamento
+
+;---Elia Proj. 78/1471 15/05/08----------
+public operation validaTransacaoBloqueada
+;----------------------------------------
+
+	params
+		string  $xlpg$      :IN    
+		string  piParams    :IN
+		string  poParams    :OUT
+		string  poCdErro    :OUT
+		string  poCtxErro   :OUT
+	endparams
+	
+	variables
+		string vCdEmpresa, vDsErro, viParams, voParams, vNmUsuario
+		numeric vCdUsuario
+		date vDtMovimento
+	endvariables
+	
+	vCdEmpresa = $item("CD_EMPRESA", piParams)
+	if (vCdEmpresa = "")
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Empresa não informada!", "ADICIONAL=Operação->TRASVCO012.validaTransacaoBloqueada")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		exit(-1)
+	endif    
+	
+	call getParam(vCdEmpresa)
+	if ($procerror)
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		exit(-1)
+	endif
+	if ($status < 0)
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		exit(-1)
+	endif
+	
+	vCdUsuario = $item("CD_USUARIO", piParams)
+	vDtMovimento = $item("DT_MOVIMENTO", piParams)
+	
+	vDsErro = ""
+	clear/e "TRA_TRANSACAOSVC"
+	if ($dtImplantacaoV3$ != "")
+		DT_TRANSACAO.TRA_TRANSACAOSVC/init = "·>·=%%$dtImplantacaoV3$"
+	endif
+	CD_EMPFAT.TRA_TRANSACAOSVC/init = vCdEmpresa
+	TP_ORIGEMEMISSAO.TRA_TRANSACAOSVC/init = 1 ;Emissão própria
+	TP_SITUACAO.TRA_TRANSACAOSVC/init = 8 ; 8 Bloqueada
+	if (vCdUsuario > 0)
+		CD_OPERADOR.TRA_TRANSACAOSVC/init = vCdUsuario
+	endif
+	if (vDtMovimento != "")
+		DT_TRANSACAO.TRA_TRANSACAOSVC/init = vDtMovimento
+	endif
+	retrieve/e "TRA_TRANSACAOSVC"
+	if ($status >= 0)
+		setocc "TRA_TRANSACAOSVC", 1
+		while($status >= 0)
+			clear/e "ADM_USUARIOSVC"
+			CD_USUARIO.ADM_USUARIOSVC/init = CD_OPERADOR.TRA_TRANSACAOSVC
+			retrieve/e "ADM_USUARIOSVC"
+			if($status >= 0)
+				;--->MNT - Prj 094/1320 - 18/03/2010
+				if (CD_USUARIO.ADM_USUARIOSVC > 0)
+					viParams = ""
+					voParams = ""
+					vNmUsuario = ""		
+					putitem/id viParams, "CD_USUARIO", CD_USUARIO.ADM_USUARIOSVC
+					activate "ADMSVCO027".validaUsuarioEspecial($$gParamGlb, viParams, voParams, $xCdErro$, $xCtxErro$)	
+					if ($procerror)		
+						$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+						return(-1)
+					elseif ($status < 0)
+						$instancehandle->SetStatus("",$xCdErro$, $xCtxErro$, "")
+						return(-1)
+					endif
+
+					if(voParams != "")
+						vNmUsuario  = $item("NM_USUARIO", voParams)
+					endif
+				else	
+					vNmUsuario = ""
+				endif
+				;<---
+			endif
+			vDsErro = "%%vDsErro%%%Emp./Trans. Bloq./Data/Usu.: %%CD_EMPFAT.TRA_TRANSACAOSVC / %%NR_TRANSACAO.TRA_TRANSACAOSVC / %%DT_TRANSACAO.TRA_TRANSACAOSVC / %%CD_OPERADOR.TRA_TRANSACAOSVC - %%vNmUsuario %%^"    
+			setocc "TRA_TRANSACAOSVC", $curocc("TRA_TRANSACAOSVC") + 1
+		endWhile
+	endif
+	
+	poParams = ""
+	if (vDsErro != "")
+		putitem/id poParams, "DS_LOGERRO", vDsErro
+		exit(-1)
+	endif
+	
+	exit(0)
+
+End ; operation validaTransacaoBloqueada
+
+;---Elia Proj. 130/153 05/11/08---
+public operation calculaPrazoMedio
+;---------------------------------
+
+	params
+		string  $xlpg$      :IN    
+		string  piParams    :IN
+		string  poParams    :OUT
+		string  poCdErro    :OUT
+		string  poCtxErro   :OUT
+	endparams
+
+	variables
+		string viParams, voParams
+		numeric vCdEmpresa, vNrTransacao, vVlTotalTransacao, vVlTotal, vNrPrzMedio
+		date vDtTransacao
+	endvariables
+	
+	vCdEmpresa = $item("CD_EMPRESA", piParams)
+	vNrTransacao = $item("NR_TRANSACAO", piParams)
+	vDtTransacao = $item("DT_TRANSACAO", piParams)
+	vVlTotalTransacao = 0
+	vVlTotal = 0
+	vNrPrzMedio = 0
+
+	if (vCdEmpresa = 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Empresa da transação não informada!", "ADICIONAL=Operação->TRASVCO012.calculaPrazoMedio")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		exit(-1)
+	endif
+	
+	if (vNrTransacao = 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Número da transação não informado!", "ADICIONAL=Operação->TRASVCO012.calculaPrazoMedio")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		exit(-1)
+	endif
+	
+	if (vDtTransacao = "")
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Data da transação não informada!", "ADICIONAL=Operação->TRASVCO012.calculaPrazoMedio")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		exit(-1)
+	endif
+
+	clear/e "TRA_TRANSACAOSVC"
+	CD_EMPRESA.TRA_TRANSACAOSVC/init = vCdEmpresa
+	NR_TRANSACAO.TRA_TRANSACAOSVC/init = vNrTransacao
+	DT_TRANSACAO.TRA_TRANSACAOSVC/init = vDtTransacao
+	retrieve/e "TRA_TRANSACAOSVC"
+	if($status < 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Transação não encontrada!", "ADICIONAL=Operação->TRASVCO012.calculaPrazoMedio")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		exit(-1)
+	endif
+
+	if (!$empty("TRA_VENCIMENTSVC"))
+		setocc "TRA_VENCIMENTSVC", 1
+		while ($status >= 0)
+			vVlTotalTransacao = vVlTotalTransacao + VL_PARCELA.TRA_VENCIMENTSVC
+			vVlTotal = vVlTotal + (VL_PARCELA.TRA_VENCIMENTSVC * (DT_VENCIMENTO.TRA_VENCIMENTSVC - DT_TRANSACAO.TRA_VENCIMENTSVC))
+			setocc "TRA_VENCIMENTSVC", $curocc("TRA_VENCIMENTSVC") + 1
+		endwhile
+		vNrPrzMedio = vVlTotal / vVlTotalTransacao
+		vNrPrzMedio = vNrPrzMedio[round, 1]
+	else
+		viParams = ""
+		putitem/id viParams, "CD_CONDPGTO", CD_CONDPGTO.TRA_TRANSACAOSVC
+		activate "GERSVCO013".calcPrzMedio(viParams, voParams, $xCdErro$, $xCtxErro$)
+		if ($procerror)
+			$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+			poCdErro = $xCdErro$
+			poCtxErro = $xCtxErro$
+			exit(-1)
+		elseif ($status < 0)
+			$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")
+			poCdErro = $xCdErro$
+			poCtxErro = $xCtxErro$
+			exit(-1)
+		endif
+		vNrPrzMedio = $item("NR_PRAZOMEDIO", voParams)
+	endif
+
+	putitem/id poParams, "NR_PRAZOMEDIO", vNrPrzMedio
+
+	exit (0)
+End ; operation calculaPrazoMedio
+
+;---------------------------------
+public operation validaNFTransacao
+	;-----------------------------
+	params
+		string  $xlpg$      :IN    
+		string  piParams    :IN
+		string  poParams    :OUT
+		string  poCdErro    :OUT
+		string  poCtxErro   :OUT
+	endparams
+
+	variables
+		numeric vCdEmpresa, vNrTransacao, vPrVariacao, vVlAbatimento, vNrParcela, vVlParcela
+		date vDtTransacao
+
+	endvariables
+	
+	vCdEmpresa = $item("CD_EMPRESA", piParams)
+	vNrTransacao = $item("NR_TRANSACAO", piParams)
+	vDtTransacao = $item("DT_TRANSACAO", piParams)
+	
+	if (vCdEmpresa = 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Empresa da transação não informada!", "ADICIONAL=Operação->TRASVCO012.validaNFTransacao")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		exit(-1)
+	endif
+	
+	if (vNrTransacao = 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Número da transação não informado!", "ADICIONAL=Operação->TRASVCO012.validaNFTransacao")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		exit(-1)
+	endif
+	
+	if (vDtTransacao = "")
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Data da transação não informada!", "ADICIONAL=Operação->TRASVCO012.validaNFTransacao")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		exit(-1)
+	endif
+
+	clear/e "TRA_TRANSACAOSVC"
+	CD_EMPRESA.TRA_TRANSACAOSVC = vCdEmpresa
+	NR_TRANSACAO.TRA_TRANSACAOSVC = vNrTransacao
+	DT_TRANSACAO.TRA_TRANSACAOSVC = vDtTransacao
+	retrieve/e "TRA_TRANSACAOSVC"
+	if($status < 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Transação %%vNrTransacao não cadastrada!", "ADICIONAL=Operação->TRASVCO012.validaNFTransacao")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		exit(-1)
+	endif
+
+	clear/e "FIS_NFSVC"
+	CD_EMPRESAORI.FIS_NFSVC/init = CD_EMPRESA.TRA_TRANSACAOSVC
+	NR_TRANSACAOORI.FIS_NFSVC/init = NR_TRANSACAO.TRA_TRANSACAOSVC
+	DT_TRANSACAOORI.FIS_NFSVC/init = DT_TRANSACAO.TRA_TRANSACAOSVC
+	retrieve/e "FIS_NFSVC"
+	if ($status < 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Transação %%vNrTransacao não possui NF relacionada!", "ADICIONAL=Operação->TRASVCO012.validaNFTransacao")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		exit(-1)
+	endif
+
+	exit(0)
+end

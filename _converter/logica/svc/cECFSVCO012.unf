@@ -1,0 +1,631 @@
+;-----------------------------
+entry montaLinhaInicio
+;-----------------------------
+	params
+		string piLinhaOrigem : IN        
+		string poLinhaDestino : OUT
+	endparams
+	
+	variables
+		numeric vNrCodigoASCII
+		string vDsNumero
+	endvariables    
+
+        CD_COMPVEND = 0
+
+	poLinhaDestino = ""
+	length piLinhaOrigem 
+	while ($result > 0)
+		scan piLinhaOrigem, '{*}'
+		if ($result > 0)
+			poLinhaDestino = "%%poLinhaDestino%%piLinhaOrigem[1, $result - 1]"
+			piLinhaOrigem = piLinhaOrigem[$result + 1]
+			scan piLinhaOrigem, "}"
+			if ($result > 0)
+				vDsNumero = piLinhaOrigem[1, $result - 1]
+				piLinhaOrigem = piLinhaOrigem[$result + 1]
+				call achaNumero(vDsNumero, vNrCodigoASCII)
+				if ($procerror)
+					$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+				endif    
+				if ($status < 0)
+					return(-1)
+				endif
+				vDsNumero = $tometa(vNrCodigoASCII)
+				poLinhaDestino = "%%poLinhaDestino%%vDsNumero"
+			endif
+		else
+			poLinhaDestino = "%%poLinhaDestino%%piLinhaOrigem"
+			piLinhaOrigem = ""
+		endif
+		
+		length piLinhaOrigem
+	endwhile
+	
+	return(0)
+end ; montaLinhaInicio
+
+;-----------------------------
+entry achaNumero
+;-----------------------------
+	params        
+		string piNumero : IN
+		numeric poNumero : OUT
+	endparams
+	
+	length(piNumero)
+	while ($result > 0)
+		if (piNumero[1 : 1] >= 0 & piNumero[1 : 1] <= 9 & piNumero[1 : 1] != " ")
+			poNumero = "%%poNumero%%piNumero[1 : 1]"
+		endif
+		piNumero = piNumero[2]
+		length(piNumero)
+	endwhile
+	
+	return(0)
+end ;achaNumero
+
+;-----------------------------
+entry montaLinhaColuna
+;-----------------------------
+	params
+		string piLinhaOrigem : IN        
+		string poLinhaDestino : OUT
+		numeric piQtCopia : IN
+	endparams
+	
+	variables
+		numeric vCdCampo, vNrTamanhoCampo, vNrCodigoASCII
+		string vDsControleCampo, vDsCampo, vDsConteudo, vDsNumero
+	endvariables    
+	
+	length piLinhaOrigem
+	while ($result > 0)
+		scan piLinhaOrigem, "@"        
+		if ($result > 0)
+			vCdCampo = 0
+			vNrTamanhoCampo = 0
+			poLinhaDestino = "%%poLinhaDestino%%piLinhaOrigem[1, $result - 1]"
+			piLinhaOrigem = piLinhaOrigem[$result + 1]
+			scan piLinhaOrigem, "@"
+			if ($result > 0)
+				vDsConteudo = piLinhaOrigem[1, $result - 1]
+				piLinhaOrigem = piLinhaOrigem[$result + 1]
+				scan vDsConteudo, "#"
+				if ($result > 0)
+					vCdCampo = vDsConteudo[1, $result - 1] 
+					vDsConteudo = vDsConteudo[$result + 1]                                
+					scan vDsConteudo, "#"
+					if ($result > 0)
+						vNrTamanhoCampo = vDsConteudo[1, $result - 1] 
+						vDsConteudo = vDsConteudo[$result + 1]                
+						vDsControleCampo = vDsConteudo
+					else
+						vNrTamanhoCampo = vDsConteudo
+					endif
+				endif
+			endif
+			if (vCdCampo > 0)
+				vDsCampo = ""
+				selectcase vCdCampo
+					case 1
+						if (vNrTamanhoCampo = 0)
+							vDsCampo = piQtCopia
+						else
+							call preencheZero(piQtCopia, vNrTamanhoCampo, vDsCampo)
+							if ($procerror)
+								$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+							endif    
+							if ($status < 0)
+								return(-1)
+							endif
+						endif
+					elsecase
+						call montaCampo(vCdCampo, vNrTamanhoCampo, vDsControleCampo, vDsCampo)
+						if ($procerror)
+							$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+						endif
+						if ($status < 0)
+							return(-1)
+						endif
+				endselectcase
+				poLinhaDestino = "%%poLinhaDestino%%vDsCampo"
+				poLinhaDestino = poLinhaDestino[1,40]
+			endif            
+		else
+			poLinhaDestino = "%%poLinhaDestino%%piLinhaOrigem"
+			poLinhaDestino = poLinhaDestino[1,40]
+			piLinhaOrigem = ""
+		endif
+		
+		length piLinhaOrigem
+	endwhile
+	
+	return(0)
+end ; montaLinhaColuna
+
+;-----------------------------
+entry preencheZero
+;-----------------------------
+	params        
+		numeric piNumero : IN
+		numeric piTamanho : IN 
+		string poNumero : OUT
+	endparams
+	
+	poNumero = piNumero
+	length poNumero
+	while ($result < piTamanho)
+		poNumero = "0%%poNumero"
+		length poNumero
+	endwhile
+	
+	if ($result > piTamanho)
+		poNumero = poNumero[$result - piTamanho + 1]
+	endif
+	
+	return 0
+end ;preencheZero
+
+;-----------------------------
+entry montaCampo
+;-----------------------------
+	params
+		numeric piCodigo : IN
+		numeric piTamanho : IN
+		string piControle : IN        
+		string poCampo : OUT
+	endparams
+	
+	variables
+		string vDsLstUsu, vDsLstNF
+		string viParams,voParams
+		numeric vNrEndereco
+	endvariables
+
+	poCampo = ""
+
+	selectcase piCodigo
+		case 10
+			poCampo = "%%CD_PESSOA.PES_PESSOASVC" ;-=CANONICO=- (11/01/2007) - Adicionei o campo codigo do cliente na OBS
+		case 11
+			if ($inGravaClienteEcf$ = <TRUE>)
+				poCampo = "%%NM_PESSOA.PES_PESSOASVC"
+			else
+				poCampo = "%%NM_NOME.TRA_REMDESSVC" ;-=CANONICO=- (09/07/2009) TAR/567 PRJ/102 - Lê o parametro, para não gravar a pessoa então pega do TRA_REMDES 
+			endif
+		case 15
+			;-=CANONICO=- (09/07/2009) TAR/567 PRJ/102 - Lê o parametro, para não gravar a pessoa então pega do TRA_REMDES 
+			if ($inGravaClienteEcf$ = <TRUE>)
+				if(TP_PESSOA.PES_PESSOASVC = "F")
+					$nrCPF$ = NR_CPFCNPJ.PES_PESSOASVC
+					poCampo = "%%$nrCPF$"
+				else
+					$nrCNPJ$ = NR_CPFCNPJ.PES_PESSOASVC
+					poCampo = "%%$nrCNPJ$"
+				endif
+			else
+				if(TP_PESSOA.PES_PESSOASVC = "F")
+					$nrCPF$ = NR_CPFCNPJ.TRA_REMDESSVC
+					poCampo = "%%$nrCPF$"
+				else
+					$nrCNPJ$ = NR_CPFCNPJ.TRA_REMDESSVC
+					poCampo = "%%$nrCNPJ$"
+				endif
+			endif
+			;
+		case 16
+			poCampo = "%%DS_SIGLALOGRAD.V_PES_ENDERECSVC%%% %%NM_LOGRADOURO.V_PES_ENDERECSVC%%% %%NR_LOGRADOURO.V_PES_ENDERECSVC"
+		case 17
+			poCampo = "%%DS_BAIRRO.V_PES_ENDERECSVC"
+		case 19
+			poCampo = "%%NM_MUNICIPIO.V_PES_ENDERECSVC"
+		case 20
+			poCampo = "%%NR_TELEFONE.PES_TELEFONESVC" 
+		case 21 
+			poCampo = "%%DS_SIGLAESTADO.V_PES_ENDERECSVC"
+		case 38 ;-=CANONICO=- (12/03/2010) TAR 835 PRJ 102 -  MENSAGEM DO CUPOM MANIA CUPOM FISCAL
+			poCampo = "%%VL_ICMS.TRA_TRANSACAOSVC"
+		case 84
+			poCampo = "%%$nrTransacao$"
+		case 65 ;-=CANONICO=- (25/03/2008) TAR 266 PRJ 102
+			poCampo = "%%CD_VENDEDOR.PES_VENDEDORSVC"
+		case 98 ;---Elia Proj. 102/538 11/05/09 - VALOR TOTAL DESCONTO TRANSACAO
+			if (VL_DESCONTO.TRA_TRANSACAOSVC != 0)
+				$vlBonus$ = ""
+				if (!$empty("CTC_TRACARTASVC"))
+					setocc "CTC_TRACARTASVC", 1
+					while ($status >= 0)
+						$vlBonus$ = $vlBonus$ + VL_BONUSUTIL.CTC_TRACARTASVC
+						setocc "CTC_TRACARTASVC", $curocc("CTC_TRACARTASVC") + 1
+					endwhile
+				endif
+				$vlDesconto$ = VL_DESCONTO.TRA_TRANSACAOSVC - $vlBonus$
+				poCampo = "%%$vlDesconto$"
+			else			
+				poCampo = ""
+			endif
+
+		case 101 
+			poCampo = "%%NM_VENDEDOR.PES_VENDEDORSVC"
+
+		case 249
+			poCampo = "%%CD_AUXILIAR.PES_VENDINFOSVC"
+
+		;* Claudemir - 03/08/2009 - Prj/Tarefa: 102/642
+		;* Imprimir a condição de pagamento feita no simulador
+		case 000466			
+			putitem/id viParams, "CD_EMPRESA",   CD_EMPRESA.TRA_TRANSACAOSVC
+			putitem/id viParams, "NR_TRANSACAO", NR_TRANSACAO.TRA_TRANSACAOSVC
+			putitem/id viParams, "DT_TRANSACAO", DT_TRANSACAO.TRA_TRANSACAOSVC
+			activate "TRASVCO012".buscaDadosSimulador($$gParamGlb, viParams, voParams, $xCdErro$, $xCtxerro$)
+			if ($procerror)       
+				$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+				return(-1)
+			elseif ($status < 0)
+				$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")
+				return(-1)
+			endif
+		
+			$pr03D2$ = $item("PR_VARIACAO", voParams)
+			if($pr03D2$ != "")
+				call alinhaDireita("%%$pr03D2$", piTamanho, poCampo)
+				if ($procerror)
+					$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+				endif
+				poCampo = "%%poCampo"
+			else
+				$pr03D2$ = ""
+				poCampo = ""
+			endif ;*
+
+		;* Claudemir - 03/08/2009 - Prj/Tarefa: 102/642
+		;* Imprimir a condição de pagamento feita no simulador
+		case 000467			
+			putitem/id viParams, "CD_EMPRESA",   CD_EMPRESA.TRA_TRANSACAOSVC
+			putitem/id viParams, "NR_TRANSACAO", NR_TRANSACAO.TRA_TRANSACAOSVC
+			putitem/id viParams, "DT_TRANSACAO", DT_TRANSACAO.TRA_TRANSACAOSVC
+			activate "TRASVCO012".buscaDadosSimulador($$gParamGlb, viParams, voParams, $xCdErro$, $xCtxerro$)
+			if ($procerror)       
+				$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+				return(-1)
+			elseif ($status < 0)
+				$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")
+				return(-1)
+			endif
+			poCampo = $item("DS_RESUMIDA", voParams)[1 : piTamanho] ;*
+
+		case 631 ;---Elia Proj. 102/538 11/05/09 - VALOR BONUS CARTAO PROPRIO UTILIZADO VENDA
+			$vlBonus$ = ""
+			if (!$empty("CTC_TRACARTASVC"))
+				setocc "CTC_TRACARTASVC", 1
+				while ($status >= 0)
+					$vlBonus$ = $vlBonus$ + VL_BONUSUTIL.CTC_TRACARTASVC
+					setocc "CTC_TRACARTASVC", $curocc("CTC_TRACARTASVC") + 1
+				endwhile
+			endif
+			poCampo = "%%$vlBonus$"
+		elsecase
+			poCampo = ""
+	endselectcase    
+	
+	return(0)
+end ; montaCampo
+
+;-----------------------------
+entry alinhaDireita
+;-----------------------------
+	params        
+		string piNumero : IN
+		numeric piTamanho : IN 
+		string poNumero : OUT
+	endparams
+	
+	variables
+		numeric vIndice 
+	endvariables
+	
+	vIndice = 1
+	length piNumero
+	while (vIndice <= piTamanho - $result)
+		poNumero = "%%poNumero "
+		vIndice = vIndice + 1
+	endwhile  
+	
+	if (piTamanho < $result)
+		poNumero = "%%poNumero%%piNumero[$result - piTamanho + 1]"
+	else    
+		poNumero = "%%poNumero%%piNumero"
+	endif
+	
+	return 0
+end ;alinhaDireita
+
+;-----------------------------
+entry getParam
+;-----------------------------
+	variables
+		numeric vCdEmpresa
+		string viParams, voParams
+	endvariables
+
+	vCdEmpresa = $item("CD_EMPRESA", $xlpg$)
+	viParams = ""
+	putitem viParams, -1, "OBS_ECF_LINHA1"
+	putitem viParams, -1, "OBS_ECF_LINHA2"
+	putitem viParams, -1, "OBS_ECF_LINHA3"
+	putitem viParams, -1, "OBS_ECF_LINHA4"
+	putitem viParams, -1, "OBS_ECF_LINHA5"
+	putitem viParams, -1, "OBS_ECF_LINHA6"
+	putitem viParams, -1, "OBS_ECF_LINHA7"
+	putitem viParams, -1, "OBS_ECF_LINHA8"
+	putitem viParams, -1, "IN_GRAVA_CLIENTE_ECF" ;-=CANONICO=- (09/07/2009) TAR/567 PRJ/102 - Lê o parametro, para não gravar a pessoa 
+	activate "ADMSVCO001".GetParamEmpresa(vCdEmpresa, viParams, voParams, $xCdErro$, $xCtxerro$)
+	if ($procerror)
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+		return(-1)
+	elseif ($xCdErro$)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=%%$item("DESCRICAO", $xCtxErro$)", "ADICIONAL=Operação->ECFSVCO012.getParam")
+		return(-1)
+	elseif ($status < 0)
+		return(-1)
+	endif
+	$DsObsLinha1$ = $item("OBS_ECF_LINHA1",voParams) 
+	$DsObsLinha2$ = $item("OBS_ECF_LINHA2",voParams)
+	$DsObsLinha3$ = $item("OBS_ECF_LINHA3",voParams)
+	$DsObsLinha4$ = $item("OBS_ECF_LINHA4",voParams)
+	$DsObsLinha5$ = $item("OBS_ECF_LINHA5",voParams)
+	$DsObsLinha6$ = $item("OBS_ECF_LINHA6",voParams)
+	$DsObsLinha7$ = $item("OBS_ECF_LINHA7",voParams)
+	$DsObsLinha8$ = $item("OBS_ECF_LINHA8",voParams)
+	if ($item("IN_GRAVA_CLIENTE_ECF", $xlplemp$) != 1) ;-=CANONICO=- (09/07/2009) TAR/567 PRJ/102 - Lê o parametro, para não gravar a pessoa
+		$inGravaClienteEcf$ = <FALSE>
+	else
+		$inGravaClienteEcf$ = <TRUE>
+	endif
+
+	return(0)
+end ; getParam
+
+#include <LIB_PADRAO>:DEF_TEMPLATE_SVC
+;--------------------
+public operation INIT
+;--------------------
+#include <LIB_PADRAO>:PRC_INIT
+end ;INIT
+
+;-----------------------
+public operation CLEANUP
+;-----------------------
+#include <LIB_PADRAO>:PRC_CLEANUP
+end ; CLEANUP
+
+;-----------------------
+public operation geraObsECF
+;-----------------------
+	params
+		string  $xlpg$      :IN    
+		string  piParams    :IN
+		string  poParams    :OUT
+		string  poCdErro    :OUT
+		string  poCtxErro   :OUT
+	endparams
+
+	variables
+		string vDsLinhaDestino, vDsLinha
+		numeric vQtCopia, vCdCliente, vCdVendedor, vCdEmpresa
+	endvariables
+	
+	vCdCliente = $item("CD_CLIENTE",piParams)
+	if (vCdCliente = 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Cliente não encontrado!", "ADICIONAL=Operação->ECFSVCO012.geraObsECF")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif	
+	
+	vCdVendedor   = $item("CD_COMPVEND",piParams)   ;-=CANONICO=- (25/03/2008) TAR 266 - PRJ 102	
+	vCdEmpresa    = $item("CD_EMPRESA",piParams)    ;-=CANONICO=- (25/03/2008) TAR 266 - PRJ 102	
+	$nrTransacao$ = $item("NR_TRANSACAO",piParams)
+	$dtTransacao$ = $item("DT_TRANSACAO",piParams) ;---Elia Proj. 102/538 11/05/09
+
+	call getParam()
+	if ($procerror)
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+
+	if ($status < 0)
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+
+	if (($DsObsLinha1$ = "") & ($DsObsLinha2$ = "") & ($DsObsLinha3$ = "") & ($DsObsLinha4$ = "") & ($DsObsLinha5$ = "") & ($DsObsLinha6$ = "") & ($DsObsLinha7$ = "") & ($DsObsLinha8$ = ""))
+		return(0)
+	endif
+
+	if ($DsObsLinha1$ = "")
+		$DsObsLinha1$ = "%%$DsObsLinha1$%%^"
+	endif
+
+	if ($DsObsLinha2$ = "")
+		$DsObsLinha2$ = "%%$DsObsLinha2$%%^"
+	endif
+
+	if ($DsObsLinha3$ = "")
+		$DsObsLinha3$ = "%%$DsObsLinha3$%%^"
+	endif
+
+	if ($DsObsLinha4$ = "")
+		$DsObsLinha4$ = "%%$DsObsLinha4$%%^"
+	endif
+
+	if ($DsObsLinha5$ = "")
+		$DsObsLinha5$ = "%%$DsObsLinha5$%%^"
+	endif
+
+	if ($DsObsLinha6$ = "")
+		$DsObsLinha6$ = "%%$DsObsLinha6$%%^"
+	endif
+
+	if ($DsObsLinha7$ = "")
+		$DsObsLinha7$ = "%%$DsObsLinha7$%%^"
+	endif
+
+	if ($DsObsLinha8$ = "")
+		$DsObsLinha8$ = "%%$DsObsLinha8$%%^"
+	endif
+
+	clear/e "PES_PESSOASVC"
+	CD_PESSOA.PES_PESSOASVC = vCdCliente
+	retrieve/e "PES_PESSOASVC"
+	if ($status < 0 )
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Cliente não encontrado!", "ADICIONAL=Operação->ECFSVCO012.geraObsECF")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+
+	;-=CANONICO=- (25/03/2008) TAR 266 PRJ 102	
+	clear/e "PES_VENDEDORSVC"
+	CD_VENDEDOR.PES_VENDEDORSVC/init = vCdVendedor
+	retrieve/e "PES_VENDEDORSVC"
+	if ($status < 0 )
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Vendedor não encontrado!", "ADICIONAL=Operação->ECFSVCO012.geraObsECF")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+
+	clear/e "PES_VENDINFOSVC"
+	CD_EMPRESA.PES_VENDINFOSVC/init = vCdEmpresa  
+	CD_VENDEDOR.PES_VENDINFOSVC/init = vCdVendedor
+	retrieve/e "PES_VENDINFOSVC"
+	if ($status < 0 )
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Vendedor auxiliar não encontrado!", "ADICIONAL=Operação->ECFSVCO012.geraObsECF")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	;
+
+	putitem/id piParams, "CD_PESSOA", CD_PESSOA.PES_PESSOASVC
+	putitem/id piParams, "IN_VENDA_ECF", <TRUE> ;---Elia Proj. 102/84 26/06/07
+	activate "PESSVCO005".buscaEnderecoFaturamento($xlpo$, piParams, poParams, $xCdErro$, $xCtxErro$)
+	if ($procerror)       
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	elseif ($status < 0)
+		$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif    				
+	$SeqEndereco$ = $item("NR_SEQENDERECO", poParams)
+
+	
+	clear/e "V_PES_ENDERECSVC"
+	CD_PESSOA.V_PES_ENDERECSVC = CD_PESSOA.PES_PESSOASVC
+	NR_SEQUENCIA.V_PES_ENDERECSVC = $SeqEndereco$
+	retrieve/e "V_PES_ENDERECSVC"
+
+	clear/e "PES_TELEFONESVC"  
+	CD_PESSOA.PES_TELEFONESVC = vCdCliente
+	retrieve/e "PES_TELEFONESVC"
+
+	;---Elia Proj. 102/538 11/05/09
+	if (vCdEmpresa != 0) & ($nrTransacao$ != 0) & ($dtTransacao$ != "")
+		clear/e "TRA_TRANSACAOSVC"
+		CD_EMPRESA.TRA_TRANSACAOSVC/init   = vCdEmpresa
+		NR_TRANSACAO.TRA_TRANSACAOSVC/init = $nrTransacao$
+		DT_TRANSACAO.TRA_TRANSACAOSVC/init = $dtTransacao$
+		retrieve/e "TRA_TRANSACAOSVC"
+		if ($status < 0)
+			$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Transação %%vCdEmpresa / %%$nrTransacao$ / %%$dtTransacao$ inválida!", "ADICIONAL=Operação->ECFSVCO012.geraObsECF")
+			poCdErro = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return(-1)
+		endif
+	endif
+	;
+
+	call montaLinhaColuna($DsObsLinha1$, vDsLinhaDestino, vQtCopia)
+	if ($procerror)
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+	endif    
+	if ($status < 0)
+		return(-1)
+	endif
+	vDsLinha = "%%vDsLinhaDestino%%^" 
+
+	call montaLinhaColuna($DsObsLinha2$, vDsLinhaDestino, vQtCopia)
+	if ($procerror)
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+	endif    
+	if ($status < 0)
+		return(-1)
+	endif
+	vDsLinha = "%%vDsLinha%%vDsLinhaDestino%%^" 
+
+	call montaLinhaColuna($DsObsLinha3$, vDsLinhaDestino, vQtCopia)
+	if ($procerror)
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+	endif    
+	if ($status < 0)
+		return(-1)
+	endif
+	vDsLinha = "%%vDsLinha%%vDsLinhaDestino%%^" 
+
+	call montaLinhaColuna($DsObsLinha4$, vDsLinhaDestino, vQtCopia)
+	if ($procerror)
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+	endif    
+	if ($status < 0)
+		return(-1)
+	endif
+	vDsLinha = "%%vDsLinha%%vDsLinhaDestino%%^" 
+
+	call montaLinhaColuna($DsObsLinha5$, vDsLinhaDestino, vQtCopia)
+	if ($procerror)
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+	endif    
+	if ($status < 0)
+		return(-1)
+	endif
+	vDsLinha = "%%vDsLinha%%vDsLinhaDestino%%^" 
+
+	call montaLinhaColuna($DsObsLinha6$, vDsLinhaDestino, vQtCopia)
+	if ($procerror)
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+	endif    
+	if ($status < 0)
+		return(-1)
+	endif
+	vDsLinha = "%%vDsLinha%%vDsLinhaDestino%%^" 
+
+	call montaLinhaColuna($DsObsLinha7$, vDsLinhaDestino, vQtCopia)
+	if ($procerror)
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+	endif    
+	if ($status < 0)
+		return(-1)
+	endif
+	vDsLinha = "%%vDsLinha%%vDsLinhaDestino%%^" 
+
+	call montaLinhaColuna($DsObsLinha8$, vDsLinhaDestino, vQtCopia)
+	if ($procerror)
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+	endif    
+	if ($status < 0)
+		return(-1)
+	endif
+	vDsLinha = "%%vDsLinha%%vDsLinhaDestino%%^" 
+	
+	putitem/id poParams, "DS_MENSAGEM", vDsLinha
+	return(0)		
+end ; geraObsECF

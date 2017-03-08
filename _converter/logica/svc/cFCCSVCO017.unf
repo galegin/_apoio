@@ -1,0 +1,160 @@
+;-------------------------------
+public operation getNumMovRel
+	;-------------------------------
+	params
+		string  $xlpg$      :IN    
+		string  piParams    :IN
+		string  poParams    :OUT
+		string  poCdErro    :OUT
+		string  poCtxErro   :OUT
+	endparams
+	
+	variables
+		numeric vNrSeqMovRel
+		string viParams, voParams
+	endvariables
+	
+	vNrSeqMovRel = 0
+	while (vNrSeqMovRel = 0)
+		viParams = ""
+		putitem/id viParams, "NM_ENTIDADE", "FCC_MOVREL"
+		activate "GERSVCO031".getNumSeq($xlpg$, viParams, voParams, $xCdErro$, $xCtxerro$)
+		if ($procerror)
+			$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+			poCdErro = $xCdErro$
+			poCtxErro = $xCtxErro$
+			exit(-1)  
+		elseif ($status < 0)
+			$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")
+			poCdErro = $xCdErro$
+			poCtxErro = $xCtxErro$
+			exit(-1)  
+		endif    
+
+		vNrSeqMovRel = $item("NR_SEQUENCIA", voParams)
+	endwhile
+
+	putitem/id poParams, "NR_SEQMOVREL", vNrSeqMovRel
+
+	exit(0)
+end ; operation getNumMovRel
+
+;-------------------------------
+public operation gravaMovRel
+	;-------------------------------
+	params
+		string  $xlpg$      :IN    
+		string  piParams    :IN
+		string  poParams    :OUT
+		string  poCdErro    :OUT
+		string  poCtxErro   :OUT
+	endparams
+	
+	variables
+		numeric vCdEmpMov, vNrSeqMovRel, vNrCtaPesFcc, vNrSeqMovFcc, vTpOrigem
+		string viParams, voParams, vTpOperacao
+		date vDtMov, vDtMovFcc
+	endvariables
+	
+	poParams = ""
+	
+	vCdEmpMov     = $item("CD_EMPMOV", piParams)
+	if (vCdEmpMov = 0)
+		vCdEmpMov = $item("CD_EMPRESA", $xlpg$)        
+	endif
+	vDtMov        = $item("DT_MOV", piParams)
+	if (vDtMov    = "")
+		vDtMov    = $item("DT_SISTEMA",$xLpg$)
+	endif
+	vNrSeqMovRel  = $item("NR_SEQMOV", piParams)
+	vNrCtaPesFcc  = $item("NR_CTAPESFCC", piParams)
+	vDtMovFcc     = $item("DT_MOV", piParams)
+	vNrSeqMovFcc  = $item("NR_SEQMOVFCC", piParams)
+	vTpOperacao   = $item("TP_OPERACAO", piParams) 
+	vTpOrigem     = $item("TP_ORIGEM", piParams)
+
+	clear/e "GER_EMPRESASVC"
+	CD_EMPRESA.GER_EMPRESASVC/init = vCdEmpMov
+	retrieve/e "GER_EMPRESASVC"
+	if ($status < 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Empresa %%vCdEmpMov não cadastrada.", "ADICIONAL=Operação->FCCSVCO017.gravaMovRel")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif    	
+	
+	if (vDtMov = 0) | (vDtMov = "")
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Data de movimento não informada.", "ADICIONAL=Operação->FCCSVCO017.gravaMovRel")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	if (vNrSeqMovRel = 0) | (vNrSeqMovRel = "")
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Número de sequência de movimento não informado.", "ADICIONAL=Operação->FCCSVCO017.gravaMovRel")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	if (vNrCtaPesFcc = 0) | (vNrCtaPesFcc = "")
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Número da conta de movimento não informado.", "ADICIONAL=Operação->FCCSVCO017.gravaMovRel")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	if (vDtMovFcc = 0) | (vDtMovFcc = "")
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Data do movimento da conta não informada.", "ADICIONAL=Operação->FCCSVCO017.gravaMovRel")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	if (vNrSeqMovFcc = 0) | (vNrSeqMovFcc = "")
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Número de sequência do movimento da conta não informado.", "ADICIONAL=Operação->FCCSVCO017.gravaMovRel")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	if (vTpOrigem != 1) & (vTpOrigem != 2)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Tipo do movimento de origem não informado, ou informado com erro (intervalo aceito >= 1 e <= 2).", "ADICIONAL=Operação->FCCSVCO017.gravaMovRel")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	if (vTpOperacao != "C") & (vTpOperacao != "D")
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Tipo do operação não informado, ou informado com erro (aceito D ou C).", "ADICIONAL=Operação->FCCSVCO017.gravaMovRel")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	
+	clear/e "FCC_MOVRELSVC"
+	creocc "FCC_MOVRELSVC", -1
+	CD_EMPMOV.FCC_MOVRELSVC    = vCdEmpMov
+	DT_MOV.FCC_MOVRELSVC       = vDtMov
+	NR_SEQMOV.FCC_MOVRELSVC    = vNrSeqMovRel
+	NR_CTAPESFCC.FCC_MOVRELSVC = vNrCtaPesFcc
+	DT_MOVIMFCC.FCC_MOVRELSVC  = vDtMovFcc
+	NR_SEQMOVFCC.FCC_MOVRELSVC = vNrSeqMovFcc
+	TP_OPERACAO.FCC_MOVRELSVC  = vTpOperacao
+	TP_ORIGEM.FCC_MOVRELSVC    = vTpOrigem
+	CD_OPERADOR.FCC_MOVRELSVC = $item("CD_USUARIO", $xlpg$)
+	DT_CADASTRO.FCC_MOVRELSVC = $datim
+	$collhandle("FCC_MOVRELSVC")->Salvar()
+	if ($procerror)
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		exit(-1)
+	elseif ($status < 0)
+		$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")    
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		exit(-1)
+	endif
+
+	putitem/id poParams, "CD_EMPMOV", CD_EMPMOV.FCC_MOVRELSVC
+	putitem/id poParams, "DT_MOV"   , DT_MOV.FCC_MOVRELSVC
+	putitem/id poParams, "NR_SEQMOV", NR_SEQMOV.FCC_MOVRELSVC
+
+	exit(0)
+end ;operation gravaMovRel
+

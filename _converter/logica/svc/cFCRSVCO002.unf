@@ -1,0 +1,1490 @@
+;-------------------------
+public operation CalcDatas
+;-------------------------
+	params
+		string piGlobal :IN
+		string piParams :IN
+		string poParams :OUT
+		numeric poCdErro :OUT
+		string poCtxErro :OUT
+	endparams
+	variables
+		date 	vDtVencimento, vDtPagamento, vDtAtraso, vDtMulta, vDtCalc
+		numeric vNrDiasAtraso, vSabado, vNrDiasCarenciaAtraso, vNrDiasCarenciaMulta
+		string  viParams, voParams
+	endvariables
+
+	vDtVencimento = $item("DT_VENCIMENTO",piParams)
+	if (vDtVencimento = "")
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Data de vencimento não informada!", "ADICIONAL=Operação->FCRCSVCO002.CalcVlFat")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+
+	vSabado               = $item("IN_SABADOUTIL",piParams)
+	vNrDiasCarenciaAtraso = $item("NR_DIASCARENCIAATRASO",piParams)
+	vNrDiasCarenciaMulta  = $item("NR_DIASCARENCIAMULTA",piParams)
+	vDtCalc               = $item("DT_VENCIMENTO",piParams)
+
+	if (vNrDiasCarenciaAtraso > 0 | vNrDiasCarenciaMulta > 0)
+		putitem/id viParams,"IN_SABADOUTIL",vSabado
+		putitem/id viParams,"DT_VENCIMENTO",vDtVencimento
+		putitem/id viParams,"DT_PAGAMENTO",vDtVencimento
+		$instancehandle->VerNrDiasAtraso(piGlobal,viParams,voParams,$xCdErro$,$xCtxErro$)
+		if ($procerror)
+			$instancehandle->SetStatus(<sts_erro>,$procerror,$procerrorcontext,"")
+			return (-1)	
+		endif
+		vDtCalc = $item("DT_VENCIMENTO",voParams)
+	endif
+
+	if (vNrDiasCarenciaAtraso > 0)
+		vDtAtraso = vDtVencimento + vNrDiasCarenciaAtraso
+	else
+		vDtAtraso = vDtCalc
+	endif
+
+	if (vNrDiasCarenciaMulta > 0)
+		vDtMulta = vDtVencimento + vNrDiasCarenciaMulta
+	else
+		vDtMulta = vDtCalc
+	endif
+
+	vDtAtraso = vDtatraso + 1 ; dia que a fatura eh considerada atrasada
+	vDtMulta  = vDtMulta + 1  ; dia que comeca a cobrar multa sobre a fatura
+
+	poParams = ""
+	putitem/id poParams,"DT_JUROS",vDtAtraso
+	putitem/id poParams,"DT_MULTA",vDtMulta
+	return (0)
+end ; CalcDatas
+
+
+;-------------------------
+public operation CalcVlFat
+;-------------------------
+	params
+		string  piGlobal  :IN
+		string  piParams  :IN
+		string  poParams  :OUT
+		numeric poCdErro  :OUT
+		string  poCtxErro :OUT
+	endparams
+
+	variables
+		   date vDtVencimento, vDtPagamento, vDtAtraso, vDtMulta, vDtDescPontual,	vDtDescAntecip1, vDtDescAntecip2, vDtEmissao
+		numeric vVlFatura, vPrJuroMes, vVlAcrescimo, vVlOutAcres, vVlOutDesc, vVlAbatimento, vPrMulta, vVlDespFin, vVlDescAntecip1
+		numeric vPrDescAntecip1, vVlDescAntecip2, vPrDescAntecip2, vVlDescPontual, vTpDescPontual, vPrDescPontual
+		numeric vNrDiasAtraso, vNrDiasAntecipacao, vNvVlDeducao, vNvVlAcrescimo, vNvVlFatura, vNvVlDesc, vNvVlMulta, vNvVlMora, vNvPrJuroDia
+		numeric vNvAux1, vNvAux2, vNvAux3, vNvTipoDesc, vNvJurosPorPar, vNrDiasDesc
+		numeric vSabado, vNrDiasCarenciaAtraso, vNrDiasCarenciaMulta, vNrdiasDescPont, vNrDiasDescAntecip1, vNrDiasDescAntecip2, vTpDocumento
+		 string viParams, voParams, vTpAplicacaoJuros
+		numeric vInCalculoJurosPorPar, vNrTipoCalcDesconto, vVlImposto, vTpCalcNotaDebito
+		numeric vJuroMesNegociado, vVlVarAcres, vVlVarDesct
+		 string vParamEmp
+		boolean vInRecebimento, vInAcrecJuroReceb, vInDescDiasAntecip, vInVariacaoCambial, vInAgruparFat, vInDesctoAntecFatSimu
+	endvariables
+	;bam - 02/06/05 
+;-------------------------------
+
+	;buscar parametro do sistema
+	;--Douglas Ferreira - [Prj/Tarefa 78/4099] - 18/02/2011
+	if ($item("LST_PARAM_CORPORATIVO", piParams) != "")
+		voParams              = $item("LST_PARAM_CORPORATIVO"   , piParams)
+		vInCalculoJurosPorPar = $item("IN_CALCULO_JUROS_POR_PAR", voParams)
+		vNrTipoCalcDesconto   = $item("NR_TIPO_CALC_DESCONTO"   , voParams)
+		vInVariacaoCambial    = $item("IN_VARIACAO_CAMBIAL"     , voParams)
+	else
+	;
+		viParams = ""
+		putitem viParams, -1, "IN_CALCULO_JUROS_POR_PAR"
+		putitem viParams, -1, "NR_TIPO_CALC_DESCONTO"
+		putitem viParams, -1, "IN_VARIACAO_CAMBIAL"
+		activate "ADMSVCO001".GetLstParametro(viParams, voParams, $xCdErro$, $xCtxErro$)
+		if ($procerror)
+			$instancehandle->SetStatus(<sts_erro>,$procerror,$procerrorcontext,"")
+			return (-1)
+		elseif (voParams != "")
+			vInCalculoJurosPorPar = $item("IN_CALCULO_JUROS_POR_PAR", voParams)      ;1=DEFALUT
+			vNrTipoCalcDesconto   = $item("NR_TIPO_CALC_DESCONTO"   , voParams)      ;0-diario (default) 1-fixo
+			vInVariacaoCambial    = $item("IN_VARIACAO_CAMBIAL"     , voParams)
+		endif
+	endif
+	
+	;Buscar parametro empresa
+	;--Douglas Ferreira - [Prj/Tarefa 78/4099] - 18/02/2011
+	if ($item("LST_PARAM_EMPRESA", piParams) != "")
+		voParams  = $item("LST_PARAM_EMPRESA", piParams)
+		vParamEmp = "%%voParams"
+	else
+	;
+		viParams = ""
+		putitem viParams, -1, "NR_DIAS_CARENCIA_ATRASO"
+		putitem viParams, -1, "NR_DIAS_CARENCIA_MULTA"
+		putitem viParams, -1, "NR_DIAS_DESC_PONT"
+		putitem viParams, -1, "PR_JUROS_MENSAL_ATRASO"
+		putitem viParams, -1, "PR_MULTA"
+		putitem viParams, -1, "PR_DESC_PONT"
+		putitem viParams, -1, "PR_DESC_ANTECIP1"
+		putitem viParams, -1, "PR_DESC_ANTECIP2"
+		putitem viParams, -1, "NR_DIAS_DESC_ANTECIP1"
+		putitem viParams, -1, "NR_DIAS_DESC_ANTECIP2"
+		putitem viParams, -1, "TP_CALC_NOTA_DEBITO"
+		putitem viParams, -1, "IN_ACRESC_JURO_RECEB"
+		;==BY BIANCHINI[PRJ/TAREFA 180/225] 25/07/2011==;
+		putitem viParams, -1, "IN_DESCTO_ANTEC_FAT_SIMU"
+		;==
+		activate "ADMSVCO001".GetParamEmpresa($item("CD_EMPRESA", piGlobal), viParams, voParams, $xCdErro$, $xCtxErro$)
+		if ($procerror)
+			$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Erro na leitura do parâmetro empresa!", "ADICIONAL=Operação->FCRCSVCO002.CalcVlFat")
+			poCdErro  = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return(-1)
+		elseif (voParams != "")
+			vParamEmp = "%%voParams"
+		endif
+	endif
+	;==BY BIANCHINI[PRJ/TAREFA 180/225] 25/07/2011==;
+	vInDesctoAntecFatSimu = $item("IN_DESCTO_ANTEC_FAT_SIMU", vParamEmp)
+	;==
+	vTpCalcNotaDebito = $item("TP_CALC_NOTA_DEBITO" , vParamEmp)
+	vInAcrecJuroReceb = $item("IN_ACRESC_JURO_RECEB", vParamEmp)
+	vTpDocumento      = $item("TP_DOCUMENTO", piParams)
+	; inicializa as variaveis de calculo
+	;Projeto 078 - Tarefa 659 - Aloisio Gargantini - 05/07/2007
+	vInRecebimento    = $item("IN_RECEBIMENTO", piParams)
+	;
+	vNvVlFatura       = $item("VL_FATURA", piParams)
+	;vNvVlJuros        = 0
+	vNvVlDesc         = 0
+	vNvVlMulta        = 0
+	vNvVlMora         = 0	
+	vNvVlDeducao      = 0
+	vNvVlAcrescimo    = 0
+	vVlOutAcres       = 0 ;Diogenes - 30/10/2008 - Proj.139 - tarefa 2
+	vInAgruparFat     = $item("IN_AGRUPARFAT", piParams) ;* Claudemir - Prj/Tarefa: 78/3341 - 22/04/2010
+	vNvTipoDesc       = $item("NR_TIPO_CALC_DESCONTO", piParams)
+
+	if (vNvTipoDesc != "")
+		vNrTipoCalcDesconto = vNvTipoDesc
+	endif
+
+	vNvJurosPorPar = $item("IN_CALCULO_JUROS_POR_PAR", piParams)    ;0-registro   1-parametro atual (default)
+	if (vNvJurosPorPar!="")
+		vInCalculoJurosPorPar = vNvJurosPorPar
+	endif
+
+	vDtVencimento = $item("DT_VENCIMENTO", piParams)
+	if (vDtVencimento = "")
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Data de vencimento não informada!", "ADICIONAL=Operação->FCRCSVCO002.CalcVlFat")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+
+	vDtPagamento = $item("DT_PAGAMENTO", piParams)
+	if (vDtPagamento = "")
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Data de pagamento não informada!", "ADICIONAL=Operação->FCRCSVCO002.CalcVlFat")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+
+	vVlFatura = $item("VL_FATURA", piParams)
+	if (vVlFatura = "")
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Valor da fatura não informado!", "ADICIONAL=Operação->FCRCSVCO002.CalcVlFat")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+
+	vSabado           = $item("IN_SABADOUTIL", piParams)
+	vTpAplicacaoJuros = $item("TP_APLICACAOJUROS" , piParams)
+	
+	if (vInCalculoJurosPorPar = 1)
+		;bam - 02/06/05 parametro do sistema da empresa atual
+		vNrDiasCarenciaAtraso = $item("NR_DIAS_CARENCIA_ATRASO", vParamEmp)
+		vNrDiasCarenciaMulta  = $item("NR_DIAS_CARENCIA_MULTA", vParamEmp)
+		vNrDiasDescPont       = $item("NR_DIAS_DESC_PONT", vParamEmp)
+		vPrJuroMes            = $item("PR_JUROS_MENSAL_ATRASO", vParamEmp)
+		vJuroMesNegociado     = $item("VL_JUROMES_NEGOCIADO", piParams) ;taxa de juro vinda de FCRFL004		
+		;MTF(09/08/2006) - Projeto 079, tarefa 003.
+		;vPrJuroMes = $item("PR_JUROMES", piParams) << Retirado Tarefa 120-7
+		;Projeto 078 - Tarefa 659 - Aloisio Gargantini - 05/07/2007
+		;if (vPrJuroMes = 0) | (vPrJuroMes = "")
+		if (vPrJuroMes = 0) | (vPrJuroMes = "") | (vInRecebimento = <TRUE>)
+		;	
+			;------------------------------------------
+			;Marcos Rogerio - 18/08/05
+			;se o juro negociado for informado,,,o calculo prioriza o seu uso
+			if (vJuroMesNegociado != "")
+				vPrJuroMes = vJuroMesNegociado
+			endif
+		elseif(vJuroMesNegociado > 0) & (vJuroMesNegociado != vPrJuroMes) ;Diogenes - 08/01/2008 - Proj. 118 - Tarefa 162 (fiz a alteração pois o Aloisio esta em viagem)
+			vPrJuroMes = vJuroMesNegociado
+		endif
+		;
+		if (vPrJuroMes = "")
+			vPrJuroMes = 0
+		endif
+
+		vPrMulta = $item("PR_MULTA",vParamEmp)
+		if (vPrMulta = "")
+			vPrMulta = 0
+		endif
+	
+		vPrDescAntecip1     = $item("PR_DESC_ANTECIP1"      ,vParamEmp)
+		vNrDiasDescAntecip1 = $item("NR_DIAS_DESC_ANTECIP1" ,vParamEmp)
+		if (vNrDiasDescAntecip1 = "") 
+			vNrDiasDescAntecip1 = 0
+		endif
+
+		if (vPrDescAntecip1 = "")
+			vPrDescAntecip1   = 0
+		endif
+
+		if (vPrDescAntecip1 > 0)
+			vDtDescAntecip1   = vDtVencimento - vNrDiasDescAntecip1 
+		endif
+
+		if (vPrDescAntecip2 > 0)
+			vDtDescAntecip2   = vDtVencimento - vNrDiasDescAntecip2
+		endif
+
+		; MFGALEGO - 28/09/2009 ; Ariel / FIVEBROS
+		if ($item("PR_DESCANTECIP1",piParams) != "") & ($item("DT_DESCANTECIP1",piParams) != "")
+			vPrDescAntecip1 = $item("PR_DESCANTECIP1",piParams)
+			vDtDescAntecip1 = $item("DT_DESCANTECIP1",piParams)
+		endif
+		;
+	else
+		vNrDiasCarenciaAtraso = $item("NR_DIASCARENCIAATRASO" ,piParams)
+		vNrDiasCarenciaMulta  = $item("NR_DIASCARENCIAMULTA"  ,piParams)
+		vNrDiasDescPont       = $item("NR_DIASDESCPONT"       ,piParams)
+		vPrJuroMes            = $item("PR_JUROMES"            ,piParams)
+		if (vPrJuroMes = 0)
+			vPrJuroMes = $item("PR_JUROS_MENSAL_ATRASO", vParamEmp)
+		endif
+
+		vPrMulta = $item("PR_MULTA",piParams)
+		if (vPrMulta = "")
+			vPrMulta = 0
+		endif
+		vPrDescAntecip1 = $item("PR_DESCANTECIP1",piParams)
+		vDtDescAntecip1 = $item("DT_DESCANTECIP1",piParams)
+;		vPrDescAntecip2 = $item("PR_DESCANTECIP2",piParams)
+;		vDtDescAntecip2 = $item("DT_DESCANTECIP2",piParams)
+	endif
+	
+	;Projeto 078 - Tarefa 3052 - Aloisio Gargantini - 07/01/2010
+	if ($item("IN_PROMOCAOFAT", piParams) = <TRUE>) & ($item("NR_FAT", piParams) != "")
+		clear/e "V_FCR_PROMOFASVC"
+		cd_empfat.v_fcr_promofasvc/init      = $item("CD_EMPRESA", piParams)
+		cd_cliente.v_fcr_promofasvc/init     = $item("CD_CLIENTE", piParams)
+		nr_fat.v_fcr_promofasvc/init         = $item("NR_FAT"    , piParams)
+		nr_parcela.v_fcr_promofasvc/init     = $item("NR_PARCELA", piParams)
+		dt_vigenciaini.v_fcr_promofasvc/init = "·<·=%%vDtPagamento"
+		dt_vigenciafim.v_fcr_promofasvc/init = "·>·=%%vDtPagamento"
+		pr_txjuro.v_fcr_promofasvc/init      = "·!·="
+		retrieve/e "V_FCR_PROMOFASVC"
+		if ($status >= 0)
+			vPrJuroMes = pr_txjuro.v_fcr_promofasvc
+		endif
+	endif		
+	;
+	;==BY BIANCHINI[PRJ/TAREFA 180/225] 25/07/2011==;	
+	vDtEmissao         = $item("DT_EMISSAO"    , piParams)
+	;==
+	vPrDescPontual     = $item("PR_DESCPGPRAZO", piParams) ;Esta pegando o percentual de desconto por antecipacao gravado na fatura.
+	if ($item("PR_DESCPGPRAZO",piParams) = "") ;Caso fatura nao contenha percentual de desconto por antecipacao, pegara o definido no parametro empresa.
+		vPrDescPontual  = $item("PR_DESC_PONT"  , vParamEmp)
+	endif
+	vVlOutAcres        = $item("VL_OUTACRES"   , piParams) ;Diogenes - 30/10/2008 - Proj.139 - tarefa 2
+	vVlAbatimento      = $item("VL_ABATIMENTO" , piParams)
+	vVlDespFin         = $item("VL_DESPFIN"    , piParams)
+	vVlImposto         = $item("VL_IMPOSTO"    , piParams)
+	vVlOutDesc         = $item("VL_OUTDESC"    , piParams) ;-- MAD [Proj/Tar.078/3293] - 06/04/2010
+	vDtMulta           = vDtVencimento + vNrDiasCarenciaMulta
+	vDtAtraso          = vDtVencimento + vNrDiasCarenciaAtraso
+	vDtDescPontual     = vDtVencimento - vNrDiasDescPont
+	;-- Ferreira - [Prj/Tarefa 78/3615] - 10/08/2010
+	;vNvVlFatura       = vVlFatura - vVlAbatimento
+	vNvVlFatura        = vVlFatura - vVlAbatimento - vVlImposto
+	;; Ferreira
+	
+	;-----------------------------------------------------------------------------------
+	;02-06-2005 Fshimakawa 
+	;Se o pagamento estiver atrasado nao podera estar sendo considerada a carencia. foi tirado do if do atraso
+	;----------------------------------------------------------------------------------- 
+	;somente considera multa ou juros se estiver em atraso
+	if (vDtPagamento > vDtMulta)
+		;pagou após a carencia da cobranca da multa, valor único
+		if (vPrMulta > 0)
+			vNvVlMulta = (vNvVlFatura * vPrMulta) / 100
+			vNvVlMulta = vNvVlMulta[round,2]
+		endif
+	endif
+
+	if (vDtPagamento > vDtAtraso)
+		;vNvVlFatura = vNvVlFatura + vVlDespFin
+		;pagamento com atraso
+		putitem/id viParams, "IN_SABADOUTIL", vSabado
+		putitem/id viParams, "DT_VENCIMENTO", vDtVencimento
+		putitem/id viParams, "DT_PAGAMENTO" , vDtPagamento
+		$instancehandle->VerNrDiasAtraso(piGlobal, viParams, voParams, $xCdErro$, $xCtxErro$)
+		if ($procerror)
+			$instancehandle->SetStatus(<sts_erro>, $procerror, $procerrorcontext, "")
+			return (-1)
+		endif
+		vNrDiasAtraso = $item("NR_DIASATRASO", voParams)
+		if (vNrDiasAtraso > 0)
+			;calcular o valor do juros total
+			if (vPrJuroMes > 0)
+				if (vTpAplicacaoJuros = "J")
+					vNvAux1   = $int(vNrDiasAtraso / 30)
+					vNvAux2   = vNvVlFatura
+					vNvAux3   = (1 + vPrJuroMes   / 100)
+					vNvAux2   = vNvAux2 * $power(vNvAux3,vNvAux1)
+					vNvAux2   = vNvAux2 + (vNvAux2 * vPrJuroMes * (vNrDiasAtraso - vNvAux1 * 30) / 3000)
+					vNvVlMora = vNvAux2 - vNvVlFatura
+					vNvVlMora = vNvVlMora[round,2]
+				else
+					vNvPrJuroDia = vPrJuroMes / 30
+					vNvVlMora    = (vNvVlFatura * vNvPrJuroDia) / 100
+					vNvVlMora    = vNvVlMora  * vNrDiasAtraso
+					vNvVlMora    = vNvVlMora[round,2]
+				endif
+			endif
+		endif
+		;vNvVlFatura = vNvVlFatura + vVlDespFin + vVlOutAcres
+		vNvVlFatura = vNvVlFatura + vVlDespFin + vVlOutAcres - vVlOutDesc
+		vNvVlFatura = vNvVlFatura + vNvVlMulta + vNvVlMora
+	else
+		if (vInAgruparFat = <FALSE>) ;* Claudemir - Prj/Tarefa: 78/3341 - 22/04/2010
+			if (vNrTipoCalcDesconto = 1)  ;FIXO
+				if 	(vDtPagamento <= vDtDescPontual) 
+					vNvVlDesc   = ((vNvVlFatura * vPrDescPontual) / 100)
+					vNvVlDesc   = vNvVlDesc[round,2]
+					vNvVlFatura = vNvVlFatura   - vNvVlDesc
+				endif
+			else ; antecipacao por dia
+				;Diogenes - 02/03/2009 - Proj. 078 - Tarefa 2106
+				vInDescDiasAntecip = <FALSE>
+				clear/e "FCR_DIASANTECSVC"
+				CD_EMPRESA.FCR_DIASANTECSVC/init = $item("CD_EMPRESA", piGlobal)
+				retrieve/e "FCR_DIASANTECSVC"
+				if ($status >= 0) & (vDtPagamento < vDtVencimento)				
+					vNrDiasAntecipacao = vDtVencimento - vDtPagamento	
+					sort/e "FCR_DIASANTECSVC","NR_DIAS.FCR_DIASANTECSVC:a"
+					setocc "FCR_DIASANTECSVC", 1
+					while ($status >= 0)
+						if ($curocc("FCR_DIASANTECSVC") = $totocc("FCR_DIASANTECSVC"))
+							if (vNrDiasAntecipacao >= NR_DIAS.FCR_DIASANTECSVC)	
+								vNvVlDesc 	= (vNvVlFatura * PR_ATENCIP.FCR_DIASANTECSVC)/100
+								vNvVlDesc 	= vNvVlDesc[round,2]
+								vNvVlFatura = vNvVlFatura - vNvVlDesc
+								vInDescDiasAntecip = <TRUE>
+								break
+							endif
+						else
+							if (vNrDiasAntecipacao >= NR_DIAS.FCR_DIASANTECSVC) & (vNrDiasAntecipacao < $next("NR_DIAS.FCR_DIASANTECSVC"))
+								vNvVlDesc 	= (vNvVlFatura * PR_ATENCIP.FCR_DIASANTECSVC)/100
+								vNvVlDesc 	= vNvVlDesc[round,2]
+								vNvVlFatura = vNvVlFatura - vNvVlDesc
+								vInDescDiasAntecip = <TRUE>
+								break
+							endif
+						endif
+						setocc "FCR_DIASANTECSVC", $curocc("FCR_DIASANTECSVC") + 1
+					endwhile
+				endif
+				;;
+
+				if (vDtPagamento <= vDtDescAntecip1)	 & (vInDescDiasAntecip = <FALSE>)		
+					vNrDiasAntecipacao = vDtVencimento - vDtPagamento
+					;==BY BIANCHINI[PRJ/TAREFA 180/225] 25/07/2011==;
+					if (vInDesctoAntecFatSimu = <TRUE>)
+						vNrDiasDesc     = vDtVencimento - vDtEmissao
+						vNvAux2         = (vPrDescAntecip1 / vNrDiasDesc) * vNrDiasAntecipacao
+					else
+						vNvAux2         = (vPrDescAntecip1 / 30) * vNrDiasAntecipacao
+					endif
+					;==
+					vNvVlDesc          = (vNvVlFatura     * vNvAux2) / 100
+					vNvVlDesc          = vNvVlDesc[round,2]
+					vNvVlFatura        = vNvVlFatura      - vNvVlDesc
+				endif		
+			endif
+		endif ;* Claudemir - Prj/Tarefa: 78/3341 - 22/04/2010
+
+		;-- Ferreira - [Prj/Tarefa: 78/3615] - 10/08/2010
+		;vNvVlFatura = vNvVlFatura + vVlDespFin + vVlOutAcres - vVlImposto - vVlOutDesc
+		vNvVlFatura = vNvVlFatura + vVlDespFin + vVlOutAcres - vVlOutDesc
+		;;
+	endif
+	
+;	vNvVlFatura = vNvVlFatura + vVlOutAcres - vVlOutDesc
+;	vNvVlDesc   = vNvVlDesc + vVlAbatimento + vVlOutDesc
+;	vNvVlJuros  = vVlAcrescimo + vVlOutAcres + vVlDespFin + vNvVlMora + vNvVlMulta 
+;	vNvVlJuros2 = vNvVlMora + vNvVlMulta 
+
+	;-- MAD [Proj/Tar.078/3293] - 06/04/2010
+	;vNvVlDeducao = vNvVlDesc  + vVlAbatimento + vVlImposto
+	vNvVlDeducao = vNvVlDesc + vVlAbatimento + vVlImposto + vVlOutDesc
+	;;
+
+	;----------------------------------------------------
+	;Hugo Andreo
+	;Tarefa 78/848 - 10/10/2007
+	if (vTpDocumento = 6)
+		if (vTpCalcNotaDebito = 1)
+			vNvVlFatura = vNvVlFatura - vNvVlMulta
+			vNvVlMulta = ""
+		elseif (vTpCalcNotaDebito = 2)
+			vNvVlFatura = vNvVlFatura - vNvVlMora
+			vNvVlMora = ""
+			vPrJuroMes = ""
+		elseif (vTpCalcNotaDebito = 3)
+			vNvVlFatura = $item("VL_FATURA",piParams)
+			vNvVlMulta = ""
+			vNvVlMora = ""
+			vPrJuroMes = ""
+		endif
+	endif
+
+	;Diogenes - 30/10/2008 - Proj.139 - tarefa 2
+	;Incrementado o valor de outros acrescimos (vVlOutAcres)
+	;vNvVlAcrescimo = vVlDespFin + vNvVlMora + vNvVlMulta
+	if (vInAcrecJuroReceb != <TRUE>)
+		vNvVlAcrescimo = vVlDespFin + vNvVlMora + vNvVlMulta
+	else
+		vNvVlAcrescimo = vVlDespFin + vNvVlMora + vNvVlMulta + vVlOutAcres
+	endif
+	;
+	
+	; MFGALEGO - 30/03/2009 ; DUDALINA
+	if (vInVariacaoCambial = <TRUE>) & ($item("CD_EMPRESA",piParams) != "")
+		viParams = ""
+		putitem/id viParams, "CD_EMPFAT",    $item("CD_EMPRESA", piParams)
+		putitem/id viParams, "CD_CLIENTE",   $item("CD_CLIENTE", piParams)
+		putitem/id viParams, "NR_FAT",       $item("NR_FAT", piParams)
+		putitem/id viParams, "NR_PARCELA",   $item("NR_PARCELA", piParams)
+		putitem/id viParams, "DT_PAGAMENTO", $item("DT_PAGAMENTO", piParams)
+		activate "FCRSVCO087".buscaFatVariacao(viParams, voParams, $xCdErro$, $xCtxErro$)
+		if ($procerror)
+			$instancehandle->setStatus(<STS_ERRO>, $procerror, $procerrorcontext, "ADICIONAL=  /  FCRSVCO002.calcVlFat() chamando FCRSVCO087.buscaFatVariacao()")
+			poCdErro  = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return (-1)
+		elseif ($status < 0)
+			$instancehandle->setStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "ADICIONAL=  /  FCRSVCO002.calcVlFat() chamando FCRSVCO087.buscaFatVariacao")
+			poCdErro  = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return (-1)
+		endif
+		vVlVarAcres    = $item("VL_VARACRES",voParams)
+        vVlVarDesct    = $item("VL_VARDESCT",voParams)
+		vNvVlMora      = vNvVlMora      + vVlVarAcres
+		vNvVlDesc      = vNvVlDesc      + vVlVarDesct
+		vNvVlAcrescimo = vNvVlAcrescimo + vVlVarAcres
+		vNvVlDeducao   = vNvVlDeducao   + vVlVarDesct
+	endif
+	;
+	
+	poParams = ""
+	putitem/id poParams,"VL_CALCULADO",           vNvVlFatura
+	putitem/id poParams,"VL_JUROS",               vNvVlMora    ; volta a soma de todos os acrescimos feitos a fatura
+	putitem/id poParams,"VL_DESCONTOS",           vNvVlDesc
+	putitem/id poParams,"VL_ACRESCIMO",           vNvVlAcrescimo
+	putitem/id poParams,"VL_DEDUCAO",             vNvVlDeducao
+	putitem/id poParams,"VL_MULTA",               vNvVlMulta
+	putitem/id poParams,"PR_JUROS_MENSAL_ATRASO", vPrJuroMes
+	putitem/id poParams,"VL_DESPFIN",             vVlDespFin
+	putitem/id poParams,"NR_DIASATRASO",          vNrdiasAtraso
+	
+	return (0)
+end;CalcVlFat
+
+
+;---------------------------------------------------------------------------;
+public operation CalculoFatRenegociacao                                     ;
+;---------------------------------------------------------------------------;
+;Marcos R. Kuzminski                                                        ;
+;Data.....: 23/11/2005                                                      ;
+;Descrição: calculos do valor da fatura, operation duplicada para ser usada ;
+;           na renegociação, pois existem particularidades referente a      ;
+;           calculos de juros, a idéia será de unificar as operation.       ;
+;---------------------------------------------------------------------------;
+;
+	params
+		string  piGlobal  :IN
+		string  piParams  :IN
+		string  poParams  :OUT
+		numeric poCdErro  :OUT
+		string  poCtxErro :OUT
+	endparams
+	variables
+		string  viParams, voParams, vTpAplicacaoJuros, vParamEmp
+		numeric vVlFatura, vPrJuroMes, vVlAcrescimo, vVlOutAcres, vVlOutDesc, vVlAbatimento, vPrMulta, vVlDespFin
+		numeric vVlDescAntecip1, vPrDescAntecip1, vVlDescAntecip2, vPrDescAntecip2, vVlDescPontual, vTpDescPontual
+		numeric vPrDescPontual, vNrDiasAtraso, vNrDiasAntecipacao, vNvVlDeducao, vNvVlAcrescimo, vNvVlFatura
+		numeric vNvVlDesc, vNvVlMulta, vNvVlMora, vNvPrJuroDia, vNvAux1, vNvAux2, vNvAux3, vNvTipoDesc, vNvJurosPorPar
+		numeric vSabado, vNrDiasCarenciaAtraso, vNrDiasCarenciaMulta, vNrdiasDescPont, vNrDiasDescAntecip1
+		numeric vNrDiasDescAntecip2, vInCalculoJurosPorPar, vNrTipoCalcDesconto, vJuroMesNegociado, vNrModalidadeCalculo
+		numeric vIndice, vPeriodo, vTpDocumento, vTpCalcNotaDebito, vVlImposto
+		date 	vDtVencimento, vDtPagamento, vDtAtraso, vDtMulta, vDtDescPontual, vDtDescAntecip1, vDtDescAntecip2
+		boolean InDespFin, InMulta
+	endvariables
+	
+	;indica se devera ser cobrado multa/despesa fiananceira ou não
+	InDespFin = $item("IN_DESP_FIN", piParams)
+	InMulta   = $item("IN_MULTA", piParams)
+	;tipo de modalidade de calculo (1=por fora / 2=por dentro)
+	vNrModalidadeCalculo = $item("NR_MODALIDADE_CALCULO", piParams)
+	;---------------------------------------
+	
+	;buscar parametro do sistema para tipo de calculo de juros e desconto
+	viParams = ""
+	putitem viParams, -1, "IN_CALCULO_JUROS_POR_PAR"
+	putitem viParams, -1, "NR_TIPO_CALC_DESCONTO"
+	activate "ADMSVCO001".GetLstParametro(viParams, voParams, $xCdErro$, $xCtxErro$)
+	if ($procerror)
+		$instancehandle->SetStatus(<sts_erro>,$procerror,$procerrorcontext,"")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return (-1)
+	elseif (voParams != "")
+		vInCalculoJurosPorPar = $item("IN_CALCULO_JUROS_POR_PAR", voParams) ;1=DEFALUT
+		vNrTipoCalcDesconto   = $item("NR_TIPO_CALC_DESCONTO", voParams)    ;0-diario (default) 1-fixo
+	endif
+	
+	;buscar parametro empresa
+	viParams = ""
+	putitem viParams, -1, "NR_DIAS_CARENCIA_ATRASO"
+	putitem viParams, -1, "NR_DIAS_CARENCIA_MULTA"
+	putitem viParams, -1, "NR_DIAS_DESC_PONT"
+	putitem viParams, -1, "PR_JUROS_MENSAL_ATRASO"
+	putitem viParams, -1, "PR_MULTA"
+	putitem viParams, -1, "PR_DESC_PONT"
+	putitem viParams, -1, "PR_DESC_ANTECIP1"
+	putitem viParams, -1, "PR_DESC_ANTECIP2"
+	putitem viParams, -1, "NR_DIAS_DESC_ANTECIP1"
+	putitem viParams, -1, "NR_DIAS_DESC_ANTECIP2"
+	putitem viParams, -1, "TP_CALC_NOTA_DEBITO"
+	activate "ADMSVCO001".GetParamEmpresa($item("CD_EMPRESA", piGlobal), viParams, voParams, $xCdErro$, $xCtxErro$)
+	if ($procerror)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Erro na leitura do param empresa!", "ADICIONAL=Operação->FCRCSVCO002.CalcVlFat")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	elseif (voParams != "")
+		; não está testando os valores retornados		
+		vParamEmp = "%%voParams"
+	endif
+	
+	;---------------------------------------
+	;inicializa as variaveis de calculo e valida preencimento de parametros
+	;---------------------------------------
+	vNvVlFatura           = $item("VL_FATURA",piParams)
+	vNvVlDesc             = 0
+	vNvVlMulta            = 0
+	vNvVlMora             = 0	
+	vNvVlDeducao          = 0
+	vNvVlAcrescimo        = 0
+	vNrDiasCarenciaAtraso = 0
+	vNrDiasCarenciaMulta  = 0
+	vNrDiasDescPont       = 0
+	vPrJuroMes            = 0
+	vPrMulta              = 0
+	vNrDiasDescAntecip1   = 0
+	vPrDescAntecip1       = 0
+	
+	vNvTipoDesc = $item("NR_TIPO_CALC_DESCONTO", piParams)
+	if (vNvTipoDesc != "")
+		vNrTipoCalcDesconto = vNvTipoDesc
+	endif
+	
+	;realiza calculos por taxas de parametros ou não
+	;0-registro   1-parametro atual (default)	
+	vNvJurosPorPar = $item("IN_CALCULO_JUROS_POR_PAR", piParams)    
+	if (vNvJurosPorPar!="")
+		vInCalculoJurosPorPar = vNvJurosPorPar
+	endif
+	
+	vDtVencimento = $item("DT_VENCIMENTO",piParams)
+	if (vDtVencimento = "")
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Data de vencimento não informada!", "ADICIONAL=Operação->FCRCSVCO002.CalcVlFat")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	
+	vDtPagamento = $item("DT_PAGAMENTO",piParams)
+	if (vDtPagamento = "")
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Data de pagamento não informada!", "ADICIONAL=Operação->FCRCSVCO002.CalcVlFat")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	
+	vVlFatura = $item("VL_FATURA",piParams)
+	if (vVlFatura = "")
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Valor da fatura não informado!", "ADICIONAL=Operação->FCRCSVCO002.CalcVlFat")
+		poCdErro  = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	vSabado           = $item("IN_SABADOUTIL"      ,piParams)
+	vTpAplicacaoJuros = $item("TP_APLICACAO_JUROS" ,piParams)
+	
+	;--------------------------------------------------
+	;tipo de calculo por PARAMETRO - recebe valores do parametro
+	;--------------------------------------------------
+	if (vInCalculoJurosPorPar = 1)
+		vNrDiasCarenciaAtraso = $item("NR_DIAS_CARENCIA_ATRASO" ,vParamEmp)
+		vNrDiasCarenciaMulta  = $item("NR_DIAS_CARENCIA_MULTA"  ,vParamEmp)
+		vNrDiasDescPont       = $item("NR_DIAS_DESC_PONT"       ,vParamEmp)
+		vPrJuroMes            = $item("PR_JUROS_MENSAL_ATRASO"  ,vParamEmp)
+		vPrMulta              = $item("PR_MULTA"                ,vParamEmp)
+		vPrDescAntecip1       = $item("PR_DESC_ANTECIP1"        ,vParamEmp)
+		vNrDiasDescAntecip1   = $item("NR_DIAS_DESC_ANTECIP1"   ,vParamEmp)
+	endif
+	
+	;--------------------------------------------------
+	;tipo de calculo por REGISTRO - recebe valores passados do programa chamador, dados da fatura
+	;--------------------------------------------------
+	if (vInCalculoJurosPorPar = 0)
+		vNrDiasCarenciaAtraso = $item("NR_DIASCARENCIAATRASO" ,piParams)
+		vNrDiasCarenciaMulta  = $item("NR_DIASCARENCIAMULTA"  ,piParams)
+		vNrDiasDescPont       = $item("NR_DIASDESCPONT"       ,piParams)
+		vPrJuroMes            = $item("PR_JUROMES"            ,piParams)
+		vPrMulta              = $item("PR_MULTA"              ,piParams)
+		vPrDescAntecip1       = $item("PR_DESCANTECIP1"       ,piParams)
+		vDtDescAntecip1       = $item("DT_DESCANTECIP1"       ,piParams)
+	endif
+	
+	;Marcos Rogerio - 18/08/05
+	;se o juro negociado for informado,,,o calculo prioriza o seu uso
+	vJuroMesNegociado = $item("VL_JUROMES_NEGOCIADO"    ,piParams) ;taxa de juro vinda de FCRFL004
+	if (vJuroMesNegociado != "") ; & vJuroMesNegociado > 0)
+		vPrJuroMes    = vJuroMesNegociado
+	endif
+	
+	;sempre recebe valores do registro - fatura
+	vPrDescPontual        = $item("PR_DESCPGPRAZO",piParams)
+	vVlAbatimento         = $item("VL_ABATIMENTO" ,piParams)
+	vVlDespFin            = $item("VL_DESPFIN"    ,piParams)
+	vVlOutAcres           = $item("VL_OUTACRES"   ,piParams)
+	vVlImposto            = $item("VL_IMPOSTO"    ,piParams)
+	vVlOutDesc            = $item("VL_OUTDESC"    ,piParams)
+	
+	vTpCalcNotaDebito = $item("TP_CALC_NOTA_DEBITO", vParamEmp)
+	if (vNvTipoDesc != "")
+		vNrTipoCalcDesconto = vNvTipoDesc
+	endif
+	vTpDocumento = $item("TP_DOCUMENTO", piParams)
+	
+	;data base para o desconto de antecipação 1
+	if (vPrDescAntecip1 > 0)
+		vDtDescAntecip1 = vDtVencimento - vNrDiasDescAntecip1 
+	endif
+	;data base para o desconto de antecipação 2
+	if (vPrDescAntecip2 > 0)
+		vDtDescAntecip2 = vDtVencimento - vNrDiasDescAntecip2
+	endif
+	;data base para o calculo da multa
+	vDtMulta              = vDtVencimento + vNrDiasCarenciaMulta
+	;data base para o calculo do atraso
+	vDtAtraso             = vDtVencimento + vNrDiasCarenciaAtraso
+	;data base para o desconto de pontualidade
+	vDtDescPontual        = vDtVencimento - vNrDiasDescPont
+	;valor base
+	;-- Ferreira - [Prj/Tarefa 78/3615] - 10/08/2010
+	;vNvVlFatura          = vVlFatura - vVlAbatimento
+	vNvVlFatura           = vVlFatura - vVlAbatimento - vVlImposto
+	;; Ferreira
+	
+	;02-06-2005 Fshimakawa 
+	;Se o pagamento estiver atrasado nao podera estar sendo considerada a carencia. foi tirado do if do atraso
+	;somente considera multa ou juros se estiver em atraso
+	if (vDtPagamento > vDtMulta)
+		;pagou após a carencia da cobranca da multa, valor único
+		if (vPrMulta > 0)
+			vNvVlMulta = (vNvVlFatura * vPrMulta) / 100
+			vNvVlMulta = vNvVlMulta[round,2]
+		endif
+	endif
+	
+	;calculo de juros ATRASO
+	if (vDtPagamento > vDtAtraso)
+		;vNvVlFatura = vNvVlFatura + vVlDespFin
+		;pagamento com atraso
+		putitem/id viParams,"IN_SABADOUTIL"  ,vSabado
+		putitem/id viParams,"DT_VENCIMENTO"  ,vDtVencimento
+		putitem/id viParams,"DT_PAGAMENTO"   ,vDtPagamento
+		$instancehandle->VerNrDiasAtraso(piGlobal,viParams,voParams,$xCdErro$,$xCtxErro$)
+		if ($procerror)
+			$instancehandle->SetStatus(<sts_erro>,$procerror,$procerrorcontext,"")
+			return (-1)
+		endif
+		vNrDiasAtraso = $item("NR_DIASATRASO",voParams)
+		if (vNrDiasAtraso > 0)
+			;calcular o valor do juros total
+			if (vPrJuroMes > 0)
+				;juro composto
+				if (vTpAplicacaoJuros = "J")
+					vNvAux1   = $int(vNrDiasAtraso / 30)
+					vNvAux2   = vNvVlFatura
+					vNvAux3   = (1 + vPrJuroMes   / 100)
+					vNvAux2   = vNvAux2 * $power(vNvAux3,vNvAux1)
+					vNvAux2   = vNvAux2 + (vNvAux2 * vPrJuroMes * (vNrDiasAtraso - vNvAux1 * 30) / 3000)
+					vNvVlMora = vNvAux2 - vNvVlFatura
+					vNvVlMora = vNvVlMora[round,2]
+				else
+					;juro simples
+					vNvPrJuroDia = vPrJuroMes / 30
+					vNvVlMora    = (vNvVlFatura * vNvPrJuroDia) / 100
+					vNvVlMora    = vNvVlMora  * vNrDiasAtraso
+					vNvVlMora    = vNvVlMora[round,2]
+				endif
+			endif
+		endif
+		vNvVlFatura = vNvVlFatura + vVlDespFin + vVlOutAcres
+		vNvVlFatura = vNvVlFatura + vNvVlMulta + vNvVlMora
+	endif
+	
+	;calculo de juros ANTECIPAÇÃO
+	if (vDtPagamento <= vDtAtraso)
+		;calculo da antecipação utilizando percentual fixo
+		if (vNrTipoCalcDesconto = 1)
+			if 	(vDtPagamento <= vDtDescPontual)
+				vNvVlDesc   = ((vNvVlFatura * vPrDescPontual) / 100)
+				vNvVlDesc   = vNvVlDesc[round,2]
+				vNvVlFatura = vNvVlFatura   - vNvVlDesc
+			endif
+		else
+			;OBS: verificar se 'vNvVlDesc = vNvVlDesc - (vNvVlDesc * (vNrDiasAntecipacao - vPeriodo * 30) * vPrJuroMes / 100 / 30)'
+			;...utiliza o valor descontado ou o valor da fatura
+			;calculo da antecipação utilizando percentual por dia
+			if (vDtPagamento <= vDtDescAntecip1)
+				;juro composto 
+				if (vTpAplicacaoJuros = "J")	
+					;calculo por fora
+					if (vNrModalidadeCalculo = 1)
+						vNrDiasAntecipacao = vDtVencimento - vDtPagamento		
+						vPeriodo           = $int(vNrDiasAntecipacao / 30)
+						vNvVlDesc          = vNvVlFatura * $power(1 - vPrJuroMes / 100,vPeriodo)
+						vNvVlDesc          = vNvVlDesc - (vNvVlDesc * (vNrDiasAntecipacao - vPeriodo * 30) * vPrJuroMes / 100 / 30)
+						;obtem o valor do desconto
+						vNvVlDesc          = (vNvVlFatura - vNvVlDesc)
+						vNvVlDesc          = vNvVlDesc[round,2]
+						vNvVlFatura        = (vNvVlFatura - vNvVlDesc)
+					else
+						;calculo por dentro
+						vNrDiasAntecipacao = vDtVencimento - vDtPagamento		
+						vPeriodo           = $int(vNrDiasAntecipacao / 30)
+						vNvVlDesc          = vNvVlFatura / $power(1 + vPrJuroMes / 100,vPeriodo)
+						vNvVlDesc          = vNvVlDesc - (vNvVlDesc * (vNrDiasAntecipacao - vPeriodo * 30) * vPrJuroMes / 100 / 30)
+						;obtem o valor do desconto
+						vNvVlDesc          = (vNvVlFatura - vNvVlDesc)
+						vNvVlDesc          = vNvVlDesc[round,2]
+						vNvVlFatura        = (vNvVlFatura - vNvVlDesc)
+					endif
+				else
+					;juro simples
+					;calculo por fora
+					if (vNrModalidadeCalculo = 1)
+						vNrDiasAntecipacao = vDtVencimento    - vDtPagamento
+						vNvAux2            = (vPrDescAntecip1 / 30) * vNrDiasAntecipacao 
+						vNvVlDesc          = (vNvVlFatura     * vNvAux2) / 100
+						vNvVlDesc          = vNvVlDesc[round,2]
+						vNvVlFatura        = vNvVlFatura      - vNvVlDesc
+					else
+						;calculo por dentro
+						vNrDiasAntecipacao = vDtVencimento    - vDtPagamento
+						vNvVlDesc          = (vNvVlFatura / (1 + vNrDiasAntecipacao * vPrDescAntecip1 / 100 / 30))
+						;obtem o valor do desconto
+						vNvVlDesc          = (vNvVlFatura - vNvVlDesc)
+						vNvVlDesc          = vNvVlDesc[round,2]
+						vNvVlFatura        = (vNvVlFatura - vNvVlDesc)
+					endif
+				endif
+			endif
+		endif
+		;vNvVlFatura = vNvVlFatura + vVlDespFin
+		;-- Ferreira [Prj/Tarefa: 78/3615] - 10/08/2010
+		;vNvVlFatura = vNvVlFatura + vVlDespFin + vVlOutAcres - vVlImposto - vVlOutDesc
+		vNvVlFatura = vNvVlFatura + vVlDespFin + vVlOutAcres - vVlOutDesc
+		;-- Ferreira;
+	endif
+	
+	;vNvVlDeducao = vNvVlDesc  + vVlAbatimento 
+	vNvVlDeducao = vNvVlDesc + vVlAbatimento + vVlImposto + vVlOutDesc
+	
+	;Projeto 078 - Tarefa 3108 - Aloisio Gargantini - 29/01/2010
+	if (vTpDocumento = 6)
+		if (vTpCalcNotaDebito = 1)
+			vNvVlFatura = vNvVlFatura - vNvVlMulta
+			vNvVlMulta = ""
+		elseif (vTpCalcNotaDebito = 2)
+			vNvVlFatura = vNvVlFatura - vNvVlMora
+			vNvVlMora = ""
+			vPrJuroMes = ""
+		elseif (vTpCalcNotaDebito = 3)
+			vNvVlFatura = $item("VL_FATURA",piParams)
+			vNvVlMulta = ""
+			vNvVlMora = ""
+			vPrJuroMes = ""
+		endif
+	endif
+	;
+	;não será cobrado despesa financeiras
+	if (InDespFin = <FALSE>)
+		vVlDespFin	 = 0
+	endif
+	;não será cobrado multa
+	if (InMulta   = <FALSE>)
+		vNvVlMulta = 0
+	endif
+	
+	;vNvVlAcrescimo = vVlDespFin + vNvVlMora + vNvVlMulta
+	vNvVlAcrescimo = vVlDespFin + vNvVlMora + vNvVlMulta + vVlOutAcres
+	
+	poParams = ""
+	putitem/id poParams,"VL_CALCULADO"           ,vNvVlFatura
+	putitem/id poParams,"VL_JUROS"               ,vNvVlMora    
+	putitem/id poParams,"VL_DESCONTOS"           ,vNvVlDesc
+	putitem/id poParams,"VL_ACRESCIMO"           ,vNvVlAcrescimo
+	putitem/id poParams,"VL_DEDUCAO"             ,vNvVlDeducao
+	putitem/id poParams,"VL_MULTA"               ,vNvVlMulta
+	putitem/id poParams,"PR_JUROS_MENSAL_ATRASO" ,vPrJuroMes
+	
+	return (0)
+End; operation calculoFatRenegociacao.
+
+
+;;*********************************************************************************
+;public operation CalculoFatRenegociacao_bkp
+;Projeto 078 - Tarefa 3343 - Aloisio Gargantini - 26/04/2010 - lógica abaixo comentada
+;Marcos R. Kuzminski
+;Data.....: 23/11/2005
+;Descrição: calculos do valor da fatura, operation duplicada para ser usada na renegociação, pois existem particularidades
+;           referente a calculos de juros, a idéia será de unificar as operation. 
+;Chamada..: 
+;----------------------------
+;	params
+;		string  piGlobal  :IN
+;		string  piParams  :IN
+;		string  poParams  :OUT
+;		numeric poCdErro  :OUT
+;		string  poCtxErro :OUT
+;	endparams
+;
+;	variables
+;		date 	vDtVencimento
+;		date    vDtPagamento
+;		date    vDtAtraso
+;		date    vDtMulta
+;		date    vDtDescPontual
+;		date   	vDtDescAntecip1
+;		date    vDtDescAntecip2
+;
+;		numeric vVlFatura
+;		numeric vPrJuroMes
+;		numeric vVlAcrescimo
+;		numeric vVlOutAcres
+;		numeric vVlOutDesc
+;
+;		numeric vVlAbatimento
+;		numeric vPrMulta
+;		numeric vVlDespFin
+;		numeric vVlDescAntecip1
+;
+;		numeric vPrDescAntecip1
+;		numeric vVlDescAntecip2
+;		numeric vPrDescAntecip2
+;
+;		numeric vVlDescPontual
+;		numeric vTpDescPontual
+;		numeric vPrDescPontual
+;		numeric vNrDiasAtraso
+;		numeric vNrDiasAntecipacao
+;		numeric vNvVlDeducao
+;		numeric vNvVlAcrescimo
+;
+;		numeric vNvVlFatura
+;		numeric vNvVlDesc
+;		numeric vNvVlMulta
+;		numeric vNvVlMora
+;		numeric vNvPrJuroDia
+;		numeric vNvAux1
+;		numeric vNvAux2
+;		numeric vNvAux3
+;		numeric vNvTipoDesc
+;		numeric vNvJurosPorPar
+;
+;		numeric vSabado
+;		numeric vNrDiasCarenciaAtraso
+;		numeric vNrDiasCarenciaMulta
+;		numeric vNrdiasDescPont
+;		numeric vNrDiasDescAntecip1
+;		numeric vNrDiasDescAntecip2
+;
+;		string  viParams
+;		string  voParams
+;		string  vTpAplicacaoJuros
+;
+;		numeric vInCalculoJurosPorPar
+;		numeric vNrTipoCalcDesconto
+;
+;		numeric vJuroMesNegociado
+;		String  vParamEmp
+;
+;		boolean InDespFin
+;		boolean InMulta
+;		numeric vNrModalidadeCalculo
+;		numeric vIndice
+;		numeric vPeriodo
+;		numeric vTpDocumento
+;		numeric vTpCalcNotaDebito
+;	endvariables
+;
+;
+;	;---------------------------------------
+;	;Recebendo valores de Parametros
+;	;---------------------------------------
+;	;---------------------------------------
+;	;indica se devera ser cobrado multa/despesa fiananceira ou não
+;	InDespFin = $item("IN_DESP_FIN" ,piParams)
+;	InMulta   = $item("IN_MULTA"    ,piParams)
+;	;---------------------------------------
+;	;tipo de modalidade de calculo (1=por fora / 2=por dentro)
+;	vNrModalidadeCalculo = $item("NR_MODALIDADE_CALCULO",piParams)
+;	;---------------------------------------
+;	;buscar parametro do sistema para tipo de calculo de juros e desconto
+;	$XLPO$ = ""
+;	$xlpi$= "IN_CALCULO_JUROS_POR_PAR·;NR_TIPO_CALC_DESCONTO"
+;	activate "ADMSVCO001".GetLstParametro($xlpi$,$xlpo$,$xCdErro$,$xCtxErro$)
+;	if ($procerror)
+;		$instancehandle->SetStatus(<sts_erro>,$procerror,$procerrorcontext,"")
+;		return (-1)
+;	endif
+;	if ($xlpo$ != "")
+;		vInCalculoJurosPorPar = $item("IN_CALCULO_JUROS_POR_PAR",$xlpo$)      ;1=DEFALUT
+;		vNrTipoCalcDesconto   = $item("NR_TIPO_CALC_DESCONTO"   ,$xlpo$)      ;0-diario (default) 1-fixo
+;	endif
+;	;---------------------------------------
+;	;buscar parametro empresa
+;	$xlpo$ = ""
+;	$xlpi$ = "NR_DIAS_CARENCIA_ATRASO·;NR_DIAS_CARENCIA_MULTA·;NR_DIAS_DESC_PONT·;PR_JUROS_MENSAL_ATRASO·;PR_MULTA·;PR_DESC_PONT·;PR_DESC_ANTECIP1·;PR_DESC_ANTECIP2·;NR_DIAS_DESC_ANTECIP1·;NR_DIAS_DESC_ANTECIP2·;TP_CALC_NOTA_DEBITO"
+;	activate "ADMSVCO001".GetParamEmpresa("%%$$gCdEmpresa",$XLPI$,$xlpo$,$xCdErro$,$xCtxErro$)
+;	if ($procerror)
+;		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Erro na leitura do param empresa!", "ADICIONAL=Operação->FCRCSVCO002.CalcVlFat")
+;		poCdErro  = $xCdErro$
+;		poCtxErro = $xCtxErro$
+;		return(-1)
+;	endif
+;	if ($xlpo$ != "")
+;		; não está testando os valores retornados		
+;		vParamEmp = "%%$xlpo$"
+;	endif
+;	;---------------------------------------
+;
+;	;---------------------------------------
+;	;inicializa as variaveis de calculo e valida preencimento de parametros
+;	;---------------------------------------
+;	;---------------------------------------
+;	vNvVlFatura = $item("VL_FATURA",piParams)
+;	vNvVlDesc             = 0
+;	vNvVlMulta            = 0
+;	vNvVlMora             = 0	
+;	vNvVlDeducao          = 0
+;	vNvVlAcrescimo        = 0
+;
+;	vNrDiasCarenciaAtraso = 0
+;	vNrDiasCarenciaMulta  = 0
+;	vNrDiasDescPont       = 0
+;	vPrJuroMes            = 0
+;	vPrMulta              = 0
+;
+;	vNrDiasDescAntecip1   = 0
+;	vPrDescAntecip1       = 0
+;	;---------------------------------------
+;	vNvTipoDesc = $item("NR_TIPO_CALC_DESCONTO", piParams)
+;	if (vNvTipoDesc != "")
+;		vNrTipoCalcDesconto = vNvTipoDesc
+;	endif
+;	;---------------------------------------
+;	;realiza calculos por taxas de parametros ou não
+;	;0-registro   1-parametro atual (default)	
+;	vNvJurosPorPar = $item("IN_CALCULO_JUROS_POR_PAR", piParams)    
+;	if (vNvJurosPorPar!="")
+;		vInCalculoJurosPorPar = vNvJurosPorPar
+;	endif
+;	;---------------------------------------
+;	vDtVencimento = $item("DT_VENCIMENTO",piParams)
+;	if (vDtVencimento = "")
+;		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Data de vencimento não informada!", "ADICIONAL=Operação->FCRCSVCO002.CalcVlFat")
+;		poCdErro  = $xCdErro$
+;		poCtxErro = $xCtxErro$
+;		return(-1)
+;	endif
+;	;---------------------------------------
+;	vDtPagamento = $item("DT_PAGAMENTO",piParams)
+;	if (vDtPagamento = "")
+;		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Data de pagamento não informada!", "ADICIONAL=Operação->FCRCSVCO002.CalcVlFat")
+;		poCdErro = $xCdErro$
+;		poCtxErro = $xCtxErro$
+;		return(-1)
+;	endif
+;	;---------------------------------------
+;	vVlFatura = $item("VL_FATURA",piParams)
+;	if (vVlFatura = "")
+;		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Valor da fatura não informado!", "ADICIONAL=Operação->FCRCSVCO002.CalcVlFat")
+;		poCdErro  = $xCdErro$
+;		poCtxErro = $xCtxErro$
+;		return(-1)
+;	endif
+;	vSabado               = $item("IN_SABADOUTIL"      ,piParams)
+;	vTpAplicacaoJuros     = $item("TP_APLICACAO_JUROS" ,piParams)
+;	;--------------------------------------------------
+;
+;	;--------------------------------------------------
+;	;tipo de calculo por PARAMETRO - recebe valores do parametro
+;	;--------------------------------------------------
+;	if (vInCalculoJurosPorPar = 1)
+;		vNrDiasCarenciaAtraso = $item("NR_DIAS_CARENCIA_ATRASO" ,vParamEmp)
+;		vNrDiasCarenciaMulta  = $item("NR_DIAS_CARENCIA_MULTA"  ,vParamEmp)
+;		vNrDiasDescPont       = $item("NR_DIAS_DESC_PONT"       ,vParamEmp)
+;		vPrJuroMes            = $item("PR_JUROS_MENSAL_ATRASO"  ,vParamEmp)
+;		vPrMulta              = $item("PR_MULTA"                ,vParamEmp)
+;		vPrDescAntecip1       = $item("PR_DESC_ANTECIP1"        ,vParamEmp)
+;		vNrDiasDescAntecip1   = $item("NR_DIAS_DESC_ANTECIP1"   ,vParamEmp)
+;	endif
+;
+;	;--------------------------------------------------
+;	;tipo de calculo por REGISTRO - recebe valores passados do programa chamador, dados da fatura
+;	;--------------------------------------------------
+;	if (vInCalculoJurosPorPar = 0)
+;		vNrDiasCarenciaAtraso = $item("NR_DIASCARENCIAATRASO" ,piParams)
+;		vNrDiasCarenciaMulta  = $item("NR_DIASCARENCIAMULTA"  ,piParams)
+;		vNrDiasDescPont       = $item("NR_DIASDESCPONT"       ,piParams)
+;		vPrJuroMes            = $item("PR_JUROMES"            ,piParams)
+;		vPrMulta              = $item("PR_MULTA"              ,piParams)
+;		vPrDescAntecip1       = $item("PR_DESCANTECIP1"       ,piParams)
+;		vDtDescAntecip1       = $item("DT_DESCANTECIP1"       ,piParams)
+;	endif
+;
+;	;------------------------------------------
+;	;Marcos Rogerio - 18/08/05
+;	;se o juro negociado for informado,,,o calculo prioriza o seu uso
+;	vJuroMesNegociado = $item("VL_JUROMES_NEGOCIADO"    ,piParams) ;taxa de juro vinda de FCRFL004
+;	if (vJuroMesNegociado != "") ; & vJuroMesNegociado > 0)
+;		vPrJuroMes    = vJuroMesNegociado
+;	endif
+;	;------------------------------------------
+;
+;	;--------------------------------------------------
+;	;sempre recebe valores do registro - fatura
+;	vPrDescPontual        = $item("PR_DESCPGPRAZO",piParams)
+;	vVlAbatimento         = $item("VL_ABATIMENTO" ,piParams)
+;	vVlDespFin            = $item("VL_DESPFIN"    ,piParams)
+;	;--------------------------------------------------
+;	;Projeto 078 - Tarefa 3108 - Aloisio Gargantini - 29/01/2010
+;	vTpCalcNotaDebito = $item("TP_CALC_NOTA_DEBITO", vParamEmp)
+;	if (vNvTipoDesc != "")
+;		vNrTipoCalcDesconto = vNvTipoDesc
+;	endif
+;	vTpDocumento = $item("TP_DOCUMENTO", piParams)
+;	;---------------------------------------
+;
+;	;--------------------------------------------------
+;	;data base para o desconto de antecipação 1
+;	if (vPrDescAntecip1 > 0)
+;		vDtDescAntecip1 = vDtVencimento - vNrDiasDescAntecip1 
+;	endif
+;	;--------------------------------------------------
+;	;data base para o desconto de antecipação 2
+;	if (vPrDescAntecip2 > 0)
+;		vDtDescAntecip2 = vDtVencimento - vNrDiasDescAntecip2
+;	endif
+;	;--------------------------------------------------
+;	;data base para o calculo da multa
+;	vDtMulta              = vDtVencimento + vNrDiasCarenciaMulta
+;	;--------------------------------------------------
+;	;data base para o calculo do atraso
+;	vDtAtraso             = vDtVencimento + vNrDiasCarenciaAtraso
+;	;--------------------------------------------------
+;	;data base para o desconto de pontualidade
+;	vDtDescPontual        = vDtVencimento - vNrDiasDescPont
+;	;--------------------------------------------------
+;	;valor base
+;	vNvVlFatura = vVlFatura - vVlAbatimento
+;	;--------------------------------------------------
+;
+;	;--------------------------------------------------
+;	;02-06-2005 Fshimakawa 
+;	;Se o pagamento estiver atrasado nao podera estar sendo considerada a carencia. foi tirado do if do atraso
+;	;--------------------------------------------------
+;	;somente considera multa ou juros se estiver em atraso
+;	if (vDtPagamento > vDtMulta)
+;		;pagou após a carencia da cobranca da multa, valor único
+;		if (vPrMulta > 0)
+;			vNvVlMulta = (vVlFatura * vPrMulta) / 100
+;			vNvVlMulta = vNvVlMulta[round,2]
+;		endif
+;	endif
+;	;--------------------------------------------------
+;
+;	;--------------------------------------------------
+;	;calculo de juros ATRASO
+;	if (vDtPagamento > vDtAtraso)
+;		vNvVlFatura = vNvVlFatura + vVlDespFin
+;		;pagamento com atraso
+;		putitem/id viParams,"IN_SABADOUTIL"  ,vSabado
+;		putitem/id viParams,"DT_VENCIMENTO"  ,vDtVencimento
+;		putitem/id viParams,"DT_PAGAMENTO"   ,vDtPagamento
+;		$instancehandle->VerNrDiasAtraso(piGlobal,viParams,voParams,$xCdErro$,$xCtxErro$)
+;		if ($procerror)
+;			$instancehandle->SetStatus(<sts_erro>,$procerror,$procerrorcontext,"")
+;			return (-1)
+;		endif
+;		vNrDiasAtraso = $item("NR_DIASATRASO",voParams)
+;		if (vNrDiasAtraso > 0)
+;			;calcular o valor do juros total
+;			if (vPrJuroMes > 0)
+;				;juro composto
+;				if (vTpAplicacaoJuros = "J")
+;					vNvAux1   = $int(vNrDiasAtraso / 30)
+;					vNvAux2   = vNvVlFatura
+;					vNvAux3   = (1 + vPrJuroMes   / 100)
+;					vNvAux2   = vNvAux2 * $power(vNvAux3,vNvAux1)
+;					vNvAux2   = vNvAux2 + (vNvAux2 * vPrJuroMes * (vNrDiasAtraso - vNvAux1 * 30) / 3000)
+;					vNvVlMora = vNvAux2 - vNvVlFatura
+;					vNvVlMora = vNvVlMora[round,2]
+;				else
+;					;juro simples
+;					vNvPrJuroDia = vPrJuroMes / 30
+;					vNvVlMora    = (vVlFatura * vNvPrJuroDia) / 100
+;					vNvVlMora    = vNvVlMora  * vNrDiasAtraso
+;					vNvVlMora    = vNvVlMora[round,2]
+;				endif
+;			endif
+;		endif
+;		vNvVlFatura = vNvVlFatura + vNvVlMulta + vNvVlMora
+;	endif
+;	;--------------------------------------------------
+;	;--------------------------------------------------
+;	;calculo de juros ANTECIPAÇÃO
+;	if (vDtPagamento <= vDtAtraso)
+;		;calculo da antecipação utilizando percentual fixo
+;		if (vNrTipoCalcDesconto = 1)
+;			if 	(vDtPagamento <= vDtDescPontual)
+;				vNvVlDesc   = ((vNvVlFatura * vPrDescPontual) / 100)
+;				vNvVlDesc   = vNvVlDesc[round,2]
+;				vNvVlFatura = vNvVlFatura   - vNvVlDesc
+;			endif
+;		else
+;			;----------------------------------------------------------
+;			;OBS: verificar se 'vNvVlDesc = vNvVlDesc - (vNvVlDesc * (vNrDiasAntecipacao - vPeriodo * 30) * vPrJuroMes / 100 / 30)'
+;			;...utiliza o valor descontado ou o valor da fatura
+;			;----------------------------------------------------------
+;			;calculo da antecipação utilizando percentual por dia
+;			if (vDtPagamento <= vDtDescAntecip1)
+;				;juro composto 
+;				if (vTpAplicacaoJuros = "J")	
+;					;calculo por fora
+;					if (vNrModalidadeCalculo = 1)
+;						vNrDiasAntecipacao = vDtVencimento - vDtPagamento		
+;						vPeriodo           = $int(vNrDiasAntecipacao / 30)
+;						vNvVlDesc          = vNvVlFatura * $power(1 - vPrJuroMes / 100,vPeriodo)
+;						vNvVlDesc          = vNvVlDesc - (vNvVlDesc * (vNrDiasAntecipacao - vPeriodo * 30) * vPrJuroMes / 100 / 30)
+;						;obtem o valor do desconto
+;						vNvVlDesc          = (vNvVlFatura - vNvVlDesc)
+;						vNvVlDesc          = vNvVlDesc[round,2]
+;						vNvVlFatura        = (vNvVlFatura - vNvVlDesc)
+;					else
+;						;calculo por dentro
+;						vNrDiasAntecipacao = vDtVencimento - vDtPagamento		
+;						vPeriodo           = $int(vNrDiasAntecipacao / 30)
+;						vNvVlDesc          = vNvVlFatura / $power(1 + vPrJuroMes / 100,vPeriodo)
+;						vNvVlDesc          = vNvVlDesc - (vNvVlDesc * (vNrDiasAntecipacao - vPeriodo * 30) * vPrJuroMes / 100 / 30)
+;						;obtem o valor do desconto
+;						vNvVlDesc          = (vNvVlFatura - vNvVlDesc)
+;						vNvVlDesc          = vNvVlDesc[round,2]
+;						vNvVlFatura        = (vNvVlFatura - vNvVlDesc)
+;					endif
+;				else
+;					;juro simples
+;					;calculo por fora
+;					if (vNrModalidadeCalculo = 1)
+;						vNrDiasAntecipacao = vDtVencimento    - vDtPagamento
+;						vNvAux2            = (vPrDescAntecip1 / 30) * vNrDiasAntecipacao 
+;						vNvVlDesc          = (vNvVlFatura     * vNvAux2) / 100
+;						vNvVlDesc          = vNvVlDesc[round,2]
+;						vNvVlFatura        = vNvVlFatura      - vNvVlDesc
+;					else
+;						;calculo por dentro
+;						vNrDiasAntecipacao = vDtVencimento    - vDtPagamento
+;						vNvVlDesc          = (vNvVlFatura / (1 + vNrDiasAntecipacao * vPrDescAntecip1 / 100 / 30))
+;						;obtem o valor do desconto
+;						vNvVlDesc          = (vNvVlFatura - vNvVlDesc)
+;						vNvVlDesc          = vNvVlDesc[round,2]
+;						vNvVlFatura        = (vNvVlFatura - vNvVlDesc)
+;					endif
+;				endif
+;			endif
+;		endif
+;		vNvVlFatura = vNvVlFatura + vVlDespFin
+;	endif
+;	;--------------------------------------------------
+;
+;	;---------------------------------------------
+;	vNvVlDeducao   = vNvVlDesc  + vVlAbatimento 
+;	;---------------------------------------------
+;	;Projeto 078 - Tarefa 3108 - Aloisio Gargantini - 29/01/2010
+;	if (vTpDocumento = 6)
+;		if (vTpCalcNotaDebito = 1)
+;			vNvVlFatura = vNvVlFatura - vNvVlMulta
+;			vNvVlMulta = ""
+;		elseif (vTpCalcNotaDebito = 2)
+;			vNvVlFatura = vNvVlFatura - vNvVlMora
+;			vNvVlMora = ""
+;			vPrJuroMes = ""
+;		elseif (vTpCalcNotaDebito = 3)
+;			vNvVlFatura = $item("VL_FATURA",piParams)
+;			vNvVlMulta = ""
+;			vNvVlMora = ""
+;			vPrJuroMes = ""
+;		endif
+;	endif
+;	;
+;	;não será cobrado despesa financeiras
+;	if (InDespFin = <FALSE>)
+;		vVlDespFin	 = 0
+;	endif
+;	;---------------------------------------------
+;	;não será cobrado multa
+;	if (InMulta   = <FALSE>)
+;		vNvVlMulta = 0
+;	endif
+;	;---------------------------------------------
+;	vNvVlAcrescimo = vVlDespFin + vNvVlMora + vNvVlMulta
+;	;---------------------------------------------
+;	;---------------------------------------------
+;	;retorno de valores por parâmetros
+;	poParams = ""
+;	putitem/id poParams,"VL_CALCULADO"           ,vNvVlFatura
+;	putitem/id poParams,"VL_JUROS"               ,vNvVlMora    
+;	putitem/id poParams,"VL_DESCONTOS"           ,vNvVlDesc
+;	putitem/id poParams,"VL_ACRESCIMO"           ,vNvVlAcrescimo
+;	putitem/id poParams,"VL_DEDUCAO"             ,vNvVlDeducao
+;	putitem/id poParams,"VL_MULTA"               ,vNvVlMulta
+;	putitem/id poParams,"PR_JUROS_MENSAL_ATRASO" ,vPrJuroMes
+;	;---------------------------------------------
+;
+;	return (0)
+;End ;operation calcFatRenegociacao.
+;**********************************************************************************
+
+
+;-------------------------------
+public operation VerNrDiasAtraso
+;-------------------------------
+params
+	string piGlobal :IN
+	string piParams :IN
+	string poParams :OUT
+	numeric poCdErro :OUT
+	string poCtxErro :OUT
+endparams
+	variables
+		numeric vCdEmp, vSabado, vDiaVcto, vNrDiasAtraso
+		string  viParams, voParams, vInFeriado
+		Date 	vDtVcto, vDtPgto
+	endvariables
+	vSabado = $item("IN_SABADOUTIL",piParams)
+	;desconsiderar caso o dia do vencimento for um feriado
+	vDtVcto = $item("DT_VENCIMENTO",piParams)
+	vDtPgto = $item("DT_PAGAMENTO",piParams)
+	vInFeriado = "S";para entrar no loop
+	while (vInFeriado = "S")
+		;verificar se o dia é um  feriado (o loop é para feriados subsequentes)
+		viParams = "DT_DATA=%%vDtVcto"
+		voParams = ""	
+		$instancehandle->VerFeriado(piGlobal,viParams,voParams,$xCdErro$,$xCtxErro$)
+		if ($procerror)
+			$instancehandle->SetStatus(<sts_erro>,$procerror,$procerrorcontext,"")
+			return (-1)
+		elseif (voParams != "")
+			vInFeriado = $item("IN_FERIADO",voParams); S/N
+		else	
+			vInFeriado = ""; erro
+		endif
+		if (vInFeriado = "S")
+			vDtVcto = vDtVcto + 1d ;próximo dia após o feriado
+		endif
+	endwhile
+	;verifica se os proximos dias são úteis
+	; 1- Seg, 2-Ter, 3-Qua, 4-Qui, 5-Sex, 6-Sab, 7-Dom
+	vDiaVcto = vDtVcto[A]; dia da semana
+	if (vDiaVcto = 6);sabado
+		if (vSabado = 1); sábado é dia útil
+			;comeca a contagem de dias para o pagamento
+		else
+			;Sábado NÃO é dia útil, deconsiderar o sábado e o domingo
+			vDtVcto = vDtVcto + 2d
+		endif
+	elseif (vDiaVcto = 7);domingo
+		;desconsidera o domingo
+		vDtVcto = vDtVcto + 1d
+	endif
+	;desconsiderou o feriados, o final de semana, agora este dia é feriado?
+	vInFeriado = "S"
+	while (vInFeriado = "S")
+		;verificar se o dia é um  feriado (o loop é para feriados subsequentes)
+		voParams = ""
+		viParams = "DT_DATA=%%vDtVcto"
+		$instancehandle->VerFeriado(piGlobal,viParams,voParams,$xCdErro$,$xCtxErro$)
+		if ($procerror)
+			$instancehandle->SetStatus(<sts_erro>,$procerror,$procerrorcontext,"")
+			return (-1)
+		elseif (voParams != "")
+			vInFeriado = $item("IN_FERIADO",voParams); S/N
+		else
+			vInFeriado = "" ; erro
+		endif
+		if (vInFeriado = "S")
+			vDtVcto = vDtVcto + 1d
+		endif
+	endwhile
+	if (vDtVcto != vDtPgto)
+		;o título venceu no feriado e não foi pago no primeiro dia útil subsequente
+		;neste caso paga pelo atraso integral (inclusive conta o feriado)
+		vDtVcto = $item("DT_VENCIMENTO",piParams)
+		;vNrDiasAtraso = (vDtPgto - vDtVcto) + 1 ;+1 para considerar o proprio dia do pagto. com dia de atraso
+		vNrDiasAtraso = (vDtPgto - vDtVcto)
+	else
+		;pago na data - não gerou atraso (ou no primeiro dia útil subsequente)
+		vNrDiasAtraso = 0
+	endif
+	;poParams = "NR_DIASATRASO=%%vNrDiasAtraso"
+	poParams = ""
+	putitem/id poParams,"NR_DIASATRASO",vNrDiasAtraso
+	putitem/id poParams,"DT_VENCIMENTO",vDtVcto
+
+	return(0)
+	;---------------------------------------------------------------------------------
+	;Servico que verifica a quantos dias um pagamento esta em atraso
+	;Parametros de entrada: padrão
+	;Valor necessário: DT_VENCIMENTO, DT_PAGAMENTO (em viParams)
+	;Retorno: NR_DIASATRASO (em voParams)
+	;---------------------------------------------------------------------------------
+End;VerNrDiasAtraso
+
+;-------------------------------------
+public operation VerNrDiasUteisAntecip
+;-------------------------------------
+params
+	string piGlobal :IN
+	string piParams :IN
+	string poParams :OUT
+	numeric poCdErro :OUT
+	string poCtxErro :OUT
+endparams
+	variables
+		numeric vCdEmp, vSabado, vDiaAux, vNrDiasUteis
+		string  viParams, voParams, vInFeriado
+		Date 	vDtVcto, vDtAux
+	endvariables
+	vSabado = $item("IN_SABADOUTIL",piParams)
+	vNrDiasUteis = 0
+	vDtAux = $item("DT_PAGAMENTO",piParams)
+	vDtVcto = $item("DT_VENCIMENTO",piParams)
+	while (vDtAux < vDtVcto)
+		vDiaAux = vDtAux[A]; dia da semana
+		;primeiro verifica se o dia corresponde a um feriado
+		viParams = "DT_DATA=%%vDtAux"
+		voParams = ""	
+		$instancehandle->VerFeriado(piGlobal,viParams,voParams,$xCdErro$,$xCtxErro$)
+		if ($procerror)
+			$instancehandle->SetStatus(<sts_erro>,$procerror,$procerrorcontext,"")
+			return (-1)
+		elseif (poParams != "")
+			vInFeriado = $item("IN_FERIADO",voParams); S/N
+		else	
+			vInFeriado = ""; erro
+		endif
+		if (vInFeriado ="S")
+			;nao conta este dia, avança 1 dia
+			vDtAux = vDtAux + 1d 
+		else
+			if (vDiaAux = 6);sabado
+				if (vSabado = 1); sábado é dia útil
+					vNrDiasUteis = vNrDiasUteis + 1; conta este dia
+					vDtAux = vDtAux + 2d ;avando sáb. e dom.
+				else
+					;não é util, somente avança
+					vDtAux = vDtAux + 2d ;avando sáb. e dom.
+				endif
+			elseif (vDiaAux = 7);domingo
+					vDtAux = vDtAux + 1d ;avança o dom.
+			else
+				;dia normal - útil
+				vNrDiasUteis = vNrDiasUteis + 1
+				vDtAux = vDtAux + 1d ;avando um dia
+			endif		
+		endif
+	endwhile
+	poParams = "NR_DIASUTEISANTECIP=%%vNrDiasUteis"
+	return (0)
+	;---------------------------------------------------------------------------------
+	;Servico que verifica em quantos dias uteis o pagamento foi antecipado
+	;Parametros de entrada: padrão
+	;Valor necessário: DT_VENCIMENTO, DT_PAGAMENTO (em viParams)
+	;Retorno: NR_DIASUTEISANTECIP (em voParams)
+	;---------------------------------------------------------------------------------
+End;VerNrDiasUteisAntecip
+
+;------------------------
+public operation VerFeriado
+;--------------------------
+	params
+		string piGlobal :IN
+		string piParams :IN
+		string poParams :OUT
+		numeric poCdErro :OUT
+		string poCtxErro :OUT
+	endparams
+	variables
+		date vData
+		numeric vAno
+	endvariables
+	vData = $item("DT_DATA",piParams)	
+	if (vData = "")
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Data não informado!", "ADICIONAL=Operação->FCRCSVCO002.VerFeriado")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	vAno = vData[Y]
+	clear/e "GER_FERIADOSVC"
+	cd_empresa.ger_feriadosvc = $item("CD_EMPRESA",piGlobal)
+	cd_turno.ger_feriadosvc = 999
+	dt_feriado.ger_feriadosvc = vData	
+	retrieve/e "GER_FERIADOSVC"
+	if ($status >= 0)
+		poParams = "IN_FERIADO=S"
+	else
+		poParams = "IN_FERIADO=N"
+	endif
+	;tp_feriado     
+	return (0)
+	;---------------------------------------------------------------------------------
+	;Servico que verifica se uma data recebida corresponde a um feriado cadastrado
+	;Parametros de entrada: padrão
+	;Valor necessário: DT_DATA Data a consultar (em piParams)
+	;Retorno: IN_FERIADO = <S>im / <N>ão (em poParams)
+	;---------------------------------------------------------------------------------
+End;VerFeriado

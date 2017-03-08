@@ -2,122 +2,116 @@ unit uclsConverter;
 
 interface
 
+uses
+  Classes, SysUtils;
+
+type
+  TTipoAlteracao = (
+    taCommentario, // ; /* */
+    taConteudo, // '' identificar os conteudos texto
+    taEspacamento, // '' identificar espacamento inicial da linha de codigo
+    taMetodo, // procedure function
+    taVariavel, // boolean datetime float integer string
+    taRepeticao, // while for repeat
+    taCondicao, // if then begin end else end
+    taFuncao, //
+    taAlterar,
+    taIgnorar); // ;
+
+  RTipoAlteracao = record
+    Typ : TTipoAlteracao;
+    Exp : String;
+    Ent : String;
+    Sai : String;
+  end;
+
 const
-  cSTR_DELPHI_TO_CSHARP =
-    '<reg exp="''"     sai="''{val}''" ent="\&quot;" />' +
-    '<reg exp="&quot;" sai=""          ent="&quot;"  />' ;
+  LTipoAlteracao : Array [0..31] of RTipoAlteracao = (
+    (Typ: taMetodo; Exp: 'public operation {val}' ; Ent: '{mtd}'; Sai: 'function {mtd}(pParams : String) : String;' ),
+    (Typ: taMetodo; Exp: 'partner operation {val}'; Ent: '{mtd}'; Sai: 'function {mtd}(pParams : String) : String;' ),
+    (Typ: taMetodo; Exp: 'entry {val}'            ; Ent: '{mtd}'; Sai: 'function {mtd}(pParams : String) : String;' ),
 
-  cDOC_DELPHI_TO_CSHARP =
-    '<reg exp="//" ent="//" ori="right"  />' +
-    '<reg exp="(*" ent="/*" ori="right" />' +
-    '<reg exp="*)" ent="*/" ori="left"  />' +
-    '<reg exp="{"  ent="/*" ori="right" />' +
-    '<reg exp="}"  ent="*/" ori="left"  />' ;
+    (Typ: taVariavel; Exp: 'boolean {val}' ; Ent: '{var}'; Sai: '{var} : Boolean;'  ),
+    (Typ: taVariavel; Exp: 'datetime {val}'; Ent: '{var}'; Sai: '{var} : TDateTime;'),
+    (Typ: taVariavel; Exp: 'numeric {val}' ; Ent: '{var}'; Sai: '{var} : Real;'     ),
+    (Typ: taVariavel; Exp: 'string {val}'  ; Ent: '{var}'; Sai: '{var} : String;'   ),
 
-  cSUB_DELPHI_TO_CSHARP =
-    '<reg exp="begin"       ent="{"        />' +
-    '<reg exp=" end "       ent=" } "      />' +
-    '<reg exp="end "        ent="} "       />' +
-    '<reg exp="end;"        ent="}"        />' +
-    '<reg exp=" or "        ent=" || "     />' +
-    '<reg exp=" and "       ent=" && "     />' +
-    '<reg exp="try"         ent="try {"    />' +
-    '<reg exp="repeat"      ent="do {"     />' +
-    '<reg exp="until ("     ent="while !(" />' +
-    '<reg exp="result {pi}" ent="return"   />' +
-    '<reg exp="exit;"       ent="return;"  />' +
-    '<reg exp="class "      ent="static "  />' ;
+    (Typ: taAlterar;   Exp: 'endwhile{val}'; Ent: 'endwhile'  ; Sai: 'end;' ),
+    (Typ: taRepeticao; Exp: 'while{val}'   ; Ent: '({exp})'; Sai: 'while ({exp}) do begin' ),
 
-  cBKP_DELPHI_TO_CSHARP =
-    '<reg exp="except"   ent="{except}" sai="} catch (Exception e) {" />' +
-    '<reg exp="&lt;&gt;" ent="{mame}"   sai=""        />' + // <>
-    '<reg exp="&gt;="    ent="{maig}"   sai=""        />' + // >=
-    '<reg exp="&lt;="    ent="{meig}"   sai=""        />' + // <=
-    '<reg exp="&gt;"     ent="{ma}"     sai=""        />' + // >
-    '<reg exp="&lt;"     ent="{me}"     sai=""        />' + // <
-    '<reg exp=":="       ent="{pi}"     sai="="       />' + // :=
-    '<reg exp="="        ent="{ig}"     sai="=="      />' + // =
-    '<reg exp="''"       ent="{apos}"   sai="&quot;"  />' + // '
-    '<reg exp="&quot;"   ent="{quot}"   sai="\&quot;" />' ; // "
+    (Typ: taAlterar;  Exp: 'endif{val}';  Ent: 'endif'; Sai: 'end;' ),
+    (Typ: taCondicao; Exp: 'else{val}';   Ent: '({exp})'; Sai: 'end else begin' ),
+    (Typ: taCondicao; Exp: 'elseif{val}'; Ent: '({exp})'; Sai: 'end else if ({exp}) then begin' ),
+    (Typ: taCondicao; Exp: 'if{val}';     Ent: '({exp})'; Sai: 'if ({exp}) then begin' ),
 
-  cESP_DELPHI_TO_CSHARP =
-    '<reg exp=";" ent=" ; " sai=" ;" />' +
-    '<reg exp=":" ent=" : " sai=" :" />' +
-    '<reg exp="," ent=" , " sai=" ," />' +
-    '<reg exp="*" ent=" * " sai=""   />' +
-    '<reg exp="/" ent=" / " sai=""   />' +
-    '<reg exp="+" ent=" + " sai=""   />' +
-    '<reg exp="-" ent=" - " sai=""   />' +
-    '<reg exp="%" ent=" % " sai=""   />' ;
+    (Typ: taFuncao; Exp: 'dbocc({val})'          ; Ent: '{ent}'; Sai: '{ent}.IsEmpty();' ),
+    (Typ: taFuncao; Exp: 'creocc{val}'           ; Ent: '"{ent}",{pos}'; Sai: '{ent}.Append({pos});' ),
+    (Typ: taFuncao; Exp: 'setocc{val}'           ; Ent: '"{ent}",{pos}'; Sai: '{ent}.RecNo := {pos};' ),
+    (Typ: taFuncao; Exp: 'curocc({val})'         ; Ent: '"{ent}"'; Sai: '{ent}.RecNo' ),
+    (Typ: taFuncao; Exp: 'totocc({val})'         ; Ent: '"{ent}"'; Sai: '{ent}.RecordCount' ),
+    (Typ: taFuncao; Exp: 'remocc({val})'         ; Ent: '"{ent}"'; Sai: '{ent}.Delete();' ),
 
-  cMET_DELPHI_TO_CSHARP =
-    '<function    ent="public {ret} {mtd}({lstpar})"     />' +
-    '<procedure   ent="public void {mtd}({lstpar})"      />' ;
+    (Typ: taFuncao; Exp: 'clear/e{val}'          ; Ent: '"{ent}"'; Sai: '{ent}.Clear();' ),
+    (Typ: taFuncao; Exp: 'retrieve/a{val}'       ; Ent: '"{ent}"'; Sai: '{ent}.Consultar(nil);' ),
+    (Typ: taFuncao; Exp: 'retrieve/e{val}'       ; Ent: '"{ent}"'; Sai: '{ent}.Consultar(nil);' ),
+    (Typ: taFuncao; Exp: 'retrieve/o{val}'       ; Ent: '"{ent}"'; Sai: '{ent}.Consultar(nil);' ),
+    (Typ: taFuncao; Exp: 'retrieve/x{val}'       ; Ent: '"{ent}"'; Sai: '{ent}.Consultar(nil);' ),
 
-  cTYP_DELPHI_TO_CSHARP =
-    '<discard     ent=".create("    />' +
-    '<tstringlist ent="tstringlist" />' +
-    '<textfile    ent="textfile"    />' +
-    '<tdatetime   ent="datetime"    />' +
-    '<boolean     ent="boolean"     />' +
-    '<currency    ent="double"      />' +
-    '<integer     ent="int"         />' +
-    '<real        ent="double"      />' +
-    '<string      ent="string"      />' ;
+    (Typ: taFuncao; Exp: 'sort/e{val}'           ; Ent: '"{ent}","{cpo}"'; Sai: '{ent}.IndexFieldsNames(''{cpo}'');' ),
+    (Typ: taFuncao; Exp: 'discard{val}'          ; Ent: '"{ent}"'; Sai: '{ent}.Delete();' ),
 
-  cLST_DELPHI_TO_CSHARP =
-    '<reg typ="meth" exp="function {val};"         ent="{mtd}({lstpar}) : {ret}" sai="public {ret} {mtd}({lstpar})" />' +
-    '<reg typ="meth" exp="procedure {val};"        ent="{mtd}({lstpar})"         sai="public void {mtd}({lstpar})" />' +
+    (Typ: taFuncao; Exp: 'getlistitem/occ{val}'  ; Ent: '{var},{ent}'; Sai: '{var} := TmXml.GetXmlFromObject({ent});' ),
+    (Typ: taFuncao; Exp: 'putlistitem/occ{val}'  ; Ent: '{var},{ent}'; Sai: 'TmXml.SetXmlToObject({var}, {ent});' ),
 
-    '<reg typ="type" exp="{val};"                  ent="{lstpar}" sai="{lstpar}" />' +
+    (Typ: taFuncao; Exp: '$instancehandle{val}'  ; Ent: '->{met}({par})'; Sai: '{met}({par});' ),
+    (Typ: taFuncao; Exp: 'collhandle{val}'       ; Ent: '("{ent}")->{met}()'; Sai: '{ent}.{met}();' ),
+    (Typ: taFuncao; Exp: 'activate{val}'         ; Ent: '"{cmp}".{met}({par})'; Sai: '{cmp}.{met}({par});' ),
+    (Typ: taFuncao; Exp: 'call{val}'             ; Ent: ' {met}({par})'; Sai: '{met}({par})' ));
 
-    '<reg typ="loop" exp="for {val} do begin"      ent="{var} = {ini} to {tot}" sai="for ({var} = {ini}; {var} <= {tot}; {var}++) {" />' +
-    '<reg typ="loop" exp="for {val} do"            ent="{var} = {ini} to {tot}" sai="for ({var} = {ini}; {var} <= {tot}; {var}++)" />' +
-    '<reg typ="loop" exp="while {val} do begin"    ent="{exp}"                  sai="while ({exp}) {" />' +
-    '<reg typ="loop" exp="while {val} do"          ent="{exp}"                  sai="while ({exp})" />' +
-
-    '<reg typ="cond" exp="if {val} then begin"     ent="{exp}" sai="if ({exp}) {" />' +
-    '<reg typ="cond" exp="if {val} then"           ent="{exp}" sai="if ({exp})" />' +
-    '<reg typ="cond" exp="case {val} of begin"     ent="{exp}" sai="case ({exp}) of {" />' +
-    '<reg typ="cond" exp="case {val} of"           ent="{exp}" sai="case ({exp}) of" />' +
-
-    //on E : Exception do ShowMessage(E.Message);
-    '<reg typ="func" exp="on {val});"              ent="{var} : {tip} do {fun}({var}.{mtd}" sai="_Logger.e('''', {var}.{mtd});" />' +
-
-    '<reg typ="func" exp="Pos({val})"              ent="{sub},{str}"                    sai="{str}.IndexOf({sub})" />' +
-    '<reg typ="func" exp="Copy({val},"             ent="{exp}" sai="{exp}.SubString(" />' +
-    '<reg typ="func" exp="PChar({val})"            ent="{exp}" sai="{exp}" />' +
-    '<reg typ="func" exp="SetLength({val})"        ent="{exp}" sai="_Array.setar({exp})" />' +
-    '<reg typ="func" exp="Trim({val})"             ent="{exp}" sai="{exp}.Trim()" />' +
-    '<reg typ="func" exp="Length({val})"           ent="{exp}" sai="{exp}.Length()" />' +
-    '<reg typ="func" exp="LowerCase({val})"        ent="{exp}" sai="{exp}.ToLowerCase()" />' +
-    '<reg typ="func" exp="UpperCase({val})"        ent="{exp}" sai="{exp}.ToUpperCase()" />' +
-    '<reg typ="func" exp="AnsiReplaceStr({val},"   ent="{exp}" sai="{exp}.Replace(" />' +
-    '<reg typ="func" exp="ReplaceStr({val},"       ent="{exp}" sai="{exp}.Replace(" />' +
-    '<reg typ="func" exp="ReplicateStr({val},"     ent="{exp}" sai="_String.Replicate({exp}," />' +
-
-    '<reg typ="func" exp="DateTimeToStr({val})"    ent="{exp}" sai="{exp}.ToString()" />' +
-    '<reg typ="func" exp="FloatToStr({val})"       ent="{exp}" sai="{exp}.ToString()" />' +
-    '<reg typ="func" exp="IntToStr({val})"         ent="{exp}" sai="{exp}.ToString()" />' +
-
-    '<reg typ="func" exp="StrToDateTime({val})"    ent="{exp}" sai="DateTime.Parse({exp})" />' +
-    '<reg typ="func" exp="StrToDateTimeDef({val})" ent="{exp}" sai="_Funcao.IffNullD({exp})" />' +
-    '<reg typ="func" exp="StrToFloat({val})"       ent="{exp}" sai="Double.Parse({exp})" />' +
-    '<reg typ="func" exp="StrToFloatDef({val})"    ent="{exp}" sai="Double.Parse({exp})" />' +
-    '<reg typ="func" exp="StrToInt({val})"         ent="{exp}" sai="Int16.Parse({exp})" />' +
-    '<reg typ="func" exp="StrToIntDef({val})"      ent="{exp}" sai="Int16.Parse({exp})" />' +
-
-    '<reg typ="func" exp="FormatDateTime({val})"   ent="{exp}" sai="_DataHora.formatar({exp})" />' +
-    '<reg typ="func" exp="FormatFloat({val})"      ent="{exp}" sai="_Formatar.formatFloat({exp})" />' +
-    '<reg typ="func" exp="Format({val})"           ent="{exp}" sai="_Formatar.format({exp})" />' +
-
-    '<reg typ="func" exp="CarregarArqBin({val})"   ent="{exp}" sai="_Arquivo.carregar({exp})" />' +
-    '<reg typ="func" exp="GravarArqBin({val})"     ent="{exp}" sai="_Arquivo.gravar({exp})" />' +
-    '<reg typ="func" exp="FileExists({val})"       ent="{exp}" sai="_Arquivo.exists({exp})" />' +
-
-    '<reg typ="func" exp="LeIni({val})"            ent="{exp}" sai="_ArquivoIni.pegar({exp})" />' +
-    '<reg typ="func" exp="GravaIni({val})"         ent="{exp}" sai="_ArquivoIni.setar({exp})" />' ;
+  procedure BackupLinha(var ALinha : String; out ABackup : TStringList);
+  procedure RestoreLinha(var ALinha : String; const ABackup : TStringList);
 
 implementation
+
+uses
+  mString, StrUtils;
+
+// comentario
+procedure BackupLinha(var ALinha : String; out ABackup : TStringList);
+var
+  vCod, vVal : String;
+begin
+  ABackup.Clear();
+
+  // comentario
+  if Pos(';', ALinha) > 0 then begin
+    vCod := Format('#cmt%d', [ABackup.Count]);
+    vVal := TmString.RightStr(ALinha, ';');
+    ABackup.Add(vCod + '=' + '//' + vVal);
+    ALinha := AnsiReplaceStr(ALinha, ';' + vVal, vCod);
+  end;
+
+  // conteudo texto
+  (* while Pos('"', ALinha) > 0 do begin
+    vCod := Format('#str%d', [ABackup.Count]);
+    vVal := TmString.RightStr(ALinha, '"');
+    vVal := TmString.LeftStr(vVal, '"');
+    ABackup.Add(vCod + '=' + '''' + vVal + '''');
+    ALinha := AnsiReplaceStr(ALinha, '"' + vVal + '"', vCod);
+  end; *)
+end;
+
+procedure RestoreLinha(var ALinha : String; const ABackup : TStringList);
+var
+  vCod, vVal : String;
+  I : Integer;
+begin
+  for I := 0 to ABackup.Count - 1 do begin
+    vCod := TmString.LeftStr(ABackup[I], '=');
+    vVal := TmString.RightStr(ABackup[I], '=');
+    if Pos(vCod, ALinha) > 0 then
+      ALinha := AnsiReplaceStr(ALinha, vCod, vVal);
+  end;
+end;
 
 end.

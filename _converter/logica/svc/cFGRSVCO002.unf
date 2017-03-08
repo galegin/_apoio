@@ -1,0 +1,132 @@
+;---------------------------------
+public operation validaBandaCheque
+	;---------------------------------
+	params
+		string  $xlpg$      :IN    
+		string  piParams    :IN
+		string  poParams    :OUT
+		string  poCdErro    :OUT
+		string  poCtxErro   :OUT
+	endparams
+	
+	variables
+		string vPeso,vBanda,vDsBanda, vNrBanda
+		numeric vIndice,vResult
+		numeric vBanco, vAgencia, vConta, vCheque
+		boolean vInValidaCadastro
+	endvariables
+	
+	vNrBanda = $item("NR_BANDA", piParams)
+	vInValidaCadastro = $item("IN_VALIDACADASTRO", piParams)
+	
+	if (vNrBanda != "" | vInValidaCadastro = <TRUE>)
+		
+		call achaNumero(vNrBanda, vDsBanda)
+		if ($procerror)
+			$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+			poCdErro = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return(-1)
+		endif 
+		if ($status < 0)
+			poCdErro = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return(-1)
+		endif
+		
+		vResult = $length(vDsBanda)
+		if (vResult != 30)
+			$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=A banda informada %%%(%%vDsBanda%%%) possui tamanho inválido %%%(%%vResult%%%)!", "ADICIONAL=Operação->FGRSVCO002.validaBandaCheque")
+			poCdErro = $xCdErro$
+			poCtxErro = $xCtxErro$
+			
+			poParams = ""
+			putitem/id poParams, "NR_BANDA", vDsBanda
+			return(-1)
+		endif  
+		
+		vBanda = vDsBanda [1:7]
+		vIndice = 1
+		vPeso = "2121212"
+		vResult = 0
+		while (vIndice < 8)
+			vResult = vResult + (vBanda[vIndice:1] * vPeso[vIndice:1])    
+			if (vBanda[vIndice:1] > 4) & (vPeso[vIndice:1] = 2) 
+				vResult = vResult + 1
+			endif
+			vIndice = vIndice + 1 
+		endwhile
+		vResult = vResult % 10
+		if (vResult > 0)
+			vResult = 10 - vResult    
+		endif
+		if (vResult != vDsBanda[19:1])
+			$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=A banda informada (%%vDsBanda) não é válida!", "ADICIONAL=Operação->FGRSVCO002.validaBandaCheque")
+			poCdErro = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return(-1)
+		endif
+		
+		vBanda = vDsBanda [9:10]
+		vIndice = 1
+		vPeso = "1212121212"
+		vResult = 0
+		while (vIndice < 11)
+			vResult = vResult + (vBanda[vIndice:1] * vPeso[vIndice:1])    
+			if (vBanda[vIndice:1] > 4) & (vPeso[vIndice:1] = 2) 
+				vResult = vResult + 1
+			endif
+			vIndice = vIndice + 1 
+		endwhile
+		vResult = vResult % 10
+		if (vResult > 0)
+			vResult = 10 - vResult
+		endif
+		if (vResult != vDsBanda[8:1])
+			$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=A banda informada (%%vDsBanda) não é válida!", "ADICIONAL=Operação->FGRSVCO002.validaBandaCheque")
+			poCdErro = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return(-1)
+		endif
+		
+		vBanda = vDsBanda [20:10]
+		vIndice = 1
+		vPeso = "1212121212"
+		vResult = 0
+		while (vIndice < 11)
+			vResult = vResult + (vBanda[vIndice:1] * vPeso[vIndice:1])    
+			if (vBanda[vIndice:1] > 4) & (vPeso[vIndice:1] = 2) 
+				vResult = vResult + 1
+			endif
+			vIndice = vIndice + 1 
+		endwhile    
+		vResult = vResult % 10
+		if (vResult > 0)
+			vResult = 10 - vResult
+		endif
+		if (vResult != vDsBanda[30:1])
+			$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=A banda informada (%%vDsBanda) não é válida!", "ADICIONAL=Operação->FGRSVCO002.validaBandaCheque")
+			poCdErro = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return(-1)
+		endif
+	endif
+	
+	vBanco = vDsBanda [1:3]
+	vAgencia = vDsBanda [4:4]
+	if (vBanco = 341)
+		vConta = vDsBanda [24:6]
+	else
+		vConta = vDsBanda [20:10]
+	endif
+	vCheque = vDsBanda [12:6]
+	
+	poParams = ""
+	putitem/id poParams, "NR_BANDA", vDsBanda
+	putitem/id poParams, "NR_BANCO", vBanco
+	putitem/id poParams, "NR_AGENCIA", vAgencia
+	putitem/id poParams, "NR_CONTA", vConta
+	putitem/id poParams, "NR_CHEQUE", vCheque
+	
+	exit (0)
+end

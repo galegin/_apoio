@@ -1,0 +1,136 @@
+;------------------------------
+public operation processaCheque
+;------------------------------
+	params
+		string piGlobal :IN
+		string piParams :IN
+		string poParams :OUT
+		numeric poCdErro :OUT
+		string poCtxErro :OUT
+	endparams
+	
+	variables
+		string voParams, viParams
+		numeric vCdTerminal , vTotPeriferico
+	endvariables
+
+	vCdTerminal = $item("CD_TERMINAL", piGlobal)
+	if (vCdTerminal = 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Terminal não informado!", "ADICIONAL=Operação->FGRSVCO003.processaCheque")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+
+	clear/e "GER_TERMINALPSVC"
+	CD_EMPRESA.GER_TERMINALPSVC/init = $item("CD_EMPRESA", piGlobal)
+	CD_TERMINAL.GER_TERMINALPSVC/init = vCdTerminal 
+	TP_PERIFERICO.GER_TERMINALPSVC/init = 1
+	retrieve/e "GER_TERMINALPSVC"
+	if ($status < 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Nenhuma impressora de cheque encontrada para o terminal %%vCdTerminal na empresa %%CD_EMPRESA.GER_TERMINALPSVC!", "ADICIONAL=Operação->FGRSVCO003.processaCheque")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	else
+		setocc "GER_TERMINALPSVC", -1
+		vTotPeriferico = $totocc("GER_TERMINALSVC")
+		if (vTotPeriferico > 1)
+			$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Existem %%vTotPeriferico impressoras de cheque cadastrado ao terminal. Verificar no componente GERFL040!", "ADICIONAL=Operação->FGRSVCO003.processaCheque")
+			poCdErro = $xCdErro$
+			poCtxErro = $xCtxErro$
+			return(-1)
+		endif
+	endif
+
+	clear/e "GLB_PERIFERICSVC"
+	CD_PERIFERICO.GLB_PERIFERICSVC/init = CD_PERIFERICO.GER_TERMINALPSVC
+	retrieve/e "GLB_PERIFERICSVC"
+	if ($status < 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Periférico %%CD_PERIFERICO.GER_TERMINALPSVC não encontrado!", "ADICIONAL=Operação->FGRSVCO003.processaCheque")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+
+	putitem/id piParams, "DS_PORTA", DS_PORTA.GER_TERMINALPSVC
+	activate "%%DS_COMPONENTE.GLB_PERIFERICSVC".imprimeCheque(piGlobal, piParams, voParams, $xCdErro$, $xCtxErro$)
+	if ($procerror)       
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return (-1)
+	elseif ($status < 0)
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return (-1)
+	endif
+	
+	poParams = voParams
+	
+	return (0)
+end ;processaCheque
+
+;------------------------
+public operation leCheque
+;------------------------
+	params
+		string piGlobal :IN
+		string piParams :IN
+		string poParams :OUT
+		numeric poCdErro :OUT
+		string poCtxErro :OUT
+	endparams
+	
+	variables
+		string voParams
+		numeric vCdTerminal
+	endvariables
+
+	vCdTerminal = $item("CD_TERMINAL", piGlobal)
+	if (vCdTerminal = 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Terminal não informado!", "ADICIONAL=Operação->FGRSVCO003.processaCheque")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+
+	clear/e "GER_TERMINALPSVC"
+	CD_EMPRESA.GER_TERMINALPSVC/init = $item("CD_EMPRESA", piGlobal)
+	CD_TERMINAL.GER_TERMINALPSVC/init = vCdTerminal 
+	TP_PERIFERICO.GER_TERMINALPSVC/init = "1·|2" ;impressora/leitora de cheque
+	retrieve/e "GER_TERMINALPSVC"
+	if ($status < 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Nenhuma impressora de cheque encontrada para o terminal %%vCdTerminal na empresa %%CD_EMPRESA.GER_TERMINALPSVC!", "ADICIONAL=Operação->FGRSVCO003.processaCheque")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+	
+	clear/e "GLB_PERIFERICSVC"
+	CD_PERIFERICO.GLB_PERIFERICSVC/init = CD_PERIFERICO.GER_TERMINALPSVC
+	retrieve/e "GLB_PERIFERICSVC"
+	if ($status < 0)
+		$instancehandle->SetStatus(<STS_ERRO>, "GEN0001", "DESCRICAO=Periférico %%CD_PERIFERICO.GER_TERMINALPSVC não encontrado!", "ADICIONAL=Operação->FGRSVCO003.processaCheque")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return(-1)
+	endif
+
+	activate "%%DS_COMPONENTE.GLB_PERIFERICSVC".leCheque(piGlobal, piParams, voParams, $xCdErro$, $xCtxErro$)
+	if ($procerror)       
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return (-1)
+	elseif ($status < 0)
+		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+		poCdErro = $xCdErro$
+		poCtxErro = $xCtxErro$
+		return (-1)
+	endif
+	poParams = voParams
+
+	return (0)
+end ;leCheque

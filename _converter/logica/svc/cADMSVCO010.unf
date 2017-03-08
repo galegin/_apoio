@@ -1,0 +1,97 @@
+;---------------------------------------
+public operation gravaLogRestricaoCommit
+;Marcelo Oda 28/10/05
+;Grava o log das solicitacoes de autorizacao das restricoes 
+;ATENÇÃO: ESSE SERVICO TEM UM COMMIT. 
+;Chamado: ADMSVCO009
+;---------------------------------------
+	Params
+		string piParams		:IN
+		string poParms		:OUT
+		string poCdErro		:OUT
+		string poCtxErro	:OUT
+	endParams
+
+	variables
+		string vCdComponente, vDsCampo, vCdEmpresa, vCdUsuario
+		numeric vVlValor, vVlNovo, vVlAtual, vTpRestricaoLog, vInicioOriginal, vFimOriginal, vCdUsuarioLib
+		string vCdUsuarioValidado, vDsPermite, vDsAux
+	endvariables
+
+	vCdComponente 	= $item("CD_COMPONENTE"   , piParams)
+	vDsCampo      	= $item("DS_CAMPO"        , piParams)
+	vCdEmpresa    	= $item("CD_EMPRESA"      , piParams)
+	vCdUsuario    	= $item("CD_USUARIO"      , piParams)
+	vVlValor      	= $item("VL_VALOR"        , piParams)
+	vVlNovo		  	= $item("VL_NOVO"         , piParams)
+	vVlAtual	  	= $item("VL_ATUAL"	     , piParams)
+	vTpRestricaoLog	= $item("TP_RESTRICAOLOG" , piParams)
+	vInicioOriginal = $item("VL_INICIOORIGNAL", piParams)
+	vFimOriginal 	= $item("VL_FIMORIGINAL"  , piParams)
+	vCdUsuarioLib	= $item("CD_USUARIOLIB"   , piParams)
+	vDsAux          = $item("DS_AUX"          , piParams)
+
+	$status = -7
+	while ($status = -7)
+		clear/e "ADM_RESTRICAOSVC"
+		creocc "ADM_RESTRICAOSVC", -1
+		DT_RESTRICAO.ADM_RESTRICAOSVC = $item("DT_SISTEMA", $$gParamGlb)
+		HR_RESTRICAO.ADM_RESTRICAOSVC = $clock
+		CD_COMPONENTE.ADM_RESTRICAOSVC = vCdComponente
+		DS_CAMPO.ADM_RESTRICAOSVC = vDsCampo
+		CD_EMPRESA.ADM_RESTRICAOSVC = vCdEmpresa
+		CD_USUARIO.ADM_RESTRICAOSVC = vCdUsuario
+		retrieve/o "ADM_RESTRICAOSVC"
+		if ($status = 0)
+			CD_OPERADOR.ADM_RESTRICAOSVC = $item("CD_USUARIO", $$gParamGlb)
+			DT_CADASTRO.ADM_RESTRICAOSVC = $datim
+			TP_RESTRICAOLOG.ADM_RESTRICAOSVC = vTpRestricaoLog
+			CD_USUARIOLIB.ADM_RESTRICAOSVC = vCdUsuarioLib
+			VL_INICIOORIGINAL.ADM_RESTRICAOSVC = vInicioOriginal
+			VL_FIMORIGINAL.ADM_RESTRICAOSVC = vFimOriginal 
+			VL_DIFERENCA.ADM_RESTRICAOSVC = vVlValor
+			VL_NOVO.ADM_RESTRICAOSVC = vVlNovo
+			VL_ATUAL.ADM_RESTRICAOSVC = vVlAtual
+			DS_AUX.ADM_RESTRICAOSVC = vDsAux
+			$collhandle("ADM_RESTRICAOSVC")->Salvar()
+			if ($procerror)
+				$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+				poCdErro = $xCdErro$
+				poCtxErro = $xCtxErro$
+				exit(-1)
+			elseif ($status < 0)
+				$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")    
+				poCdErro = $xCdErro$
+				poCtxErro = $xCtxErro$
+				exit(-1)
+			endif
+			break
+		endif
+	endwhile
+
+;	CD_OPERADOR.ADM_RESTRICAOSVC = $item("CD_USUARIO", $$gParamGlb)
+;	DT_CADASTRO.ADM_RESTRICAOSVC = $datim
+;	TP_RESTRICAOLOG.ADM_RESTRICAOSVC = vTpRestricaoLog
+;	CD_USUARIOLIB.ADM_RESTRICAOSVC = vCdUsuarioLib
+;	VL_INICIOORIGINAL.ADM_RESTRICAOSVC = vInicioOriginal
+;	VL_FIMORIGINAL.ADM_RESTRICAOSVC = vFimOriginal 
+;	VL_DIFERENCA.ADM_RESTRICAOSVC = vVlValor
+;	VL_NOVO.ADM_RESTRICAOSVC = vVlNovo
+;	VL_ATUAL.ADM_RESTRICAOSVC = vVlAtual
+;
+;	$collhandle("ADM_RESTRICAOSVC")->Salvar()
+;	if ($procerror)
+;		$instancehandle->SetStatus(<STS_ERRO>, $procerror, $procerrorcontext, "")
+;		poCdErro = $xCdErro$
+;		poCtxErro = $xCtxErro$
+;		exit(-1)
+;	elseif ($status < 0)
+;		$instancehandle->SetStatus(<STS_ERRO>, $xCdErro$, $xCtxErro$, "")    
+;		poCdErro = $xCdErro$
+;		poCtxErro = $xCtxErro$
+;		exit(-1)
+;	endif
+
+	commit	
+
+end;
