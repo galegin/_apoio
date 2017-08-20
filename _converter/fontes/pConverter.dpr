@@ -3,7 +3,8 @@ program pConverter;
 uses
   Forms,
   ufrmConverter in 'ufrmConverter.pas' {F_Converter},
-  uclsConverterDelphiToCSharp in 'uclsConverterDelphiToCSharp.pas';
+  uclsConverterDelphiToCSharp in 'uclsConverterDelphiToCSharp.pas',
+  uclsConverterUnifaceToCSharp in 'uclsConverterUnifaceToCSharp.pas';
 
 {$R *.res}
 

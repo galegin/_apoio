@@ -30,7 +30,13 @@ var
 implementation
 
 uses
-  uclsConverterDelphiToCSharp;
+  uclsConverterDelphiToCSharp,
+  uclsConverterUnifaceToCSharp;
+
+const
+  cLstConverter =
+    'Delphi To CSharp' + sLineBreak +
+    'Uniface To CSharp' ;
 
   procedure TF_Converter.Carregar();
   begin
@@ -50,6 +56,8 @@ uses
 
 procedure TF_Converter.FormCreate(Sender: TObject);
 begin
+  tpConverter.Items.Text := cLstConverter;
+  tpConverter.ItemIndex := 0;
   Carregar();
 end;
 
@@ -67,8 +75,15 @@ end;
 
 procedure TF_Converter.BtnConverterClick(Sender: TObject);
 begin
-  MemoDes.Text := TcConverterDelphiToCSharp.Converter(MemoOri.Text);
+  case tpConverter.ItemIndex of
+    0 :
+      MemoDes.Text := TcConverterDelphiToCSharp.Converter(MemoOri.Text);
+    1 :
+      MemoDes.Text := TcConverterUnifaceToCSharp.Converter(MemoOri.Text);
+  end;
+
   DesCarregar();
+
   ShowMessage('Conversão efetuada com sucesso');
 end;
 
