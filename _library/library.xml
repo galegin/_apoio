@@ -6,10 +6,15 @@
     <library reg="SOFTWARE\Borland\Delphi\7.0\Library\" key="Search Path" def="$(DELPHI)\Lib;$(DELPHI)\Bin;$(DELPHI)\Imports;$(DELPHI)\Projects\Bpl;$(DELPHI)\Rave5\Lib;$(DELPHI)\Source\Soap;" />
   </delphi>
   
-  <delphi cod="DelphiXE2" des="Delphi XE2" >
+  <delphi cod="DelphiXE2_32" des="Delphi XE2 - 32 bits" >
     <environment_variables reg="SOFTWARE\Embarcadero\BDS\9.0\Environment Variables\" />
     <library reg="SOFTWARE\Embarcadero\BDS\9.0\Library\Win32\" key="Search Path" def="$(BDSLIB)\$(Platform)\release;$(BDSUSERDIR)\Imports;$(BDS)\Imports;$(BDSCOMMONDIR)\Dcp;$(BDS)\include;$(BDS)\RaveReports\Lib;$(BDS)\lib\QR505;$(BDS)\Quickrep505;$(BDS)\Quickrep505\bpl;" />
   </delphi>
+  
+  <delphi cod="DelphiXE2_64" des="Delphi XE2 - 64 bits" >
+    <environment_variables reg="SOFTWARE\Embarcadero\BDS\9.0\Environment Variables\" />
+    <library reg="SOFTWARE\Embarcadero\BDS\9.0\Library\Win64\" key="Search Path" def="$(BDSLIB)\$(Platform)\release;$(BDSUSERDIR)\Imports;$(BDS)\Imports;$(BDSCOMMONDIR)\Dcp;$(BDS)\include;$(BDS)\RaveReports\Lib;$(BDS)\lib\QR505;$(BDS)\Quickrep505;$(BDS)\Quickrep505\bpl;" />
+  </delphi>  
 </delphis>
 
 <variables>
@@ -79,3 +84,7 @@ $(LIB_ZEOS)\src\plain;
 </librarys>
 
 </doc>
+
+<!-- DelphiXE2
+;$(LIB_ACBR)\;$(LIB_ACBR)\ACBrCapicom;$(LIB_ACBR)\ACBrComum;$(LIB_ACBR)\ACBrDiversos;$(LIB_ACBR)\ACBrBoleto;$(LIB_ACBR)\ACBrDFe;$(LIB_ACBR)\ACBrDFe\ACBrBlocoX;$(LIB_ACBR)\ACBrDFe\ACBrNFE;$(LIB_ACBR)\ACBrDFe\ACBrNFE\PCNNFe;$(LIB_ACBR)\ACBrDFe\ACBrNFE\DANFE;$(LIB_ACBR)\ACBrDFe\ACBrNFe\DANFE\NFCe\EscPos;$(LIB_ACBR)\ACBrDFe\ACBrNFe\DANFE\NFCe\Fortes;$(LIB_ACBR)\ACBrDFe\ACBrNFe\DANFE\NFe\Fortes;$(LIB_ACBR)\ACBrDFe\ACBrNFe\DANFE\NFe\QR;$(LIB_ACBR)\ACBrOpenSSL;$(LIB_ACBR)\ACBrSAT;$(LIB_ACBR)\ACBrSAT\ACBrECFVirtualSAT;$(LIB_ACBR)\ACBrSAT\Extrato\EscPos;$(LIB_ACBR)\ACBrSAT\Extrato\Fortes;$(LIB_ACBR)\ACBrSAT\PCNSAT;$(LIB_ACBR)\ACBrSerial;$(LIB_ACBR)\ACBrTCP;$(LIB_ACBR)\ACBrTEFD;$(LIB_ACBR)\ACBrTXT\ACBrPAF;$(LIB_ACBR)\ACBrTXT\ACBrSPED;$(LIB_ACBR)\PCNComum;$(LIB_ACBR)\Terceiros\DelphiZXingQRCode;$(LIB_ACBR)\Terceiros\JediWin32API;$(LIB_ACBR)\Terceiros\synalist;$(LIB_ACBR)\Terceiros\ZLibExGZ;$(LIB_COMPS);$(LIB_COMPS)\classe;$(LIB_COMPS)\enum;$(LIB_COMPS)\model;$(LIB_COMPS)\report;$(LIB_COMPS)\repositorio;$(LIB_COMPS)\terceiro;$(LIB_COMPS)\view;$(LIB_INDY)\Lib\System;$(LIB_INDY)\Lib\Core;$(LIB_INDY)\Lib\Protocols;$(LIB_REPORT)\FastReport4\Completo\Source;$(LIB_REPORT)\FastReport4\Completo\LibD7;$(LIB_REPORT)\FortesReport;$(LIB_REPORT)\FortesReport-ce-master\Source;$(LIB_ZEOS)\packages\delphi7;$(LIB_ZEOS)\src\component;$(LIB_ZEOS)\src\core;$(LIB_ZEOS)\src\dbc;$(LIB_ZEOS)\src\parsesql;$(LIB_ZEOS)\src\plain
+-->

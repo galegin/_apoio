@@ -2,14 +2,14 @@ program pConverter;
 
 uses
   Forms,
-  uclsTipoParte in 'uclsTipoParte.pas',
-  uclsConverter in 'uclsConverter.pas',
-  ufrmConveter in 'ufrmConveter.pas' {FrmConverter};
+  ufrmConverter in 'ufrmConverter.pas' {F_Converter},
+  uclsConverterDelphiToCSharp in 'uclsConverterDelphiToCSharp.pas';
 
 {$R *.res}
 
 begin
   Application.Initialize;
-  Application.CreateForm(TFrmConverter, FrmConverter);
+  Application.Title := 'pConverter';
+  Application.CreateForm(TF_Converter, F_Converter);
   Application.Run;
 end.

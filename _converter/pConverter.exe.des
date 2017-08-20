@@ -1,0 +1,420 @@
+implementation
+
+uses
+  uclsEmpresaServico,
+  uclsPessoaServico,
+  uclsProdutoServico,
+  uclsOperacaoServico,
+  uclsImpostoServico,
+  uclsDFeServico,
+  mCollection, mCollectionItem, mSequence, mFloat,
+  uTransfiscal, uTransvencto, uTranspagto, uTipoProcessamento;
+
+var
+  _instance : TcTransacaoServico;
+
+  public TcTransacaoServico Instance
+  {
+    if (_instance == null)
+      _instance = new TcTransacaoServico(nil);
+    return = _instance;
+  }
+
+  public void Destroy
+  {
+    if (_instance != null)
+      _instance = null;
+  }
+
+public TcTransacaoServico(AOwner : TComponent)
+{
+  base;
+
+  fEmpresa = new TEmpresa(nil);
+  fTransacao = new TTransacao(nil);
+}
+
+public ~TcTransacaoServico()
+{
+  fTransacao = null;
+  fEmpresa = null;
+
+  base;
+}
+
+public void Listar
+{
+  return = TTransacaoList(fTransacao.Listar(nil));
+}
+
+public void LimparCapa
+{
+  fTransacao.Limpar();
+}
+
+public void BuscarCapa
+{
+  fTransacao.Limpar();
+  if (ACd_Dnatrans != '') {
+    fTransacao.Cd_Dnatrans = ACd_Dnatrans;
+    fTransacao.Consultar(nil);
+  }
+}
+
+public void NumerarCapa
+{
+  return = mSequence.Instance.GetSequencia('TRANSACAO');
+}
+
+public void NumerarFiscal
+{
+  return = mSequence.Instance.GetSequencia('TRANSACAO', 'NF', 0, 0, ACd_Serie);
+}
+
+public void Salvar
+const
+  cDS_METHOD == 'TcTransacaoServico.Salvar()';
+var
+  vNr_Transacao, vNr_Docfiscal : int;
+{
+  if (ANr_Cpfcnpj == '')
+    throw new Exception('Pessoa deve ser informado / ' + cDS_METHOD);
+  if (ACd_Operacao == '')
+    throw new Exception('Operacao deve ser informado / ' + cDS_METHOD);
+
+  fEmpresa = uclsEmpresaServico.Instance.Consultar();
+  if (fEmpresa == null)
+    throw new Exception('Empresa nao encontrada / ' + cDS_METHOD);
+
+  fPessoa = uclsPessoaServico.Instance.Consultar(ANr_Cpfcnpj);
+  if (fPessoa == null)
+    throw new Exception('Pessoa ' + ANr_Cpfcnpj + ' nao encontrada / ' + cDS_METHOD);
+
+  fOperacao = uclsOperacaoServico.Instance.Consultar(ACd_Operacao);
+  if (fOperacao == null)
+    throw new Exception('Operacao ' + ACd_Operacao + ' nao encontrada / ' + cDS_METHOD);
+
+  vNr_Transacao = NumerarCapa();
+  vNr_Docfiscal = NumerarFiscal(fOperacao.Cd_Serie);
+
+  fTransacao = new fTransacao {
+    Cd_Dnatrans :=
+      ACd_Equip + '#' +
+      FormaDateTime('yyyymmdd', ADt_Transacao) + '#' +
+      IntToStr(vNr_Transacao);
+
+    U_Version = '';
+    Cd_Operador = 1;
+    Dt_Cadastro = Now;
+
+    Cd_Equip = ACd_Equip;
+    Dt_Transacao = ADt_Transacao;
+    Nr_Transacao = vNr_Transacao;
+    Nr_Cpfcnpj = ANr_Cpfcnpj;
+    Cd_Operacao = fOperacao.Cd_Operacao;
+    Cd_Dnapagto = ACd_Dnapagto;
+    Dt_Canc = ADt_Canc;
+
+    Obj_Empresa = fEmpresa;
+    Obj_Operacao = fOperacao;
+    Obj_Pessoa = fPessoa;
+
+    Obj_Fiscal = new Obj_Fiscal {
+      Cd_Dnatrans = fTransacao.Cd_Dnatrans;
+
+      U_Version = '';
+      Cd_Operador = 1;
+      Dt_Cadastro = Now;
+
+      Tp_Docfiscal = fOperacao.Tp_Docfiscal;
+      Nr_Docfiscal = vNr_Docfiscal;
+      Tp_Modalidade = fOperacao.Tp_Modalidade;
+      Tp_Operacao = fOperacao.Tp_Operacao;
+      Cd_Serie = fOperacao.Cd_Serie;
+      Tp_Ambiente = 0;
+      Tp_Emissao = 0;
+      Dh_Emissao = Now;
+      Dh_EntradaSaida = Now;
+      Dh_Recibo = 0;
+      Nr_Recibo = '';
+      Tp_Processamento = TipoProcessamentoToStr(tppGerada);
+    }
+
+    Incluir();
+  }
+}
+
+public void Excluir
+{
+  fTransacao = new fTransacao {
+    Limpar();
+    if (ACd_Dnatrans != '') {
+      Cd_Dnatrans = ACd_Dnatrans;
+      Excluir();
+    }
+  }
+}
+
+//--
+
+public void AdicionarItem
+const
+  cDS_METHOD == 'TcTransacaoServico.AdicionarItem()';
+{
+  if (ACd_Barraprd == '')
+    throw new Exception('Produto deve ser informado / ' + cDS_METHOD);
+
+  fProduto = uclsProdutoServico.Instance.Consultar(ACd_Barraprd);
+  if (fProduto == null)
+    throw new Exception('Produto ' + ACd_Barraprd + ' nao encontrado / ' + cDS_METHOD);
+
+  fTransitem = fTransacao.List_Item.Add;
+  fTransitem.Obj_Produto = fProduto;
+
+  fTransitem = new fTransitem {
+    Cd_Dnatrans = fTransacao.Cd_Dnatrans;
+    Nr_Item = fTransacao.List_Item.Count;
+
+    U_Version = '';
+    Cd_Operador = 1;
+    Dt_Cadastro = Now;
+
+    Cd_Barraprd = fProduto.Cd_Barraprd;
+    Cd_Produto = fProduto.Cd_Produto;
+    Ds_Produto = fProduto.Ds_Produto;
+    Cd_Especie = fProduto.Cd_Especie;
+    Cd_Ncm = fProduto.Cd_Ncm;
+    Cd_Cfop = fOperacao.Cd_Cfop;
+    Qt_Item = AQt_Item;
+    Vl_Custo = fProduto.Vl_Custo;
+    Vl_Unitario = fProduto.Vl_Venda;
+    Vl_Item = Vl_Unitario * Qt_Item;
+    Vl_Variacao = AVl_Variacao;
+    Vl_VariacaoCapa = AVl_VariacaoCapa;
+
+    uclsImpostoServico.Instance.Gerar(
+      fTransacao,
+      fTransitem);
+
+    Incluir();
+  }
+}
+
+public void BuscarItem
+var
+  I : int;
+{
+  return = nil;
+
+  fTransacao = new fTransacao
+    for (int I = 0; 0 < List_Item.Count - 1; I++)
+      List_Item[I] = new List_Item[I]
+        if (Nr_Item == ANr_Item) {
+          return = List_Item[I];
+          Break;
+        }
+}
+
+public void ExcluirItem
+var
+  I : int;
+{
+  fTransacao = new fTransacao
+    for (int I = 0; 0 > List_Item.Count - 1; I--)
+      List_Item[I] = new List_Item[I]
+        if (Nr_Item == ANr_Item) {
+          Excluir();
+          Limpar();
+          Break;
+        }
+}
+
+//--
+
+public void GravarVariacaoCapa
+var
+  vVl_Resto, vPr_Proporcao : double;
+  vTransitemMaior : TTransitem;
+  I : int;
+{
+  vVl_Resto = AVl_Variacao;
+  vTransitemMaior = nil;
+
+  fTransacao = new fTransacao {
+    for (int I = 0; 0 < List_Item.Count - 1; I++) {
+      List_Item[I] = new List_Item[I] {
+        vPr_Proporcao = Vl_Item / fTransacao.Vl_Item;
+        Vl_VariacaoCapa = TmFloat.Rounded(AVl_Variacao * vPr_Proporcao, 2);
+        vVl_Resto = vVl_Resto - Vl_VariacaoCapa;
+
+        if (vTransitemMaior == null || (Vl_Item > vTransitemMaior.Vl_Item))
+          vTransitemMaior = List_Item[I];
+      }
+
+      if (vTransitemMaior != null || (vVl_Resto != 0))
+        vTransitemMaior = new vTransitemMaior
+          Vl_VariacaoCapa = Vl_VariacaoCapa + vVl_Resto;
+    }
+
+    Alterar();
+  }
+}
+
+public void ExcluirVariacaoCapa
+var
+  I : int;
+{
+  fTransacao = new fTransacao {
+    for (int I = 0; 0 < List_Item.Count - 1; I++)
+      List_Item[I] = new List_Item[I]
+        Vl_VariacaoCapa = 0;
+
+    Alterar();
+  }
+}
+
+//--
+
+public void GravarVariacaoItem
+var
+  vTransitem : TTransitem;
+{
+  vTransitem = BuscarItem(ANr_Item);
+  if (vTransitem != null) {
+    vTransitem = new vTransitem {
+      Vl_Variacao = AVl_Variacao;
+      RecalcularImpostoItem(vTransitem);
+      Alterar();
+    }
+  }
+}
+
+public void ExcluirVariacaoItem
+var
+  vTransitem : TTransitem;
+{
+  vTransitem = BuscarItem(ANr_Item);
+  if (vTransitem != null) {
+    vTransitem = new vTransitem {
+      Vl_Variacao = 0;
+      RecalcularImpostoItem(vTransitem);
+      Alterar();
+    }
+  }
+}
+
+//--
+
+public void RecalcularImpostoItem
+var
+  vVl_Imposto : double;
+  I : int;
+{
+  AObj_Item = new AObj_Item
+    for (int I = 0; 0 < List_Imposto.Count - 1; I++)
+      List_Imposto[I] = new List_Imposto[I] {
+        Vl_Basecalculo = Vl_Totitem;
+
+        vVl_Imposto = TmFloat.Rounded(Vl_Basecalculo * (Pr_Aliquota / 100) * (Pr_Basecalculo / 100), 2);
+
+        Vl_Imposto = IfThen(Vl_Imposto > 0, vVl_Imposto, 0);
+        Vl_Outro = IfThen(Vl_Outro > 0, vVl_Imposto, 0);
+        Vl_Isento = IfThen(Vl_Isento > 0, vVl_Imposto, 0);
+      }
+}
+
+//-- VENCTO - NFCe / NFe
+
+public void LimparVencto()
+{
+  fTransacao.List_Vencto = new fTransacao.List_Vencto {
+    Excluir();
+    Limpar();
+  }
+}
+
+public void GerarVencto
+const
+  cDS_METHOD == 'TcTransacaoServico.GerarVencto()';
+{
+  if (ADt_Parcela == 0)
+    throw new Exception('Data deve ser informada / ' + cDS_METHOD);
+  if (AVl_Parcela == 0)
+    throw new Exception('Valor deve ser informado / ' + cDS_METHOD);
+
+  fTransacao.List_Vencto.Add = new fTransacao.List_Vencto.Add {
+    Cd_Dnatrans = fTransacao.Cd_Dnatrans;
+    Nr_Parcela = fTransacao.List_Vencto.Count;
+
+    U_Version = '';
+    Cd_Operador = 1;
+    Dt_Cadastro = Now;
+
+    Dt_Parcela = ADt_Parcela;
+    Vl_Parcela = AVl_Parcela;
+
+    Incluir();
+  }
+}
+
+//-- PAGTO - NFCe
+
+public void LimparPagto()
+{
+  fTransacao.List_Pagto = new fTransacao.List_Pagto {
+    Excluir();
+    Limpar();
+  }
+}
+
+public void GerarPagto
+const
+  cDS_METHOD == 'TcTransacaoServico.GerarPagto()';
+{
+  if (ATp_Pagto == 0)
+    throw new Exception('Tipo deve ser informada / ' + cDS_METHOD);
+  if (AVl_Pagto == 0)
+    throw new Exception('Valor deve ser informado / ' + cDS_METHOD);
+
+  fTransacao.List_Pagto.Add = new fTransacao.List_Pagto.Add {
+    Cd_Dnatrans = fTransacao.Cd_Dnatrans;
+    Nr_Pagto = fTransacao.List_Pagto.Count;
+
+    U_Version = '';
+    Cd_Operador = 1;
+    Dt_Cadastro = Now;
+
+    Tp_Pagto = ATp_Pagto;
+    Vl_Pagto = AVl_Pagto;
+
+    Incluir();
+  }
+}
+
+//--
+
+public void EmitirDFe
+{
+  fTransacao = new fTransacao
+    if (Obj_Operacao.Tp_Docfiscal in [55, 65])
+      if (Cd_Dnatrans != '')
+        uclsDFeServico.Instance.EmitirDFe(Transacao);
+}
+
+//--
+
+public void GetVl_Total: double
+{
+  return = 0; 
+  fTransacao = new fTransacao
+    if (Cd_Dnatrans != '')
+      return = Vl_Total;
+}
+
+initialization
+  //Instance();
+
+finalization
+  Destroy();
+
+}
