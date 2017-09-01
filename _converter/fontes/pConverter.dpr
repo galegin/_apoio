@@ -4,6 +4,7 @@ uses
   Forms,
   ufrmConverter in 'ufrmConverter.pas' {F_Converter},
   uclsConverterDelphiToCSharp in 'uclsConverterDelphiToCSharp.pas',
+  uclsConverterDelphiToDelphi in 'uclsConverterDelphiToDelphi.pas',
   uclsConverterUnifaceToCSharp in 'uclsConverterUnifaceToCSharp.pas';
 
 {$R *.res}

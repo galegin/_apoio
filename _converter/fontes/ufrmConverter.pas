@@ -31,11 +31,13 @@ implementation
 
 uses
   uclsConverterDelphiToCSharp,
+  uclsConverterDelphiToDelphi,
   uclsConverterUnifaceToCSharp;
 
 const
   cLstConverter =
     'Delphi To CSharp' + sLineBreak +
+    'Delphi To Delphi' + sLineBreak +
     'Uniface To CSharp' ;
 
   procedure TF_Converter.Carregar();
@@ -79,6 +81,8 @@ begin
     0 :
       MemoDes.Text := TcConverterDelphiToCSharp.Converter(MemoOri.Text);
     1 :
+      MemoDes.Text := TcConverterDelphiToDelphi.Converter(MemoOri.Text);
+    2 :
       MemoDes.Text := TcConverterUnifaceToCSharp.Converter(MemoOri.Text);
   end;
 
