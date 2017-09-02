@@ -27,12 +27,12 @@ type
 implementation
 
 uses
-  mString;
+  mString, ufrmProcessando;
 
 { TcConverterDelphiToDelphi }
 
 const
-  TrConverterArray : Array [0..67] Of TrConverter = (
+  TrConverterArray : Array [0..70] Of TrConverter = (
 
     //-- cDataSetUnf
 
@@ -44,16 +44,16 @@ const
     (Tip: tsPar; Ent: 'putlistitens_e({var},{ent});'; Sai: '{ent}.SetValues({var});'),
     (Tip: tsPar; Ent: 'putlistitens_o({var},{ent});'; Sai: '{ent}.SetValues({var});'),
 
-    (Tip: tsPar; Ent: 'putitem_e({var},{cod},{val});'; Sai: '{var}.{cod} := {val};'),
-    (Tip: tsPar; Ent: 'putitem_o({var},{cod},{val});'; Sai: '{var}.{cod} := {val};'),
+    (Tip: tsPar; Ent: 'putitem_e({ent},{cod},{val});'; Sai: '{ent}.{cod} := {val};'),
+    (Tip: tsPar; Ent: 'putitem_o({ent},{cod},{val});'; Sai: '{ent}.{cod} := {val};'),
 
-    (Tip: tsPar; Ent: 'item_a({cod},{var)'; Sai: '{var}.{cod}'),
-    (Tip: tsPar; Ent: 'item_b({cod},{var)'; Sai: '{var}.{cod}'),
-    (Tip: tsPar; Ent: 'item_d({cod},{var)'; Sai: '{var}.{cod}'),
-    (Tip: tsPar; Ent: 'item_f({cod},{var)'; Sai: '{var}.{cod}'),
-    (Tip: tsPar; Ent: 'item_o({cod},{var)'; Sai: '{var}.{cod}'),
-    (Tip: tsPar; Ent: 'item_i({cod},{var)'; Sai: '{var}.{cod}'),
-    (Tip: tsPar; Ent: 'item_s({cod},{var)'; Sai: '{var}.{cod}'),
+    (Tip: tsPar; Ent: 'item_a({cod},{ent})'; Sai: '{ent}.{cod}'),
+    (Tip: tsPar; Ent: 'item_b({cod},{ent})'; Sai: '{ent}.{cod}'),
+    (Tip: tsPar; Ent: 'item_d({cod},{ent})'; Sai: '{ent}.{cod}'),
+    (Tip: tsPar; Ent: 'item_f({cod},{ent})'; Sai: '{ent}.{cod}'),
+    (Tip: tsPar; Ent: 'item_o({cod},{ent})'; Sai: '{ent}.{cod}'),
+    (Tip: tsPar; Ent: 'item_i({cod},{ent})'; Sai: '{ent}.{cod}'),
+    (Tip: tsPar; Ent: 'item_s({cod},{ent})'; Sai: '{ent}.{cod}'),
 
     (Tip: tsPar; Ent: 'empty_e({ent})'; Sai: '{ent}.IsEmpty()'),
     (Tip: tsPar; Ent: 'empty({ent})'; Sai: '{ent}.IsEmpty()'),
@@ -91,14 +91,17 @@ const
 
     //-- cServiceUnf
 
-    (Tip: tsPar; Ent: 'GetEntidade({ent},{cod},{con})'; Sai: '{ent}.Create(nil)'),
-    (Tip: tsPar; Ent: 'GetEntidade({ent},{cod})'; Sai: '{ent}.Create(nil)'),
-    (Tip: tsPar; Ent: 'GetEntidade({ent})'; Sai: '{ent}.Create(nil)'),
+    //TcDataSetUnf.getEntidade(
+    (Tip: tsPar; Ent: 'TcDataSetUnf.getEntidade({cmp},{ent},{cod},{con})'; Sai: '{ent}.Create(nil)'),
+    (Tip: tsPar; Ent: 'TcDataSetUnf.getEntidade({cmp},{ent},{cod})'; Sai: '{ent}.Create(nil)'),
+    (Tip: tsPar; Ent: 'TcDataSetUnf.getEntidade({cmp},{ent})'; Sai: '{ent}.Create(nil)'),
+    (Tip: tsPar; Ent: 'getEntidade({ent},{cod},{con})'; Sai: '{ent}.Create(nil)'),
+    (Tip: tsPar; Ent: 'getEntidade({ent},{cod})'; Sai: '{ent}.Create(nil)'),
+    (Tip: tsPar; Ent: 'getEntidade({ent})'; Sai: '{ent}.Create(nil)'),
 
     //-- cActivate
 
-    (Tip: tsPar; Ent: 'activateCmp({cmp},{mtd},{par});'; Sai: '{cmp}.{mtp}({par});'),
-
+    (Tip: tsPar; Ent: 'activateCmp({cmp},{mtd},{par});'; Sai: '{cmp}.{mtp}({par});'),    
 
     //-- cFuncao
 
@@ -110,11 +113,11 @@ const
     (Tip: tsPar; Ent: 'putitemXml({var},{cod},{val});'; Sai: '{var}.{cod} := {val};'),
     (Tip: tsPar; Ent: 'putitem({var},{cod},{val});'; Sai: '{var}.{cod} := {val};'),
 
-    (Tip: tsPar; Ent: 'itemXmlB({cod},{var)'; Sai: '{var}.{cod}'),
-    (Tip: tsPar; Ent: 'itemXmlD({cod},{var)'; Sai: '{var}.{cod}'),
-    (Tip: tsPar; Ent: 'itemXmlF({cod},{var)'; Sai: '{var}.{cod}'),
-    (Tip: tsPar; Ent: 'itemXmlI({cod},{var)'; Sai: '{var}.{cod}'),
-    (Tip: tsPar; Ent: 'itemXml({cod},{var)'; Sai: '{var}.{cod}'),
+    (Tip: tsPar; Ent: 'itemXmlB({cod},{var})'; Sai: '{var}.{cod}'),
+    (Tip: tsPar; Ent: 'itemXmlD({cod},{var})'; Sai: '{var}.{cod}'),
+    (Tip: tsPar; Ent: 'itemXmlF({cod},{var})'; Sai: '{var}.{cod}'),
+    (Tip: tsPar; Ent: 'itemXmlI({cod},{var})'; Sai: '{var}.{cod}'),
+    (Tip: tsPar; Ent: 'itemXml({cod},{var})'; Sai: '{var}.{cod}'),
 
     (Tip: tsPar; Ent: 'itemB({cod},{var})'; Sai: '{var}.{cod}'),
     (Tip: tsPar; Ent: 'itemD({cod},{var})'; Sai: '{var}.{cod}'),
@@ -142,8 +145,13 @@ begin
   vLista := TStringList.Create;
   vLista.Text := AString;
 
+  ufrmProcessando.Instance.Inciar(vLista.Count);
+
   for I := 0 to vLista.Count - 1 do begin
     vLinha := vLista[I];
+
+    if (I mod 100) = 0 then
+      ufrmProcessando.Instance.Posicionar(I + 1);
 
     for J := 1 to High(TrConverterArray) do begin
       vConverter := TrConverterArray[J];
@@ -185,6 +193,8 @@ begin
 
     vLista[I] := vLinha;
   end;
+
+  ufrmProcessando.Destroy;
 
   Result := vLista.Text;
   vLista.Free;

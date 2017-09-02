@@ -4,7 +4,7 @@ interface
 
 uses
   Windows, Messages, SysUtils, Variants, Classes, Graphics, Controls, Forms,
-  Dialogs, StdCtrls, ExtCtrls;
+  Dialogs, StdCtrls, ExtCtrls, ComCtrls;
 
 type
   TF_Converter = class(TForm)
@@ -59,7 +59,7 @@ const
 procedure TF_Converter.FormCreate(Sender: TObject);
 begin
   tpConverter.Items.Text := cLstConverter;
-  tpConverter.ItemIndex := 0;
+  tpConverter.ItemIndex := 1;
   Carregar();
 end;
 
@@ -77,6 +77,9 @@ end;
 
 procedure TF_Converter.BtnConverterClick(Sender: TObject);
 begin
+  MemoOri.Visible := False;
+  MemoDes.Visible := False;
+
   case tpConverter.ItemIndex of
     0 :
       MemoDes.Text := TcConverterDelphiToCSharp.Converter(MemoOri.Text);
@@ -85,6 +88,9 @@ begin
     2 :
       MemoDes.Text := TcConverterUnifaceToCSharp.Converter(MemoOri.Text);
   end;
+
+  MemoOri.Visible := True;
+  MemoDes.Visible := True;
 
   DesCarregar();
 

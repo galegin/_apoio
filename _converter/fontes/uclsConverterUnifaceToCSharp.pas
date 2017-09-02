@@ -27,7 +27,7 @@ type
 implementation
 
 uses
-  mString;
+  mString, ufrmProcessando;
 
 { TcConverterUnifaceToCSharp }
 
@@ -174,8 +174,13 @@ begin
     while (vLista.Count > 0) and (vLista[0] <> 'implementation') do
       vLista.Delete(0);
 
+  ufrmProcessando.Instance.Inciar(vLista.Count);
+
   for I := 0 to vLista.Count - 1 do begin
     vLinha := vLista[I];
+
+    if (I mod 100) = 0 then
+      ufrmProcessando.Instance.Posicionar(I + 1);
 
     for J := 1 to High(TrConverterArray) do begin
       vConverter := TrConverterArray[J];
@@ -217,6 +222,8 @@ begin
 
     vLista[I] := vLinha;
   end;
+
+  ufrmProcessando.Destroy;
 
   Result := vLista.Text;
   vLista.Free;

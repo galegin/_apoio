@@ -15,6 +15,9 @@ object F_Converter: TF_Converter
   OnCreate = FormCreate
   OnKeyDown = FormKeyDown
   OnShow = FormShow
+  DesignSize = (
+    767
+    502)
   PixelsPerInch = 96
   TextHeight = 13
   object Bevel1: TBevel
@@ -36,10 +39,11 @@ object F_Converter: TF_Converter
   object tpConverter: TComboBox
     Left = 96
     Top = 4
-    Width = 309
+    Width = 665
     Height = 21
     BevelKind = bkFlat
     Style = csDropDownList
+    Anchors = [akLeft, akTop, akRight]
     ItemHeight = 13
     ItemIndex = 0
     TabOrder = 1
