@@ -1,0 +1,2 @@
+upx "pConverter.exe"
+pause
