@@ -32,46 +32,49 @@ uses
 { TcConverterDelphiToDelphi }
 
 const
-  TrConverterArray : Array [0..70] Of TrConverter = (
+  TrConverterArray : Array [0..98] Of TrConverter = (
 
     //-- cDataSetUnf
 
-    (Tip: tsPar; Ent: 'getlistitens_a({var},{ent});'; Sai: '{var} := {ent}.GetValues();'),
-    (Tip: tsPar; Ent: 'getlistitens_e({var},{ent});'; Sai: '{var} := {ent}.GetValues();'),
-    (Tip: tsPar; Ent: 'getlistitens_i({var},{ent});'; Sai: '{var} := {ent}.GetValues();'),
-    (Tip: tsPar; Ent: 'getlistitens_o({var},{ent});'; Sai: '{var} := {ent}.GetValues();'),
+    (Tip: tsPar; Ent: 'getlistitensocc_a({var},{esp}t{ent});'; Sai: '{var} := f{ent}.GetValues();'),
+    (Tip: tsPar; Ent: 'getlistitensocc_e({var},{esp}t{ent});'; Sai: '{var} := f{ent}.GetValues();'),
+    (Tip: tsPar; Ent: 'getlistitensocc_i({var},{esp}t{ent});'; Sai: '{var} := f{ent}.GetValues();'),
+    (Tip: tsPar; Ent: 'getlistitensocc_o({var},{esp}t{ent});'; Sai: '{var} := f{ent}.GetValues();'),
 
-    (Tip: tsPar; Ent: 'putlistitens_e({var},{ent});'; Sai: '{ent}.SetValues({var});'),
-    (Tip: tsPar; Ent: 'putlistitens_o({var},{ent});'; Sai: '{ent}.SetValues({var});'),
+    (Tip: tsPar; Ent: 'putlistitensocc_e({var},{esp}t{ent});'; Sai: 'f{ent}.SetValues({var});'),
+    (Tip: tsPar; Ent: 'putlistitensocc_o({var},{esp}t{ent});'; Sai: 'f{ent}.SetValues({var});'),
 
-    (Tip: tsPar; Ent: 'putitem_e({ent},{cod},{val});'; Sai: '{ent}.{cod} := {val};'),
-    (Tip: tsPar; Ent: 'putitem_o({ent},{cod},{val});'; Sai: '{ent}.{cod} := {val};'),
+    (Tip: tsPar; Ent: 'putitem_e({esp}t{ent},{es1}''{cod}''{es2},{val});'; Sai: 'f{ent}.{cod} := {val};'),
+    (Tip: tsPar; Ent: 'putitem_o({esp}t{ent},{es1}''{cod}''{es2},{val});'; Sai: 'f{ent}.{cod} := {val};'),
 
-    (Tip: tsPar; Ent: 'item_a({cod},{ent})'; Sai: '{ent}.{cod}'),
-    (Tip: tsPar; Ent: 'item_b({cod},{ent})'; Sai: '{ent}.{cod}'),
-    (Tip: tsPar; Ent: 'item_d({cod},{ent})'; Sai: '{ent}.{cod}'),
-    (Tip: tsPar; Ent: 'item_f({cod},{ent})'; Sai: '{ent}.{cod}'),
-    (Tip: tsPar; Ent: 'item_o({cod},{ent})'; Sai: '{ent}.{cod}'),
-    (Tip: tsPar; Ent: 'item_i({cod},{ent})'; Sai: '{ent}.{cod}'),
-    (Tip: tsPar; Ent: 'item_s({cod},{ent})'; Sai: '{ent}.{cod}'),
+    (Tip: tsPar; Ent: 'item_a({es1}''{cod}''{es2},{esp}t{ent})'; Sai: 'f{ent}.{cod}'),
+    (Tip: tsPar; Ent: 'item_b({es1}''{cod}''{es2},{esp}t{ent})'; Sai: 'f{ent}.{cod}'),
+    (Tip: tsPar; Ent: 'item_d({es1}''{cod}''{es2},{esp}t{ent})'; Sai: 'f{ent}.{cod}'),
+    (Tip: tsPar; Ent: 'item_f({es1}''{cod}''{es2},{esp}t{ent})'; Sai: 'f{ent}.{cod}'),
+    (Tip: tsPar; Ent: 'item_o({es1}''{cod}''{es2},{esp}t{ent})'; Sai: 'f{ent}.{cod}'),
+    (Tip: tsPar; Ent: 'item_i({es1}''{cod}''{es2},{esp}t{ent})'; Sai: 'f{ent}.{cod}'),
+    (Tip: tsPar; Ent: 'item_s({es1}''{cod}''{es2},{esp}t{ent})'; Sai: 'f{ent}.{cod}'),
 
-    (Tip: tsPar; Ent: 'empty_e({ent})'; Sai: '{ent}.IsEmpty()'),
-    (Tip: tsPar; Ent: 'empty({ent})'; Sai: '{ent}.IsEmpty()'),
+    (Tip: tsPar; Ent: 'empty_e({esp}t{ent})'; Sai: 'f{ent}.IsEmpty()'),
+    (Tip: tsPar; Ent: 'empty({esp}t{ent})'; Sai: 'f{ent}.IsEmpty()'),
 
-    (Tip: tsPar; Ent: 'dbocc({ent})'; Sai: '{ent}.IsDatabase()'),
-    (Tip: tsPar; Ent: 'curocc({ent})'; Sai: '{ent}.RecNo'),
-    (Tip: tsPar; Ent: 'curoccM({ent})'; Sai: '{ent}.RecNo'),
-    (Tip: tsPar; Ent: 'totocc({ent})'; Sai: '{ent}.RecordCount()'),
-    (Tip: tsPar; Ent: 'creocc({ent})'; Sai: '{ent}.Append()'),
-    (Tip: tsPar; Ent: 'remocc({ent})'; Sai: '{ent}.Remove()'),
+    (Tip: tsPar; Ent: 'dbocc({esp}t{ent})'; Sai: 'f{ent}.IsDatabase()'),
+    (Tip: tsPar; Ent: 'curocc({esp}t{ent})'; Sai: 'f{ent}.RecNo'),
+    (Tip: tsPar; Ent: 'curoccM({esp}t{ent})'; Sai: 'f{ent}.RecNo'),
+    (Tip: tsPar; Ent: 'totocc({esp}t{ent})'; Sai: 'f{ent}.RecordCount()'),
+    (Tip: tsPar; Ent: 'creocc({esp}t{ent},{pos})'; Sai: 'f{ent}.Append()'),
+    (Tip: tsPar; Ent: 'remocc({esp}t{ent})'; Sai: 'f{ent}.Remove()'),
 
-    (Tip: tsPar; Ent: 'clear_e({ent});'; Sai: '{ent}.Limpar();'),
-    (Tip: tsPar; Ent: 'retrieve_a({ent});'; Sai: '{ent}.Consultar();'),
-    (Tip: tsPar; Ent: 'retrieve_e({ent});'; Sai: '{ent}.Consultar();'),
-    (Tip: tsPar; Ent: 'retrieve_l({ent});'; Sai: '{ent}.Consultar();'),
-    (Tip: tsPar; Ent: 'retrieve_o({ent});'; Sai: '{ent}.Consultar();'),
-    (Tip: tsPar; Ent: 'retrieve_x({ent});'; Sai: '{ent}.Consultar();'),
-    (Tip: tsPar; Ent: 'discard({ent});'; Sai: '{ent}.Remover();'),
+    (Tip: tsPar; Ent: 'setocc({esp}t{ent}, 1)'; Sai: 'f{ent}.First()'),
+    (Tip: tsPar; Ent: 'setocc({esp}t{ent},{pos})'; Sai: 'f{ent}.Next()'),
+
+    (Tip: tsPar; Ent: 'clear_e({esp}t{ent});'; Sai: 'f{ent}.Limpar();'),
+    (Tip: tsPar; Ent: 'retrieve_a({esp}t{ent});'; Sai: 'f{ent}.Listar();'),
+    (Tip: tsPar; Ent: 'retrieve_e({esp}t{ent});'; Sai: 'f{ent}.Listar();'),
+    (Tip: tsPar; Ent: 'retrieve_l({esp}t{ent});'; Sai: 'f{ent}.Consultar();'),
+    (Tip: tsPar; Ent: 'retrieve_o({esp}t{ent});'; Sai: 'f{ent}.Consultar();'),
+    (Tip: tsPar; Ent: 'retrieve_x({esp}t{ent});'; Sai: 'f{ent}.Consultar();'),
+    (Tip: tsPar; Ent: 'discard({esp}t{ent});'; Sai: 'f{ent}.Remover();'),
 
     (Tip: tsPar; Ent: 'askmess({msg},{opc});'; Sai: 'Mensagem.Dialog({msg},{opc});'),
     (Tip: tsPar; Ent: 'askmess_aviso({msg},{opc});'; Sai: 'Mensagem.Dialog({msg},{opc});'),
@@ -92,45 +95,80 @@ const
     //-- cServiceUnf
 
     //TcDataSetUnf.getEntidade(
-    (Tip: tsPar; Ent: 'TcDataSetUnf.getEntidade({cmp},{ent},{cod},{con})'; Sai: '{ent}.Create(nil)'),
-    (Tip: tsPar; Ent: 'TcDataSetUnf.getEntidade({cmp},{ent},{cod})'; Sai: '{ent}.Create(nil)'),
-    (Tip: tsPar; Ent: 'TcDataSetUnf.getEntidade({cmp},{ent})'; Sai: '{ent}.Create(nil)'),
-    (Tip: tsPar; Ent: 'getEntidade({ent},{cod},{con})'; Sai: '{ent}.Create(nil)'),
-    (Tip: tsPar; Ent: 'getEntidade({ent},{cod})'; Sai: '{ent}.Create(nil)'),
-    (Tip: tsPar; Ent: 'getEntidade({ent})'; Sai: '{ent}.Create(nil)'),
+    (Tip: tsPar; Ent: 'TcDataSetUnf.getEntidade({cmp},{es1}''{ent}''{es2},{cod},{con})'; Sai: 'T{ent}.Create(nil)'),
+    (Tip: tsPar; Ent: 'TcDataSetUnf.getEntidade({cmp},{es1}''{ent}''{es2},{cod})'; Sai: 'T{ent}.Create(nil)'),
+    (Tip: tsPar; Ent: 'TcDataSetUnf.getEntidade({cmp},{es1}''{ent}''{es2})'; Sai: 'T{ent}.Create(nil)'),
+    (Tip: tsPar; Ent: 'GetEntidade({es1}''{ent}''{es2},{cod},{con})'; Sai: 'T{ent}.Create(nil)'),
+    (Tip: tsPar; Ent: 'GetEntidade({es1}''{ent}''{es2},{cod})'; Sai: 'T{ent}.Create(nil)'),
+    (Tip: tsPar; Ent: 'GetEntidade({es1}''{ent}''{es2})'; Sai: 'T{ent}.Create(nil)'),
 
     //-- cActivate
 
-    (Tip: tsPar; Ent: 'activateCmp({cmp},{mtd},{par});'; Sai: '{cmp}.{mtp}({par});'),    
+    (Tip: tsPar; Ent: 'activateCmp({es1}''{cmp}''{es2},{es3}''{mtd}''{es4},{par});'; Sai: 'c{cmp}.Instance.{mtd}({par});'),
+    (Tip: tsPar; Ent: 'execClasse({es1}''{cmp}''{es2},{es3}''{mtd}''{es4},{par});'; Sai: 'c{cmp}.Instance.{mtd}({par});'),
+    (Tip: tsPar; Ent: 'exceObjeto({cmp},{es3}''{mtd}''{es4},{par});'; Sai: 'c{cmp}.Instance.{mtd}({par});'),
 
     //-- cFuncao
 
-    (Tip: tsPar; Ent: 'getlistitemsApp({str},{ent});'; Sai: '{ent}.SetValues({str});'),
-    (Tip: tsPar; Ent: 'getlistitemsIns({str},{ent});'; Sai: '{ent}.SetValues({str});'),
-    (Tip: tsPar; Ent: 'getlistitemsocc({str},{ent});'; Sai: '{ent}.SetValues({str});'),
-    (Tip: tsPar; Ent: 'putlistitemsocc({str},{ent});'; Sai: '{str} := {ent}.GetValues();'),
+    (Tip: tsPar; Ent: 'getlistitemsoccApp({str},{esp}t{ent});'; Sai: 'f{ent}.SetValues({str});'),
+    (Tip: tsPar; Ent: 'getlistitemsoccIns({str},{esp}t{ent});'; Sai: 'f{ent}.SetValues({str});'),
+    (Tip: tsPar; Ent: 'getlistitemsocc({str},{esp}t{ent});'; Sai: 'f{ent}.SetValues({str});'),
+    (Tip: tsPar; Ent: 'putlistitemsocc({str},{esp}t{ent});'; Sai: '{str} := f{ent}.GetValues();'),
 
-    (Tip: tsPar; Ent: 'putitemXml({var},{cod},{val});'; Sai: '{var}.{cod} := {val};'),
-    (Tip: tsPar; Ent: 'putitem({var},{cod},{val});'; Sai: '{var}.{cod} := {val};'),
+    (Tip: tsPar; Ent: 'putitemXml({var},{es1}''{cod}''{es2},{val});'; Sai: '{var}.{cod} := {val};'),
+    (Tip: tsPar; Ent: 'putitem({esp}t{ent},{es1}''{cod}''{es2},{val});'; Sai: 'f{ent}.{cod} := {val};'),
 
-    (Tip: tsPar; Ent: 'itemXmlB({cod},{var})'; Sai: '{var}.{cod}'),
-    (Tip: tsPar; Ent: 'itemXmlD({cod},{var})'; Sai: '{var}.{cod}'),
-    (Tip: tsPar; Ent: 'itemXmlF({cod},{var})'; Sai: '{var}.{cod}'),
-    (Tip: tsPar; Ent: 'itemXmlI({cod},{var})'; Sai: '{var}.{cod}'),
-    (Tip: tsPar; Ent: 'itemXml({cod},{var})'; Sai: '{var}.{cod}'),
+    (Tip: tsPar; Ent: 'itemXmlB({es1}''{cod}''{es2},{var})'; Sai: '{var}.{cod}'),
+    (Tip: tsPar; Ent: 'itemXmlD({es1}''{cod}''{es2},{var})'; Sai: '{var}.{cod}'),
+    (Tip: tsPar; Ent: 'itemXmlF({es1}''{cod}''{es2},{var})'; Sai: '{var}.{cod}'),
+    (Tip: tsPar; Ent: 'itemXmlI({es1}''{cod}''{es2},{var})'; Sai: '{var}.{cod}'),
+    (Tip: tsPar; Ent: 'itemXml({es1}''{cod}''{es2},{var})'; Sai: '{var}.{cod}'),
 
-    (Tip: tsPar; Ent: 'itemB({cod},{var})'; Sai: '{var}.{cod}'),
-    (Tip: tsPar; Ent: 'itemD({cod},{var})'; Sai: '{var}.{cod}'),
-    (Tip: tsPar; Ent: 'itemF({cod},{var})'; Sai: '{var}.{cod}'),
-    (Tip: tsPar; Ent: 'itemI({cod},{var})'; Sai: '{var}.{cod}'),
-    (Tip: tsPar; Ent: 'item({cod},{var})'; Sai: '{var}.{cod}'),
+    (Tip: tsPar; Ent: 'itemB({es1}''{cod}''{es2},{esp}t{ent})'; Sai: 'f{ent}.{cod}'),
+    (Tip: tsPar; Ent: 'itemD({es1}''{cod}''{es2},{esp}t{ent})'; Sai: 'f{ent}.{cod}'),
+    (Tip: tsPar; Ent: 'itemF({es1}''{cod}''{es2},{esp}t{ent})'; Sai: 'f{ent}.{cod}'),
+    (Tip: tsPar; Ent: 'itemI({es1}''{cod}''{es2},{esp}t{ent})'; Sai: 'f{ent}.{cod}'),
+    (Tip: tsPar; Ent: 'item({es1}''{cod}''{es2},{esp}t{ent})'; Sai: 'f{ent}.{cod}'),
 
     (Tip: tsPar; Ent: 'GravaIni({cpo},{var})'; Sai: 'TcIniFiles.Setar('''','''',{cpo},{var})'),
     (Tip: tsPar; Ent: 'LeIniB({cpo})'; Sai: 'TcIniFiles.PegarB('''','''',{cpo})'),
     (Tip: tsPar; Ent: 'LeIniD({cpo})'; Sai: 'TcIniFiles.PegarD('''','''',{cpo})'),
     (Tip: tsPar; Ent: 'LeIniF({cpo})'; Sai: 'TcIniFiles.PegarF('''','''',{cpo})'),
     (Tip: tsPar; Ent: 'LeIniI({cpo})'; Sai: 'TcIniFiles.PegarI('''','''',{cpo})'),
-    (Tip: tsPar; Ent: 'LeIni({cpo})'; Sai: 'TcIniFiles.Pegar('''','''',{cpo})')
+    (Tip: tsPar; Ent: 'LeIni({cpo})'; Sai: 'TcIniFiles.Pegar('''','''',{cpo})'),
+
+    //-- cStatus
+
+    (Tip: tsPar; Ent: 'Result := SetStatus({sts},{tip},{msg},{mtd});'; Sai: 'raise Exception.Create({msg} + '' / '' + {mtd});'),
+    (Tip: tsAll; Ent: 'if (xStatus < 0) then'; Sai: 'if (itemXmlF(''status'', voParams) < 0) then'),
+    (Tip: tsAll; Ent: 'Result := voParams;'; Sai: 'raise Exception.Create(itemXml(''message'', voParams));'),
+    (Tip: tsAll; Ent: 'return(-1); exit;'; Sai: 'exit;'),
+    (Tip: tsAll; Ent: 'return(0); exit;'; Sai: 'exit;'),
+
+    (Tip: tsAll; Ent: 'while (xStatus >= 0) do'; Sai: 'while not t.EOF do'),
+
+    (Tip: tsAll; Ent: ' = True)'; Sai: ')'),
+    (Tip: tsPar; Ent: 'if ({exp} = True) then'; Sai: 'if ({exp}) then'),
+    (Tip: tsPar; Ent: 'if ({exp} = False) then'; Sai: 'if not ({exp}) then'),
+
+    //-- cString
+
+    (Tip: tsAll; Ent: ' :=    '; Sai: ' := '),
+    (Tip: tsAll; Ent: ' :=   '; Sai: ' := '),
+    (Tip: tsAll; Ent: ' :=  '; Sai: ' := '),
+    (Tip: tsAll; Ent: ' -    '; Sai: ' := '),
+    (Tip: tsAll; Ent: ' -   '; Sai: ' := '),
+    (Tip: tsAll; Ent: ' -  '; Sai: ' := '),
+    (Tip: tsAll; Ent: ' +    '; Sai: ' := '),
+    (Tip: tsAll; Ent: ' +   '; Sai: ' := '),
+    (Tip: tsAll; Ent: ' +  '; Sai: ' := '),
+
+    (Tip: tsAll; Ent: '(   '; Sai: '('),
+    (Tip: tsAll; Ent: '(  '; Sai: '('),
+    (Tip: tsAll; Ent: '( '; Sai: '('),
+    (Tip: tsAll; Ent: '   )'; Sai: ')'),
+    (Tip: tsAll; Ent: '  )'; Sai: ')'),
+    (Tip: tsAll; Ent: ' )'; Sai: ')')
 
   );
 

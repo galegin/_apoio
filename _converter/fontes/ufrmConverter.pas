@@ -14,6 +14,8 @@ type
     MemoOri: TMemo;
     Splitter1: TSplitter;
     MemoDes: TMemo;
+    Label1: TLabel;
+    EditCaminho: TEdit;
     procedure FormCreate(Sender: TObject);
     procedure FormShow(Sender: TObject);
     procedure FormKeyDown(Sender: TObject; var Key: Word; Shift: TShiftState);
@@ -30,6 +32,7 @@ var
 implementation
 
 uses
+  mDiretorio,
   uclsConverterDelphiToCSharp,
   uclsConverterDelphiToDelphi,
   uclsConverterUnifaceToCSharp;
@@ -76,23 +79,48 @@ begin
 end;
 
 procedure TF_Converter.BtnConverterClick(Sender: TObject);
+
+  function PrcConverter(pString : String) : String;
+  begin
+    case tpConverter.ItemIndex of
+      0 : Result := TcConverterDelphiToCSharp.Converter(pString);
+      1 : Result := TcConverterDelphiToDelphi.Converter(pString);
+      2 : Result := TcConverterUnifaceToCSharp.Converter(pString);
+    end;
+  end;
+
+var
+  vList_Arquivo : TrArquivoArray;
+  vDirOri, vDirDes : String;
+  I : Integer;
 begin
   MemoOri.Visible := False;
   MemoDes.Visible := False;
 
-  case tpConverter.ItemIndex of
-    0 :
-      MemoDes.Text := TcConverterDelphiToCSharp.Converter(MemoOri.Text);
-    1 :
-      MemoDes.Text := TcConverterDelphiToDelphi.Converter(MemoOri.Text);
-    2 :
-      MemoDes.Text := TcConverterUnifaceToCSharp.Converter(MemoOri.Text);
+  if EditCaminho.Text <> '' then begin
+
+    vDirOri := EditCaminho.Text;
+    vDirDes := EditCaminho.Text + 'alterado\';
+    TmDiretorio.Create(vDirDes);
+
+    vList_Arquivo := TmDiretorio.Listar(vDirOri);
+
+    for I := 0 to High(vList_Arquivo) do begin
+      MemoOri.Lines.LoadFromFile(vDirOri + vList_Arquivo[I].Arquivo);
+      MemoDes.Text := PrcConverter(MemoOri.Text);
+      MemoDes.Lines.SaveToFile(vDirDes + vList_Arquivo[I].Arquivo);
+    end;
+
+  end else begin
+
+    MemoDes.Text := PrcConverter(MemoOri.Text);
+
+    DesCarregar();
+
   end;
 
   MemoOri.Visible := True;
   MemoDes.Visible := True;
-
-  DesCarregar();
 
   ShowMessage('Conversão efetuada com sucesso');
 end;

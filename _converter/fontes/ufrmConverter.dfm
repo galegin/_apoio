@@ -12,12 +12,10 @@ object F_Converter: TF_Converter
   Font.Style = []
   KeyPreview = True
   OldCreateOrder = False
+  Position = poScreenCenter
   OnCreate = FormCreate
   OnKeyDown = FormKeyDown
   OnShow = FormShow
-  DesignSize = (
-    767
-    502)
   PixelsPerInch = 96
   TextHeight = 13
   object Bevel1: TBevel
@@ -36,14 +34,20 @@ object F_Converter: TF_Converter
     Cursor = crVSplit
     Align = alTop
   end
+  object Label1: TLabel
+    Left = 264
+    Top = 4
+    Width = 41
+    Height = 13
+    Caption = 'Caminho'
+  end
   object tpConverter: TComboBox
     Left = 96
     Top = 4
-    Width = 665
+    Width = 165
     Height = 21
     BevelKind = bkFlat
     Style = csDropDownList
-    Anchors = [akLeft, akTop, akRight]
     ItemHeight = 13
     ItemIndex = 0
     TabOrder = 1
@@ -91,5 +95,14 @@ object F_Converter: TF_Converter
     Caption = 'Converter'
     TabOrder = 0
     OnClick = BtnConverterClick
+  end
+  object EditCaminho: TEdit
+    Left = 312
+    Top = 4
+    Width = 289
+    Height = 21
+    BorderStyle = bsNone
+    TabOrder = 4
+    Text = 'C:\Projetos\_apoio\_converter\delphi_to_delphi\'
   end
 end
