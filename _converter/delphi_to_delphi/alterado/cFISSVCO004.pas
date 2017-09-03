@@ -447,7 +447,7 @@ begin
     voParams := cSICSVCO005.Instance.buscaSequencia(viParams); 
     if (itemXmlF('status', voParams) < 0) then begin
       raise Exception.Create(itemXml('message', voParams));
-      
+      exit;
     end;
     gNrFatura := voParams.NR_FATURA;
   end else begin
@@ -463,7 +463,7 @@ begin
       voParams := cGERSVCO031.Instance.getNumSeq(viParams); 
       if (itemXmlF('status', voParams) < 0) then begin
         raise Exception.Create(itemXml('message', voParams));
-        
+        exit;
       end;
       gNrFatura := voParams.NR_SEQUENCIA;
     end;
@@ -472,8 +472,8 @@ begin
     end;
   end;
   if (gNrFatura = 0) then begin
-    raise Exception.Create('Não foi possível obter nr. de fatura da NF' + ' / ' := cDS_METHOD);
-    
+    raise Exception.Create('Não foi possível obter nr. de fatura da NF' + ' / ' + cDS_METHOD);
+    exit;
   end;
   if (gDtFatura <> 0) then begin
     vDtSistema := gDtFatura;
@@ -567,7 +567,7 @@ begin
 
   fTMP_CSTALIQ.Limpar();
 
-  return(0); exit;
+  exit;
 end;
 
 //----------------------------------------------------------
@@ -597,7 +597,7 @@ begin
       voParams := cGERSVCO046.Instance.buscaDadosProduto(viParams);
       if (itemXmlF('status', voParams) < 0) then begin
         raise Exception.Create(itemXml('message', voParams));
-        
+        exit;
       end;
       vCdTIPI := voParams.CD_TIPI;
       vDsTIPI := voParams.DS_TIPI;
@@ -608,7 +608,7 @@ begin
       voParams := cGERSVCO046.Instance.buscaDadosFiscal(viParams);
       if (itemXmlF('status', voParams) < 0) then begin
         raise Exception.Create(itemXml('message', voParams));
-        
+        exit;
       end;
 
       vDsTIPI := voParams.DS_TIPI;
@@ -622,7 +622,7 @@ begin
       voParams := cGERSVCO046.Instance.buscaDadosFiscal(viParams);
       if (itemXmlF('status', voParams) < 0) then begin
         raise Exception.Create(itemXml('message', voParams));
-        
+        exit;
       end;
 
       vDsTIPI := voParams.DS_TIPI;
@@ -662,11 +662,11 @@ begin
     voParams := tFIS_NFITEMADIC.Salvar();
     if (itemXmlF('status', voParams) < 0) then begin
       raise Exception.Create(itemXml('message', voParams));
-      
+      exit;
     end;
   end;
 
-  if (vInCopiaValor = True) and (gTpAgrupamentoItemNF <> 1) then begin
+  if (vInCopiaValor) and (gTpAgrupamentoItemNF <> 1) then begin
     fFIS_NFITEM.VL_UNITBRUTO := fTRA_TRANSITEM.VL_UNITBRUTO;
     fFIS_NFITEM.VL_UNITLIQUIDO := fTRA_TRANSITEM.VL_UNITLIQUIDO;
     fFIS_NFITEM.VL_UNITDESC := fTRA_TRANSITEM.VL_UNITDESC + item_f('VL_UNITDESCCAB', tTRA_TRANSITEM);
@@ -748,7 +748,7 @@ begin
           voParams := cPRDSVCO023.Instance.buscaDadosProduto(viParams);
           if (itemXmlF('status', voParams) < 0) then begin
             raise Exception.Create(itemXml('message', voParams));
-            
+            exit;
           end;
           fFIS_NFITEM.CD_PRODUTO := copy(voParams.CD_ORIGEM,1,14);
           fFIS_NFITEM.DS_PRODUTO := copy(voParams.DS_ORIGEM,1,60);
@@ -759,7 +759,7 @@ begin
           voParams := cPRDSVCO023.Instance.buscaDadosGrupo(viParams);
           if (itemXmlF('status', voParams) < 0) then begin
             raise Exception.Create(itemXml('message', voParams));
-            
+            exit;
           end;
           fFIS_NFITEM.CD_PRODUTO := copy(voParams.CD_ORIGEM,1,14);
           fFIS_NFITEM.DS_PRODUTO := copy(voParams.DS_ORIGEM,1,60);
@@ -781,7 +781,7 @@ begin
         voParams := cPRDSVCO015.Instance.retornaDadosPedidoG(viParams);
         if (itemXmlF('status', voParams) < 0) then begin
           raise Exception.Create(itemXml('message', voParams));
-          
+          exit;
         end;
         fFIS_NFITEM.CD_PRODUTO := copy(voParams.CD_NIVELFAT,1,14);
         fFIS_NFITEM.DS_PRODUTO := copy(voParams.DS_NIVELFAT,1,60);
@@ -815,12 +815,12 @@ begin
 
   if (fFIS_NFITEM.CD_PRODUTO <> '') then begin
     if (fFIS_NFITEM.CD_CFOP = 0) then begin
-      raise Exception.Create('Falta CFOP no produto ' + fFIS_NFITEM.CD_PRODUTO + '!' + ' / ' := cDS_METHOD);
-      
+      raise Exception.Create('Falta CFOP no produto ' + fFIS_NFITEM.CD_PRODUTO + '!' + ' / ' + cDS_METHOD);
+      exit;
     end;
     if (fFIS_NFITEM.CD_CST = '') then begin
-      raise Exception.Create('Falta CST no produto ' + fFIS_NFITEM.CD_PRODUTO + '!' + ' / ' := cDS_METHOD);
-      
+      raise Exception.Create('Falta CST no produto ' + fFIS_NFITEM.CD_PRODUTO + '!' + ' / ' + cDS_METHOD);
+      exit;
     end;
   end;
 
@@ -853,19 +853,19 @@ begin
         end;
         fFIS_NFITEMPROD.CD_EMPFAT := fTRA_TRANSACAO.CD_EMPFAT;
         fFIS_NFITEMPROD.CD_GRUPOEMPRESA := fTRA_TRANSACAO.CD_GRUPOEMPRESA;
-        fFIS_NFITEMPROD.QT_FATURADO := fFIS_NFITEMPROD.QT_FATURADO := vDsRegistro.QT_FATURADO;
+        fFIS_NFITEMPROD.QT_FATURADO := fFIS_NFITEMPROD.QT_FATURADO + vDsRegistro.QT_FATURADO;
         fFIS_NFITEMPROD.VL_UNITBRUTO := vDsRegistro.VL_UNITBRUTO;
         fFIS_NFITEMPROD.VL_UNITDESC := vDsRegistro.VL_UNITDESC;
         fFIS_NFITEMPROD.VL_UNITLIQUIDO := vDsRegistro.VL_UNITLIQUIDO;
-        fFIS_NFITEMPROD.VL_TOTALDESC := fFIS_NFITEMPROD.VL_TOTALDESC := vDsRegistro.VL_TOTALDESC;
-        fFIS_NFITEMPROD.VL_TOTALLIQUIDO := fFIS_NFITEMPROD.VL_TOTALLIQUIDO := vDsRegistro.VL_TOTALLIQUIDO;
-        fFIS_NFITEMPROD.VL_TOTALBRUTO := fFIS_NFITEMPROD.VL_TOTALBRUTO := vDsRegistro.VL_TOTALBRUTO;
+        fFIS_NFITEMPROD.VL_TOTALDESC := fFIS_NFITEMPROD.VL_TOTALDESC + vDsRegistro.VL_TOTALDESC;
+        fFIS_NFITEMPROD.VL_TOTALLIQUIDO := fFIS_NFITEMPROD.VL_TOTALLIQUIDO + vDsRegistro.VL_TOTALLIQUIDO;
+        fFIS_NFITEMPROD.VL_TOTALBRUTO := fFIS_NFITEMPROD.VL_TOTALBRUTO + vDsRegistro.VL_TOTALBRUTO;
         fFIS_NFITEMPROD.CD_COMPVEND := vDsRegistro.CD_COMPVEND;
         fFIS_NFITEMPROD.CD_PROMOCAO := vDsRegistro.CD_PROMOCAO;
         fFIS_NFITEMPROD.CD_OPERADOR := PARAM_GLB.CD_USUARIO;
         fFIS_NFITEMPROD.DT_CADASTRO := Now;
 
-        if ((gPrAplicMvaSubTrib = '') and (gInPDVOtimizado = True)) or (gTpImpObsRegraFiscalNf = 1) then begin
+        if ((gPrAplicMvaSubTrib = '') and (gInPDVOtimizado)) or (gTpImpObsRegraFiscalNf = 1) then begin
           vInObs := False;
           viParams := '';
           viParams.CD_PRODUTO := fFIS_NFITEMPROD.CD_PRODUTO;
@@ -873,7 +873,7 @@ begin
           voParams := cFISSVCO033.Instance.buscaRegraFiscalProduto(viParams);
           if (itemXmlF('status', voParams) < 0) then begin
             raise Exception.Create(itemXml('message', voParams));
-            
+            exit;
           end;
 
           vCdRegraFiscalProd := voParams.CD_REGRAFISCAL;
@@ -888,7 +888,7 @@ begin
               voParams := cFISSVCO033.Instance.buscaDadosRegraFiscal(viParams);
               if (itemXmlF('status', voParams) < 0) then begin
                 raise Exception.Create(itemXml('message', voParams));
-                
+                exit;
               end;
 
               vTpReducao := voParams.TP_REDUCAO;
@@ -914,7 +914,7 @@ begin
                 if (gDsAdicionalRegra = '') then begin
                   gDsAdicionalRegra := voParams.DS_ADICIONAL;
                 end else begin
-                  gDsAdicionalRegra := gDsAdicionalRegra + ' ' := voParams.DS_ADICIONAL;
+                  gDsAdicionalRegra := gDsAdicionalRegra + ' ' + voParams.DS_ADICIONAL;
                 end;
               end;
             end;
@@ -989,7 +989,7 @@ begin
             voParams := cPRDSVCO021.Instance.incluiSerialProduto(viParams);
             if (itemXmlF('status', voParams) < 0) then begin
               raise Exception.Create(itemXml('message', voParams));
-              
+              exit;
             end;
           end;
 
@@ -1121,7 +1121,7 @@ begin
   fFIS_NF.VL_DESCONTO := fFIS_NF.VL_DESCONTO + item_f('VL_TOTALDESC', tFIS_NFITEM);
   fFIS_NF.QT_FATURADO := fFIS_NF.QT_FATURADO + item_f('QT_FATURADO', tFIS_NFITEM);
 
-  if (fFIS_NFITEM.CD_DECRETO <> '') and (gInGravaDsDecretoObsNf = True) and (vInObs) then begin
+  if (fFIS_NFITEM.CD_DECRETO <> '') and (gInGravaDsDecretoObsNf) and (vInObs) then begin
     fFIS_DECRETO.Append();
     fFIS_DECRETO.CD_DECRETO := fFIS_NFITEM.CD_DECRETO;
     fFIS_DECRETO.Consultar();
@@ -1141,7 +1141,7 @@ begin
     fFIS_NFITEM.DS_LSTIMPOSTO := vLstImposto;
   end;
 
-  return(0); exit;
+  exit;
 end;
 
 //---------------------------------------------------------------
@@ -1158,7 +1158,7 @@ var
   vInICMS, vInICMSSubst, vInIPI, vInCOFINS, vInPIS : Boolean;
 begin
   if (fGER_S_OPERACAO.IN_CALCIMPOSTO <> True) then begin
-    return(0); exit;
+    exit;
   end;
 
   fFIS_NF.VL_IPI := 0;
@@ -1420,7 +1420,7 @@ begin
           fFIS_NFITEMIMPOST.Next();
         end;
       end;
-      if (gInGravaDsDecretoObsNf = True) and (fFIS_NFITEM.CD_DECRETO > 0) then begin
+      if (gInGravaDsDecretoObsNf) and (fFIS_NFITEM.CD_DECRETO > 0) then begin
         fFIS_DECRETO.Append();
         fFIS_DECRETO.CD_DECRETO := fFIS_NFITEM.CD_DECRETO;
         fFIS_DECRETO.Consultar();
@@ -1432,13 +1432,13 @@ begin
       voParams := tFIS_NFITEMPROD.Salvar();
       if (itemXmlF('status', voParams) < 0) then begin
         raise Exception.Create(itemXml('message', voParams));
-        
+        exit;
       end;
 
       voParams := tFIS_NFITEMIMPOST.Salvar();
       if (itemXmlF('status', voParams) < 0) then begin
         raise Exception.Create(itemXml('message', voParams));
-        
+        exit;
       end;
 
       fFIS_NFITEM.Next();
@@ -1646,7 +1646,7 @@ begin
     end;
   end;
 
-  return(0); exit;
+  exit;
 end;
 
 //-------------------------------------------------------------
@@ -1661,10 +1661,10 @@ begin
 
   if not (fTRA_TRANSPORT.IsEmpty()) then begin
     if (fTRA_TRANSPORT.CD_TRANSPORT = 0) then begin
-      return(0); exit;
+      exit;
     end;
     if (fTRA_TRANSPORT.TP_FRETE = '') then begin
-      return(0); exit;
+      exit;
     end;
 
     fTRA_TRANSPORT.First();
@@ -1702,7 +1702,7 @@ begin
     end;
   end;
 
-  return(0); exit;
+  exit;
 
 end;
 
@@ -1715,7 +1715,7 @@ var
   vVlCalc, vVlRestoDespAcessor, vVlRestoFrete, vVlRestoSeguro, vNrOccItem, vVlMaiorItem : Real;
 begin
   if (gTpLancamentoFrete <> 2) then begin
-    return(0); exit;
+    exit;
   end;
 
   vVlRestoDespAcessor := fFIS_NF.VL_DESPACESSOR;
@@ -1754,7 +1754,7 @@ begin
     fFIS_NFITEM.VL_SEGURO := fFIS_NFITEM.VL_SEGURO + vVlRestoSeguro;
   end;
 
-  return(0); exit;
+  exit;
 end;
 
 //-----------------------------------------------------------
@@ -1770,7 +1770,7 @@ begin
   vDtSistema := PARAM_GLB.DT_SISTEMA;
 
   if (fGER_S_OPERACAO.IN_FINANCEIRO <> True) and (item_b('IN_FINANCEIRO', tGER_OPERACAO) <> True) then begin
-    return(0); exit;
+    exit;
   end;
 
   viParams := '';
@@ -1780,7 +1780,7 @@ begin
   voParams := cGERSVCO058.Instance.buscaValorFinanceiroTransacao(viParams); 
   if (itemXmlF('status', voParams) < 0) then begin
     raise Exception.Create(itemXml('message', voParams));
-    
+    exit;
   end;
 
   vVlFinanceiro := voParams.VL_FINANCEIRO;
@@ -1824,11 +1824,11 @@ begin
       fFIS_NFVENCTO.VL_PARCELA := fFIS_NFVENCTO.VL_PARCELA + vVlResto;
     end;
   end else begin
-    //raise Exception.Create('Transação ' + fTRA_TRANSACAO.CD_EMPFAT + ' / ' + item_a('NR_TRANSACAO' + ' / ' := tTRA_TRANSACAO) + ' não possui parcelamento!', cDS_METHOD);
-    //
+    //raise Exception.Create('Transação ' + fTRA_TRANSACAO.CD_EMPFAT + ' / ' + item_a('NR_TRANSACAO' + ' / ' + tTRA_TRANSACAO) + ' não possui parcelamento!', cDS_METHOD);
+    //exit;
   end;
 
-  return(0); exit;
+  exit;
 end;
 
 //-----------------------------------------------------------
@@ -1847,14 +1847,14 @@ begin
     voParams := cTRASVCO004.Instance.gravaEnderecoTransacao(viParams);
     if (itemXmlF('status', voParams) < 0) then begin
       raise Exception.Create(itemXml('message', voParams));
-      
+      exit;
     end;
 
     fTRA_REMDES.Limpar();
     fTRA_REMDES.Listar();
     if (itemXmlF('status', voParams) < 0) then begin
-      raise Exception.Create('Transação ' + fTRA_TRANSACAO.CD_EMPFAT + ' / ' + item_a('NR_TRANSACAO' + ' / ' := tTRA_TRANSACAO) + ' não possui dados do emitende/destinatário!', cDS_METHOD);
-      
+      raise Exception.Create('Transação ' + fTRA_TRANSACAO.CD_EMPFAT + ' / ' + item_a('NR_TRANSACAO' + ' / ' + tTRA_TRANSACAO) + ' não possui dados do emitende/destinatário!', cDS_METHOD);
+      exit;
     end;
   end;
 
@@ -1880,7 +1880,7 @@ begin
   fFIS_NFREMDES.NR_CAIXAPOSTAL := fTRA_REMDES.NR_CAIXAPOSTAL;
   fFIS_NFREMDES.NR_TELEFONE := fTRA_REMDES.NR_TELEFONE;
 
-  return(0); exit;
+  exit;
 end;
 
 //-------------------------------------------------------
@@ -1900,7 +1900,7 @@ begin
     fFIS_NFECF.NR_CUPOM := fTRA_TRANSACECF.NR_CUPOM;
   end;
 
-  return(0); exit;
+  exit;
 end;
 
 //--------------------------------------------------------------
@@ -2013,7 +2013,7 @@ begin
     end;
   end;
 
-  if not (fFIS_DECRETO.IsEmpty()) and (gInGravaDsDecretoObsNf = True) then begin
+  if not (fFIS_DECRETO.IsEmpty()) and (gInGravaDsDecretoObsNf) then begin
     fFIS_DECRETO.Next();
     fFIS_DECRETO.First();
     while not t.EOF do begin
@@ -2047,7 +2047,7 @@ begin
       fFIS_DECRETO.Next();
     end;
   end;
-  if (gInIncluiIpiDevSimp = True) and (fGER_OPERACAO.TP_MODALIDADE = 3)and(gInOptSimples = True) and (item_f('VL_IPI', tFIS_NF) > 0) then begin
+  if (gInIncluiIpiDevSimp) and (fGER_OPERACAO.TP_MODALIDADE = 3)and(gInOptSimples) and (item_f('VL_IPI', tFIS_NF) > 0) then begin
     vDsLinha := 'VALOR DO IPI: Rg ' + fFIS_NF.VL_IPI + '';
 
     fOBS_NF.Append();
@@ -2086,7 +2086,7 @@ begin
     end;
   end;
 
-  return(0); exit;
+  exit;
 
 end;
 
@@ -2105,7 +2105,7 @@ begin
 
   vTamanho := length(vDsstring);
   if (vTamanho < 1) then begin
-    return(0); exit;
+    exit;
   end;
 
   vPosicao := 0;
@@ -2123,7 +2123,7 @@ begin
   until (vPosicao >= vTamanho);
 
   Result := vDsStringSaida;
-  return(0); exit;
+  exit;
 end;
 
 //-----------------------------------------------------------------
@@ -2140,8 +2140,8 @@ begin
     repeat
       getitem(vCdOperacao, vDsLstOperRef, 1);
       if (fFIS_NF.CD_OPERACAO = vCdOperacao) and (fTRA_TRANREF.IsEmpty()) then begin
-        raise Exception.Create('Operação ' + vCdOperacao + ' da NF precisa de NF referencial + ' / ' := parâmetro DS_LST_OPER_OBRIG_NF_REF!', cDS_METHOD);
-        
+        raise Exception.Create('Operação ' + vCdOperacao + ' da NF precisa de NF referencial + ' / ' + parâmetro DS_LST_OPER_OBRIG_NF_REF!', cDS_METHOD);
+        exit;
       end;
       delitemGld(vDsLstOperRef, 1);
     until(vDsLstOperRef = '');
@@ -2163,7 +2163,7 @@ begin
     end;
   end;
 
-  return(0); exit;
+  exit;
 
 end;
 
@@ -2181,13 +2181,13 @@ begin
     repeat
       getitem(vDsRegistro, piDsLstSelo, 1);
 
-      fFIS_NFISELOENT.VL_BASECALC := fFIS_NFISELOENT.VL_BASECALC := vDsRegistro.VL_BASECALC;
-      fFIS_NFISELOENT.VL_SUBTRIB := fFIS_NFISELOENT.VL_SUBTRIB := vDsRegistro.VL_SUBTRIB;
-      fFIS_NFISELOENT.VL_IPI := fFIS_NFISELOENT.VL_IPI := vDsRegistro.VL_IPI;
-      fFIS_NFISELOENT.VL_FRETE := fFIS_NFISELOENT.VL_FRETE := vDsRegistro.VL_FRETE;
-      fFIS_NFISELOENT.VL_SEGURO := fFIS_NFISELOENT.VL_SEGURO := vDsRegistro.VL_SEGURO;
-      fFIS_NFISELOENT.VL_DESPACESSOR := fFIS_NFISELOENT.VL_DESPACESSOR := vDsRegistro.VL_DESPACESSOR;
-      fFIS_NFISELOENT.PR_ALIQUOTA := fFIS_NFISELOENT.PR_ALIQUOTA := vDsRegistro.PR_ALIQUOTA;
+      fFIS_NFISELOENT.VL_BASECALC := fFIS_NFISELOENT.VL_BASECALC + vDsRegistro.VL_BASECALC;
+      fFIS_NFISELOENT.VL_SUBTRIB := fFIS_NFISELOENT.VL_SUBTRIB + vDsRegistro.VL_SUBTRIB;
+      fFIS_NFISELOENT.VL_IPI := fFIS_NFISELOENT.VL_IPI + vDsRegistro.VL_IPI;
+      fFIS_NFISELOENT.VL_FRETE := fFIS_NFISELOENT.VL_FRETE + vDsRegistro.VL_FRETE;
+      fFIS_NFISELOENT.VL_SEGURO := fFIS_NFISELOENT.VL_SEGURO + vDsRegistro.VL_SEGURO;
+      fFIS_NFISELOENT.VL_DESPACESSOR := fFIS_NFISELOENT.VL_DESPACESSOR + vDsRegistro.VL_DESPACESSOR;
+      fFIS_NFISELOENT.PR_ALIQUOTA := fFIS_NFISELOENT.PR_ALIQUOTA + vDsRegistro.PR_ALIQUOTA;
       fFIS_NFISELOENT.CD_OPERADOR := PARAM_GLB.CD_USUARIO;
       fFIS_NFISELOENT.DT_CADASTRO := Now;
 
@@ -2196,7 +2196,7 @@ begin
     fFIS_NFISELOENT.First();
   end;
 
-  return(0); exit;
+  exit;
 
 end;
 
@@ -2207,9 +2207,9 @@ const
   cDS_METHOD = 'ADICIONAL=Operação: T_FISSVCO004.alteraVlIpi()';
 begin
   if (fFIS_NF.IsEmpty()) then begin
-    return(0); exit;
+    exit;
   end;
-  if (gInIncluiIpiDevSimp = True) and (fGER_OPERACAO.TP_MODALIDADE = 3)and(gInOptSimples = True) and (item_f('VL_IPI', tFIS_NF) > 0) then begin
+  if (gInIncluiIpiDevSimp) and (fGER_OPERACAO.TP_MODALIDADE = 3)and(gInOptSimples) and (item_f('VL_IPI', tFIS_NF) > 0) then begin
     fFIS_NFITEM.First();
     while(xStatus >= 0) do begin
 
@@ -2228,7 +2228,7 @@ begin
     fFIS_NF.VL_IPI := 0;
   end;
 
-  return(0); exit;
+  exit;
 end;
 
 //-----------------------------------------------------------------
@@ -2248,28 +2248,28 @@ begin
   vDtFatura := fFIS_NF.DT_FATURA;
 
   if (vCdEmpresaTra = 0) then begin
-    raise Exception.Create('Empresa da transação não informada!' + ' / ' := cDS_METHOD);
-    
+    raise Exception.Create('Empresa da transação não informada!' + ' / ' + cDS_METHOD);
+    exit;
   end;
   if (vNrTransacao = 0) then begin
-    raise Exception.Create('Número da transação não informado!' + ' / ' := cDS_METHOD);
-    
+    raise Exception.Create('Número da transação não informado!' + ' / ' + cDS_METHOD);
+    exit;
   end;
   if (vDtTransacao = 0) then begin
-    raise Exception.Create('Data da transação não informada!' + ' / ' := cDS_METHOD);
-    
+    raise Exception.Create('Data da transação não informada!' + ' / ' + cDS_METHOD);
+    exit;
   end;
   if (vCdEmpresaNf = 0) then begin
-    raise Exception.Create('Empresa da nota fiscal não informada!' + ' / ' := cDS_METHOD);
-    
+    raise Exception.Create('Empresa da nota fiscal não informada!' + ' / ' + cDS_METHOD);
+    exit;
   end;
   if (vNrFatura = 0) then begin
-    raise Exception.Create('Número da fatura não informado!' + ' / ' := cDS_METHOD);
-    
+    raise Exception.Create('Número da fatura não informado!' + ' / ' + cDS_METHOD);
+    exit;
   end;
   if (vDtFatura = 0) then begin
-    raise Exception.Create('Data da fatura não informada!' + ' / ' := cDS_METHOD);
-    
+    raise Exception.Create('Data da fatura não informada!' + ' / ' + cDS_METHOD);
+    exit;
   end;
 
   if not (fTRA_SELOENT.IsEmpty()) then begin
@@ -2282,7 +2282,7 @@ begin
     fFIS_NFSELOENT.DT_CADASTRO := Now;
   end;
 
-  return(0); exit;
+  exit;
 end;
 
 //------------------------------------------------------
@@ -2336,14 +2336,14 @@ begin
     end;
   end;
   if (vDsLstTransacao = '') then begin
-    raise Exception.Create('Lista de transação não informada!' + ' / ' := cDS_METHOD);
-    
+    raise Exception.Create('Lista de transação não informada!' + ' / ' + cDS_METHOD);
+    exit;
   end;
 
   if (gDtEncerramento <> 0) and (gDtSaidaEntrada <> 0) then begin
     if (gDtSaidaEntrada <= gDtEncerramento) then begin
-      raise Exception.Create('NF/Fatura ' + fFIS_NF.NR_NF + '/' + item_a('NR_FATURA' + ' / ' := tFIS_NF) + ' possui data de movimento anterior ao encerramento do livro fiscal!', cDS_METHOD);
-      
+      raise Exception.Create('NF/Fatura ' + fFIS_NF.NR_NF + '/' + item_a('NR_FATURA' + ' / ' + tFIS_NF) + ' possui data de movimento anterior ao encerramento do livro fiscal!', cDS_METHOD);
+      exit;
     end;
   end;
 
@@ -2378,16 +2378,16 @@ begin
     vDtTransacao := vDsRegistro.DT_TRANSACAO;
 
     if (vCdEmpresa = 0) then begin
-      raise Exception.Create('Empresa não informada!' + ' / ' := cDS_METHOD);
-      
+      raise Exception.Create('Empresa não informada!' + ' / ' + cDS_METHOD);
+      exit;
     end;
     if (vNrTransacao = 0) then begin
-      raise Exception.Create('Número da transação não informado!' + ' / ' := cDS_METHOD);
-      
+      raise Exception.Create('Número da transação não informado!' + ' / ' + cDS_METHOD);
+      exit;
     end;
     if (vDtTransacao = 0) then begin
-      raise Exception.Create('Número da transação não informado!' + ' / ' := cDS_METHOD);
-      
+      raise Exception.Create('Número da transação não informado!' + ' / ' + cDS_METHOD);
+      exit;
     end;
 
     fTRA_TRANSACAO.Limpar();
@@ -2396,8 +2396,8 @@ begin
     fTRA_TRANSACAO.DT_TRANSACAO := vDtTransacao;
     fTRA_TRANSACAO.Listar();
     if (itemXmlF('status', voParams) < 0) then begin
-      raise Exception.Create('Transação ' + FloatToStr(vNrTransacao) + ' não cadastrada!' + ' / ' := cDS_METHOD);
-      
+      raise Exception.Create('Transação ' + FloatToStr(vNrTransacao) + ' não cadastrada!' + ' / ' + cDS_METHOD);
+      exit;
     end;
 
     viParams := '';
@@ -2405,14 +2405,14 @@ begin
     voParams := cPESSVCO005.Instance.buscaDadosPessoa(viParams); 
     if (itemXmlF('status', voParams) < 0) then begin
       raise Exception.Create(itemXml('message', voParams));
-      
+      exit;
     end;
     gTpRegimeTrib := voParams.TP_REGIMETRIB;
 
 
 		gInCalcTributo := False;
 		if (gPrTotalTributo > 0) and (fTRA_TRANSACAO.TP_ORIGEMEMISSAO = 1) and
-       (voParams.IN_CNSRFINAL = True) or (voParams.TP_PESSOA = 'F') then begin
+       (voParams.IN_CNSRFINAL) or (voParams.TP_PESSOA = 'F') then begin
 			gInCalcTributo := True;
     end;
 
@@ -2421,7 +2421,7 @@ begin
     voParams := cFISSVCO032.Instance.carregaPesCliente(viParams); 
     if (itemXmlF('status', voParams) < 0) then begin
       raise Exception.Create(itemXml('message', voParams));
-      
+      exit;
     end;
     gNrCodFiscal := voParams.NR_CODIGOFISCAL;
 
@@ -2442,12 +2442,12 @@ begin
         fGER_MODNFC.Listar();
         if (xStatus >= 0) then begin
           if (fGER_MODNFC.IN_AGRUPA_GRUPO = '') then begin
-            raise Exception.Create('Modelo de NF ' + FloatToStr(gCdModeloNF) + ' não possui tipo de agrupamento de item informado. Utilize o GERFM016 para cadastrar!' + ' / ' := cDS_METHOD);
-            
+            raise Exception.Create('Modelo de NF ' + FloatToStr(gCdModeloNF) + ' não possui tipo de agrupamento de item informado. Utilize o GERFM016 para cadastrar!' + ' / ' + cDS_METHOD);
+            exit;
           end;
           if (fGER_MODNFC.TP_CODPRODUTO = 0) then begin
-            raise Exception.Create('Modelo de NF ' + FloatToStr(gCdModeloNF) + ' não possui tipo de código de item informado. Utilize o GERFM016 para cadastrar!' + ' / ' := cDS_METHOD);
-            
+            raise Exception.Create('Modelo de NF ' + FloatToStr(gCdModeloNF) + ' não possui tipo de código de item informado. Utilize o GERFM016 para cadastrar!' + ' / ' + cDS_METHOD);
+            exit;
           end;
 
           if (gTpModDctoFiscalLocal = 55) then begin
@@ -2461,14 +2461,14 @@ begin
       end;
       if (gInReemissao) then begin
         if (gNrNf = 0) then begin
-          raise Exception.Create('Número de NF não informado!' + ' / ' := cDS_METHOD);
-          
+          raise Exception.Create('Número de NF não informado!' + ' / ' + cDS_METHOD);
+          exit;
         end;
       end;
     end else begin
       if (gNrNf = 0) then begin
-        raise Exception.Create('Número de NF não informado!' + ' / ' := cDS_METHOD);
-        
+        raise Exception.Create('Número de NF não informado!' + ' / ' + cDS_METHOD);
+        exit;
       end;
 
       fV_FIS_NFREMDES.Limpar();
@@ -2487,8 +2487,8 @@ begin
       if (xStatus >= 0) then begin
         if ((fV_FIS_NFREMDES.NR_FATURA <> item_f('NR_FATURA', tFIS_NF)) or (fV_FIS_NFREMDES.DT_FATURA <> item_a('DT_FATURA', tFIS_NF)))
         and (fV_FIS_NFREMDES.TP_MODDCTOFISCAL <> 6) and (fV_FIS_NFREMDES.TP_MODDCTOFISCAL <> 21) and (fV_FIS_NFREMDES.TP_MODDCTOFISCAL <> 22) then begin
-          raise Exception.Create('NF ' + FloatToStr(gNrNf) + ' ' + FloatToStr(gCdSerie) + ' Modelo Documento ' + FloatToStr(gTpModDctoFiscallocal) + ' já cadastrada para a pessoa ' + fV_FIS_NFREMDES.CD_PESSOAREMDES + '!' + ' / ' := cDS_METHOD);
-          
+          raise Exception.Create('NF ' + FloatToStr(gNrNf) + ' ' + FloatToStr(gCdSerie) + ' Modelo Documento ' + FloatToStr(gTpModDctoFiscallocal) + ' já cadastrada para a pessoa ' + fV_FIS_NFREMDES.CD_PESSOAREMDES + '!' + ' / ' + cDS_METHOD);
+          exit;
         end;
       end;
       gInQuebraCFOP := False;
@@ -2498,8 +2498,8 @@ begin
     fGER_OPERACAO.CD_OPERACAO := fTRA_TRANSACAO.CD_OPERACAO;
     fGER_OPERACAO.Listar();
     if (itemXmlF('status', voParams) < 0) then begin
-      raise Exception.Create('Operaçao ' + fGER_OPERACAO.CD_OPERACAO + ' não cadastrada!' + ' / ' := cDS_METHOD);
-      
+      raise Exception.Create('Operaçao ' + fGER_OPERACAO.CD_OPERACAO + ' não cadastrada!' + ' / ' + cDS_METHOD);
+      exit;
     end;
     if (fTRA_TRANSACAO.TP_ORIGEMEMISSAO = 1) then begin
       if (fGER_OPERACAO.TP_DOCTO = 2) or (fGER_OPERACAO.TP_DOCTO = 3) then begin
@@ -2514,8 +2514,8 @@ begin
 
     fGER_S_OPERACAO.First();
     if not (fGER_S_OPERACAO.IsDatabase()) then begin
-      raise Exception.Create('Operação ' + fGER_OPERACAO.CD_OPERACAO + ' não possui operação de movimento!' + ' / ' := cDS_METHOD);
-      
+      raise Exception.Create('Operação ' + fGER_OPERACAO.CD_OPERACAO + ' não possui operação de movimento!' + ' / ' + cDS_METHOD);
+      exit;
     end;
     if (fTRA_TRANSACAO.TP_ORIGEMEMISSAO = 1) then begin
       if (fGER_S_OPERACAO.TP_DOCTO = 2) or (fGER_S_OPERACAO.TP_DOCTO = 3) then begin
@@ -2558,7 +2558,7 @@ begin
     voParams := cFISSVCO033.Instance.buscaDadosRegraFiscal(viParams);
     if (itemXmlF('status', voParams) < 0) then begin
       raise Exception.Create(itemXml('message', voParams));
-      
+      exit;
     end;
 
     vTpReducao := voParams.TP_REDUCAO;
@@ -2609,7 +2609,7 @@ begin
       fTRA_TRANSITEM.Next();
       fTRA_TRANSITEM.First();
 
-      while (vInLoopCapa = True) do begin
+      while (vInLoopCapa) do begin
         vTpLoopItem := 0;
         vQtFaturado := 0;
         vVlTotalBruto := 0;
@@ -2637,7 +2637,7 @@ begin
         voParams := geraCapaNF(viParams);
         if (itemXmlF('status', voParams) < 0) then begin
           raise Exception.Create(itemXml('message', voParams));
-          
+          exit;
         end;
 
         if (gInLog) then begin
@@ -2664,7 +2664,7 @@ begin
         voParams := geraRemDest(viParams);
         if (itemXmlF('status', voParams) < 0) then begin
           raise Exception.Create(itemXml('message', voParams));
-          
+          exit;
         end;
 
         if (gInLog) then begin
@@ -2679,7 +2679,7 @@ begin
         voParams := geraNFReferencial(viParams);
         if (itemXmlF('status', voParams) < 0) then begin
           raise Exception.Create(itemXml('message', voParams));
-          
+          exit;
         end;
 
         if (gInLog) then begin
@@ -2691,7 +2691,7 @@ begin
         voParams := geraSeloFiscalEnt(viParams);
         if (itemXmlF('status', voParams) < 0) then begin
           raise Exception.Create(itemXml('message', voParams));
-          
+          exit;
         end;
 
         while (vTpLoopItem = 0) do begin
@@ -2767,8 +2767,8 @@ begin
             vDsRegistroItem.DS_LSTVALOR := vDsLstValor;
           end else begin
             if (fTRA_TRANSACAO.TP_OPERACAO = 'E') and ((fGER_OPERACAO.TP_MODALIDADE = 2) or (fGER_OPERACAO.TP_MODALIDADE = 4)) and (item_a('CD_ESPECIE', tTRA_TRANSITEM) <> gCdEspecieServico) then begin
-              raise Exception.Create('Produto ' + fTRA_TRANSITEM.CD_PRODUTO + ' da transação ' + item_a('NR_TRANSACAO' + ' / ' := tTRA_TRANSITEM) + ' não possui valores cadastrados', cDS_METHOD);
-              
+              raise Exception.Create('Produto ' + fTRA_TRANSITEM.CD_PRODUTO + ' da transação ' + item_a('NR_TRANSACAO' + ' / ' + tTRA_TRANSITEM) + ' não possui valores cadastrados', cDS_METHOD);
+              exit;
             end;
           end;
           if not (fTRA_ITEMUN.IsEmpty()) then begin
@@ -2834,7 +2834,7 @@ begin
           voParams := cTRASVCO016.Instance.buscaDespesaItem(viParams); 
           if (itemXmlF('status', voParams) < 0) then begin
             raise Exception.Create(itemXml('message', voParams));
-            
+            exit;
           end;
           vDsLstDespesa := voParams.DS_LSTDESPESA;
           if (vDsLstDespesa <> '') then begin
@@ -2893,7 +2893,7 @@ begin
             fTRA_TRANSITEM.VL_TOTALDESC := fTRA_TRANSITEM.VL_TOTALDESC + vVlTotalDesc;
             fTRA_TRANSITEM.VL_TOTALDESCCAB := fTRA_TRANSITEM.VL_TOTALDESCCAB + vVlTotalDescCab;
 
-            if (gInLog = True) and (fTRA_TRANSITEM.RecNo = 1) then begin
+            if (gInLog) and (fTRA_TRANSITEM.RecNo = 1) then begin
               gHrInicio := Time;
               putmess('- Inicio gera NF. geraItemNF FISSVCO004: ' + TimeToStr(gHrInicio));
             end;
@@ -2904,10 +2904,10 @@ begin
             voParams := geraItemNF(viParams);
             if (itemXmlF('status', voParams) < 0) then begin
               raise Exception.Create(itemXml('message', voParams));
-              
+              exit;
             end;
 
-            if (gInLog = True) and (fTRA_TRANSITEM.RecNo = 1) then begin
+            if (gInLog) and (fTRA_TRANSITEM.RecNo = 1) then begin
               gHrFim := Time;
               gHrTempo := gHrFim - gHrInicio;
               putmess('- Fim gera NF. geraItemNF FISSVCO004: ' + TimeToStr(gHrFim) + ' - ' + TimeToStr(gHrTempo));
@@ -2918,7 +2918,7 @@ begin
             voParams := geraItemSeloEnt(viParams);
             if (itemXmlF('status', voParams) < 0) then begin
               raise Exception.Create(itemXml('message', voParams));
-              
+              exit;
             end;
 
             vDsLstItem := '';
@@ -2930,10 +2930,10 @@ begin
             vVlTotalDescCab := 0;
             fTMP_NR09.Limpar();
           end;
-          if (gInQuebraItem = True) and (vNrItem = fGER_MODNFC.NR_ITENS) then begin
+          if (gInQuebraItem) and (vNrItem = fGER_MODNFC.NR_ITENS) then begin
             vTpLoopItem := 1;
           end;
-          if (gInQuebraCFOP = True) and (fTRA_TRANSITEM.CD_CFOP <> vCdCFOPProx) then begin
+          if (gInQuebraCFOP) and (fTRA_TRANSITEM.CD_CFOP <> vCdCFOPProx) then begin
             vTpLoopItem := 1;
           end;
           if (gNrItemQuebraNf > 0) and (vNrItem = gNrItemQuebraNf) then begin
@@ -2954,7 +2954,7 @@ begin
           voParams := geraTransport(viParams);
           if (itemXmlF('status', voParams) < 0) then begin
             raise Exception.Create(itemXml('message', voParams));
-            
+            exit;
           end;
 
           if (gInLog) then begin
@@ -2966,7 +2966,7 @@ begin
           voParams := rateiaValorCapa(viParams);
           if (itemXmlF('status', voParams) < 0) then begin
             raise Exception.Create(itemXml('message', voParams));
-            
+            exit;
           end;
 
           vInPrimeira := False;
@@ -2975,7 +2975,7 @@ begin
         voParams := geraImpostoItem(viParams);
         if (itemXmlF('status', voParams) < 0) then begin
           raise Exception.Create(itemXml('message', voParams));
-          
+          exit;
         end;
 
         putitem_e(tFIS_NF, 'VL_TOTALNOTA', fFIS_NF.VL_TOTALPRODUTO + item_f('VL_DESPACESSOR', tFIS_NF) +
@@ -2990,7 +2990,7 @@ begin
         voParams := geraParcela(viParams);
         if (itemXmlF('status', voParams) < 0) then begin
           raise Exception.Create(itemXml('message', voParams));
-          
+          exit;
         end;
 
         if (gInLog) then begin
@@ -3005,7 +3005,7 @@ begin
         voParams := geraECF(viParams);
         if (itemXmlF('status', voParams) < 0) then begin
           raise Exception.Create(itemXml('message', voParams));
-          
+          exit;
         end;
 
         if (gInLog) then begin
@@ -3019,7 +3019,7 @@ begin
         voParams := geraObservacao(viParams);
         if (itemXmlF('status', voParams) < 0) then begin
           raise Exception.Create(itemXml('message', voParams));
-          
+          exit;
         end;
 
         if (vTpLoopItem = 2) then begin
@@ -3035,7 +3035,7 @@ begin
       voParams := geraCapaNF(viParams);
       if (itemXmlF('status', voParams) < 0) then begin
         raise Exception.Create(itemXml('message', voParams));
-        
+        exit;
       end;
 
       if (gInLog) then begin
@@ -3050,7 +3050,7 @@ begin
       voParams := geraRemDest(viParams);
       if (itemXmlF('status', voParams) < 0) then begin
         raise Exception.Create(itemXml('message', voParams));
-        
+        exit;
       end;
 
       if (gInLog) then begin
@@ -3074,7 +3074,7 @@ begin
       voParams := alteraVlIpi(viParams);
       if (itemXmlF('status', voParams) < 0) then begin
         raise Exception.Create(itemXml('message', voParams));
-        
+        exit;
       end;
     end;
 
@@ -3084,7 +3084,7 @@ begin
   voParams := tFIS_NF.Salvar();
   if (itemXmlF('status', voParams) < 0) then begin
     raise Exception.Create(itemXml('message', voParams));
-    
+    exit;
   end;
 
   if not (fFIS_NF.IsEmpty()) then begin
@@ -3108,7 +3108,7 @@ begin
     voParams := cFISSVCO024.Instance.gravaObsNfFisco(viParams);
     if (itemXmlF('status', voParams) < 0) then begin
       raise Exception.Create(itemXml('message', voParams));
-      
+      exit;
     end;
   end;
 
@@ -3123,7 +3123,7 @@ begin
         voParams := cFISSVCO024.Instance.gravaObsNfe(viParams);
         if (itemXmlF('status', voParams) < 0) then begin
           raise Exception.Create(itemXml('message', voParams));
-          
+          exit;
         end;
       end;
       delitemGld(vDsLstNotaFiscal, 1);
@@ -3148,7 +3148,7 @@ begin
       voParams := cPRDSVCO020.Instance.gravaLoteINF(viParams);
       if (itemXmlF('status', voParams) < 0) then begin
         raise Exception.Create(itemXml('message', voParams));
-        
+        exit;
       end;
       delitemGld(vDsLstLoteInfGeral, 1);
     until (vDsLstLoteInfGeral = '');
@@ -3170,7 +3170,7 @@ begin
       voParams := cCTBSVCO016.Instance.geraContabilizaEmi(viParams);
       if (itemXmlF('status', voParams) < 0) then begin
         raise Exception.Create(itemXml('message', voParams));
-        
+        exit;
       end;
 
       fFIS_NF.Next();
@@ -3178,7 +3178,7 @@ begin
   end;
   Result.DS_LSTNF := vDsLstNF;
   }
-  return(0); exit;
+  exit;
 end;
 
 //-------------------------------------------------------
@@ -3202,15 +3202,15 @@ begin
 
   if (vCdModeloNF = 0) then begin
     if (vInECF <> True) then begin
-      raise Exception.Create('Modelo de NF não informado!' + ' / ' := cDS_METHOD);
-      
+      raise Exception.Create('Modelo de NF não informado!' + ' / ' + cDS_METHOD);
+      exit;
     end;
   end else begin
     fGER_MODNFC.CD_MODELONF := vCdModeloNF;
     fGER_MODNFC.Listar();
     if (itemXmlF('status', voParams) < 0) then begin
-      raise Exception.Create('Modelo de NF ' + FloatToStr(vCdModeloNF) + ' não cadastrado!' + ' / ' := cDS_METHOD);
-      
+      raise Exception.Create('Modelo de NF ' + FloatToStr(vCdModeloNF) + ' não cadastrado!' + ' / ' + cDS_METHOD);
+      exit;
     end;
   end;
 
@@ -3219,14 +3219,14 @@ begin
   voParams := cSICSVCO005.Instance.reservaNumeroNF(viParams); 
   if (itemXmlF('status', voParams) < 0) then begin
     raise Exception.Create(itemXml('message', voParams));
-    
+    exit;
   end;
   vDsLstNF := voParams.DS_LSTNF;
   vDsLstNrNF := voParams.DS_LSTNF;
 
   if (vDsLstNF = '') then begin
-    raise Exception.Create('Lista de NF não informada!' + ' / ' := cDS_METHOD);
-    
+    raise Exception.Create('Lista de NF não informada!' + ' / ' + cDS_METHOD);
+    exit;
   end;
 
   fFIS_NF.Limpar();
@@ -3238,16 +3238,16 @@ begin
     vDtFatura := vDsRegistro.DT_FATURA;
 
     if (vCdEmpresa = 0) then begin
-      raise Exception.Create('Empresa não informada!' + ' / ' := cDS_METHOD);
-      
+      raise Exception.Create('Empresa não informada!' + ' / ' + cDS_METHOD);
+      exit;
     end;
     if (vNrFatura = 0) then begin
-      raise Exception.Create('Fatura não informado!' + ' / ' := cDS_METHOD);
-      
+      raise Exception.Create('Fatura não informado!' + ' / ' + cDS_METHOD);
+      exit;
     end;
     if (vDtFatura = 0) then begin
-      raise Exception.Create('Data NF não informada!' + ' / ' := cDS_METHOD);
-      
+      raise Exception.Create('Data NF não informada!' + ' / ' + cDS_METHOD);
+      exit;
     end;
 
     fFIS_NF.Append();
@@ -3258,16 +3258,16 @@ begin
     if (xStatus = -7) then begin
       fFIS_NF.Consultar();
     end else begin
-      raise Exception.Create('NF ' + FloatToStr(vCdEmpresa) + ' / ' + FloatToStr(vNrFatura) + ' não cadastrada!' + ' / ' := cDS_METHOD);
-      
+      raise Exception.Create('NF ' + FloatToStr(vCdEmpresa) + ' / ' + FloatToStr(vNrFatura) + ' não cadastrada!' + ' / ' + cDS_METHOD);
+      exit;
     end;
     vModDctoFiscal := fFIS_NF.TP_MODDCTOFISCAL;
     fGER_OPERACAO.Limpar();
     fGER_OPERACAO.CD_OPERACAO := fFIS_NF.CD_OPERACAO;
     fGER_OPERACAO.Listar();
     if (itemXmlF('status', voParams) < 0) then begin
-      raise Exception.Create('Operaçao ' + fGER_OPERACAO.CD_OPERACAO + ' não cadastrada!' + ' / ' := cDS_METHOD);
-      
+      raise Exception.Create('Operaçao ' + fGER_OPERACAO.CD_OPERACAO + ' não cadastrada!' + ' / ' + cDS_METHOD);
+      exit;
     end;
     if (fFIS_NF.TP_SITUACAO = 'N') then begin
       if (fGER_OPERACAO.TP_DOCTO = 0) then begin
@@ -3304,13 +3304,13 @@ begin
           voParams := cGERSVCO001.Instance.buscaNrNF(viParams); 
           if (itemXmlF('status', voParams) < 0) then begin
             raise Exception.Create(itemXml('message', voParams));
-            
+            exit;
           end;
           if (vCdSerie = 'ECF') then begin
             vNrNF := voParams.NR_NF;
             if (vNrNF = 0) then begin
-              raise Exception.Create('Não foi possivel obter numeração para a NF(ECF) ' + FloatToStr(vCdEmpresa) + ' / ' + FloatToStr(vNrFatura) + '!' + ' / ' := cDS_METHOD);
-              
+              raise Exception.Create('Não foi possivel obter numeração para a NF(ECF) ' + FloatToStr(vCdEmpresa) + ' / ' + FloatToStr(vNrFatura) + '!' + ' / ' + cDS_METHOD);
+              exit;
             end;
             fFIS_NF.NR_NF := vNrNF;
             fFIS_NF.CD_SERIE := vCdSerie;
@@ -3325,8 +3325,8 @@ begin
             if (xStatus = -7) then begin
               fFIS_NF.Consultar();
             end else begin
-              raise Exception.Create('Não possível recarregar a NF ' + FloatToStr(vCdEmpresa) + ' / ' + FloatToStr(vNrFatura) + ' após a rotina de numeração!' + ' / ' := cDS_METHOD);
-              
+              raise Exception.Create('Não possível recarregar a NF ' + FloatToStr(vCdEmpresa) + ' / ' + FloatToStr(vNrFatura) + ' após a rotina de numeração!' + ' / ' + cDS_METHOD);
+              exit;
             end;
           end;
           fFIS_NF.DT_EMISSAO := vDtSistema;
@@ -3345,8 +3345,8 @@ begin
   fFIS_NF.First();
 
   if (fFIS_NF.IsEmpty() <> False) then begin
-    raise Exception.Create('Nenhuma NF emitida!' + ' / ' := cDS_METHOD);
-    
+    raise Exception.Create('Nenhuma NF emitida!' + ' / ' + cDS_METHOD);
+    exit;
   end;
 
   vNrNFTransp := 0;
@@ -3364,8 +3364,8 @@ begin
   while not t.EOF do begin
     if (fFIS_NF.TP_ORIGEMEMISSAO = 1) then begin
       if (fFIS_NF.NR_NF = 0) then begin
-        raise Exception.Create('Não foi possivel obter numeração para a NF ' + FloatToStr(vCdEmpresa) + ' / ' + FloatToStr(vNrFatura) + '!' + ' / ' := cDS_METHOD);
-        
+        raise Exception.Create('Não foi possivel obter numeração para a NF ' + FloatToStr(vCdEmpresa) + ' / ' + FloatToStr(vNrFatura) + '!' + ' / ' + cDS_METHOD);
+        exit;
       end;
       fFIS_S_NF.Limpar();
       fFIS_S_NF.CD_EMPFAT := fFIS_NF.CD_EMPFAT;
@@ -3377,8 +3377,8 @@ begin
       fFIS_S_NF.Listar();
       if (xStatus >= 0) then begin
         if (fFIS_S_NF.NR_FATURA <> item_f('NR_FATURA', tFIS_NF)) or (fFIS_S_NF.DT_FATURA <> item_a('DT_FATURA', tFIS_NF)) then begin
-          raise Exception.Create('NF ' + fFIS_NF.NR_NF + ' já cadastrada!' + ' / ' := cDS_METHOD);
-          
+          raise Exception.Create('NF ' + fFIS_NF.NR_NF + ' já cadastrada!' + ' / ' + cDS_METHOD);
+          exit;
         end;
       end;
     end;
@@ -3420,7 +3420,7 @@ begin
   voParams := tFIS_NF.Salvar();
   if (itemXmlF('status', voParams) < 0) then begin
     raise Exception.Create(itemXml('message', voParams));
-    
+    exit;
   end;
   if (vDsLstTransp <> '') then begin
     viParams := '';
@@ -3430,7 +3430,7 @@ begin
     voParams := cFISSVCO004O.Instance.gravaObsNF(viParams);
     if (itemXmlF('status', voParams) < 0) then begin
       raise Exception.Create(itemXml('message', voParams));
-      
+      exit;
     end;
   end;
 
@@ -3439,14 +3439,14 @@ begin
   voParams := cSICSVCO005.Instance.liberaNumeroNF(viParams); 
   if (itemXmlF('status', voParams) < 0) then begin
     raise Exception.Create(itemXml('message', voParams));
-    
+    exit;
   end;
 
   vDsLstNrNF := voParams.DS_LSTNF;
 
   Result := '';
   Result.DS_LSTNF := vDsLstNrNF;
-  return(0); exit;
+  exit;
 end;
 
 //----------------------------------------------------------
@@ -3467,28 +3467,28 @@ begin
   vNrCupom := pParams.NR_CUPOM;
 
   if (vCdEmpresa = 0) then begin
-    raise Exception.Create('Empresa não informada!' + ' / ' := cDS_METHOD);
-    
+    raise Exception.Create('Empresa não informada!' + ' / ' + cDS_METHOD);
+    exit;
   end;
   if (vNrFatura = 0) then begin
-    raise Exception.Create('Fatura não informado!' + ' / ' := cDS_METHOD);
-    
+    raise Exception.Create('Fatura não informado!' + ' / ' + cDS_METHOD);
+    exit;
   end;
   if (vDtFatura = 0) then begin
-    raise Exception.Create('Data NF não informada!' + ' / ' := cDS_METHOD);
-    
+    raise Exception.Create('Data NF não informada!' + ' / ' + cDS_METHOD);
+    exit;
   end;
   if (vCdEmpECF = 0) then begin
-    raise Exception.Create('Empresa da ECF não informada!' + ' / ' := cDS_METHOD);
-    
+    raise Exception.Create('Empresa da ECF não informada!' + ' / ' + cDS_METHOD);
+    exit;
   end;
   if (vNrECF = 0) then begin
-    raise Exception.Create('Número da ECF não informada!' + ' / ' := cDS_METHOD);
-    
+    raise Exception.Create('Número da ECF não informada!' + ' / ' + cDS_METHOD);
+    exit;
   end;
   if (vNrCupom = 0) then begin
-    raise Exception.Create('Número do cupom não informado!' + ' / ' := cDS_METHOD);
-    
+    raise Exception.Create('Número do cupom não informado!' + ' / ' + cDS_METHOD);
+    exit;
   end;
 
   fFIS_ECF.Limpar();
@@ -3496,8 +3496,8 @@ begin
   fFIS_ECF.NR_ECF := vNrECF;
   fFIS_ECF.Listar();
   if (itemXmlF('status', voParams) < 0) then begin
-    raise Exception.Create('Número da ECF ' + FloatToStr(vNrECF) + ' não cadastrado!' + ' / ' := cDS_METHOD);
-    
+    raise Exception.Create('Número da ECF ' + FloatToStr(vNrECF) + ' não cadastrado!' + ' / ' + cDS_METHOD);
+    exit;
   end;
 
   fFIS_NF.Limpar();
@@ -3508,8 +3508,8 @@ begin
   if (xStatus = -7) then begin
     fFIS_NF.Consultar();
   end else if (xStatus = 0) then begin
-    raise Exception.Create('NF ' + FloatToStr(vNrFatura) + ' não cadastrada!' + ' / ' := cDS_METHOD);
-    
+    raise Exception.Create('NF ' + FloatToStr(vNrFatura) + ' não cadastrada!' + ' / ' + cDS_METHOD);
+    exit;
   end;
 
   fFIS_NFECF.Limpar();
@@ -3518,7 +3518,7 @@ begin
     voParams := tFIS_NFECF.Excluir();
     if (itemXmlF('status', voParams) < 0) then begin
       raise Exception.Create(itemXml('message', voParams));
-      
+      exit;
     end;
   end else begin
     fFIS_NFECF.Limpar();
@@ -3537,10 +3537,10 @@ begin
   voParams := tFIS_NFECF.Salvar();
   if (itemXmlF('status', voParams) < 0) then begin
     raise Exception.Create(itemXml('message', voParams));
-    
+    exit;
   end;
 
-  return(0); exit;
+  exit;
 end;
 
 //----------------------------------------------------------------
@@ -3562,16 +3562,16 @@ begin
     vInValidaTransacao := True;
   end;
   if (vDsLstNF = '') then begin
-    raise Exception.Create('Lista de NF não informada!' + ' / ' := cDS_METHOD);
-    
+    raise Exception.Create('Lista de NF não informada!' + ' / ' + cDS_METHOD);
+    exit;
   end;
   if (vTpSituacao = '') then begin
-    raise Exception.Create('Situação não informada!' + ' / ' := cDS_METHOD);
-    
+    raise Exception.Create('Situação não informada!' + ' / ' + cDS_METHOD);
+    exit;
   end;
   if (vTpSituacao <> 'N') and (vTpSituacao <> 'E') and (vTpSituacao <> 'C') and (vTpSituacao <> 'X') and (vTpSituacao <> 'D') then begin
-    raise Exception.Create('Situação ' + vTpSituacao + ' inválida!' + ' / ' := cDS_METHOD);
-    
+    raise Exception.Create('Situação ' + vTpSituacao + ' inválida!' + ' / ' + cDS_METHOD);
+    exit;
   end;
 
   fFIS_NF.Limpar();
@@ -3582,16 +3582,16 @@ begin
     vDtFatura := vDsRegistro.DT_FATURA;
 
     if (vCdEmpresa = 0) then begin
-      raise Exception.Create('Empresa não informada!' + ' / ' := cDS_METHOD);
-      
+      raise Exception.Create('Empresa não informada!' + ' / ' + cDS_METHOD);
+      exit;
     end;
     if (vNrFatura = 0) then begin
-      raise Exception.Create('Fatura não informado!' + ' / ' := cDS_METHOD);
-      
+      raise Exception.Create('Fatura não informado!' + ' / ' + cDS_METHOD);
+      exit;
     end;
     if (vDtFatura = 0) then begin
-      raise Exception.Create('Data NF não informada!' + ' / ' := cDS_METHOD);
-      
+      raise Exception.Create('Data NF não informada!' + ' / ' + cDS_METHOD);
+      exit;
     end;
 
     fFIS_NF.Append();
@@ -3610,8 +3610,8 @@ begin
         fTRA_TRANSACAO.Listar();
         if (xStatus >= 0) then begin
           if (fTRA_TRANSACAO.TP_SITUACAO <> 6) then begin
-            raise Exception.Create('Transação ' + fTRA_TRANSACAO.NR_TRANSACAOORI + ' não está cancelada!' + ' / ' := cDS_METHOD);
-            
+            raise Exception.Create('Transação ' + fTRA_TRANSACAO.NR_TRANSACAOORI + ' não está cancelada!' + ' / ' + cDS_METHOD);
+            exit;
           end;
         end;
       end;
@@ -3620,18 +3620,18 @@ begin
       fGER_OPERACAO.CD_OPERACAO := fFIS_NF.CD_OPERACAO;
       fGER_OPERACAO.Listar();
       if (itemXmlF('status', voParams) < 0) then begin
-        raise Exception.Create('Operaçao ' + fFIS_NF.CD_OPERACAO + ' não cadastrada!' + ' / ' := cDS_METHOD);
-        
+        raise Exception.Create('Operaçao ' + fFIS_NF.CD_OPERACAO + ' não cadastrada!' + ' / ' + cDS_METHOD);
+        exit;
       end;
       if (gDtEncerramento <> 0) and (fGER_OPERACAO.TP_DOCTO <> 0) then begin
         if (fFIS_NF.DT_SAIDAENTRADA <= gDtEncerramento) then begin
-          raise Exception.Create('NF/Fatura ' + fFIS_NF.NR_NF + '/' + item_a('NR_FATURA' + ' / ' := tFIS_NF) + ' possuir data de movimento anterior ao encerramento do livro fiscal!', cDS_METHOD);
-          
+          raise Exception.Create('NF/Fatura ' + fFIS_NF.NR_NF + '/' + item_a('NR_FATURA' + ' / ' + tFIS_NF) + ' possuir data de movimento anterior ao encerramento do livro fiscal!', cDS_METHOD);
+          exit;
         end;
       end;
     end else if (xStatus = 0) then begin
-      raise Exception.Create('NF ' + FloatToStr(vNrFatura) + ' não cadastrada!' + ' / ' := cDS_METHOD);
-      
+      raise Exception.Create('NF ' + FloatToStr(vNrFatura) + ' não cadastrada!' + ' / ' + cDS_METHOD);
+      exit;
     end;
 
     fFIS_NF.TP_SITUACAO := vTpSituacao;
@@ -3644,10 +3644,10 @@ begin
   voParams := tFIS_NF.Salvar();
   if (itemXmlF('status', voParams) < 0) then begin
     raise Exception.Create(itemXml('message', voParams));
-    
+    exit;
   end;
 
-  return(0); exit;
+  exit;
 end;
 
 //-----------------------------------------------------------------
@@ -3664,20 +3664,20 @@ begin
   vCdModeloNF := pParams.CD_MODELONF;
 
   if (vDsLstNF = '') then begin
-    raise Exception.Create('Lista de NF não informada!' + ' / ' := cDS_METHOD);
-    
+    raise Exception.Create('Lista de NF não informada!' + ' / ' + cDS_METHOD);
+    exit;
   end;
   if (vCdModeloNF = 0) then begin
-    raise Exception.Create('Modelo de NF não informado!' + ' / ' := cDS_METHOD);
-    
+    raise Exception.Create('Modelo de NF não informado!' + ' / ' + cDS_METHOD);
+    exit;
   end;
 
   fGER_MODNFC.Limpar();
   fGER_MODNFC.CD_MODELONF := vCdModeloNF;
   fGER_MODNFC.Listar();
   if (itemXmlF('status', voParams) < 0) then begin
-    raise Exception.Create('Modelo de NF ' + FloatToStr(vCdModeloNF) + ' não cadastrado!' + ' / ' := cDS_METHOD);
-    
+    raise Exception.Create('Modelo de NF ' + FloatToStr(vCdModeloNF) + ' não cadastrado!' + ' / ' + cDS_METHOD);
+    exit;
   end;
 
   fFIS_NF.Limpar();
@@ -3689,16 +3689,16 @@ begin
     vDtFatura := vDsRegistro.DT_FATURA;
 
     if (vCdEmpresa = 0) then begin
-      raise Exception.Create('Empresa não informada!' + ' / ' := cDS_METHOD);
-      
+      raise Exception.Create('Empresa não informada!' + ' / ' + cDS_METHOD);
+      exit;
     end;
     if (vNrFatura = 0) then begin
-      raise Exception.Create('Fatura não informado!' + ' / ' := cDS_METHOD);
-      
+      raise Exception.Create('Fatura não informado!' + ' / ' + cDS_METHOD);
+      exit;
     end;
     if (vDtFatura = 0) then begin
-      raise Exception.Create('Data NF não informada!' + ' / ' := cDS_METHOD);
-      
+      raise Exception.Create('Data NF não informada!' + ' / ' + cDS_METHOD);
+      exit;
     end;
 
     fFIS_NF.Append();
@@ -3709,8 +3709,8 @@ begin
     if (xStatus = -7) then begin
       fFIS_NF.Consultar();
     end else if (xStatus = 0) then begin
-      raise Exception.Create('NF ' + FloatToStr(vNrFatura) + ' não cadastrada!' + ' / ' := cDS_METHOD);
-      
+      raise Exception.Create('NF ' + FloatToStr(vNrFatura) + ' não cadastrada!' + ' / ' + cDS_METHOD);
+      exit;
     end;
     if (fFIS_NF.TP_ORIGEMEMISSAO = 1) then begin
       fFIS_S_NF.Limpar();
@@ -3723,8 +3723,8 @@ begin
       fFIS_S_NF.Listar();
       if (xStatus >= 0) then begin
         if (fFIS_S_NF.NR_FATURA <> item_f('NR_FATURA', tFIS_NF)) or (fFIS_S_NF.DT_FATURA <> item_a('DT_FATURA', tFIS_NF)) then begin
-          raise Exception.Create('NF ' + fFIS_NF.NR_NF + ' já cadastrada!' + ' / ' := cDS_METHOD);
-          
+          raise Exception.Create('NF ' + fFIS_NF.NR_NF + ' já cadastrada!' + ' / ' + cDS_METHOD);
+          exit;
         end;
       end;
     end;
@@ -3746,10 +3746,10 @@ begin
   voParams := tFIS_NF.Salvar();
   if (itemXmlF('status', voParams) < 0) then begin
     raise Exception.Create(itemXml('message', voParams));
-    
+    exit;
   end;
 
-  return(0); exit;
+  exit;
 end;
 
 //-----------------------------------------------------------
@@ -3771,23 +3771,23 @@ begin
   vTpModDctoFiscal := pParams.TP_MODDCTOFISCAL;
 
   if (vCdEmpresa = 0) then begin
-    raise Exception.Create('Empresa não informada!' + ' / ' := cDS_METHOD);
-    
+    raise Exception.Create('Empresa não informada!' + ' / ' + cDS_METHOD);
+    exit;
   end;
   if (vInInclusao) then begin
     if (vNrFatura > 0) then begin
-      raise Exception.Create('Fatura não pode ser informada p/ inclusão!' + ' / ' := cDS_METHOD);
-      
+      raise Exception.Create('Fatura não pode ser informada p/ inclusão!' + ' / ' + cDS_METHOD);
+      exit;
     end;
   end else begin
     if (vNrFatura = 0) then begin
-      raise Exception.Create('Fatura não informado!' + ' / ' := cDS_METHOD);
-      
+      raise Exception.Create('Fatura não informado!' + ' / ' + cDS_METHOD);
+      exit;
     end;
   end;
   if (vDtFatura = 0) then begin
-    raise Exception.Create('Data NF não informada!' + ' / ' := cDS_METHOD);
-    
+    raise Exception.Create('Data NF não informada!' + ' / ' + cDS_METHOD);
+    exit;
   end;
 
   fTRA_TRANSACAO.Limpar();
@@ -3798,7 +3798,7 @@ begin
     voParams := cGERSVCO031.Instance.getNumSeq(viParams); 
     if (itemXmlF('status', voParams) < 0) then begin
       raise Exception.Create(itemXml('message', voParams));
-      
+      exit;
     end;
     vNrFatura := voParams.NR_SEQUENCIA;
 
@@ -3814,13 +3814,13 @@ begin
     fFIS_NF.DT_FATURA := vDtFatura;
     fFIS_NF.Listar();
     if (itemXmlF('status', voParams) < 0) then begin
-      raise Exception.Create('NF ' + FloatToStr(vNrFatura) + ' não cadastrada!' + ' / ' := cDS_METHOD);
-      
+      raise Exception.Create('NF ' + FloatToStr(vNrFatura) + ' não cadastrada!' + ' / ' + cDS_METHOD);
+      exit;
     end;
     if (gDtEncerramento <> 0) then begin
       if (fFIS_NF.DT_SAIDAENTRADA <= gDtEncerramento) then begin
-        raise Exception.Create('NF/Fatura ' + fFIS_NF.NR_NF + '/' + item_a('NR_FATURA' + ' / ' := tFIS_NF) + ' possui data de movimento anterior ao encerramento do livro fiscal!', cDS_METHOD);
-        
+        raise Exception.Create('NF/Fatura ' + fFIS_NF.NR_NF + '/' + item_a('NR_FATURA' + ' / ' + tFIS_NF) + ' possui data de movimento anterior ao encerramento do livro fiscal!', cDS_METHOD);
+        exit;
       end;
     end;
     if (fFIS_NF.NR_TRANSACAOORI > 0) then begin
@@ -3830,8 +3830,8 @@ begin
       fTRA_TRANSACAO.DT_TRANSACAO := fFIS_NF.DT_TRANSACAOORI;
       fTRA_TRANSACAO.Listar();
       if (itemXmlF('status', voParams) < 0) then begin
-        raise Exception.Create('Transação ' + fTRA_TRANSACAO.NR_TRANSACAOORI + ' não cadastrada!' + ' / ' := cDS_METHOD);
-        
+        raise Exception.Create('Transação ' + fTRA_TRANSACAO.NR_TRANSACAOORI + ' não cadastrada!' + ' / ' + cDS_METHOD);
+        exit;
       end;
       vCdGrupoEmpresa := fTRA_TRANSACAO.CD_GRUPOEMPRESA;
     end;
@@ -3844,60 +3844,60 @@ begin
   pParams := fFIS_NF.GetValues();
 
   if (fFIS_NF.DT_SAIDAENTRADA = '') then begin
-    raise Exception.Create('Data saída/entrada não informada!' + ' / ' := cDS_METHOD);
-    
+    raise Exception.Create('Data saída/entrada não informada!' + ' / ' + cDS_METHOD);
+    exit;
   end;
   if (gDtEncerramento <> 0) then begin
     if (fFIS_NF.DT_SAIDAENTRADA <= gDtEncerramento) then begin
-      raise Exception.Create('NF/Fatura ' + fFIS_NF.NR_NF + '/' + item_a('NR_FATURA' + ' / ' := tFIS_NF) + ' possui data de movimento anterior ao encerramento do livro fiscal!', cDS_METHOD);
-      
+      raise Exception.Create('NF/Fatura ' + fFIS_NF.NR_NF + '/' + item_a('NR_FATURA' + ' / ' + tFIS_NF) + ' possui data de movimento anterior ao encerramento do livro fiscal!', cDS_METHOD);
+      exit;
     end;
   end;
   if (fFIS_NF.TP_SITUACAO = '') then begin
-    raise Exception.Create('Situação não informada!' + ' / ' := cDS_METHOD);
-    
+    raise Exception.Create('Situação não informada!' + ' / ' + cDS_METHOD);
+    exit;
   end;
   if (fFIS_NF.TP_SITUACAO = 'E') then begin
     if (fFIS_NF.DT_EMISSAO = '') then begin
-      raise Exception.Create('Data emissão não informada!' + ' / ' := cDS_METHOD);
-      
+      raise Exception.Create('Data emissão não informada!' + ' / ' + cDS_METHOD);
+      exit;
     end;
     if (fFIS_NF.NR_NF = 0) then begin
-      raise Exception.Create('Número NF não informada!' + ' / ' := cDS_METHOD);
-      
+      raise Exception.Create('Número NF não informada!' + ' / ' + cDS_METHOD);
+      exit;
     end;
   end;
   if (fFIS_NF.HR_SAIDA = '') then begin
-    raise Exception.Create('Hora de saída não informada!' + ' / ' := cDS_METHOD);
-    
+    raise Exception.Create('Hora de saída não informada!' + ' / ' + cDS_METHOD);
+    exit;
   end;
   if (fFIS_NF.CD_PESSOA = 0) then begin
-    raise Exception.Create('Pessoa não informada!' + ' / ' := cDS_METHOD);
-    
+    raise Exception.Create('Pessoa não informada!' + ' / ' + cDS_METHOD);
+    exit;
   end;
   if (fFIS_NF.CD_COMPVEND = 0) then begin
-    raise Exception.Create('Comprador/vendedor não informado!' + ' / ' := cDS_METHOD);
-    
+    raise Exception.Create('Comprador/vendedor não informado!' + ' / ' + cDS_METHOD);
+    exit;
   end;
   if (fFIS_NF.CD_CONDPGTO = 0) then begin
-    raise Exception.Create('Condição de pagamento não informada!' + ' / ' := cDS_METHOD);
-    
+    raise Exception.Create('Condição de pagamento não informada!' + ' / ' + cDS_METHOD);
+    exit;
   end;
   if (fFIS_NF.CD_OPERACAO = 0) then begin
-    raise Exception.Create('Operação não informada!' + ' / ' := cDS_METHOD);
-    
+    raise Exception.Create('Operação não informada!' + ' / ' + cDS_METHOD);
+    exit;
   end;
   if (vCdGrupoEmpresa = 0) then begin
-    raise Exception.Create('Grupo empresa não informado!' + ' / ' := cDS_METHOD);
-    
+    raise Exception.Create('Grupo empresa não informado!' + ' / ' + cDS_METHOD);
+    exit;
   end;
 
   fGER_OPERACAO.Limpar();
   fGER_OPERACAO.CD_OPERACAO := fFIS_NF.CD_OPERACAO;
   fGER_OPERACAO.Listar();
   if (itemXmlF('status', voParams) < 0) then begin
-    raise Exception.Create('Operaçao ' + fFIS_NF.CD_OPERACAO + ' não cadastrada!' + ' / ' := cDS_METHOD);
-    
+    raise Exception.Create('Operaçao ' + fFIS_NF.CD_OPERACAO + ' não cadastrada!' + ' / ' + cDS_METHOD);
+    exit;
   end;
   if (vInInclusao) then begin
     fFIS_NF.CD_EMPFAT := fFIS_NF.CD_EMPRESA;
@@ -3922,7 +3922,7 @@ begin
   voParams := tFIS_NF.Salvar();
   if (itemXmlF('status', voParams) < 0) then begin
     raise Exception.Create(itemXml('message', voParams));
-    
+    exit;
   end;
 
   Result := '';
@@ -3930,7 +3930,7 @@ begin
   Result.NR_FATURA := fFIS_NF.NR_FATURA;
   Result.DT_FATURA := fFIS_NF.DT_FATURA;
 
-  return(0); exit;
+  exit;
 end;
 
 //----------------------------------------------------------
@@ -3946,8 +3946,8 @@ var
 begin
   vDsLstNF := pParams.DS_LSTNF;
   if (vDsLstNF = '') then begin
-    raise Exception.Create('Lista de nota não informada!' + ' / ' := cDS_METHOD);
-    
+    raise Exception.Create('Lista de nota não informada!' + ' / ' + cDS_METHOD);
+    exit;
   end;
 
   fFIS_NF.Limpar();
@@ -3959,20 +3959,20 @@ begin
     vDtFatura := vDsRegistro.DT_FATURA;
     vDsLinhaObs := pParams.DS_OBSERVACAO;
     if (vDsLinhaObs = '') then begin
-      raise Exception.Create('Observação não informada!' + ' / ' := cDS_METHOD);
-      
+      raise Exception.Create('Observação não informada!' + ' / ' + cDS_METHOD);
+      exit;
     end;
     if (vDtFatura = 0) then begin
-      raise Exception.Create('Data da fatura não informada!' + ' / ' := cDS_METHOD);
-      
+      raise Exception.Create('Data da fatura não informada!' + ' / ' + cDS_METHOD);
+      exit;
     end;
     if (vNrFatura = 0) then begin
-      raise Exception.Create('Número da fatura não informada!' + ' / ' := cDS_METHOD);
-      
+      raise Exception.Create('Número da fatura não informada!' + ' / ' + cDS_METHOD);
+      exit;
     end;
     if (vCdEmpresa = 0) then begin
-      raise Exception.Create('Empresa da transação não informada!' + ' / ' := cDS_METHOD);
-      
+      raise Exception.Create('Empresa da transação não informada!' + ' / ' + cDS_METHOD);
+      exit;
     end;
 
     fFIS_NF.Append();
@@ -3983,8 +3983,8 @@ begin
     if (xStatus = -7) then begin
       fFIS_NF.Consultar();
     end else if (xStatus <> 4) then begin
-      raise Exception.Create('NF ' + FloatToStr(vNrFatura) + ' não cadastrada!' + ' / ' := cDS_METHOD);
-      
+      raise Exception.Create('NF ' + FloatToStr(vNrFatura) + ' não cadastrada!' + ' / ' + cDS_METHOD);
+      exit;
     end;
 
     fOBS_NF.Next();
@@ -4003,10 +4003,10 @@ begin
   voParams := tOBS_NF.Salvar();
   if (itemXmlF('status', voParams) < 0) then begin
     raise Exception.Create(itemXml('message', voParams));
-    
+    exit;
   end;
 
-  return(0); exit;
+  exit;
 end;
 
 //---------------------------------------------------------------
@@ -4025,24 +4025,24 @@ begin
   vCdProduto := pParams.CD_PRODUTO;
   vNrItem := pParams.NR_ITEM;
   if (vCdEmpresa = 0) then begin
-    raise Exception.Create('Empresa não informada!' + ' / ' := cDS_METHOD);
-    
+    raise Exception.Create('Empresa não informada!' + ' / ' + cDS_METHOD);
+    exit;
   end;
   if (vNrFatura = 0) then begin
-    raise Exception.Create('Fatura não informado!' + ' / ' := cDS_METHOD);
-    
+    raise Exception.Create('Fatura não informado!' + ' / ' + cDS_METHOD);
+    exit;
   end;
   if (vDtFatura = 0) then begin
-    raise Exception.Create('Data NF não informada!' + ' / ' := cDS_METHOD);
-    
+    raise Exception.Create('Data NF não informada!' + ' / ' + cDS_METHOD);
+    exit;
   end;
   if (vCdProduto = 0) then begin
-    raise Exception.Create('Produto não informado!' + ' / ' := cDS_METHOD);
-    
+    raise Exception.Create('Produto não informado!' + ' / ' + cDS_METHOD);
+    exit;
   end;
   if (vNrItem = 0) then begin
-    raise Exception.Create('Número do item não informado!' + ' / ' := cDS_METHOD);
-    
+    raise Exception.Create('Número do item não informado!' + ' / ' + cDS_METHOD);
+    exit;
   end;
 
   fFIS_NF.Limpar();
@@ -4051,13 +4051,13 @@ begin
   fFIS_NF.DT_FATURA := vDtFatura;
   fFIS_NF.Listar();
   if (itemXmlF('status', voParams) < 0) then begin
-    raise Exception.Create('Nota Fiscal não encotrada!' + ' / ' := cDS_METHOD);
-    
+    raise Exception.Create('Nota Fiscal não encotrada!' + ' / ' + cDS_METHOD);
+    exit;
   end;
   if (gDtEncerramento <> 0) then begin
     if (fFIS_NF.DT_SAIDAENTRADA <= gDtEncerramento) then begin
-      raise Exception.Create('NF/Fatura ' + fFIS_NF.NR_NF + '/' + item_a('NR_FATURA' + ' / ' := tFIS_NF) + ' possui data de movimento anterior ao encerramento do livro fiscal!', cDS_METHOD);
-      
+      raise Exception.Create('NF/Fatura ' + fFIS_NF.NR_NF + '/' + item_a('NR_FATURA' + ' / ' + tFIS_NF) + ' possui data de movimento anterior ao encerramento do livro fiscal!', cDS_METHOD);
+      exit;
     end;
   end;
 
@@ -4065,16 +4065,16 @@ begin
   fFIS_NFITEM.NR_ITEM := vNrItem;
   fFIS_NFITEM.Listar();
   if (itemXmlF('status', voParams) < 0) then begin
-    raise Exception.Create('Itens da Nota Fiscal não encotrada!' + ' / ' := cDS_METHOD);
-    
+    raise Exception.Create('Itens da Nota Fiscal não encotrada!' + ' / ' + cDS_METHOD);
+    exit;
   end;
 
   fFIS_NFITEMPROD.Limpar();
   fFIS_NFITEMPROD.CD_PRODUTO := vCdProduto;
   fFIS_NFITEMPROD.Listar();
   if (itemXmlF('status', voParams) < 0) then begin
-    raise Exception.Create('Produto ' + FloatToStr(vCdProduto) + ' não encotrado!' + ' / ' := cDS_METHOD);
-    
+    raise Exception.Create('Produto ' + FloatToStr(vCdProduto) + ' não encotrado!' + ' / ' + cDS_METHOD);
+    exit;
   end;
 
   delitem(pParams, 'CD_EMPRESA');
@@ -4088,10 +4088,10 @@ begin
   voParams := tFIS_NFITEMPROD.Salvar();
   if (itemXmlF('status', voParams) < 0) then begin
     raise Exception.Create(itemXml('message', voParams));
-    
+    exit;
   end;
 
-  return(0); exit;
+  exit;
 end;
 
 //-----------------------------------------------------------
@@ -4114,24 +4114,24 @@ begin
   vTpModDctoFiscal := pParams.TP_MODDCTOFISCAL;
 
   if (vCdEmpresa = 0) then begin
-    raise Exception.Create('Empresa não informada!' + ' / ' := cDS_METHOD);
-    
+    raise Exception.Create('Empresa não informada!' + ' / ' + cDS_METHOD);
+    exit;
   end;
   if (vNrFatura = 0) then begin
-    raise Exception.Create('Fatura não informado!' + ' / ' := cDS_METHOD);
-    
+    raise Exception.Create('Fatura não informado!' + ' / ' + cDS_METHOD);
+    exit;
   end;
   if (vDtFatura = 0) then begin
-    raise Exception.Create('Data NF não informada!' + ' / ' := cDS_METHOD);
-    
+    raise Exception.Create('Data NF não informada!' + ' / ' + cDS_METHOD);
+    exit;
   end;
   if (vCdProduto = 0) then begin
-    raise Exception.Create('Produto não informado!' + ' / ' := cDS_METHOD);
-    
+    raise Exception.Create('Produto não informado!' + ' / ' + cDS_METHOD);
+    exit;
   end;
   if (vNrItem = 0) then begin
-    raise Exception.Create('Número do item não informado!' + ' / ' := cDS_METHOD);
-    
+    raise Exception.Create('Número do item não informado!' + ' / ' + cDS_METHOD);
+    exit;
   end;
 
   fFIS_NF.Limpar();
@@ -4140,13 +4140,13 @@ begin
   fFIS_NF.DT_FATURA := vDtFatura;
   fFIS_NF.Listar();
   if (itemXmlF('status', voParams) < 0) then begin
-    raise Exception.Create('Nota Fiscal não encotrada!' + ' / ' := cDS_METHOD);
-    
+    raise Exception.Create('Nota Fiscal não encotrada!' + ' / ' + cDS_METHOD);
+    exit;
   end;
   if (gDtEncerramento <> 0) then begin
     if (fFIS_NF.DT_SAIDAENTRADA <= gDtEncerramento) then begin
-      raise Exception.Create('NF/Fatura ' + fFIS_NF.NR_NF + '/' + item_a('NR_FATURA' + ' / ' := tFIS_NF) + ' possui data de movimento anterior ao encerramento do livro fiscal!', cDS_METHOD);
-      
+      raise Exception.Create('NF/Fatura ' + fFIS_NF.NR_NF + '/' + item_a('NR_FATURA' + ' / ' + tFIS_NF) + ' possui data de movimento anterior ao encerramento do livro fiscal!', cDS_METHOD);
+      exit;
     end;
   end;
   if (vInInclusao) then begin
@@ -4155,8 +4155,8 @@ begin
     fFIS_NFITEM.NR_ITEM := vNrItem;
     fFIS_NFITEM.Listar();
     if (itemXmlF('status', voParams) < 0) then begin
-      raise Exception.Create('Itens da Nota Fiscal não encotrada!' + ' / ' := cDS_METHOD);
-      
+      raise Exception.Create('Itens da Nota Fiscal não encotrada!' + ' / ' + cDS_METHOD);
+      exit;
     end;
 
     delitem(pParams, 'CD_EMPRESA');
@@ -4183,10 +4183,10 @@ begin
   voParams := tFIS_NFITEM.Salvar();
   if (itemXmlF('status', voParams) < 0) then begin
     raise Exception.Create(itemXml('message', voParams));
-    
+    exit;
   end;
 
-  return(0); exit;
+  exit;
 end;
 
 //---------------------------------------------------------------
@@ -4203,16 +4203,16 @@ begin
   vNrFatura := pParams.NR_FATURA;
   vDtFatura := pParams.DT_FATURA;
   if (vCdEmpresa = 0) then begin
-    raise Exception.Create('Empresa não informada!' + ' / ' := cDS_METHOD);
-    
+    raise Exception.Create('Empresa não informada!' + ' / ' + cDS_METHOD);
+    exit;
   end;
   if (vNrFatura = 0) then begin
-    raise Exception.Create('Fatura não informado!' + ' / ' := cDS_METHOD);
-    
+    raise Exception.Create('Fatura não informado!' + ' / ' + cDS_METHOD);
+    exit;
   end;
   if (vDtFatura = 0) then begin
-    raise Exception.Create('Data NF não informada!' + ' / ' := cDS_METHOD);
-    
+    raise Exception.Create('Data NF não informada!' + ' / ' + cDS_METHOD);
+    exit;
   end;
 
   fFIS_NF.Limpar();
@@ -4221,13 +4221,13 @@ begin
   fFIS_NF.DT_FATURA := vDtFatura;
   fFIS_NF.Listar();
   if (itemXmlF('status', voParams) < 0) then begin
-    raise Exception.Create('Nota Fiscal não encotrada!' + ' / ' := cDS_METHOD);
-    
+    raise Exception.Create('Nota Fiscal não encotrada!' + ' / ' + cDS_METHOD);
+    exit;
   end;
   if (gDtEncerramento <> 0) then begin
     if (fFIS_NF.DT_SAIDAENTRADA <= gDtEncerramento) then begin
-      raise Exception.Create('NF/Fatura ' + fFIS_NF.NR_NF + '/' + item_a('NR_FATURA' + ' / ' := tFIS_NF) + ' possui data de movimento anterior ao encerramento do livro fiscal!', cDS_METHOD);
-      
+      raise Exception.Create('NF/Fatura ' + fFIS_NF.NR_NF + '/' + item_a('NR_FATURA' + ' / ' + tFIS_NF) + ' possui data de movimento anterior ao encerramento do livro fiscal!', cDS_METHOD);
+      exit;
     end;
   end;
 
@@ -4239,17 +4239,17 @@ begin
   fFIS_NFREMDES.CD_EMPFAT := fFIS_NF.CD_EMPFAT;
   fFIS_NFREMDES.CD_GRUPOEMPRESA := fFIS_NF.CD_GRUPOEMPRESA;
   if (fFIS_NFREMDES.NM_NOME = '') then begin
-    raise Exception.Create('Nome da pessoa não informado!' + ' / ' := cDS_METHOD);
-    
+    raise Exception.Create('Nome da pessoa não informado!' + ' / ' + cDS_METHOD);
+    exit;
   end;
 
   voParams := tFIS_NFREMDES.Salvar();
   if (itemXmlF('status', voParams) < 0) then begin
     raise Exception.Create(itemXml('message', voParams));
-    
+    exit;
   end;
 
-  return(0); exit;
+  exit;
 end;
 
 //---------------------------------------------------------------------
@@ -4267,16 +4267,16 @@ begin
   vDtFatura := pParams.DT_FATURA;
 
   if (vCdEmpresa = 0) then begin
-    raise Exception.Create('Empresa não informada!' + ' / ' := cDS_METHOD);
-    
+    raise Exception.Create('Empresa não informada!' + ' / ' + cDS_METHOD);
+    exit;
   end;
   if (vNrFatura = 0) then begin
-    raise Exception.Create('Fatura não informado!' + ' / ' := cDS_METHOD);
-    
+    raise Exception.Create('Fatura não informado!' + ' / ' + cDS_METHOD);
+    exit;
   end;
   if (vDtFatura = 0) then begin
-    raise Exception.Create('Data NF não informada!' + ' / ' := cDS_METHOD);
-    
+    raise Exception.Create('Data NF não informada!' + ' / ' + cDS_METHOD);
+    exit;
   end;
 
   fFIS_NF.Limpar();
@@ -4285,13 +4285,13 @@ begin
   fFIS_NF.DT_FATURA := vDtFatura;
   fFIS_NF.Listar();
   if (itemXmlF('status', voParams) < 0) then begin
-    raise Exception.Create('Nota Fiscal não encotrada!' + ' / ' := cDS_METHOD);
-    
+    raise Exception.Create('Nota Fiscal não encotrada!' + ' / ' + cDS_METHOD);
+    exit;
   end;
   if (gDtEncerramento <> 0) then begin
     if (fFIS_NF.DT_SAIDAENTRADA <= gDtEncerramento) then begin
-      raise Exception.Create('NF/Fatura ' + fFIS_NF.NR_NF + '/' + item_a('NR_FATURA' + ' / ' := tFIS_NF) + ' possui data de movimento anterior ao encerramento do livro fiscal!', cDS_METHOD);
-      
+      raise Exception.Create('NF/Fatura ' + fFIS_NF.NR_NF + '/' + item_a('NR_FATURA' + ' / ' + tFIS_NF) + ' possui data de movimento anterior ao encerramento do livro fiscal!', cDS_METHOD);
+      exit;
     end;
   end;
 
@@ -4304,21 +4304,21 @@ begin
   fFIS_NFTRANSP.CD_GRUPOEMPRESA := fFIS_NF.CD_GRUPOEMPRESA;
 
   if (fFIS_NFTRANSP.CD_TRANSPORT = 0) then begin
-    raise Exception.Create('Transportadora não informada!' + ' / ' := cDS_METHOD);
-    
+    raise Exception.Create('Transportadora não informada!' + ' / ' + cDS_METHOD);
+    exit;
   end;
   if (fFIS_NFTRANSP.TP_FRETE = '') then begin
-    raise Exception.Create('Tipo de frete não informado!' + ' / ' := cDS_METHOD);
-    
+    raise Exception.Create('Tipo de frete não informado!' + ' / ' + cDS_METHOD);
+    exit;
   end;
 
   voParams := tFIS_NFTRANSP.Salvar();
   if (itemXmlF('status', voParams) < 0) then begin
     raise Exception.Create(itemXml('message', voParams));
-    
+    exit;
   end;
 
-  return(0); exit;
+  exit;
 end;
 
 //------------------------------------------------------------------
@@ -4342,20 +4342,20 @@ begin
   vInNaoExcluir := pParams.IN_NAOEXCLUIR;
 
   if (vCdEmpresa = 0) then begin
-    raise Exception.Create('Empresa não informada!' + ' / ' := cDS_METHOD);
-    
+    raise Exception.Create('Empresa não informada!' + ' / ' + cDS_METHOD);
+    exit;
   end;
   if (vNrFatura = 0) then begin
-    raise Exception.Create('Fatura não informado!' + ' / ' := cDS_METHOD);
-    
+    raise Exception.Create('Fatura não informado!' + ' / ' + cDS_METHOD);
+    exit;
   end;
   if (vDtFatura = 0) then begin
-    raise Exception.Create('Data NF não informada!' + ' / ' := cDS_METHOD);
-    
+    raise Exception.Create('Data NF não informada!' + ' / ' + cDS_METHOD);
+    exit;
   end;
   if (vNrItem = 0) then begin
-    raise Exception.Create('Número do item não informado!' + ' / ' := cDS_METHOD);
-    
+    raise Exception.Create('Número do item não informado!' + ' / ' + cDS_METHOD);
+    exit;
   end;
 
   fFIS_NF.Limpar();
@@ -4364,13 +4364,13 @@ begin
   fFIS_NF.DT_FATURA := vDtFatura;
   fFIS_NF.Listar();
   if (itemXmlF('status', voParams) < 0) then begin
-    raise Exception.Create('Nota Fiscal não encotrada!' + ' / ' := cDS_METHOD);
-    
+    raise Exception.Create('Nota Fiscal não encotrada!' + ' / ' + cDS_METHOD);
+    exit;
   end;
   if (gDtEncerramento <> 0) then begin
     if (fFIS_NF.DT_SAIDAENTRADA <= gDtEncerramento) then begin
-      raise Exception.Create('NF/Fatura ' + fFIS_NF.NR_NF + '/' + item_a('NR_FATURA' + ' / ' := tFIS_NF) + ' possui data de movimento anterior ao encerramento do livro fiscal!', cDS_METHOD);
-      
+      raise Exception.Create('NF/Fatura ' + fFIS_NF.NR_NF + '/' + item_a('NR_FATURA' + ' / ' + tFIS_NF) + ' possui data de movimento anterior ao encerramento do livro fiscal!', cDS_METHOD);
+      exit;
     end;
   end;
 
@@ -4378,8 +4378,8 @@ begin
   fFIS_NFITEM.NR_ITEM := vNrItem;
   fFIS_NFITEM.Listar();
   if (itemXmlF('status', voParams) < 0) then begin
-    raise Exception.Create('Itens da Nota Fiscal não encotrada!' + ' / ' := cDS_METHOD);
-    
+    raise Exception.Create('Itens da Nota Fiscal não encotrada!' + ' / ' + cDS_METHOD);
+    exit;
   end;
   if not (fFIS_NFITEMIMPOST.IsEmpty()) then begin
     if (vInNaoExcluir) then begin
@@ -4394,7 +4394,7 @@ begin
             voParams := tFIS_NFITEMIMPOST.Excluir();
             if (itemXmlF('status', voParams) < 0) then begin
               raise Exception.Create(itemXml('message', voParams));
-              
+              exit;
             end;
           end;
 
@@ -4406,7 +4406,7 @@ begin
       voParams := tFIS_NFITEMIMPOST.Excluir();
       if (itemXmlF('status', voParams) < 0) then begin
         raise Exception.Create(itemXml('message', voParams));
-        
+        exit;
       end;
     end;
   end;
@@ -4416,8 +4416,8 @@ begin
       vCdImposto := vDsRegistro.CD_IMPOSTO;
 
       if (vCdImposto = 0) then begin
-        raise Exception.Create('Imposto não informado!' + ' / ' := cDS_METHOD);
-        
+        raise Exception.Create('Imposto não informado!' + ' / ' + cDS_METHOD);
+        exit;
       end;
 
       fFIS_NFITEMIMPOST.Append();
@@ -4435,22 +4435,22 @@ begin
   voParams := tFIS_NFITEMIMPOST.Salvar();
   if (itemXmlF('status', voParams) < 0) then begin
     raise Exception.Create(itemXml('message', voParams));
-    
+    exit;
   end;
 
   voParams := calculaTotalNF();
   if (itemXmlF('status', voParams) < 0) then begin
     raise Exception.Create(itemXml('message', voParams));
-    
+    exit;
   end;
 
   voParams := tFIS_NF.Salvar();
   if (itemXmlF('status', voParams) < 0) then begin
     raise Exception.Create(itemXml('message', voParams));
-    
+    exit;
   end;
 
-  return(0); exit;
+  exit;
 end;
 
 //--------------------------------------------------------------
@@ -4470,16 +4470,16 @@ begin
   vDtFatura := pParams.DT_FATURA;
 
   if (vCdEmpresa = 0) then begin
-    raise Exception.Create('Empresa não informada!' + ' / ' := cDS_METHOD);
-    
+    raise Exception.Create('Empresa não informada!' + ' / ' + cDS_METHOD);
+    exit;
   end;
   if (vNrFatura = 0) then begin
-    raise Exception.Create('Fatura não informado!' + ' / ' := cDS_METHOD);
-    
+    raise Exception.Create('Fatura não informado!' + ' / ' + cDS_METHOD);
+    exit;
   end;
   if (vDtFatura = 0) then begin
-    raise Exception.Create('Data NF não informada!' + ' / ' := cDS_METHOD);
-    
+    raise Exception.Create('Data NF não informada!' + ' / ' + cDS_METHOD);
+    exit;
   end;
 
   fFIS_NF.Limpar();
@@ -4488,20 +4488,20 @@ begin
   fFIS_NF.DT_FATURA := vDtFatura;
   fFIS_NF.Listar();
   if (itemXmlF('status', voParams) < 0) then begin
-    raise Exception.Create('Nota Fiscal não encotrada!' + ' / ' := cDS_METHOD);
-    
+    raise Exception.Create('Nota Fiscal não encotrada!' + ' / ' + cDS_METHOD);
+    exit;
   end;
   if (gDtEncerramento <> 0) then begin
     if (fFIS_NF.DT_SAIDAENTRADA <= gDtEncerramento) then begin
-      raise Exception.Create('NF/Fatura ' + fFIS_NF.NR_NF + '/' + item_a('NR_FATURA' + ' / ' := tFIS_NF) + ' possui data de movimento anterior ao encerramento do livro fiscal!', cDS_METHOD);
-      
+      raise Exception.Create('NF/Fatura ' + fFIS_NF.NR_NF + '/' + item_a('NR_FATURA' + ' / ' + tFIS_NF) + ' possui data de movimento anterior ao encerramento do livro fiscal!', cDS_METHOD);
+      exit;
     end;
   end;
   if not (fFIS_NFIMPOSTO.IsEmpty()) then begin
     voParams := tFIS_NFIMPOSTO.Excluir();
     if (itemXmlF('status', voParams) < 0) then begin
       raise Exception.Create(itemXml('message', voParams));
-      
+      exit;
     end;
   end;
   if (vDsLstImposto <> '') then begin
@@ -4510,8 +4510,8 @@ begin
       vCdImposto := vDsRegistro.CD_IMPOSTO;
 
       if (vCdImposto = 0) then begin
-        raise Exception.Create('Imposto não informado!' + ' / ' := cDS_METHOD);
-        
+        raise Exception.Create('Imposto não informado!' + ' / ' + cDS_METHOD);
+        exit;
       end;
 
       fFIS_NFIMPOSTO.Append();
@@ -4529,22 +4529,22 @@ begin
   voParams := tFIS_NFIMPOSTO.Salvar();
   if (itemXmlF('status', voParams) < 0) then begin
     raise Exception.Create(itemXml('message', voParams));
-    
+    exit;
   end;
 
 	voParams := calculaTotalNF();
   if (itemXmlF('status', voParams) < 0) then begin
     raise Exception.Create(itemXml('message', voParams));
-    
+    exit;
   end;
 
   voParams := tFIS_NF.Salvar();
   if (itemXmlF('status', voParams) < 0) then begin
     raise Exception.Create(itemXml('message', voParams));
-    
+    exit;
   end;
 
-  return(0); exit;
+  exit;
 end;
 
 //----------------------------------------------------------------
@@ -4566,21 +4566,21 @@ begin
 
   if (vDsLstNF = '') then begin
     if (vCdEmpTransacao = 0) then begin
-      raise Exception.Create('Empresa não informada!' + ' / ' := cDS_METHOD);
-      
+      raise Exception.Create('Empresa não informada!' + ' / ' + cDS_METHOD);
+      exit;
     end;
     if (vNrTransacao = 0) then begin
-      raise Exception.Create('Número da transação não informado!' + ' / ' := cDS_METHOD);
-      
+      raise Exception.Create('Número da transação não informado!' + ' / ' + cDS_METHOD);
+      exit;
     end;
     if (vDtTransacao = 0) then begin
-      raise Exception.Create('Data transação não informada!' + ' / ' := cDS_METHOD);
-      
+      raise Exception.Create('Data transação não informada!' + ' / ' + cDS_METHOD);
+      exit;
     end;
   end;
   if (vCdVendedor = 0) then begin
-    raise Exception.Create('Vendedor não informado!' + ' / ' := cDS_METHOD);
-    
+    raise Exception.Create('Vendedor não informado!' + ' / ' + cDS_METHOD);
+    exit;
   end;
 
   fFIS_NF.Limpar();
@@ -4592,7 +4592,7 @@ begin
     fFIS_NF.Listar();
     if (itemXmlF('status', voParams) < 0) then begin
       fFIS_NF.Limpar();
-      return(0); exit;
+      exit;
     end;
   end else begin
     repeat
@@ -4601,16 +4601,16 @@ begin
       vNrFatura := vDsRegistro.NR_FATURA;
       vDtFatura := vDsRegistro.DT_FATURA;
       if (vCdEmpresa = 0) then begin
-        raise Exception.Create('Empresa não informada!' + ' / ' := cDS_METHOD);
-        
+        raise Exception.Create('Empresa não informada!' + ' / ' + cDS_METHOD);
+        exit;
       end;
       if (vNrFatura = 0) then begin
-        raise Exception.Create('Fatura não informado!' + ' / ' := cDS_METHOD);
-        
+        raise Exception.Create('Fatura não informado!' + ' / ' + cDS_METHOD);
+        exit;
       end;
       if (vDtFatura = 0) then begin
-        raise Exception.Create('Data NF não informada!' + ' / ' := cDS_METHOD);
-        
+        raise Exception.Create('Data NF não informada!' + ' / ' + cDS_METHOD);
+        exit;
       end;
       fFIS_NF.Append();
       fFIS_NF.CD_EMPRESA := vCdEmpresa;
@@ -4620,8 +4620,8 @@ begin
       if (xStatus = -7) then begin
         fFIS_NF.Consultar();
       end else if (xStatus = 0) then begin
-        raise Exception.Create('NF ' + FloatToStr(vNrFatura) + ' não cadastrada!' + ' / ' := cDS_METHOD);
-        
+        raise Exception.Create('NF ' + FloatToStr(vNrFatura) + ' não cadastrada!' + ' / ' + cDS_METHOD);
+        exit;
       end;
 
       delitemGld(vDsLstNF, 1);
@@ -4656,11 +4656,11 @@ begin
     voParams := tFIS_NF.Salvar();
     if (itemXmlF('status', voParams) < 0) then begin
       raise Exception.Create(itemXml('message', voParams));
-      
+      exit;
     end;
   end;
 
-  return(0); exit;
+  exit;
 end;
 
 //-------------------------------------------------------------------------
@@ -4679,12 +4679,12 @@ begin
   vTpConsignado := pParams.TP_CONSIGNADO;
 
   if (vDsLstItem = '') then begin
-    raise Exception.Create('Lista de item consignado não informado!' + ' / ' := cDS_METHOD);
-    
+    raise Exception.Create('Lista de item consignado não informado!' + ' / ' + cDS_METHOD);
+    exit;
   end;
   if (vTpConsignado = '') then begin
-    raise Exception.Create('Lista de item consignado não informado!' + ' / ' := cDS_METHOD);
-    
+    raise Exception.Create('Lista de item consignado não informado!' + ' / ' + cDS_METHOD);
+    exit;
   end;
 
   repeat
@@ -4730,7 +4730,7 @@ begin
             voParams := tFIS_NFITEMCONT.Salvar();
             if (itemXmlF('status', voParams) < 0) then begin
               raise Exception.Create(itemXml('message', voParams));
-              
+              exit;
             end;
           end;
         end;
@@ -4740,7 +4740,7 @@ begin
     delitemGld(vDsLstItem, 1);
   until (vDsLstItem = '');
 
-  return(0); exit;
+  exit;
 end;
 
 //----------------------------------------------------------
@@ -4755,10 +4755,10 @@ begin
   voParams := cFISSVCO024.Instance.gravaLogNF(viParams); 
   if (itemXmlF('status', voParams) < 0) then begin
     raise Exception.Create(itemXml('message', voParams));
-    
+    exit;
   end;
 
-  return(0); exit;
+  exit;
 end;
 
 //------------------------------------------------------------------
@@ -4777,12 +4777,12 @@ begin
   vTpConsignado := pParams.TP_CONSIGNADO;
 
   if (vDsLstItem = '') then begin
-    raise Exception.Create('Lista de item consignado não informado!' + ' / ' := cDS_METHOD);
-    
+    raise Exception.Create('Lista de item consignado não informado!' + ' / ' + cDS_METHOD);
+    exit;
   end;
   if (vTpConsignado = '') then begin
-    raise Exception.Create('Lista de item consignado não informado!' + ' / ' := cDS_METHOD);
-    
+    raise Exception.Create('Lista de item consignado não informado!' + ' / ' + cDS_METHOD);
+    exit;
   end;
 
   repeat
@@ -4828,7 +4828,7 @@ begin
             voParams := tFIS_NFITEMCONT.Salvar();
             if (itemXmlF('status', voParams) < 0) then begin
               raise Exception.Create(itemXml('message', voParams));
-              
+              exit;
             end;
           end;
         end;
@@ -4838,7 +4838,7 @@ begin
     delitemGld(vDsLstItem, 1);
   until (vDsLstItem = '');
 
-  return(0); exit;
+  exit;
 end;
 
 //-----------------------------------------------------------
@@ -4856,16 +4856,16 @@ begin
   vDtFatura := pParams.DT_FATURA;
 
   if (vCdEmpresa = 0) then begin
-    raise Exception.Create('Empresa não informada!' + ' / ' := cDS_METHOD);
-    
+    raise Exception.Create('Empresa não informada!' + ' / ' + cDS_METHOD);
+    exit;
   end;
   if (vNrFatura = 0) then begin
-    raise Exception.Create('Número da fatura não informada!' + ' / ' := cDS_METHOD);
-    
+    raise Exception.Create('Número da fatura não informada!' + ' / ' + cDS_METHOD);
+    exit;
   end;
   if (vDtFatura = 0) then begin
-    raise Exception.Create('Data da fatura não informada!' + ' / ' := cDS_METHOD);
-    
+    raise Exception.Create('Data da fatura não informada!' + ' / ' + cDS_METHOD);
+    exit;
   end;
 
   fFIS_NF.Limpar();
@@ -4874,8 +4874,8 @@ begin
   fFIS_NF.DT_FATURA := vDtFatura;
   fFIS_NF.Listar();
   if (itemXmlF('status', voParams) < 0) then begin
-    raise Exception.Create('Registro não cadastrado!' + ' / ' := cDS_METHOD);
-    
+    raise Exception.Create('Registro não cadastrado!' + ' / ' + cDS_METHOD);
+    exit;
   end;
 
   fFIS_NFECF.Limpar();
@@ -4884,11 +4884,11 @@ begin
     voParams := tFIS_NFECF.Excluir();
     if (itemXmlF('status', voParams) < 0) then begin
       raise Exception.Create(itemXml('message', voParams));
-      
+      exit;
     end;
   end;
 
-  return(0); exit;
+  exit;
 end;
 
 //--------------------------------------------------------------
@@ -4951,7 +4951,7 @@ begin
   fFIS_NF.VL_IPI := vVlIPI;
   fFIS_NF.VL_TOTALNOTA := fFIS_NF.VL_TOTALPRODUTO + item_f('VL_DESPACESSOR', tFIS_NF) + item_f('VL_FRETE', tFIS_NF) + item_f('VL_SEGURO', tFIS_NF) + item_f('VL_IPI', tFIS_NF) + item_f('VL_ICMSSUBST', tFIS_NF);
 
-  return(0); exit;
+  exit;
 end;
 
 initialization

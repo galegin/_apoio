@@ -110,10 +110,10 @@ const
 
     //-- cFuncao
 
-    (Tip: tsPar; Ent: 'getlistitemsoccApp({str},{esp}t{ent});'; Sai: 'f{ent}.SetValues({str});'),
-    (Tip: tsPar; Ent: 'getlistitemsoccIns({str},{esp}t{ent});'; Sai: 'f{ent}.SetValues({str});'),
-    (Tip: tsPar; Ent: 'getlistitemsocc({str},{esp}t{ent});'; Sai: 'f{ent}.SetValues({str});'),
-    (Tip: tsPar; Ent: 'putlistitemsocc({str},{esp}t{ent});'; Sai: '{str} := f{ent}.GetValues();'),
+    (Tip: tsPar; Ent: 'getlistitensoccApp({str},{esp}t{ent});'; Sai: 'f{ent}.SetValues({str});'),
+    (Tip: tsPar; Ent: 'getlistitensoccIns({str},{esp}t{ent});'; Sai: 'f{ent}.SetValues({str});'),
+    (Tip: tsPar; Ent: 'getlistitensocc({str},{esp}t{ent});'; Sai: 'f{ent}.SetValues({str});'),
+    (Tip: tsPar; Ent: 'putlistitensocc({str},{esp}t{ent});'; Sai: '{str} := f{ent}.GetValues();'),
 
     (Tip: tsPar; Ent: 'putitemXml({var},{es1}''{cod}''{es2},{val});'; Sai: '{var}.{cod} := {val};'),
     (Tip: tsPar; Ent: 'putitem({esp}t{ent},{es1}''{cod}''{es2},{val});'; Sai: 'f{ent}.{cod} := {val};'),
@@ -156,12 +156,12 @@ const
     (Tip: tsAll; Ent: ' :=    '; Sai: ' := '),
     (Tip: tsAll; Ent: ' :=   '; Sai: ' := '),
     (Tip: tsAll; Ent: ' :=  '; Sai: ' := '),
-    (Tip: tsAll; Ent: ' -    '; Sai: ' := '),
-    (Tip: tsAll; Ent: ' -   '; Sai: ' := '),
-    (Tip: tsAll; Ent: ' -  '; Sai: ' := '),
-    (Tip: tsAll; Ent: ' +    '; Sai: ' := '),
-    (Tip: tsAll; Ent: ' +   '; Sai: ' := '),
-    (Tip: tsAll; Ent: ' +  '; Sai: ' := '),
+    (Tip: tsAll; Ent: ' -    '; Sai: ' - '),
+    (Tip: tsAll; Ent: ' -   '; Sai: ' - '),
+    (Tip: tsAll; Ent: ' -  '; Sai: ' - '),
+    (Tip: tsAll; Ent: ' +    '; Sai: ' + '),
+    (Tip: tsAll; Ent: ' +   '; Sai: ' + '),
+    (Tip: tsAll; Ent: ' +  '; Sai: ' + '),
 
     (Tip: tsAll; Ent: '(   '; Sai: '('),
     (Tip: tsAll; Ent: '(  '; Sai: '('),

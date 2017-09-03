@@ -174,9 +174,9 @@ const
 var
   vVlCalc : Real;
 begin
-  if (gInImpostoOffLine = TRUE) then begin
+  if (gInImpostoOffLine) then begin
     fFIS_IMPOSTO.Remover();
-    return(0); exit;
+    exit;
   end;
 
   gCdCST := fFIS_REGRAIMPOSTO.CD_CST;
@@ -190,8 +190,8 @@ begin
     fFIS_ALIQUOTAICMSUF.CD_UFDESTINO := gDsUFDestino;
     fFIS_ALIQUOTAICMSUF.Listar();
     if (itemXmlF('status', voParams) < 0) then begin
-      raise Exception.Create('Nenhuma aliquota cadastada de ' + fFIS_ALIQUOTAICMSUF.CD_UFORIGEM + ' para ' + item('CD_UFDESTINO' + ' / ' := tFIS_ALIQUOTAICMSUF) + '!', cDS_METHOD);
-      
+      raise Exception.Create('Nenhuma aliquota cadastada de ' + fFIS_ALIQUOTAICMSUF.CD_UFORIGEM + ' para ' + item('CD_UFDESTINO' + ' / ' + tFIS_ALIQUOTAICMSUF) + '!', cDS_METHOD);
+      exit;
     end;
     fFIS_IMPOSTO.PR_ALIQUOTA := fFIS_ALIQUOTAICMSUF.PR_ALIQICMS;
   end;
@@ -220,7 +220,7 @@ begin
     fFIS_IMPOSTO.VL_IMPOSTO := rounded(vVlCalc, 6);
     gVlICMS := fFIS_IMPOSTO.VL_IMPOSTO;
 
-    if (fFIS_REGRAIMPOSTO.IN_OUTRO = TRUE) then begin
+    if (fFIS_REGRAIMPOSTO.IN_OUTRO) then begin
       if (fFIS_REGRAIMPOSTO.PR_REDUBASE > 0) then begin
         fFIS_IMPOSTO.VL_OUTRO := gVlTotalLiquidoICMS - fFIS_IMPOSTO.VL_BASECALC;
       end else begin
@@ -232,7 +232,7 @@ begin
         fFIS_IMPOSTO.PR_REDUBASE := 0;
         fFIS_IMPOSTO.PR_ALIQUOTA := 0;
       end;
-    end else if (fFIS_REGRAIMPOSTO.IN_ISENTO = TRUE) then begin
+    end else if (fFIS_REGRAIMPOSTO.IN_ISENTO) then begin
       if (fFIS_REGRAIMPOSTO.PR_REDUBASE > 0) then begin
         fFIS_IMPOSTO.VL_ISENTO := gVlTotalLiquidoICMS - fFIS_IMPOSTO.VL_BASECALC;
       end else begin
@@ -247,7 +247,7 @@ begin
     end;
   end;
 
-  return(0); exit;
+  exit;
 End;
 
 //----------------------------------------------------------------
@@ -261,9 +261,9 @@ var
   vVlBaseCalc, vVlICMS, vPrAliqIntra, vPrAliqInter, vPrAliqDestino, vPrAliqOrigem : Real;
   vPrIVA, vPrIvaPrd, vTpIva, vNrTam, vPrAux : Real;
 begin
-  if (gInImpostoOffLine = TRUE) then begin
+  if (gInImpostoOffLine) then begin
     fFIS_IMPOSTO.Remover();
-    return(0); exit;
+    exit;
   end;
 
   Length(gCdCST);
@@ -279,7 +279,7 @@ begin
   vVlBaseCalc := rounded(fFIS_IMPOSTO.VL_BASECALC, 6);
 
   if (fFIS_REGRAIMPOSTO.TP_CALCICMSST = '') then begin
-    If (fFIS_REGRAIMPOSTO.IN_OUTRO = TRUE) then begin
+    If (fFIS_REGRAIMPOSTO.IN_OUTRO) then begin
       fFIS_IMPOSTO.VL_OUTRO := vVlBaseCalc;
       fFIS_IMPOSTO.VL_ISENTO := 0;
       fFIS_IMPOSTO.VL_IMPOSTO := 0;
@@ -288,7 +288,7 @@ begin
       fFIS_IMPOSTO.PR_REDUBASE := 0;
       fFIS_IMPOSTO.PR_ALIQUOTA := 0;
 
-    end else if (fFIS_REGRAIMPOSTO.IN_ISENTO = TRUE) then begin
+    end else if (fFIS_REGRAIMPOSTO.IN_ISENTO) then begin
       fFIS_IMPOSTO.VL_ISENTO := vVlBaseCalc;
       fFIS_IMPOSTO.VL_OUTRO := 0;
       fFIS_IMPOSTO.VL_IMPOSTO := 0;
@@ -306,8 +306,8 @@ begin
         fFIS_ALIQUOTAICMSUF.CD_UFDESTINO := gDsUFDestino;
         fFIS_ALIQUOTAICMSUF.Listar();
         if (itemXmlF('status', voParams) < 0) then begin
-          raise Exception.Create('Nenhuma aliquota cadastada de ' + fFIS_ALIQUOTAICMSUF.CD_UFORIGEM + ' para ' + item('CD_UFDESTINO' + ' / ' := tFIS_ALIQUOTAICMSUF) + '!', cDS_METHOD);
-          
+          raise Exception.Create('Nenhuma aliquota cadastada de ' + fFIS_ALIQUOTAICMSUF.CD_UFORIGEM + ' para ' + item('CD_UFDESTINO' + ' / ' + tFIS_ALIQUOTAICMSUF) + '!', cDS_METHOD);
+          exit;
         end;
         fFIS_IMPOSTO.PR_ALIQUOTA := fFIS_ALIQUOTAICMSUF.PR_ALIQICMS;
       end;
@@ -337,14 +337,14 @@ begin
       if (vPrAliqIntra > 0) then begin
         fFIS_IMPOSTO.PR_ALIQUOTA := vPrAliqIntra;
       end;
-      if (fFIS_REGRAIMPOSTO.IN_DIFALIQ = TRUE) then begin
+      if (fFIS_REGRAIMPOSTO.IN_DIFALIQ) then begin
         fFIS_ALIQUOTAICMSUF.Limpar();
         fFIS_ALIQUOTAICMSUF.CD_UFORIGEM := gDsUFDestino;
         fFIS_ALIQUOTAICMSUF.CD_UFDESTINO := gDsUFDestino;
         fFIS_ALIQUOTAICMSUF.Listar();
         if (itemXmlF('status', voParams) < 0) then begin
-          raise Exception.Create('Nenhuma aliquota cadastrada de ' + fFIS_ALIQUOTAICMSUF.CD_UFORIGEM + ' para ' + item('CD_UFDESTINO' + ' / ' := tFIS_ALIQUOTAICMSUF) + '!', cDS_METHOD);
-          
+          raise Exception.Create('Nenhuma aliquota cadastrada de ' + fFIS_ALIQUOTAICMSUF.CD_UFORIGEM + ' para ' + item('CD_UFDESTINO' + ' / ' + tFIS_ALIQUOTAICMSUF) + '!', cDS_METHOD);
+          exit;
         end;
         vPrAliqDestino := fFIS_ALIQUOTAICMSUF.PR_ALIQICMS;
 
@@ -353,8 +353,8 @@ begin
         fFIS_ALIQUOTAICMSUF.CD_UFDESTINO := gDsUFOrigem;
         fFIS_ALIQUOTAICMSUF.Listar();
         if (itemXmlF('status', voParams) < 0) then begin
-          raise Exception.Create('Nenhuma aliquota cadastrada de ' + fFIS_ALIQUOTAICMSUF.CD_UFORIGEM + ' para ' + item('CD_UFDESTINO' + ' / ' := tFIS_ALIQUOTAICMSUF) + '!', cDS_METHOD);
-          
+          raise Exception.Create('Nenhuma aliquota cadastrada de ' + fFIS_ALIQUOTAICMSUF.CD_UFORIGEM + ' para ' + item('CD_UFDESTINO' + ' / ' + tFIS_ALIQUOTAICMSUF) + '!', cDS_METHOD);
+          exit;
         end;
         vPrAliqOrigem := fFIS_ALIQUOTAICMSUF.PR_ALIQICMS;
 
@@ -375,8 +375,8 @@ begin
             fFIS_ALIQUOTAICMSUF.CD_UFDESTINO := gDsUFDestino;
             fFIS_ALIQUOTAICMSUF.Listar();
             if (itemXmlF('status', voParams) < 0) then begin
-              raise Exception.Create('Nenhuma aliquota cadastrada de ' + fFIS_ALIQUOTAICMSUF.CD_UFORIGEM + ' para ' + item('CD_UFDESTINO' + ' / ' := tFIS_ALIQUOTAICMSUF) + '!', cDS_METHOD);
-              
+              raise Exception.Create('Nenhuma aliquota cadastrada de ' + fFIS_ALIQUOTAICMSUF.CD_UFORIGEM + ' para ' + item('CD_UFDESTINO' + ' / ' + tFIS_ALIQUOTAICMSUF) + '!', cDS_METHOD);
+              exit;
             end;
             vPrAliqInter := fFIS_ALIQUOTAICMSUF.PR_ALIQICMS;
           end;
@@ -386,12 +386,12 @@ begin
             fFIS_ALIQUOTAICMSUF.CD_UFDESTINO := gDsUFDestino;
             fFIS_ALIQUOTAICMSUF.Listar();
             if (itemXmlF('status', voParams) < 0) then begin
-              raise Exception.Create('Nenhuma aliquota cadastrada de ' + fFIS_ALIQUOTAICMSUF.CD_UFORIGEM + ' para ' + item('CD_UFDESTINO' + ' / ' := tFIS_ALIQUOTAICMSUF) + '!', cDS_METHOD);
-              
+              raise Exception.Create('Nenhuma aliquota cadastrada de ' + fFIS_ALIQUOTAICMSUF.CD_UFORIGEM + ' para ' + item('CD_UFDESTINO' + ' / ' + tFIS_ALIQUOTAICMSUF) + '!', cDS_METHOD);
+              exit;
             end;
             vPrAliqIntra := fFIS_ALIQUOTAICMSUF.PR_ALIQICMS;
           end;
-          if (fFIS_REGRAIMPOSTO.IN_AJSIMPLES = TRUE) then begin
+          if (fFIS_REGRAIMPOSTO.IN_AJSIMPLES) then begin
             if (vPrIVA = 0) then begin
               vPrIva := vPrIvaPrd;
             end;
@@ -406,7 +406,7 @@ begin
           vPrIVA := ((1 + (vPrIVA/100)) * ((1 - (vPrAliqInter/100)) / (1 - (vPrAliqIntra/100))) -1) * 100;
         end;
       end;
-      if (fFIS_REGRAIMPOSTO.IN_AJSIMPLES = TRUE) and (vInReducaoMVA <> TRUE) then begin
+      if (fFIS_REGRAIMPOSTO.IN_AJSIMPLES) and (vInReducaoMVA <> TRUE) then begin
         if (vPrIVA = 0) then begin
           vPrIva := vPrIvaPrd;
         end;
@@ -432,11 +432,11 @@ begin
       end;
     end;
   end else if (fFIS_REGRAIMPOSTO.TP_CALCICMSST = 1) then begin
-    if (fFIS_REGRAIMPOSTO.IN_OUTRO = TRUE) or (itemB('IN_ISENTO', tFIS_REGRAIMPOSTO) = TRUE) then begin
-      if (fFIS_REGRAIMPOSTO.IN_OUTRO = TRUE) then begin
+    if (fFIS_REGRAIMPOSTO.IN_OUTRO) or (itemB('IN_ISENTO', tFIS_REGRAIMPOSTO)) then begin
+      if (fFIS_REGRAIMPOSTO.IN_OUTRO) then begin
         fFIS_IMPOSTO.VL_OUTRO := vVlBaseCalc;
         fFIS_IMPOSTO.VL_ISENTO := 0;
-      end else if (fFIS_REGRAIMPOSTO.IN_ISENTO = TRUE) then begin
+      end else if (fFIS_REGRAIMPOSTO.IN_ISENTO) then begin
         fFIS_IMPOSTO.VL_ISENTO := vVlBaseCalc;
         fFIS_IMPOSTO.VL_OUTRO := 0;
       end;
@@ -451,8 +451,8 @@ begin
       fFIS_ALIQUOTAICMSUF.CD_UFDESTINO := gDsUFDestino;
       fFIS_ALIQUOTAICMSUF.Listar();
       if (itemXmlF('status', voParams) < 0) then begin
-        raise Exception.Create('Nenhuma aliquota cadastrada de ' + fFIS_ALIQUOTAICMSUF.CD_UFORIGEM + ' para ' + item('CD_UFDESTINO' + ' / ' := tFIS_ALIQUOTAICMSUF) + '!', cDS_METHOD);
-        
+        raise Exception.Create('Nenhuma aliquota cadastrada de ' + fFIS_ALIQUOTAICMSUF.CD_UFORIGEM + ' para ' + item('CD_UFDESTINO' + ' / ' + tFIS_ALIQUOTAICMSUF) + '!', cDS_METHOD);
+        exit;
       end;
       vPrAliqIntra := fFIS_ALIQUOTAICMSUF.PR_ALIQICMS;
 
@@ -465,11 +465,11 @@ begin
       fFIS_IMPOSTO.PR_REDUBASE := 0;
     end;
   end else if (fFIS_REGRAIMPOSTO.TP_CALCICMSST = 2) then begin
-    if (fFIS_REGRAIMPOSTO.IN_OUTRO = TRUE) or (itemB('IN_ISENTO', tFIS_REGRAIMPOSTO) = TRUE) then begin
-      If (fFIS_REGRAIMPOSTO.IN_OUTRO = TRUE) then begin
+    if (fFIS_REGRAIMPOSTO.IN_OUTRO) or (itemB('IN_ISENTO', tFIS_REGRAIMPOSTO)) then begin
+      If (fFIS_REGRAIMPOSTO.IN_OUTRO) then begin
         fFIS_IMPOSTO.VL_OUTRO := vVlBaseCalc;
         fFIS_IMPOSTO.VL_ISENTO := 0;
-      end else if (fFIS_REGRAIMPOSTO.IN_ISENTO = TRUE) then begin
+      end else if (fFIS_REGRAIMPOSTO.IN_ISENTO) then begin
         fFIS_IMPOSTO.VL_ISENTO := vVlBaseCalc;
         fFIS_IMPOSTO.VL_OUTRO := 0;
       end;
@@ -484,8 +484,8 @@ begin
       fFIS_ALIQUOTAICMSUF.CD_UFDESTINO := gDsUFDestino;
       fFIS_ALIQUOTAICMSUF.Listar();
       if (itemXmlF('status', voParams) < 0) then begin
-        raise Exception.Create('Nenhuma aliquota cadastrada de ' + fFIS_ALIQUOTAICMSUF.CD_UFORIGEM + ' para ' + item('CD_UFDESTINO' + ' / ' := tFIS_ALIQUOTAICMSUF) + '!', cDS_METHOD);
-        
+        raise Exception.Create('Nenhuma aliquota cadastrada de ' + fFIS_ALIQUOTAICMSUF.CD_UFORIGEM + ' para ' + item('CD_UFDESTINO' + ' / ' + tFIS_ALIQUOTAICMSUF) + '!', cDS_METHOD);
+        exit;
       end;
       vPrAliqIntra := fFIS_ALIQUOTAICMSUF.PR_ALIQICMS;
 
@@ -494,8 +494,8 @@ begin
       fFIS_ALIQUOTAICMSUF.CD_UFDESTINO := gDsUFDestino;
       fFIS_ALIQUOTAICMSUF.Listar();
       if (itemXmlF('status', voParams) < 0) then begin
-        raise Exception.Create('Nenhuma aliquota cadastrada de ' + fFIS_ALIQUOTAICMSUF.CD_UFORIGEM + ' para ' + item('CD_UFDESTINO' + ' / ' := tFIS_ALIQUOTAICMSUF) + '!', cDS_METHOD);
-        
+        raise Exception.Create('Nenhuma aliquota cadastrada de ' + fFIS_ALIQUOTAICMSUF.CD_UFORIGEM + ' para ' + item('CD_UFDESTINO' + ' / ' + tFIS_ALIQUOTAICMSUF) + '!', cDS_METHOD);
+        exit;
       end;
       vPrAliqInter := fFIS_ALIQUOTAICMSUF.PR_ALIQICMS;
 
@@ -514,7 +514,7 @@ begin
     end;
   end;
 
-  return(0); exit;
+  exit;
 End;
 
 //---------------------------------------------------------------------------------------
@@ -533,7 +533,7 @@ begin
     fFIS_IMPOSTO.Remover();
 
     if (gPrIPI > 0) then begin
-      return(0); exit;
+      exit;
     end;
 
     fFIS_IMPOSTO.Append();
@@ -543,8 +543,8 @@ begin
     if (xStatus = -7) then begin
       fFIS_IMPOSTO.Consultar();
     end else if (xStatus = 0) then begin
-      raise Exception.Create('Imposto ' + fFIS_IMPOSTO.CD_IMPOSTO + ' nao cadastrado!' + ' / ' := cDS_METHOD);
-      
+      raise Exception.Create('Imposto ' + fFIS_IMPOSTO.CD_IMPOSTO + ' nao cadastrado!' + ' / ' + cDS_METHOD);
+      exit;
     end;
   end else begin
     gDtVigenciaIPI := fFIS_IMPOSTO.DT_INIVIGENCIA;
@@ -554,7 +554,7 @@ begin
 
   calculaBaseCalc();
 
-  if (fFIS_REGRAIMPOSTO.IN_OUTRO = TRUE) then begin
+  if (fFIS_REGRAIMPOSTO.IN_OUTRO) then begin
     fFIS_IMPOSTO.VL_OUTRO := fFIS_IMPOSTO.VL_BASECALC;
     fFIS_IMPOSTO.VL_ISENTO := 0;
     fFIS_IMPOSTO.VL_IMPOSTO := 0;
@@ -563,7 +563,7 @@ begin
     fFIS_IMPOSTO.PR_REDUBASE := 0;
     fFIS_IMPOSTO.PR_ALIQUOTA := 0;
 
-  end else if (fFIS_REGRAIMPOSTO.IN_ISENTO = TRUE) then begin
+  end else if (fFIS_REGRAIMPOSTO.IN_ISENTO) then begin
     fFIS_IMPOSTO.VL_ISENTO := fFIS_IMPOSTO.VL_BASECALC;
     fFIS_IMPOSTO.VL_OUTRO := 0;
     fFIS_IMPOSTO.VL_IMPOSTO := 0;
@@ -599,7 +599,7 @@ begin
       end;
     end;
   end;
-  if (gInImpostoOffLine = TRUE) then begin
+  if (gInImpostoOffLine) then begin
     fFIS_IMPOSTO.VL_BASECALC := 0;
     fFIS_IMPOSTO.VL_IMPOSTO := 0;
   end;
@@ -607,7 +607,7 @@ begin
   gPrIPI := fFIS_IMPOSTO.PR_ALIQUOTA;
   gVlIPI := fFIS_IMPOSTO.VL_IMPOSTO;
 
-  return(0); exit;
+  exit;
 End;
 
 //---------------------------------------------------------------------------------------
@@ -618,14 +618,14 @@ const
 var
   vVlCalc, vVlBaseCalc : Real;
 begin
-  if (gInImpostoOffLine = TRUE) then begin
+  if (gInImpostoOffLine) then begin
     fFIS_IMPOSTO.Remover();
-    return(0); exit;
+    exit;
   end;
 
   calculaBaseCalc();
 
-  if (fFIS_REGRAIMPOSTO.IN_OUTRO = TRUE) then begin
+  if (fFIS_REGRAIMPOSTO.IN_OUTRO) then begin
     fFIS_IMPOSTO.VL_OUTRO := fFIS_IMPOSTO.VL_BASECALC;
     fFIS_IMPOSTO.VL_ISENTO := 0;
     fFIS_IMPOSTO.VL_IMPOSTO := 0;
@@ -634,7 +634,7 @@ begin
     fFIS_IMPOSTO.PR_REDUBASE := 0;
     fFIS_IMPOSTO.PR_ALIQUOTA := 0;
 
-  end else if (fFIS_REGRAIMPOSTO.IN_ISENTO = TRUE) then begin
+  end else if (fFIS_REGRAIMPOSTO.IN_ISENTO) then begin
     fFIS_IMPOSTO.VL_ISENTO := fFIS_IMPOSTO.VL_BASECALC;
     fFIS_IMPOSTO.VL_OUTRO := 0;
     fFIS_IMPOSTO.VL_IMPOSTO := 0;
@@ -653,7 +653,7 @@ begin
     fFIS_IMPOSTO.VL_IMPOSTO := rounded(vVlCalc, 6);
   end;
 
-  return(0); exit;
+  exit;
 End;
 
 //------------------------------------------------------------------------------------------
@@ -664,16 +664,16 @@ const
 var
   vVlCalc : Real;
 begin
-  if (gInImpostoOffLine = TRUE) then begin
+  if (gInImpostoOffLine) then begin
     fFIS_IMPOSTO.Remover();
-    return(0); exit;
+    exit;
   end;
 
   fFIS_IMPOSTO.CD_CST := fFIS_REGRAIMPOSTO.CD_CST;
 
   calculaBaseCalc();
 
-  if (fFIS_REGRAIMPOSTO.IN_OUTRO = TRUE) then begin
+  if (fFIS_REGRAIMPOSTO.IN_OUTRO) then begin
     fFIS_IMPOSTO.VL_OUTRO := fFIS_IMPOSTO.VL_BASECALC;
     fFIS_IMPOSTO.VL_ISENTO := 0;
     fFIS_IMPOSTO.VL_IMPOSTO := 0;
@@ -682,7 +682,7 @@ begin
     fFIS_IMPOSTO.PR_REDUBASE := 0;
     fFIS_IMPOSTO.PR_ALIQUOTA := 0;
 
-  end else if (fFIS_REGRAIMPOSTO.IN_ISENTO = TRUE) then begin
+  end else if (fFIS_REGRAIMPOSTO.IN_ISENTO) then begin
     fFIS_IMPOSTO.VL_ISENTO := fFIS_IMPOSTO.VL_BASECALC;
     fFIS_IMPOSTO.VL_OUTRO := 0;
     fFIS_IMPOSTO.VL_IMPOSTO := 0;
@@ -701,7 +701,7 @@ begin
     fFIS_IMPOSTO.VL_IMPOSTO := rounded(vVlCalc, 6);
   end;
 
-  return(0); exit;
+  exit;
 End;
 
 //---------------------------------------------------------------------------------------
@@ -712,16 +712,16 @@ const
 var
   vVlCalc : Real;
 begin
-  if (gInImpostoOffLine = TRUE) then begin
+  if (gInImpostoOffLine) then begin
     fFIS_IMPOSTO.Remover();
-    return(0); exit;
+    exit;
   end;
 
   fFIS_IMPOSTO.CD_CST := fFIS_REGRAIMPOSTO.CD_CST;
 
   calculaBaseCalc();
 
-  if (fFIS_REGRAIMPOSTO.IN_OUTRO = TRUE) then begin
+  if (fFIS_REGRAIMPOSTO.IN_OUTRO) then begin
     fFIS_IMPOSTO.VL_OUTRO := fFIS_IMPOSTO.VL_BASECALC;
     fFIS_IMPOSTO.VL_ISENTO := 0;
     fFIS_IMPOSTO.VL_IMPOSTO := 0;
@@ -730,7 +730,7 @@ begin
     fFIS_IMPOSTO.PR_REDUBASE := 0;
     fFIS_IMPOSTO.PR_ALIQUOTA := 0;
 
-  end else if (fFIS_REGRAIMPOSTO.IN_ISENTO = TRUE) then begin
+  end else if (fFIS_REGRAIMPOSTO.IN_ISENTO) then begin
     fFIS_IMPOSTO.VL_ISENTO := fFIS_IMPOSTO.VL_BASECALC;
     fFIS_IMPOSTO.VL_OUTRO := 0;
     fFIS_IMPOSTO.VL_IMPOSTO := 0;
@@ -749,7 +749,7 @@ begin
     fFIS_IMPOSTO.VL_IMPOSTO := rounded(vVlCalc, 6);
   end;
 
-  return(0); exit;
+  exit;
 End;
 
 //-----------------------------------------------------------------------------------------
@@ -760,14 +760,14 @@ const
 var
   vVlCalc : Real;
 begin
-  if (gInImpostoOffLine = TRUE) then begin
+  if (gInImpostoOffLine) then begin
     fFIS_IMPOSTO.Remover();
-    return(0); exit;
+    exit;
   end;
 
   calculaBaseCalc();
 
-  if (fFIS_REGRAIMPOSTO.IN_OUTRO = TRUE) then begin
+  if (fFIS_REGRAIMPOSTO.IN_OUTRO) then begin
     fFIS_IMPOSTO.VL_OUTRO := fFIS_IMPOSTO.VL_BASECALC;
     fFIS_IMPOSTO.VL_ISENTO := 0;
     fFIS_IMPOSTO.VL_IMPOSTO := 0;
@@ -776,7 +776,7 @@ begin
     fFIS_IMPOSTO.PR_REDUBASE := 0;
     fFIS_IMPOSTO.PR_ALIQUOTA := 0;
 
-  end else if (fFIS_REGRAIMPOSTO.IN_ISENTO = TRUE) then begin
+  end else if (fFIS_REGRAIMPOSTO.IN_ISENTO) then begin
     fFIS_IMPOSTO.VL_ISENTO := fFIS_IMPOSTO.VL_BASECALC;
     fFIS_IMPOSTO.VL_OUTRO := 0;
     fFIS_IMPOSTO.VL_IMPOSTO := 0;
@@ -795,7 +795,7 @@ begin
     fFIS_IMPOSTO.VL_IMPOSTO := rounded(vVlCalc, 6);
   end;
 
-  return(0); exit;
+  exit;
 End;
 
 //----------------------------------------------------------------------------------------
@@ -806,14 +806,14 @@ const
 var
   vVlCalc : Real;
 begin
-  if (gInImpostoOffLine = TRUE) then begin
+  if (gInImpostoOffLine) then begin
     fFIS_IMPOSTO.Remover();
-    return(0); exit;
+    exit;
   end;
 
   calculaBaseCalc();
 
-  if (fFIS_REGRAIMPOSTO.IN_OUTRO = TRUE) then begin
+  if (fFIS_REGRAIMPOSTO.IN_OUTRO) then begin
     fFIS_IMPOSTO.VL_OUTRO := fFIS_IMPOSTO.VL_BASECALC;
     fFIS_IMPOSTO.VL_ISENTO := 0;
     fFIS_IMPOSTO.VL_IMPOSTO := 0;
@@ -822,7 +822,7 @@ begin
     fFIS_IMPOSTO.PR_REDUBASE := 0;
     fFIS_IMPOSTO.PR_ALIQUOTA := 0;
 
-  end else if (fFIS_REGRAIMPOSTO.IN_ISENTO = TRUE) then begin
+  end else if (fFIS_REGRAIMPOSTO.IN_ISENTO) then begin
     fFIS_IMPOSTO.VL_ISENTO := fFIS_IMPOSTO.VL_BASECALC;
     fFIS_IMPOSTO.VL_OUTRO := 0;
     fFIS_IMPOSTO.VL_IMPOSTO := 0;
@@ -841,7 +841,7 @@ begin
     fFIS_IMPOSTO.VL_IMPOSTO := rounded(vVlCalc, 6);
   end;
 
-  return(0); exit;
+  exit;
 End;
 
 //--------------------------------------------------------------------------------------------
@@ -872,7 +872,7 @@ begin
     fFIS_IMPOSTO.VL_BASECALC := gVlTotalBruto;
   end;
 
-  return(0); exit;
+  exit;
 end;
 
 //---------------------------------------------------------------
@@ -885,8 +885,8 @@ var
 begin
   vCdRegraFiscal := pParams.CD_REGRAFISCAL;
   if (vCdRegraFiscal = 0) then begin
-    raise Exception.Create('Regra fiscal nao informada!' + ' / ' := cDS_METHOD);
-    
+    raise Exception.Create('Regra fiscal nao informada!' + ' / ' + cDS_METHOD);
+    exit;
   end;
 
   fFIS_REGRAFISCAL.Limpar();
@@ -895,8 +895,8 @@ begin
   if (xStatus >= 0) then begin
     Result.IN_NOVAREGRA := fFIS_REGRAADIC.IN_NOVAREGRA;
   end else begin
-    raise Exception.Create('Dados adicionais da regra nao cadastrado!' + ' / ' := cDS_METHOD);
-    
+    raise Exception.Create('Dados adicionais da regra nao cadastrado!' + ' / ' + cDS_METHOD);
+    exit;
   end;
 
   fFIS_REGRAREL.Limpar();
@@ -908,7 +908,7 @@ begin
     Result.IN_REGRAPAI := 0;
   end;
 
-  return(0); exit;
+  exit;
 end;
 
 //---------------------------------------------------------------------
@@ -951,32 +951,32 @@ begin
   vInDecreto := FALSE;
 
   if (vCdOperacao = 0) then begin
-    raise Exception.Create('Operacao nao informada!' + ' / ' := cDS_METHOD);
-    
+    raise Exception.Create('Operacao nao informada!' + ' / ' + cDS_METHOD);
+    exit;
   end;
   if (vCdPessoa = 0) then begin
-    raise Exception.Create('Pessoa nao informada!' + ' / ' := cDS_METHOD);
-    
+    raise Exception.Create('Pessoa nao informada!' + ' / ' + cDS_METHOD);
+    exit;
   end;
   if (gDsUfOrigem = '') then begin
-    raise Exception.Create('Origem nao informada!' + ' / ' := cDS_METHOD);
-    
+    raise Exception.Create('Origem nao informada!' + ' / ' + cDS_METHOD);
+    exit;
   end;
   if (gDsUfDestino = '') then begin
-    raise Exception.Create('Origem nao informada!' + ' / ' := cDS_METHOD);
-    
+    raise Exception.Create('Origem nao informada!' + ' / ' + cDS_METHOD);
+    exit;
   end;
   if (vDtEmissao = 0) then begin
-    raise Exception.Create('Data de emiss√£o nao informada!' + ' / ' := cDS_METHOD);
-    
+    raise Exception.Create('Data de emiss√£o nao informada!' + ' / ' + cDS_METHOD);
+    exit;
   end;
 
   fGER_OPERACAO.Limpar();
   fGER_OPERACAO.CD_OPERACAO := vCdOperacao;
   fGER_OPERACAO.Listar();
   if (itemXmlF('status', voParams) < 0) then begin
-    raise Exception.Create('Operacao ' + FloatToStr(vCdOperacao) + ' nao cadastrada!' + ' / ' := cDS_METHOD);
-    
+    raise Exception.Create('Operacao ' + FloatToStr(vCdOperacao) + ' nao cadastrada!' + ' / ' + cDS_METHOD);
+    exit;
   end;
   if (fGER_OPERACAO.TP_OPERACAO = 'E') then begin
     vDsAux := gDsUfOrigem;
@@ -999,8 +999,8 @@ begin
     fPRD_PRODUTO.CD_PRODUTO := vCdProduto;
     fPRD_PRODUTO.Listar();
     if (itemXmlF('status', voParams) < 0) then begin
-      raise Exception.Create('Produto ' + FloatToStr(vCdProduto) + ' nao cadastrado!' + ' / ' := cDS_METHOD);
-      
+      raise Exception.Create('Produto ' + FloatToStr(vCdProduto) + ' nao cadastrado!' + ' / ' + cDS_METHOD);
+      exit;
     end else begin
       fPRD_PRDREGRAFISCAL.Limpar();
       fPRD_PRDREGRAFISCAL.CD_OPERACAO := fGER_OPERACAO.CD_OPERACAO;
@@ -1016,8 +1016,8 @@ begin
   fPES_PESSOA.CD_PESSOA := vCdPessoa;
   fPES_PESSOA.Listar();
   if (itemXmlF('status', voParams) < 0) then begin
-    raise Exception.Create('Pessoa nao informada!' + ' / ' := cDS_METHOD);
-    
+    raise Exception.Create('Pessoa nao informada!' + ' / ' + cDS_METHOD);
+    exit;
   end;
 
   viParams := '';
@@ -1033,11 +1033,11 @@ begin
   end;
 
   vInOrgaopublico := voParams.IN_ORGAOPUBLICO;
-  if (vInOrgaopublico = TRUE) and (gDsUFOrigem = 'DF') then begin
+  if (vInOrgaopublico) and (gDsUFOrigem = 'DF') then begin
     gInContribuinte := TRUE;
   end else begin
-    if (fPES_CLIENTE.IN_CNSRFINAL = TRUE) or (fPES_PESSOA.TP_PESSOA = 'F') or (gInPjIsento = TRUE) then begin
-      if (fPES_CLIENTE.IN_CNSRFINAL = TRUE) and (fPES_PESSOA.TP_PESSOA = 'J') and (gInPjIsento = FALSE) then begin
+    if (fPES_CLIENTE.IN_CNSRFINAL) or (fPES_PESSOA.TP_PESSOA = 'F') or (gInPjIsento) then begin
+      if (fPES_CLIENTE.IN_CNSRFINAL) and (fPES_PESSOA.TP_PESSOA = 'J') and (gInPjIsento = FALSE) then begin
         gInContribuinte := TRUE;
       end else begin
         if (fPES_PESSOA.TP_PESSOA = 'F') and (((item('NR_CODIGOFISCAL', tPES_CLIENTE) <> '') and (PosItem(gDsUFOrigem, 'PR|SP|RS') > 0)) or (item('NR_INSCPRODRURAL', tPES_PFADIC) <> '')) then begin
@@ -1088,7 +1088,7 @@ begin
             1 : begin
               if (fFIS_REGRACOND.TP_OPERADOR = 1) then begin
                 vInValor := fFIS_REGRACOND.DS_VALOR;
-                if (vInValor = TRUE) then begin
+                if (vInValor) then begin
                   if (gDsUfOrigem = gDsUfDestino) then begin
                     vUtilizaRegra := FALSE;
                   end;
@@ -1099,7 +1099,7 @@ begin
                 end;
               end else if (fFIS_REGRACOND.TP_OPERADOR = 2) then begin
                 vInValor := fFIS_REGRACOND.DS_VALOR;
-                if (vInValor = TRUE) then begin
+                if (vInValor) then begin
                   if (gDsUfOrigem <> gDsUfDestino) then begin
                     vUtilizaRegra := FALSE;
                   end;
@@ -1239,8 +1239,8 @@ begin
             10 : begin
               if (fPES_PESSOA.TP_PESSOA <> 'F') then begin
                 if (fPES_PESJURIDICA.IsEmpty() <> False) then begin
-                  raise Exception.Create('Pessoa ' + FloatToStr(vCdPessoa) + ' nao √© jur√≠dica!' + ' / ' := cDS_METHOD);
-                  
+                  raise Exception.Create('Pessoa ' + FloatToStr(vCdPessoa) + ' nao √© jur√≠dica!' + ' / ' + cDS_METHOD);
+                  exit;
                 end;
                 if (fFIS_REGRACOND.TP_OPERADOR = 1) then begin
                   if (fPES_PESJURIDICA.TP_REGIMETRIB <> itemF('DS_VALOR', tFIS_REGRACOND)) then begin
@@ -1626,7 +1626,7 @@ begin
                     vInAchou := TRUE;
                   end;
                 end;
-                if (vInAchou = TRUE) then begin
+                if (vInAchou) then begin
                   vUtilizaRegra := FALSE;
                 end;
               end;
@@ -1639,7 +1639,7 @@ begin
 
           fFIS_REGRACOND.Next();
         end;
-        if (vUtilizaRegra = TRUE) then begin
+        if (vUtilizaRegra) then begin
           vCdRegraFiscal := fFIS_REGRAREL.CD_REGRAREL;
           break;
         end;
@@ -1648,8 +1648,8 @@ begin
       end;
     end;
   end else begin
-    raise Exception.Create('Regra fiscal nao cadastrada!' + ' / ' := cDS_METHOD);
-    
+    raise Exception.Create('Regra fiscal nao cadastrada!' + ' / ' + cDS_METHOD);
+    exit;
   end;
 
   fFIS_REGRAFISCAL.Limpar();
@@ -1663,7 +1663,7 @@ begin
   fFIS_REGRAFISCAL.SetValues(Result);
   Result.IN_CONTRIBUINTE := gInContribuinte;
 
-  return(0); exit;
+  exit;
 End;
 
 //------------------------------------------------------------------
@@ -1713,31 +1713,31 @@ begin
   gDtVigenciaIPI := 0;
 
   if (vCdRegraFiscal = 0) then begin
-    raise Exception.Create('Regra fiscal nao informada!' + ' / ' := cDS_METHOD);
-    
+    raise Exception.Create('Regra fiscal nao informada!' + ' / ' + cDS_METHOD);
+    exit;
   end;
   if (vCdOperacao = 0) then begin
-    raise Exception.Create('Operacao nao informada!' + ' / ' := cDS_METHOD);
-    
+    raise Exception.Create('Operacao nao informada!' + ' / ' + cDS_METHOD);
+    exit;
   end;
 
   fGER_OPERACAO.Limpar();
   fGER_OPERACAO.CD_OPERACAO := vCdOperacao;
   fGER_OPERACAO.Listar();
   if (itemXmlF('status', voParams) < 0) then begin
-    raise Exception.Create('Operacao ' + FloatToStr(vCdOperacao) + ' nao cadastrada!' + ' / ' := cDS_METHOD);
-    
+    raise Exception.Create('Operacao ' + FloatToStr(vCdOperacao) + ' nao cadastrada!' + ' / ' + cDS_METHOD);
+    exit;
   end;
   if (fGER_OPERACAO.IN_CALCIMPOSTO <> TRUE) then begin
-    return(0); exit;
+    exit;
   end;
 
   fFIS_REGRAFISCAL.Limpar();
   fFIS_REGRAFISCAL.CD_REGRAFISCAL := vCdRegraFiscal;
   fFIS_REGRAFISCAL.Listar();
   if (itemXmlF('status', voParams) < 0) then begin
-    raise Exception.Create('Regra fiscal ' + FloatToStr(vCdRegraFiscal) + ' nao cadastrada!' + ' / ' := cDS_METHOD);
-    
+    raise Exception.Create('Regra fiscal ' + FloatToStr(vCdRegraFiscal) + ' nao cadastrada!' + ' / ' + cDS_METHOD);
+    exit;
   end;
   if (vDsLstCdImposto <> '') then begin
     fFIS_REGRAIMPOSTO.Limpar();
@@ -1758,8 +1758,8 @@ begin
     fPES_PESSOA.CD_PESSOA := vCdPessoa;
     fPES_PESSOA.Listar();
     if (itemXmlF('status', voParams) < 0) then begin
-      raise Exception.Create('Pessoa nao informada!' + ' / ' := cDS_METHOD);
-      
+      raise Exception.Create('Pessoa nao informada!' + ' / ' + cDS_METHOD);
+      exit;
     end;
 
     viParams := '';
@@ -1774,11 +1774,11 @@ begin
     if (PosItem(fPES_PESJURIDICA.NR_INSCESTL, 'ISENTO|ISENTA|ISENTOS|ISENTAS') > 0) then begin
       gInPjIsento := TRUE;
     end;
-    if (vInOrgaopublico = TRUE) and (gDsUFOrigem = 'DF') then begin
+    if (vInOrgaopublico) and (gDsUFOrigem = 'DF') then begin
       gInContribuinte := TRUE;
     end else begin
-      if (fPES_CLIENTE.IN_CNSRFINAL = TRUE) or (fPES_PESSOA.TP_PESSOA = 'F') or (gInPjIsento = TRUE) then begin
-        if (fPES_CLIENTE.IN_CNSRFINAL = TRUE) and (fPES_PESSOA.TP_PESSOA = 'J') and (gInPjIsento = FALSE) then begin
+      if (fPES_CLIENTE.IN_CNSRFINAL) or (fPES_PESSOA.TP_PESSOA = 'F') or (gInPjIsento) then begin
+        if (fPES_CLIENTE.IN_CNSRFINAL) and (fPES_PESSOA.TP_PESSOA = 'J') and (gInPjIsento = FALSE) then begin
           gInContribuinte := TRUE;
         end else begin
           if (fPES_PESSOA.TP_PESSOA = 'F') and (((item('NR_CODIGOFISCAL', tPES_CLIENTE) <> '') and (PosItem(gDsUFOrigem, 'PR|SP|RS') > 0))  or (item('NR_INSCPRODRURAL', tPES_PFADIC) <> '')) then begin
@@ -1798,24 +1798,24 @@ begin
     fCDF_MPTER.CD_MPTER := vCdMPTer;
     fCDF_MPTER.Listar();
     if (itemXmlF('status', voParams) < 0) then begin
-      raise Exception.Create('Materia-prima ' + vCdMPTer + ' nao cadastrada para a pessoa ' + FloatToStr(vCdPessoa) + '!' + ' / ' := cDS_METHOD);
-      
+      raise Exception.Create('Materia-prima ' + vCdMPTer + ' nao cadastrada para a pessoa ' + FloatToStr(vCdPessoa) + '!' + ' / ' + cDS_METHOD);
+      exit;
     end;
   end else if (gCdServico > 0) then begin
     fPCP_SERV.Limpar();
     fPCP_SERV.CD_SERVICO := gCdServico;
     fPCP_SERV.Listar();
     if (itemXmlF('status', voParams) < 0) then begin
-      raise Exception.Create('Servico ' + FloatToStr(gCdServico) + ' nao cadastrado!' + ' / ' := cDS_METHOD);
-      
+      raise Exception.Create('Servico ' + FloatToStr(gCdServico) + ' nao cadastrado!' + ' / ' + cDS_METHOD);
+      exit;
     end;
   end else if (vCdProduto > 0) then begin
     fPRD_PRODUTO.Limpar();
     fPRD_PRODUTO.CD_PRODUTO := vCdProduto;
     fPRD_PRODUTO.Listar();
     if (itemXmlF('status', voParams) < 0) then begin
-      raise Exception.Create('Produto ' + FloatToStr(vCdProduto) + ' nao cadastrado!' + ' / ' := cDS_METHOD);
-      
+      raise Exception.Create('Produto ' + FloatToStr(vCdProduto) + ' nao cadastrado!' + ' / ' + cDS_METHOD);
+      exit;
     end;
   end;
   if (vCdProduto = 0) and (vCdMPTer = '') and (gCdServico = 0) then begin
@@ -1827,7 +1827,7 @@ begin
       end;
 
     end else begin
-      return(0); exit;
+      exit;
     end;
 
   end else begin
@@ -1891,8 +1891,8 @@ begin
         if (xStatus = -7) then begin
           fFIS_IMPOSTO.Consultar();
         end else if (xStatus = 0) then begin
-          raise Exception.Create('Imposto ' + FloatToStr(vCdImposto) + ' nao cadastrado!' + ' / ' := cDS_METHOD);
-          
+          raise Exception.Create('Imposto ' + FloatToStr(vCdImposto) + ' nao cadastrado!' + ' / ' + cDS_METHOD);
+          exit;
         end;
 
         case round(vCdImposto) of
@@ -1960,7 +1960,7 @@ begin
     fFIS_REGRAIMPCALC.First();
     while not t.EOF do begin
       vDsRegistro := '';
-      putlistitensocc(vDsRegistro, tFIS_REGRAIMPCALC);
+      vDsRegistro := fFIS_REGRAIMPCALC.GetValues();
       putitem(vDsLstImpCalc, vDsRegistro);
       fFIS_REGRAIMPCALC.Next();
     end;
@@ -1971,7 +1971,7 @@ begin
   if (vNrTam <= 1) then begin
     gCdCST := gCdCST + '00';
   end;
-  if (gInProdPropria = TRUE) then begin
+  if (gInProdPropria) then begin
     vCdCFOP := fFIS_REGRAFISCAL.CD_CFOPPROPRIA;
   end else begin
     vCdCFOP := fFIS_REGRAFISCAL.CD_CFOPTERCEIRO;
@@ -1983,7 +1983,7 @@ begin
   Result.DS_LSTIMPOSTO := vDsLstImposto;
   Result.DS_LSTIMPCALC := vDsLstImpCalc;
 
-  return(0); exit;
+  exit;
 End;
 
 //------------------------------------------------------------------
@@ -2001,7 +2001,7 @@ begin
 	vCdRegra := pParams.CD_REGRAFISCAL;
 
 	if (vCdRegra = 0) then begin
-		raise Exception.Create('CÛdigo de regra para busca de alÌquota interna n„o informado!' + ' / ' := cDS_METHOD);
+		raise Exception.Create('CÛdigo de regra para busca de alÌquota interna n„o informado!' + ' / ' + cDS_METHOD);
 		return(STS_ERROR); exit;
 	end;
 
@@ -2028,7 +2028,7 @@ begin
 
 	Result.PR_ALIQUOTA := vPrAliquota;
 
-	return(0); exit;
+	exit;
 End;
 
 initialization

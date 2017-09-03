@@ -245,7 +245,7 @@ begin
 
   if (gInImpostoOffLine) then begin
     fFIS_IMPOSTO.Remover();
-    
+    exit;
   end;
 
   gVlICMS := 0;
@@ -269,7 +269,7 @@ begin
   if (vCdCST = '60') then begin
     fFIS_IMPOSTO.Remover();
     gCdDecreto := vCdDecreto;
-    
+    exit;
   end else if (vCdCST <> '00') and (vCdCST <> '10') and (vCdCST <> '20') and (vCdCST <> '30') and (vCdCST <> '40') and (vCdCST <> '41') and (vCdCST <> '50') and (vCdCST <> '51') and (vCdCST <> '70') and (vCdCST <> '90') then begin
     if (vCdDecreto <> 2155) and (vCdDecreto <> 1020) and (vCdDecreto <> 45471) and (vCdDecreto <> 52364)
     and (vCdDecreto <> 23731) and (vCdDecreto <> 23732) and (vCdDecreto <> 23733) and (vCdDecreto <> 23734)
@@ -278,7 +278,7 @@ begin
     and (vCdDecreto <> 10201) and (vCdDecreto <> 10202) and (vCdDecreto <> 10203) then begin
       fFIS_IMPOSTO.Remover();
       gCdDecreto := vCdDecreto;
-      
+      exit;
     end;
   end;
 
@@ -290,7 +290,7 @@ begin
         fFIS_IMPOSTO.PR_ALIQUOTA := gPrAliqICMSManaus;
       end else begin
         if (gDsUFOrigem = 'MG') and (gDsUFDestino = 'MG')  then begin
-          if (fFIS_REGRAFISCAL.PR_ALIQICMS > 0) and (gInContribuinte = True) and (gInProdPropria) then begin
+          if (fFIS_REGRAFISCAL.PR_ALIQICMS > 0) and (gInContribuinte) and (gInProdPropria) then begin
             fFIS_IMPOSTO.PR_ALIQUOTA := fFIS_REGRAFISCAL.PR_ALIQICMS;
           end else begin
             fFIS_IMPOSTO.PR_ALIQUOTA := fFIS_ALIQUOTAICMSUF.PR_ALIQICMS;
@@ -456,10 +456,10 @@ begin
       end;
     end;
     if (vInDecreto) then begin
-      raise Exception.Create('Decreto(11.589) não contemplado na legislação tributária do Paraná! Entrar em contato com os Analistas da área Fiscal da VirtualAge' + ' / ' := cDS_METHOD);
+      raise Exception.Create('Decreto(11.589) não contemplado na legislação tributária do Paraná! Entrar em contato com os Analistas da área Fiscal da VirtualAge' + ' / ' + cDS_METHOD);
       fFIS_IMPOSTO.PR_ALIQUOTA := 12;
       gCdDecreto := vCdDecreto;
-      
+      exit;
     end;
   end else if (vCdDecreto = 48786) or (vCdDecreto = 48958) or (vCdDecreto = 48959) or (vCdDecreto = 49115) then begin // O decreto 48042 foi substituido pelo 55652
     if (gDsUFOrigem = 'SP') then begin
@@ -627,13 +627,13 @@ begin
        vCdCST := '20';
       gCdDecreto := vCdDecreto;
     end;
-  end else if (vCdDecreto = 1643) and ((gInProdPropriaDec1643 = False) or (gInProdPropria = True)) then begin
+  end else if (vCdDecreto = 1643) and ((gInProdPropriaDec1643 = False) or (gInProdPropria)) then begin
     if (gDsUFOrigem = 'ES') and (gDsUFDestino = 'ES') then begin
-      if (gInContribuinte = True) and ((gTpRegimeOrigem = 2) or (gTpRegimeOrigem = 3))then begin // 2-Simples 3-EPP
+      if (gInContribuinte) and ((gTpRegimeOrigem = 2) or (gTpRegimeOrigem = 3))then begin // 2-Simples 3-EPP
         fFIS_IMPOSTO.PR_BASECALC := 41.177;
         fFIS_IMPOSTO.PR_REDUBASE := 58.823;
         vInDecreto := True;
-      end else if (gInContribuinte = True) and (gTpRegimeOrigem <> 2) and (gTpRegimeOrigem <> 3)then begin // Empresa Normal
+      end else if (gInContribuinte) and (gTpRegimeOrigem <> 2) and (gTpRegimeOrigem <> 3)then begin // Empresa Normal
         if (gDsUFDestino <> gDsUFOrigem) then begin
           // Conforme consulta ao IOB pelo Sr. Deusdete, nao foi confirmado esta reducao para operacao interestadual
         end else begin
@@ -653,7 +653,7 @@ begin
     end;
   end else if (vCdDecreto = 44238) then begin // Decreto valido para o estado do Rio Grande do Sul
     if (gDsUFOrigem = 'RS') and (gDsUFDestino = 'RS') then begin
-      if (gInContribuinte = True)
+      if (gInContribuinte)
       and ((fGER_OPERACAO.TP_MODALIDADE = '3') or (fGER_OPERACAO.TP_MODALIDADE = 4)) then begin // 3 - Devolucao / 4 - Venda/Compra
         if (gTpOrigemEmissao = 1) then begin //Emissão própria
           if (gInProdPropria) then begin
@@ -678,7 +678,7 @@ begin
     end;
   end else if (vCdDecreto = 105) then begin // Decreto valido para o estado de Santa Catarina
     if (gDsUFOrigem = 'SC') then begin
-      if (gDsUFDestino = 'SC') and (gInContribuinte = True)
+      if (gDsUFDestino = 'SC') and (gInContribuinte)
       and (((fGER_OPERACAO.TP_OPERACAO = 'E') and (fGER_OPERACAO.TP_MODALIDADE = 4))
         or ((fGER_OPERACAO.TP_OPERACAO = 'S') and (fGER_OPERACAO.TP_MODALIDADE = 4))) then begin //Compra / Venda
         if (gCdClasRegEspecialSC <> '') then begin
@@ -697,7 +697,7 @@ begin
     end;
   end else if (vCdDecreto = 13214) then begin // Decreto valido para o estado do Paraná
     if (gDsUFOrigem = 'PR') or (gDsUFDestino = 'PR') then begin
-      if (gInContribuinte = True) and (fGER_OPERACAO.TP_MODALIDADE = 4) then begin // Venda/Compra
+      if (gInContribuinte) and (fGER_OPERACAO.TP_MODALIDADE = 4) then begin // Venda/Compra
         if (fFIS_IMPOSTO.PR_ALIQUOTA = 7) then begin
           fFIS_IMPOSTO.PR_BASECALC := 100;
           vInDecreto := True;
@@ -722,7 +722,7 @@ begin
     end;
   end else if (vCdDecreto = 12462) then begin // Decreto valido para o estado de Goiás
     if (gDsUFOrigem = 'GO') and (gDsUFDestino = 'GO') then begin
-      if (gInContribuinte = True)
+      if (gInContribuinte)
       and ((fGER_OPERACAO.TP_MODALIDADE = 2) or (fGER_OPERACAO.TP_MODALIDADE = 3) or (fGER_OPERACAO.TP_MODALIDADE = 4)) then begin
         //2 - Transferencia / 3 - Devolucao / 4 - Venda/Compra
         fFIS_IMPOSTO.PR_BASECALC := 58.82;
@@ -786,7 +786,7 @@ begin
     end else begin
       fFIS_IMPOSTO.PR_BASECALC := 100;
       fFIS_IMPOSTO.VL_BASECALC := gVlTotalLiquidoICMS;
-      if ((gCdDecreto = 1643) and ((gInProdPropriaDec1643 = False) or (gInProdPropria = True))) or (gCdDecreto = 56066)then begin
+      if ((gCdDecreto = 1643) and ((gInProdPropriaDec1643 = False) or (gInProdPropria))) or (gCdDecreto = 56066)then begin
         gCdDecreto := 0;
         vInDecreto := False;
       end;
@@ -811,7 +811,7 @@ begin
   end else if (vCdCST = '20') or (vCdCST = '70') or (vCdCST = '30') then begin
     if (vInDecreto) then begin
       if (vCdDecreto = 12462)
-      or ((vCdDecreto = 1643) and ((gInProdPropriaDec1643 = False) or (gInProdPropria = True))) then begin
+      or ((vCdDecreto = 1643) and ((gInProdPropriaDec1643 = False) or (gInProdPropria))) then begin
         fFIS_IMPOSTO.VL_ISENTO := gVlTotalLiquidoICMS;
       end else begin
         fFIS_IMPOSTO.VL_OUTRO := gVlTotalLiquidoICMS;
@@ -820,7 +820,7 @@ begin
       vInReducao := False;
       if (fFIS_REGRAFISCAL.PR_REDUBASE > 0) and (gInContribuinte) then begin
         if (fGER_OPERACAO.TP_OPERACAO = 'S') then begin
-          if ((gInRedBaseIcms = True) and (gInProdPropria = True))
+          if ((gInRedBaseIcms) and (gInProdPropria))
           or (gInRedBaseIcms = False)
           or (fFIS_REGRAFISCAL.CD_CFOPPROPRIA = 5551)
           or (fGER_OPERACAO.TP_MODALIDADE = '3')
@@ -833,7 +833,7 @@ begin
             vInDecreto := False;
           end;
         end else begin
-          if ((fGER_OPERACAO.TP_MODALIDADE <> '3') or ((fGER_OPERACAO.TP_MODALIDADE = '3') and ((gInRedBaseIcms = True) and (gInProdPropria = True)) or (gInRedBaseIcms = False)))
+          if ((fGER_OPERACAO.TP_MODALIDADE <> '3') or ((fGER_OPERACAO.TP_MODALIDADE = '3') and ((gInRedBaseIcms) and (gInProdPropria)) or (gInRedBaseIcms = False)))
           or ((gTpOrigemEmissao = 2) and (gDsUFDestino = 'RS')) then begin
             vInReducao := True;
             vCdDecreto := fFIS_DECRETO.CD_DECRETO;
@@ -927,7 +927,7 @@ begin
         vCdCST := '00';
         fFIS_IMPOSTO.PR_BASECALC := 100;
         fFIS_IMPOSTO.VL_BASECALC := gVlTotalLiquidoICMS;
-        if ((gCdDecreto = 1643)and((gInProdPropriaDec1643 = False)or(gInProdPropria = True))) or (gCdDecreto = 56066) then begin
+        if ((gCdDecreto = 1643)and((gInProdPropriaDec1643 = False)or(gInProdPropria))) or (gCdDecreto = 56066) then begin
           gCdDecreto := 0;
           vInDecreto := False;
         end;
@@ -935,7 +935,7 @@ begin
       fFIS_IMPOSTO.VL_OUTRO := gVlTotalLiquidoICMS - fFIS_IMPOSTO.VL_BASECALC;
     end;
     if (vCdCST = '30') or (vCdCST = '70') then begin
-      if (fGER_OPERACAO.TP_OPERACAO = 'E') or ((fGER_OPERACAO.TP_OPERACAO = 'S') and (gInOptSimples = True)) then begin
+      if (fGER_OPERACAO.TP_OPERACAO = 'E') or ((fGER_OPERACAO.TP_OPERACAO = 'S') and (gInOptSimples)) then begin
         if (fFIS_IMPOSTO.VL_BASECALC > 0) then begin
           vVlCalc := fFIS_IMPOSTO.VL_BASECALC * item_f('PR_ALIQUOTA', tFIS_IMPOSTO) / 100;
           gVlICMS := rounded(vVlCalc, 6);
@@ -952,7 +952,7 @@ begin
       vVlCalc := gVlTotalLiquidoICMS * fFIS_IMPOSTO.PR_ALIQUOTA / 100;
       gVlICMS := rounded(vVlCalc, 6);
       fFIS_IMPOSTO.Remover();
-      
+      exit;
     end;
   end else if (vCdCST = '40') or (vCdCST = '41') then begin
     fFIS_IMPOSTO.PR_ALIQUOTA := 0;
@@ -961,7 +961,7 @@ begin
     fFIS_IMPOSTO.PR_ALIQUOTA := 0;
     fFIS_IMPOSTO.VL_OUTRO := gVlTotalLiquidoICMS;
   end else if (vCdCST = '51') then begin
-    if (vInDecreto = True)  then begin
+    if (vInDecreto)  then begin
       fFIS_IMPOSTO.VL_OUTRO := gVlTotalLiquidoICMS;
     end else begin
       if (fFIS_REGRAFISCAL.PR_REDUBASE > 0) then begin
@@ -1016,7 +1016,7 @@ begin
     vVlCalc := fFIS_IMPOSTO.VL_IMPOSTO * 66.67 / 100;
     fFIS_IMPOSTO.VL_IMPOSTO := rounded(vVlCalc, 6);
   end else begin 
-    if (vInPrRedImposto = True) and (fFIS_REGRAFISCAL.PR_REDUBASE > 0) then begin
+    if (vInPrRedImposto) and (fFIS_REGRAFISCAL.PR_REDUBASE > 0) then begin
       if (fFIS_REGRAFISCAL.TP_REDUCAO = 'B') or (fFIS_REGRAFISCAL.TP_REDUCAO = 'E') or (fFIS_REGRAFISCAL.TP_REDUCAO = 'H') then begin
         vVlCalc := (fFIS_IMPOSTO.VL_BASECALC * ((100 - item_f('PR_REDUBASE', tFIS_REGRAFISCAL))/100) * item_f('PR_ALIQUOTA', tFIS_IMPOSTO)) / 100;
         fFIS_IMPOSTO.VL_IMPOSTO := rounded(vVlCalc, 6);
@@ -1080,7 +1080,7 @@ begin
 
   if (gInImpostoOffLine) then begin
     fFIS_IMPOSTO.Remover();
-    
+    exit;
   end;
 
   vDtSistema := PARAM_GLB.DT_SISTEMA;
@@ -1095,7 +1095,7 @@ begin
       gCdDecreto := 0;
     end;
     fFIS_IMPOSTO.Remover();
-    
+    exit;
   end;
   gCdDecreto := 0;
   vCdDecreto := 0;
@@ -1137,8 +1137,8 @@ begin
     fFIS_ALIQUOTAICMSUF.CD_UFDESTINO := gDsUFDestino;
     fFIS_ALIQUOTAICMSUF.Listar();
     if (itemXmlF('status', voParams) < 0) then begin
-      raise Exception.Create('Nenhuma alíquota cadastrada de ' + gDsUFDestino + ' para ' + gDsUFDestino + '!' + ' / ' := cDS_METHOD);
-      
+      raise Exception.Create('Nenhuma alíquota cadastrada de ' + gDsUFDestino + ' para ' + gDsUFDestino + '!' + ' / ' + cDS_METHOD);
+      exit;
     end;
     fFIS_IMPOSTO.PR_ALIQUOTA := fFIS_ALIQUOTAICMSUF.PR_ALIQICMS;
   end;
@@ -1160,7 +1160,7 @@ begin
 
   if (vCdDecreto = 2155) then begin // Decreto do Estado do Parana
     if (gDsUFOrigem = 'PR') or (gDsUFOrigem = 'RS') or (gDsUFOrigem = 'SC') then begin
-      if (gInContribuinte = True) and (fGER_OPERACAO.TP_MODALIDADE = 4) then begin // 4 - Venda/Compra
+      if (gInContribuinte) and (fGER_OPERACAO.TP_MODALIDADE = 4) then begin // 4 - Venda/Compra
         if (gDsUFDestino = 'PR') or (gDsUFDestino = 'RS') or (gDsUFDestino = 'SC') then begin
           vPrIVA := 65.86;
           vInDecreto := True;
@@ -1177,8 +1177,8 @@ begin
         fFIS_ALIQUOTAICMSUF.CD_UFDESTINO := gDsUFDestino;
         fFIS_ALIQUOTAICMSUF.Listar();
         if (itemXmlF('status', voParams) < 0) then begin
-          raise Exception.Create('Nenhuma alíquota cadastrada de ' + gDsUFDestino + ' para ' + gDsUFDestino + '!' + ' / ' := cDS_METHOD);
-          
+          raise Exception.Create('Nenhuma alíquota cadastrada de ' + gDsUFDestino + ' para ' + gDsUFDestino + '!' + ' / ' + cDS_METHOD);
+          exit;
         end;
         fFIS_IMPOSTO.PR_ALIQUOTA := fFIS_ALIQUOTAICMSUF.PR_ALIQICMS;
       end;
@@ -1194,7 +1194,7 @@ begin
     end;
   end else if (vCdDecreto = 1020) or (vCdDecreto = 10201) or (vCdDecreto = 10202) or (vCdDecreto = 10203) then begin // Decreto do Estado de Santa Catarina
     if (gDsUFOrigem = 'PR') or (gDsUFOrigem = 'SC') or (gDsUFOrigem = 'MG') then begin //Incluído o Estado de MG
-      if (gInContribuinte = True) and (fGER_OPERACAO.TP_MODALIDADE = 4) then begin // 4 - Venda/Compra
+      if (gInContribuinte) and (fGER_OPERACAO.TP_MODALIDADE = 4) then begin // 4 - Venda/Compra
         if (gDsUFDestino = 'PR') or (gDsUFDestino = 'SC') or (gDsUFDestino = 'MG') then begin //Incluído o Estado de MG
           if (vCdDecreto = 1020) then begin
             vPrIVA := 65.86;
@@ -1235,8 +1235,8 @@ begin
       fFIS_ALIQUOTAICMSUF.CD_UFDESTINO := gDsUFDestino;
       fFIS_ALIQUOTAICMSUF.Listar();
       if (itemXmlF('status', voParams) < 0) then begin
-        raise Exception.Create('Nenhuma alíquota cadastrada de ' + gDsUFOrigem + ' para ' + gDsUFDestino + '!' + ' / ' := cDS_METHOD);
-        
+        raise Exception.Create('Nenhuma alíquota cadastrada de ' + gDsUFOrigem + ' para ' + gDsUFDestino + '!' + ' / ' + cDS_METHOD);
+        exit;
       end;
       vVlAliquotaInter := fFIS_ALIQUOTAICMSUF.PR_ALIQICMS;
 
@@ -1248,7 +1248,7 @@ begin
       voParams := cFISSVCO035.Instance.buscaDadosFiscalProduto(viParams);
       if (itemXmlF('status', voParams) < 0) then begin
         raise Exception.Create(itemXml('message', voParams));
-        
+        exit;
       end;
       vVlAliquotaIntra := voParams.PR_ICMS;
 
@@ -1258,8 +1258,8 @@ begin
         fFIS_ALIQUOTAICMSUF.CD_UFDESTINO := gDsUFDestino;
         fFIS_ALIQUOTAICMSUF.Listar();
         if (itemXmlF('status', voParams) < 0) then begin
-          raise Exception.Create('Nenhuma alíquota cadastrada de ' + gDsUFDestino + ' para ' + gDsUFDestino + '!' + ' / ' := cDS_METHOD);
-          
+          raise Exception.Create('Nenhuma alíquota cadastrada de ' + gDsUFDestino + ' para ' + gDsUFDestino + '!' + ' / ' + cDS_METHOD);
+          exit;
         end;
         vVlAliquotaIntra := fFIS_ALIQUOTAICMSUF.PR_ALIQICMS;
       end;
@@ -1281,7 +1281,7 @@ begin
     end;
   end else if (vCdDecreto = 45471) then begin // Decreto do Estado do Rio Grande do Sul
     if (gDsUFOrigem = 'RS') or (gDsUFOrigem = 'PR') or (gDsUFOrigem = 'SC') then begin
-      if (gInContribuinte = True) and (fGER_OPERACAO.TP_MODALIDADE = 4)then begin // 4 - Venda/Compra
+      if (gInContribuinte) and (fGER_OPERACAO.TP_MODALIDADE = 4)then begin // 4 - Venda/Compra
         if (gDsUFDestino = 'PR') or (gDsUFDestino = 'RS')  or (gDsUFDestino = 'SC') then begin
           vPrIVA := 65.86;
           vInDecreto := True;
@@ -1295,8 +1295,8 @@ begin
       fFIS_ALIQUOTAICMSUF.CD_UFDESTINO := gDsUFDestino;
       fFIS_ALIQUOTAICMSUF.Listar();
       if (itemXmlF('status', voParams) < 0) then begin
-        raise Exception.Create('Nenhuma alíquota cadastrada de ' + gDsUFOrigem + ' para ' + gDsUFDestino + '!' + ' / ' := cDS_METHOD);
-        
+        raise Exception.Create('Nenhuma alíquota cadastrada de ' + gDsUFOrigem + ' para ' + gDsUFDestino + '!' + ' / ' + cDS_METHOD);
+        exit;
       end;
       vVlCalc := gVlTotalLiquidoICMS + gVlIPI + ((gVlTotalLiquidoICMS + gVlIPI) * vPrIVA) / 100 ;
       fFIS_IMPOSTO.VL_BASECALC := rounded(vVlCalc, 6);
@@ -1317,8 +1317,8 @@ begin
         fFIS_ALIQUOTAICMSUF.CD_UFDESTINO := gDsUFDestino;
         fFIS_ALIQUOTAICMSUF.Listar();
         if (itemXmlF('status', voParams) < 0) then begin
-          raise Exception.Create('Nenhuma alíquota cadastrada de ' + gDsUFOrigem + ' para ' + gDsUFDestino + '!' + ' / ' := cDS_METHOD);
-          
+          raise Exception.Create('Nenhuma alíquota cadastrada de ' + gDsUFOrigem + ' para ' + gDsUFDestino + '!' + ' / ' + cDS_METHOD);
+          exit;
         end;
 
         // Aliquota interna de SP
@@ -1359,7 +1359,7 @@ begin
     end;
   end else if (vCdDecreto = 23731) or (vCdDecreto = 23732) or (vCdDecreto = 23733) or (vCdDecreto = 23734) or (vCdDecreto = 23735)then begin // Decreto do Estado do Paraná
     if (gDsUFOrigem = 'PR') or (gDsUFDestino = 'PR') then begin
-      if (gInContribuinte = True) and (fGER_OPERACAO.TP_MODALIDADE = 4) then begin // 4 - Venda/Compra
+      if (gInContribuinte) and (fGER_OPERACAO.TP_MODALIDADE = 4) then begin // 4 - Venda/Compra
         if (vCdDecreto = 23731) then begin
           vPrIVA := 59.26;
           vInDecreto := True;
@@ -1400,8 +1400,8 @@ begin
         fFIS_ALIQUOTAICMSUF.CD_UFDESTINO := gDsUFDestino;
         fFIS_ALIQUOTAICMSUF.Listar();
         if (itemXmlF('status', voParams) < 0) then begin
-          raise Exception.Create('Nenhuma alíquota cadastrada de ' + gDsUFOrigem + ' para ' + gDsUFDestino + '!' + ' / ' := cDS_METHOD);
-          
+          raise Exception.Create('Nenhuma alíquota cadastrada de ' + gDsUFOrigem + ' para ' + gDsUFDestino + '!' + ' / ' + cDS_METHOD);
+          exit;
         end;
         fFIS_IMPOSTO.PR_ALIQUOTA := fFIS_ALIQUOTAICMSUF.PR_ALIQICMS;
       end;
@@ -1429,8 +1429,8 @@ begin
           fFIS_ALIQUOTAICMSUF.CD_UFDESTINO := gDsUFDestino;
           fFIS_ALIQUOTAICMSUF.Listar();
           if (itemXmlF('status', voParams) < 0) then begin
-            raise Exception.Create('Nenhuma alíquota cadastrada de ' + gDsUFOrigem + ' para ' + gDsUFDestino + '!' + ' / ' := cDS_METHOD);
-            
+            raise Exception.Create('Nenhuma alíquota cadastrada de ' + gDsUFOrigem + ' para ' + gDsUFDestino + '!' + ' / ' + cDS_METHOD);
+            exit;
           end;
         end else begin
           // Aliquota interna de PR
@@ -1439,8 +1439,8 @@ begin
           fFIS_ALIQUOTAICMSUF.CD_UFDESTINO := gDsUFOrigem;
           fFIS_ALIQUOTAICMSUF.Listar();
           if (itemXmlF('status', voParams) < 0) then begin
-            raise Exception.Create('Nenhuma alíquota cadastrada de ' + gDsUFOrigem + ' para ' + gDsUFDestino + '!' + ' / ' := cDS_METHOD);
-            
+            raise Exception.Create('Nenhuma alíquota cadastrada de ' + gDsUFOrigem + ' para ' + gDsUFDestino + '!' + ' / ' + cDS_METHOD);
+            exit;
           end;
         end;
 
@@ -1490,8 +1490,8 @@ begin
           fFIS_ALIQUOTAICMSUF.CD_UFDESTINO := gDsUFDestino;
           fFIS_ALIQUOTAICMSUF.Listar();
           if (itemXmlF('status', voParams) < 0) then begin
-            raise Exception.Create('Nenhuma alíquota cadastrada de ' + gDsUFOrigem + ' para ' + gDsUFDestino + '!' + ' / ' := cDS_METHOD);
-            
+            raise Exception.Create('Nenhuma alíquota cadastrada de ' + gDsUFOrigem + ' para ' + gDsUFDestino + '!' + ' / ' + cDS_METHOD);
+            exit;
           end;
         end else begin
           // Aliquota interna de SP
@@ -1500,8 +1500,8 @@ begin
           fFIS_ALIQUOTAICMSUF.CD_UFDESTINO := gDsUFOrigem;
           fFIS_ALIQUOTAICMSUF.Listar();
           if (itemXmlF('status', voParams) < 0) then begin
-            raise Exception.Create('Nenhuma alíquota cadastrada de ' + gDsUFOrigem + ' para ' + gDsUFDestino + '!' + ' / ' := cDS_METHOD);
-            
+            raise Exception.Create('Nenhuma alíquota cadastrada de ' + gDsUFOrigem + ' para ' + gDsUFDestino + '!' + ' / ' + cDS_METHOD);
+            exit;
           end;
         end;
 
@@ -1534,7 +1534,7 @@ begin
   // Decreto do Espirito Santo
   end else if (vCdDecreto = 10901) or (vCdDecreto = 10902) or (vCdDecreto = 10903) or (vCdDecreto = 10904) then begin // Decreto do Espirito Santo
     if (gDsUFOrigem = 'ES') or (gDsUFDestino = 'ES') then begin
-      if (gInContribuinte = True)
+      if (gInContribuinte)
       and ((fGER_OPERACAO.TP_MODALIDADE = 4) or (fGER_OPERACAO.TP_MODALIDADE = 3)) then begin // 4 - Venda/Compra / 3 - Devolucao
         if (vCdDecreto = 10901) then begin
           vPrIVA := 42;
@@ -1559,8 +1559,8 @@ begin
       fFIS_ALIQUOTAICMSUF.CD_UFDESTINO := gDsUFDestino;
       fFIS_ALIQUOTAICMSUF.Listar();
       if (itemXmlF('status', voParams) < 0) then begin
-        raise Exception.Create('Nenhuma alíquota cadastrada de ' + gDsUFOrigem + ' para ' + gDsUFDestino + '!' + ' / ' := cDS_METHOD);
-        
+        raise Exception.Create('Nenhuma alíquota cadastrada de ' + gDsUFOrigem + ' para ' + gDsUFDestino + '!' + ' / ' + cDS_METHOD);
+        exit;
       end;
       // Aliquota interna do destino
       if (fFIS_REGRAFISCAL.PR_ALIQICMS > 0) then begin
@@ -1593,7 +1593,7 @@ begin
     voParams := cFISSVCO035.Instance.buscaDadosFiscalProduto(viParams);
     if (itemXmlF('status', voParams) < 0) then begin
       raise Exception.Create(itemXml('message', voParams));
-      
+      exit;
     end;  
     vPrIvaPrd := voParams.PR_SUBSTRIB;
     vPrICMS := voParams.PR_ICMS;
@@ -1606,13 +1606,13 @@ begin
       fFIS_IMPOSTO.PR_ALIQUOTA := vPrICMS;
     end;
     if (fFIS_IMPOSTO.PR_ALIQUOTA = 0) then begin
-      raise Exception.Create('Nenhuma alíquota cadastrada na Tabela de Sub.Trib.do NCM de ' + gDsUFOrigem + ' para ' + gDsUFDestino + '!' + ' / ' := cDS_METHOD);
-      
+      raise Exception.Create('Nenhuma alíquota cadastrada na Tabela de Sub.Trib.do NCM de ' + gDsUFOrigem + ' para ' + gDsUFDestino + '!' + ' / ' + cDS_METHOD);
+      exit;
     end;
     vInCalcula := False;
     if (gDsUFOrigem <> gDsUFDestino) and (fGER_OPERACAO.TP_MODALIDADE = 4)then begin // Venda/Compra
       if (fGER_OPERACAO.TP_OPERACAO = 'S') then begin
-        if (gInContribuinte = True) and (fPES_CLIENTE.IN_CNSRFINAL) then begin
+        if (gInContribuinte) and (fPES_CLIENTE.IN_CNSRFINAL) then begin
           vInCalcula := True;
         end;
       end else begin
@@ -1635,8 +1635,8 @@ begin
         fFIS_ALIQUOTAICMSUF.CD_UFDESTINO := gDsUFDestino;
         fFIS_ALIQUOTAICMSUF.Listar();
         if (itemXmlF('status', voParams) < 0) then begin
-          raise Exception.Create('Nenhuma alíquota cadastrada de ' + gDsUFOrigem + ' para ' + gDsUFDestino + '!' + ' / ' := cDS_METHOD);
-          
+          raise Exception.Create('Nenhuma alíquota cadastrada de ' + gDsUFOrigem + ' para ' + gDsUFDestino + '!' + ' / ' + cDS_METHOD);
+          exit;
         end;
         vVlAliquotaDestino := fFIS_ALIQUOTAICMSUF.PR_ALIQICMS;
 
@@ -1646,8 +1646,8 @@ begin
         fFIS_ALIQUOTAICMSUF.CD_UFDESTINO := gDsUFOrigem;
         fFIS_ALIQUOTAICMSUF.Listar();
         if (itemXmlF('status', voParams) < 0) then begin
-          raise Exception.Create('Nenhuma alíquota cadastrada de ' + gDsUFOrigem + ' para ' + gDsUFDestino + '!' + ' / ' := cDS_METHOD);
-          
+          raise Exception.Create('Nenhuma alíquota cadastrada de ' + gDsUFOrigem + ' para ' + gDsUFDestino + '!' + ' / ' + cDS_METHOD);
+          exit;
         end;
         vVlAliquotaOrigem := fFIS_ALIQUOTAICMSUF.PR_ALIQICMS;
 
@@ -1666,8 +1666,8 @@ begin
         fFIS_ALIQUOTAICMSUF.CD_UFDESTINO := gDsUFDestino;
         fFIS_ALIQUOTAICMSUF.Listar();
         if (itemXmlF('status', voParams) < 0) then begin
-          raise Exception.Create('Nenhuma alíquota cadastrada de ' + gDsUFOrigem + ' para ' + gDsUFDestino + '!' + ' / ' := cDS_METHOD);
-          
+          raise Exception.Create('Nenhuma alíquota cadastrada de ' + gDsUFOrigem + ' para ' + gDsUFDestino + '!' + ' / ' + cDS_METHOD);
+          exit;
         end;
         vVlAliquotaInter := fFIS_ALIQUOTAICMSUF.PR_ALIQICMS;
 
@@ -1689,8 +1689,8 @@ begin
           fFIS_ALIQUOTAICMSUF.CD_UFDESTINO := gDsUFDestino;
           fFIS_ALIQUOTAICMSUF.Listar();
           if (itemXmlF('status', voParams) < 0) then begin
-            raise Exception.Create('Nenhuma alíquota cadastrada de ' + gDsUFOrigem + ' para ' + gDsUFDestino + '!' + ' / ' := cDS_METHOD);
-            
+            raise Exception.Create('Nenhuma alíquota cadastrada de ' + gDsUFOrigem + ' para ' + gDsUFDestino + '!' + ' / ' + cDS_METHOD);
+            exit;
           end;
           vVlAliquotaIntra := fFIS_ALIQUOTAICMSUF.PR_ALIQICMS;
         end;
@@ -1701,9 +1701,9 @@ begin
       end;
     end;
     if (gPrAplicMvaSubTrib <> 0) then begin
-      if ((vTpOperacao = 'S') and ((gDsUFDestino = 'SC') and (gInContribuinte = True) and ((gTpRegimeOrigem = 2) or (gTpRegimeOrigem = 3))))
+      if ((vTpOperacao = 'S') and ((gDsUFDestino = 'SC') and (gInContribuinte) and ((gTpRegimeOrigem = 2) or (gTpRegimeOrigem = 3))))
       or ((vTpOperacao = 'E') and ((fGER_OPERACAO.TP_MODALIDADE = 3) and ((gTpRegimeOrigem = 2) or (gTpRegimeOrigem = 3)))) // 2-Micro Empresa / 3-EPP
-      or ((vTpOperacao = 'E') and (gInOptSimples = True)) then begin
+      or ((vTpOperacao = 'E') and (gInOptSimples)) then begin
         if (vPrIVA = 0) then begin
           vPrIva := vPrIvaPrd;
         end;
@@ -1764,13 +1764,13 @@ begin
       fFIS_IMPOSTO.VL_OUTRO := gVlTotalLiquidoICMS;
     end;
 
-    if (vInCalcula = True)  then begin
+    if (vInCalcula)  then begin
       vVlCalc := (fFIS_IMPOSTO.VL_BASECALC * item_f('PR_ALIQUOTA', tFIS_IMPOSTO)) / 100;
       vVlCalc := rounded(vVlCalc, 6);
       fFIS_IMPOSTO.VL_IMPOSTO := vVlCalc;
     end else begin
       if (fFIS_IMPOSTO.VL_BASECALC > 0) then begin
-        if (gInOptSimples = True) or ((gTpRegimeOrigem = 2) or (gTpRegimeOrigem = 3)
+        if (gInOptSimples) or ((gTpRegimeOrigem = 2) or (gTpRegimeOrigem = 3)
         and ((fGER_OPERACAO.TP_OPERACAO = 'E')
         or (((fGER_OPERACAO.TP_MODALIDADE = 3) and (fGER_OPERACAO.TP_OPERACAO = 'S'))))) then begin //2-Simples 3-EPP / Entrada ou Devolucao de compra
           if (fFIS_IMPOSTO.PR_ALIQUOTA <> 0) then begin
@@ -1807,8 +1807,8 @@ begin
                 fFIS_ALIQUOTAICMSUF.CD_UFDESTINO := gDsUFDestino;
                 fFIS_ALIQUOTAICMSUF.Listar();
                 if (itemXmlF('status', voParams) < 0) then begin
-                  raise Exception.Create('Nenhuma alíquota cadastrada de ' + gDsUFOrigem + ' para ' + gDsUFDestino + '!' + ' / ' := cDS_METHOD);
-                  
+                  raise Exception.Create('Nenhuma alíquota cadastrada de ' + gDsUFOrigem + ' para ' + gDsUFDestino + '!' + ' / ' + cDS_METHOD);
+                  exit;
                 end;
                 vVlCalc := ((gVlTotalLiquidoICMS + gVlIPI) * fFIS_ALIQUOTAICMSUF.PR_ALIQICMS) / 100;
               end;
@@ -1818,8 +1818,8 @@ begin
               fFIS_ALIQUOTAICMSUF.CD_UFDESTINO := gDsUFDestino;
               fFIS_ALIQUOTAICMSUF.Listar();
               if (itemXmlF('status', voParams) < 0) then begin
-                raise Exception.Create('Nenhuma alíquota cadastrada de ' + gDsUFOrigem + ' para ' + gDsUFDestino + '!' + ' / ' := cDS_METHOD);
-                
+                raise Exception.Create('Nenhuma alíquota cadastrada de ' + gDsUFOrigem + ' para ' + gDsUFDestino + '!' + ' / ' + cDS_METHOD);
+                exit;
               end;
               vVlCalc := ((gVlTotalLiquidoICMS + gVlIPI) * fFIS_ALIQUOTAICMSUF.PR_ALIQICMS) / 100;
             end;
@@ -1861,13 +1861,13 @@ begin
   if (gTpOrigemEmissao = 1) then begin //Própria
     if (fFIS_REGRAFISCAL.IN_IPI <> True) then begin
       fFIS_IMPOSTO.Remover();
-      
+      exit;
     end;
   end else begin
     if (gPrIPI = 0) or (gVlIPI = 0)  then begin
       if (fFIS_REGRAFISCAL.IN_IPI <> True) then begin
         fFIS_IMPOSTO.Remover();
-        
+        exit;
       end;
     end;
   end;
@@ -2005,7 +2005,7 @@ var
 begin
   if (gInImpostoOffLine) then begin
     fFIS_IMPOSTO.Remover();
-    
+    exit;
   end;
 
   vCdCST := Copy(gCdCST,2,2);
@@ -2044,11 +2044,11 @@ var
 begin
   if (gInImpostoOffLine) then begin
     fFIS_IMPOSTO.Remover();
-    
+    exit;
   end;
   if (fFIS_REGRAFISCAL.IN_COFINS <> True) then begin
     fFIS_IMPOSTO.Remover();
-    
+    exit;
   end;
 
   fFIS_REGRAIMPOSTO.Limpar();
@@ -2094,11 +2094,11 @@ var
 begin
   if (gInImpostoOffLine) then begin
     fFIS_IMPOSTO.Remover();
-    
+    exit;
   end;
   if (fFIS_REGRAFISCAL.IN_PIS <> True) then begin
     fFIS_IMPOSTO.Remover();
-    
+    exit;
   end;
 
   fFIS_REGRAIMPOSTO.Limpar();
@@ -2143,13 +2143,13 @@ var
 begin
   if (gInImpostoOffLine) then begin
     fFIS_IMPOSTO.Remover();
-    
+    exit;
   end;
 
   if (fFIS_REGRAFISCAL.IN_PASEP <> True)
   or (fFIS_REGRAFISCAL.PR_ALIQPASEP = 0) then begin
     fFIS_IMPOSTO.Remover();
-    
+    exit;
   end;
 
   fFIS_IMPOSTO.PR_BASECALC := 100;
@@ -2203,24 +2203,24 @@ begin
   gCdDecreto := 0;
 
   if (gDsUFDestino = '') then begin
-    raise Exception.Create('UF destino não informada!' + ' / ' := cDS_METHOD);
-    
+    raise Exception.Create('UF destino não informada!' + ' / ' + cDS_METHOD);
+    exit;
   end;
   if (vCdOperacao = 0) then begin
-    raise Exception.Create('Operação não informada!' + ' / ' := cDS_METHOD);
-    
+    raise Exception.Create('Operação não informada!' + ' / ' + cDS_METHOD);
+    exit;
   end;
   if (vCdPessoa = 0) then begin
-    raise Exception.Create('Pessoa não informada!' + ' / ' := cDS_METHOD);
-    
+    raise Exception.Create('Pessoa não informada!' + ' / ' + cDS_METHOD);
+    exit;
   end;
 
   fGER_OPERACAO.Limpar();
   fGER_OPERACAO.CD_OPERACAO := vCdOperacao;
   fGER_OPERACAO.Listar();
   if (itemXmlF('status', voParams) < 0) then begin
-    raise Exception.Create('Operação ' + FloatToStr(vCdOperacao) + ' não cadastrada!' + ' / ' := cDS_METHOD);
-    
+    raise Exception.Create('Operação ' + FloatToStr(vCdOperacao) + ' não cadastrada!' + ' / ' + cDS_METHOD);
+    exit;
   end;
 
   if (vCdRegraFiscalParam > 0) then begin
@@ -2230,7 +2230,7 @@ begin
   if (vCdProduto = 0)
   and (vCdMPTer = '')
   and (gCdServico = 0) then begin
-    return(0); exit;
+    exit;
   end;
 
   if (vCdMPTer <> '') then begin
@@ -2239,16 +2239,16 @@ begin
     fCDF_MPTER.CD_MPTER := vCdMPTer;
     fCDF_MPTER.Listar();
     if (itemXmlF('status', voParams) < 0) then begin
-      raise Exception.Create('Matéria-prima ' + vCdMPTer + ' não cadastrada para a pessoa ' + FloatToStr(vCdPessoa) + '!' + ' / ' := cDS_METHOD);
-      
+      raise Exception.Create('Matéria-prima ' + vCdMPTer + ' não cadastrada para a pessoa ' + FloatToStr(vCdPessoa) + '!' + ' / ' + cDS_METHOD);
+      exit;
     end;
   end else begin
     fPRD_PRODUTO.Limpar();
     fPRD_PRODUTO.CD_PRODUTO := vCdProduto;
     fPRD_PRODUTO.Listar();
     if (itemXmlF('status', voParams) < 0) then begin
-      raise Exception.Create('Produto ' + FloatToStr(vCdProduto) + ' não cadastrado!' + ' / ' := cDS_METHOD);
-      
+      raise Exception.Create('Produto ' + FloatToStr(vCdProduto) + ' não cadastrado!' + ' / ' + cDS_METHOD);
+      exit;
     end;
   end;
 
@@ -2256,8 +2256,8 @@ begin
   fPES_PESSOA.CD_PESSOA := vCdPessoa;
   fPES_PESSOA.Listar();
   if (itemXmlF('status', voParams) < 0) then begin
-    raise Exception.Create('Pessoa ' + FloatToStr(vCdPessoa) + ' não cadastrada!' + ' / ' := cDS_METHOD);
-    
+    raise Exception.Create('Pessoa ' + FloatToStr(vCdPessoa) + ' não cadastrada!' + ' / ' + cDS_METHOD);
+    exit;
   end;
 
   //Venda / Devolução de venda
@@ -2267,8 +2267,8 @@ begin
     fPES_CLIENTE.CD_CLIENTE := vCdPessoa;
     fPES_CLIENTE.Listar();
     if (itemXmlF('status', voParams) < 0) then begin
-      raise Exception.Create('Cliente ' + FloatToStr(vCdPessoa) + ' não cadastrado!' + ' / ' := cDS_METHOD);
-      
+      raise Exception.Create('Cliente ' + FloatToStr(vCdPessoa) + ' não cadastrado!' + ' / ' + cDS_METHOD);
+      exit;
     end;
   end;
 
@@ -2304,15 +2304,15 @@ begin
   voParams := cFCRSVCO057.Instance.validaPessoaOrgaoPublico(viParams);
   if (itemXmlF('status', voParams) < 0) then begin
     raise Exception.Create(itemXml('message', voParams));
-    
+    exit;
   end;
   vInOrgaoPublico := voParams.IN_ORGAOPUBLICO;
 
-  if (vInOrgaoPublico = True) and (gDsUFOrigem = 'DF') then begin
+  if (vInOrgaoPublico) and (gDsUFOrigem = 'DF') then begin
     gInContribuinte := True;
   end else begin
-    if (fPES_CLIENTE.IN_CNSRFINAL = True) or (fPES_PESSOA.TP_PESSOA = 'F') or (gInPjIsento) then begin
-      if not (fPES_CLIENTE.IN_CNSRFINAL = True) and (fPES_PESSOA.TP_PESSOA = 'J') and (gInPjIsento) then begin
+    if (fPES_CLIENTE.IN_CNSRFINAL) or (fPES_PESSOA.TP_PESSOA = 'F') or (gInPjIsento) then begin
+      if not (fPES_CLIENTE.IN_CNSRFINAL) and (fPES_PESSOA.TP_PESSOA = 'J') and (gInPjIsento) then begin
         gInContribuinte := True;
       end else begin
         if (fPES_PESSOA.TP_PESSOA = 'F')
@@ -2334,15 +2334,15 @@ begin
     vInProdPropria := False;
     vCdRegraFiscal := fGER_OPERACAO.CD_REGRAFISCAL;
     if (vCdRegraFiscal = 0) then begin
-      raise Exception.Create('Nenhuma regra fiscal cadastrada p/ a operação ' + FloatToStr(vCdOperacao) + '!' + ' / ' := cDS_METHOD);
-      
+      raise Exception.Create('Nenhuma regra fiscal cadastrada p/ a operação ' + FloatToStr(vCdOperacao) + '!' + ' / ' + cDS_METHOD);
+      exit;
     end;
   end else if (vCdMPTer <> '') then begin
     vInProdPropria := False;
     vCdRegraFiscal := fGER_OPERACAO.CD_REGRAFISCAL;
     if (vCdRegraFiscal = 0) then begin
-      raise Exception.Create('Nenhuma regra fiscal cadastrada p/ a operação ' + FloatToStr(vCdOperacao) + '!' + ' / ' := cDS_METHOD);
-      
+      raise Exception.Create('Nenhuma regra fiscal cadastrada p/ a operação ' + FloatToStr(vCdOperacao) + '!' + ' / ' + cDS_METHOD);
+      exit;
     end;
   end else begin
     viParams := '';
@@ -2351,7 +2351,7 @@ begin
     voParams := cPRDSVCO007.Instance.buscaDadosFilial(viParams); // PRDSVCO008
     if (itemXmlF('status', voParams) < 0) then begin
       raise Exception.Create(itemXml('message', voParams));
-      
+      exit;
     end;
     vInProdPropria := voParams.IN_PRODPROPRIA;
 
@@ -2364,8 +2364,8 @@ begin
       fFIS_REGRAFISCAL.CD_REGRAFISCAL := fPRD_PRDREGRAFISCAL.CD_REGRAFISCAL;
       fFIS_REGRAFISCAL.Listar();
       if (itemXmlF('status', voParams) < 0) then begin
-        raise Exception.Create('Regra fiscal ' + fPRD_PRDREGRAFISCAL.CD_REGRAFISCAL + ' não cadastrada!' + ' / ' := cDS_METHOD);
-        
+        raise Exception.Create('Regra fiscal ' + fPRD_PRDREGRAFISCAL.CD_REGRAFISCAL + ' não cadastrada!' + ' / ' + cDS_METHOD);
+        exit;
       end else begin
         if (fFIS_REGRAFISCAL.CD_DECRETO = 2155)
         or (fFIS_REGRAFISCAL.CD_DECRETO = 1020)
@@ -2392,8 +2392,8 @@ begin
     end;
 
     if (vCdRegraFiscal = 0) then begin
-      raise Exception.Create('Nenhuma regra fiscal cadastrada p/ o produto ' + FloatToStr(vCdProduto) + ' e a operação ' + FloatToStr(vCdOperacao) + '!' + ' / ' := cDS_METHOD);
-      
+      raise Exception.Create('Nenhuma regra fiscal cadastrada p/ o produto ' + FloatToStr(vCdProduto) + ' e a operação ' + FloatToStr(vCdOperacao) + '!' + ' / ' + cDS_METHOD);
+      exit;
     end;
     vCdCST := Copy(fPRD_PRODUTO.CD_CST, 1, 1);
   end;
@@ -2406,8 +2406,8 @@ begin
   fFIS_REGRAFISCAL.CD_REGRAFISCAL := fGER_OPERACAO.CD_REGRAFISCAL;
   fFIS_REGRAFISCAL.Listar();
   if (itemXmlF('status', voParams) < 0) then begin
-    raise Exception.Create('Regra fiscal ' + fGER_OPERACAO.CD_REGRAFISCAL + '!' + ' / ' := cDS_METHOD);
-    
+    raise Exception.Create('Regra fiscal ' + fGER_OPERACAO.CD_REGRAFISCAL + '!' + ' / ' + cDS_METHOD);
+    exit;
   end;
   if (vInProdPropria) then begin
     vCdCFOPOperacao := fFIS_REGRAFISCAL.CD_CFOPPROPRIA;
@@ -2420,12 +2420,12 @@ begin
   fFIS_REGRAFISCAL.CD_REGRAFISCAL := vCdRegraFiscal;
   fFIS_REGRAFISCAL.Listar();
   if (fFIS_REGRAFISCAL.CD_REGRAFISCAL = '') then begin
-    raise Exception.Create('Regra fiscal ' + FloatToStr(vCdRegraFiscal) + ' não cadastrada!' + ' / ' := cDS_METHOD);
-    
+    raise Exception.Create('Regra fiscal ' + FloatToStr(vCdRegraFiscal) + ' não cadastrada!' + ' / ' + cDS_METHOD);
+    exit;
   end else begin
     if (fFIS_REGRAFISCAL.CD_DECRETO = 2155) then begin
       if (gDsUFOrigem = 'PR') or (gDsUFOrigem = 'RS') or (gDsUFOrigem = 'SC') then begin
-        if (gInContribuinte = True) and (fGER_OPERACAO.TP_MODALIDADE = 4) then begin // 4 - Venda/Compra
+        if (gInContribuinte) and (fGER_OPERACAO.TP_MODALIDADE = 4) then begin // 4 - Venda/Compra
           if (gDsUFDestino = 'PR') or (gDsUFDestino = 'RS') or (gDsUFDestino = 'SC') then begin
             if (fGER_OPERACAO.TP_OPERACAO = 'S') then begin // S - Saida
               if (vInProdPropria) then begin
@@ -2449,7 +2449,7 @@ begin
              or (fFIS_REGRAFISCAL.CD_DECRETO = 10202)
              or (fFIS_REGRAFISCAL.CD_DECRETO = 10203) then begin
       if (gDsUFOrigem = 'PR') or (gDsUFOrigem = 'SC') or (gDsUFOrigem = 'MG') then begin
-        if (gInContribuinte = True) and (fGER_OPERACAO.TP_MODALIDADE = 4) then begin // 4 - Venda/Compra
+        if (gInContribuinte) and (fGER_OPERACAO.TP_MODALIDADE = 4) then begin // 4 - Venda/Compra
           if (gDsUFDestino = 'PR') or (gDsUFDestino = 'SC') or (gDsUFDestino = 'MG') then begin
             if (fGER_OPERACAO.TP_OPERACAO = 'S') then begin // S - Saida
               if (vInProdPropria) then begin
@@ -2470,7 +2470,7 @@ begin
       end;
     end else if (fFIS_REGRAFISCAL.CD_DECRETO = 45471) then begin
       if (gDsUFOrigem = 'RS') or (gDsUFOrigem = 'PR') or (gDsUFOrigem = 'SC') then begin
-        if (gInContribuinte = True) and (fGER_OPERACAO.TP_MODALIDADE = 4) then begin // 4 - Venda/Compra
+        if (gInContribuinte) and (fGER_OPERACAO.TP_MODALIDADE = 4) then begin // 4 - Venda/Compra
           if (gDsUFDestino = 'PR') or (gDsUFDestino = 'RS') or (gDsUFDestino = 'SC') then begin
             if (fGER_OPERACAO.TP_OPERACAO = 'S') then begin // S - Saida
               if (vInProdPropria) then begin
@@ -2496,7 +2496,7 @@ begin
              or (fFIS_REGRAFISCAL.CD_DECRETO = 23735) then begin
 
       if (gDsUFOrigem = 'PR') or (gDsUFDestino = 'PR') then begin
-        if (gInContribuinte = True) and (fGER_OPERACAO.TP_MODALIDADE = 4) then begin // 4 - Venda/Compra
+        if (gInContribuinte) and (fGER_OPERACAO.TP_MODALIDADE = 4) then begin // 4 - Venda/Compra
           if (fGER_OPERACAO.TP_OPERACAO = 'S') then begin // S - Saida
             if (vInProdPropria) then begin
               vCdCFOP := 5401;
@@ -2552,7 +2552,7 @@ begin
     voParams := cFISSVCO033.Instance.buscaDadosRegraFiscal(viParams);
     if (itemXmlF('status', voParams) < 0) then begin
       raise Exception.Create(itemXml('message', voParams));
-      
+      exit;
     end;
 
     vCdCFOPServico := voParams.CD_CFOPSERVICO;
@@ -2586,7 +2586,7 @@ begin
         voParams := cFISSVCO035.Instance.buscaDadosFiscalProduto(viParams);
         if (itemXmlF('status', voParams) < 0) then begin
           raise Exception.Create(itemXml('message', voParams));
-          
+          exit;
         end;
         vPrIvaPrd := voParams.PR_SUBSTRIB;
 
@@ -2599,8 +2599,8 @@ begin
 
   if (fGER_OPERACAO.TP_OPERACAO = 'E') then begin //Entrada
     if (vCdCFOP >= 4000) then begin
-      raise Exception.Create('CFOP ' + FloatToStr(vCdCFOP) + ' do produto ' + FloatToStr(vCdProduto) + ' incompatível com a operação de entrada ' + FloatToStr(vCdOperacao) + '!' + ' / ' := cDS_METHOD);
-      
+      raise Exception.Create('CFOP ' + FloatToStr(vCdCFOP) + ' do produto ' + FloatToStr(vCdProduto) + ' incompatível com a operação de entrada ' + FloatToStr(vCdOperacao) + '!' + ' / ' + cDS_METHOD);
+      exit;
     end;
 
     if (vCdCFOP < 3000) then begin //Somente CFOP nacionais
@@ -2616,8 +2616,8 @@ begin
     end;
   end else begin
     if (vCdCFOP < 5000) then begin
-      raise Exception.Create('CFOP ' + FloatToStr(vCdCFOP) + ' do produto ' + FloatToStr(vCdProduto) + ' incompatível com a operação de saída ' + FloatToStr(vCdOperacao) + '!' + ' / ' := cDS_METHOD);
-      
+      raise Exception.Create('CFOP ' + FloatToStr(vCdCFOP) + ' do produto ' + FloatToStr(vCdProduto) + ' incompatível com a operação de saída ' + FloatToStr(vCdOperacao) + '!' + ' / ' + cDS_METHOD);
+      exit;
     end;
 
     if (vCdCFOP < 7000) then begin //Somente CFOP nacionais
@@ -2718,31 +2718,31 @@ begin
   vInDecreto := False;
 
   if (vCdOperacao = 0) then begin
-    raise Exception.Create('Operação não informada!' + ' / ' := cDS_METHOD);
-    
+    raise Exception.Create('Operação não informada!' + ' / ' + cDS_METHOD);
+    exit;
   end;
   if (vCdPessoa = 0) then begin
-    raise Exception.Create('Pessoa não informada!' + ' / ' := cDS_METHOD);
-    
+    raise Exception.Create('Pessoa não informada!' + ' / ' + cDS_METHOD);
+    exit;
   end;
 
   fGER_OPERACAO.Limpar();
   fGER_OPERACAO.CD_OPERACAO := vCdOperacao;
   fGER_OPERACAO.Listar();
   if (itemXmlF('status', voParams) < 0) then begin
-    raise Exception.Create('Operação ' + FloatToStr(vCdOperacao) + ' não cadastrada!' + ' / ' := cDS_METHOD);
-    
+    raise Exception.Create('Operação ' + FloatToStr(vCdOperacao) + ' não cadastrada!' + ' / ' + cDS_METHOD);
+    exit;
   end;
 
   if (vCdProduto = 0)
   and (vCdMPTer = '')
   and (gCdServico = 0) then begin
-    return(0); exit;
+    exit;
   end;
 
   if (vCdCFOP = 0) then begin
-    raise Exception.Create('CFOP não informada!' + ' / ' := cDS_METHOD);
-    
+    raise Exception.Create('CFOP não informada!' + ' / ' + cDS_METHOD);
+    exit;
   end;
 
   if (vCdMPTer <> '') then begin
@@ -2751,16 +2751,16 @@ begin
     fCDF_MPTER.CD_MPTER := vCdMPTer;
     fCDF_MPTER.Listar();
     if (itemXmlF('status', voParams) < 0) then begin
-      raise Exception.Create('Matéria-prima ' + vCdMPTer + ' não cadastrada para a pessoa ' + FloatToStr(vCdPessoa) + '!' + ' / ' := cDS_METHOD);
-      
+      raise Exception.Create('Matéria-prima ' + vCdMPTer + ' não cadastrada para a pessoa ' + FloatToStr(vCdPessoa) + '!' + ' / ' + cDS_METHOD);
+      exit;
     end;
   end else begin
     fPRD_PRODUTO.Limpar();
     fPRD_PRODUTO.CD_PRODUTO := vCdProduto;
     fPRD_PRODUTO.Listar();
     if (itemXmlF('status', voParams) < 0) then begin
-      raise Exception.Create('Produto ' + FloatToStr(vCdProduto) + ' não cadastrado!' + ' / ' := cDS_METHOD);
-      
+      raise Exception.Create('Produto ' + FloatToStr(vCdProduto) + ' não cadastrado!' + ' / ' + cDS_METHOD);
+      exit;
     end;
   end;
 
@@ -2768,8 +2768,8 @@ begin
   fGER_OPERACAO.CD_OPERACAO := vCdOperacao;
   fGER_OPERACAO.Listar();
   if (itemXmlF('status', voParams) < 0) then begin
-    raise Exception.Create('Operação ' + FloatToStr(vCdOperacao) + ' não cadastrada!' + ' / ' := cDS_METHOD);
-    
+    raise Exception.Create('Operação ' + FloatToStr(vCdOperacao) + ' não cadastrada!' + ' / ' + cDS_METHOD);
+    exit;
   end;
 
   if (vCdRegraFiscalParam > 0) then begin
@@ -2780,8 +2780,8 @@ begin
   fFIS_REGRAFISCAL.CD_REGRAFISCAL := fGER_OPERACAO.CD_REGRAFISCAL;
   fFIS_REGRAFISCAL.Listar();
   if (itemXmlF('status', voParams) < 0) then begin
-    raise Exception.Create('Regra fiscal ' + FloatToStr(vCdRegraFiscal) + ' não cadastrada!' + ' / ' := cDS_METHOD);
-    
+    raise Exception.Create('Regra fiscal ' + FloatToStr(vCdRegraFiscal) + ' não cadastrada!' + ' / ' + cDS_METHOD);
+    exit;
   end;
   vCdCSTOperacao := Copy(fFIS_REGRAFISCAL.CD_CST, 1, 2);
 
@@ -2789,8 +2789,8 @@ begin
   fPES_PESSOA.CD_PESSOA := vCdPessoa;
   fPES_PESSOA.Listar();
   if (itemXmlF('status', voParams) < 0) then begin
-    raise Exception.Create('Pessoa ' + FloatToStr(vCdPessoa) + ' não cadastrada!' + ' / ' := cDS_METHOD);
-    
+    raise Exception.Create('Pessoa ' + FloatToStr(vCdPessoa) + ' não cadastrada!' + ' / ' + cDS_METHOD);
+    exit;
   end;
 
   fPES_PFADIC.Limpar();
@@ -2806,8 +2806,8 @@ begin
     fPES_CLIENTE.CD_CLIENTE := vCdPessoa;
     fPES_CLIENTE.Listar();
     if (itemXmlF('status', voParams) < 0) then begin
-      raise Exception.Create('Cliente ' + FloatToStr(vCdPessoa) + ' não cadastrado!' + ' / ' := cDS_METHOD);
-      
+      raise Exception.Create('Cliente ' + FloatToStr(vCdPessoa) + ' não cadastrado!' + ' / ' + cDS_METHOD);
+      exit;
     end;
   end;
 
@@ -2841,15 +2841,15 @@ begin
   voParams := cFCRSVCO057.Instance.validaPessoaOrgaoPublico(viParams);
   if (itemXmlF('status', voParams) < 0) then begin
     raise Exception.Create(itemXml('message', voParams));
-    
+    exit;
   end;
   vInOrgaoPublico := voParams.IN_ORGAOPUBLICO;
 
-  if (vInOrgaoPublico = True) and (gDsUFOrigem = 'DF') then begin
+  if (vInOrgaoPublico) and (gDsUFOrigem = 'DF') then begin
     gInContribuinte := True;
   end else begin
-    if (fPES_CLIENTE.IN_CNSRFINAL = True) or (fPES_PESSOA.TP_PESSOA = 'F') or (gInPjIsento) then begin
-      if not (fPES_CLIENTE.IN_CNSRFINAL = True) and (fPES_PESSOA.TP_PESSOA = 'J') and (gInPjIsento) then begin
+    if (fPES_CLIENTE.IN_CNSRFINAL) or (fPES_PESSOA.TP_PESSOA = 'F') or (gInPjIsento) then begin
+      if not (fPES_CLIENTE.IN_CNSRFINAL) and (fPES_PESSOA.TP_PESSOA = 'J') and (gInPjIsento) then begin
         gInContribuinte := True;
       end else begin
         if (fPES_PESSOA.TP_PESSOA = 'F')
@@ -2871,16 +2871,16 @@ begin
     vInProdPropria := False;
     vCdRegraFiscal := fGER_OPERACAO.CD_REGRAFISCAL;
     if (vCdRegraFiscal = 0) then begin
-      raise Exception.Create('Nenhuma regra fiscal cadastrada p/ a operação ' + FloatToStr(vCdOperacao) + '!' + ' / ' := cDS_METHOD);
-      
+      raise Exception.Create('Nenhuma regra fiscal cadastrada p/ a operação ' + FloatToStr(vCdOperacao) + '!' + ' / ' + cDS_METHOD);
+      exit;
     end;
     vCdCST := '0';
   end else if (vCdMPTer <> '') then begin
     vInProdPropria := False;
     vCdRegraFiscal := fGER_OPERACAO.CD_REGRAFISCAL;
     if (vCdRegraFiscal = 0) then begin
-      raise Exception.Create('Nenhuma regra fiscal cadastrada p/ a operação ' + FloatToStr(vCdOperacao) + '!' + ' / ' := cDS_METHOD);
-      
+      raise Exception.Create('Nenhuma regra fiscal cadastrada p/ a operação ' + FloatToStr(vCdOperacao) + '!' + ' / ' + cDS_METHOD);
+      exit;
     end;
     vCdCST := Copy(fCDF_MPTER.CD_CST, 1, 1);
   end else begin
@@ -2890,7 +2890,7 @@ begin
     voParams := cPRDSVCO007.Instance.buscaDadosFilial(viParams);
     if (itemXmlF('status', voParams) < 0) then begin
       raise Exception.Create(itemXml('message', voParams));
-      
+      exit;
     end;
     vInProdPropria := voParams.IN_PRODPROPRIA;
 
@@ -2903,8 +2903,8 @@ begin
       fFIS_REGRAFISCAL.CD_REGRAFISCAL := fPRD_PRDREGRAFISCAL.CD_REGRAFISCAL;
       fFIS_REGRAFISCAL.Listar();
       if (itemXmlF('status', voParams) < 0) then begin
-        raise Exception.Create('Regra fiscal ' + fPRD_PRDREGRAFISCAL.CD_REGRAFISCAL + ' não cadastrada!' + ' / ' := cDS_METHOD);
-        
+        raise Exception.Create('Regra fiscal ' + fPRD_PRDREGRAFISCAL.CD_REGRAFISCAL + ' não cadastrada!' + ' / ' + cDS_METHOD);
+        exit;
       end else begin
         if (fFIS_REGRAFISCAL.CD_DECRETO = 2155)
         or (fFIS_REGRAFISCAL.CD_DECRETO = 1020)
@@ -2931,8 +2931,8 @@ begin
     end  ;
 
     if (vCdRegraFiscal = 0) then begin
-      raise Exception.Create('Nenhuma regra fiscal cadastrada p/ o produto ' + FloatToStr(vCdProduto) + ' e a operação ' + FloatToStr(vCdOperacao) + '!' + ' / ' := cDS_METHOD);
-      
+      raise Exception.Create('Nenhuma regra fiscal cadastrada p/ o produto ' + FloatToStr(vCdProduto) + ' e a operação ' + FloatToStr(vCdOperacao) + '!' + ' / ' + cDS_METHOD);
+      exit;
     end;
 
     vCdCST := Copy(fPRD_PRODUTO.CD_CST, 1, 1);
@@ -2946,12 +2946,12 @@ begin
   fFIS_REGRAFISCAL.CD_REGRAFISCAL := vCdRegraFiscal;
   fFIS_REGRAFISCAL.Listar();
   if (itemXmlF('status', voParams) < 0) then begin
-    raise Exception.Create('Regra fiscal ' + FloatToStr(vCdRegraFiscal) + ' não cadastrada!' + ' / ' := cDS_METHOD);
-    
+    raise Exception.Create('Regra fiscal ' + FloatToStr(vCdRegraFiscal) + ' não cadastrada!' + ' / ' + cDS_METHOD);
+    exit;
   end else begin
     if (fFIS_REGRAFISCAL.CD_DECRETO = 2155) then begin
       if (gDsUFOrigem = 'PR') or (gDsUFOrigem = 'RS') or (gDsUFOrigem = 'SC') then begin
-        if (gInContribuinte = True) and (fGER_OPERACAO.TP_MODALIDADE = 4) then begin // 4 - Venda/Compra
+        if (gInContribuinte) and (fGER_OPERACAO.TP_MODALIDADE = 4) then begin // 4 - Venda/Compra
           if (gDsUFDestino = 'PR') or (gDsUFDestino = 'RS') or (gDsUFDestino = 'SC') then begin
             vCdCST := Copy(fPRD_PRODUTO.CD_CST, 1, 1);
             vCdCST := vCdCST + '10';
@@ -2964,7 +2964,7 @@ begin
              or (fFIS_REGRAFISCAL.CD_DECRETO = 10202)
              or (fFIS_REGRAFISCAL.CD_DECRETO = 10203) then begin
       if (gDsUFOrigem = 'PR') or (gDsUFOrigem = 'SC') or (gDsUFOrigem = 'MG') then begin
-        if (gInContribuinte = True) and (fGER_OPERACAO.TP_MODALIDADE = 4) then begin // 4 - Venda/Compra
+        if (gInContribuinte) and (fGER_OPERACAO.TP_MODALIDADE = 4) then begin // 4 - Venda/Compra
           if (gDsUFDestino = 'PR') or (gDsUFDestino = 'SC') or (gDsUFDestino = 'MG') then begin
             vCdCST := Copy(fPRD_PRODUTO.CD_CST, 1, 1);
             vCdCST := vCdCST + '10';
@@ -2974,7 +2974,7 @@ begin
       end;
     end else if (fFIS_REGRAFISCAL.CD_DECRETO = 45471) then begin
       if (gDsUFOrigem = 'RS') or (gDsUFOrigem = 'PR') or (gDsUFOrigem = 'SC') then begin
-        if (gInContribuinte = True) and (fGER_OPERACAO.TP_MODALIDADE = 4) then begin // 4 - Venda/Compra
+        if (gInContribuinte) and (fGER_OPERACAO.TP_MODALIDADE = 4) then begin // 4 - Venda/Compra
           if (gDsUFDestino = 'PR') or (gDsUFDestino = 'RS') or (gDsUFDestino = 'SC') then begin
             vCdCST := Copy(fPRD_PRODUTO.CD_CST, 1, 1);
             vCdCST := vCdCST + '10';
@@ -2988,7 +2988,7 @@ begin
              or (fFIS_REGRAFISCAL.CD_DECRETO = 23734)
              or (fFIS_REGRAFISCAL.CD_DECRETO = 23735) then begin
       if (gDsUFOrigem = 'PR') or (gDsUFDestino = 'PR') then begin
-        if (gInContribuinte = True) and (fGER_OPERACAO.TP_MODALIDADE = 4) then begin // 4 - Venda/Compra
+        if (gInContribuinte) and (fGER_OPERACAO.TP_MODALIDADE = 4) then begin // 4 - Venda/Compra
           vCdCST := Copy(fPRD_PRODUTO.CD_CST, 1, 1);
           vCdCST := vCdCST + '10';
           vInDecreto := True;
@@ -3046,7 +3046,7 @@ begin
       voParams := cFISSVCO035.Instance.buscaDadosFiscalProduto(viParams);
       if (itemXmlF('status', voParams) < 0) then begin
         raise Exception.Create(itemXml('message', voParams));
-        
+        exit;
       end;
       vPrIvaPrd := voParams.PR_SUBSTRIB;
 
@@ -3059,7 +3059,7 @@ begin
       end;
     end;
 
-    if (gInContribuinte = True) and (Copy(vCdCST,2,2) = '20') then begin
+    if (gInContribuinte) and (Copy(vCdCST,2,2) = '20') then begin
       vInPrReducao := False;
 
       if (fFIS_REGRAFISCAL.TP_REDUCAO = 'A') then begin
@@ -3124,9 +3124,9 @@ begin
       vCdCST := vCdCST + '00';
     end;
   end;
-  if ((fPES_CLIENTE.IN_CNSRFINAL = True) or (gInContribuinte = False)) and (Copy(vCdCST,2,2) = '10') then begin
-    if ((fPES_CLIENTE.IN_CNSRFINAL = True) and (gInContribuinte = True))
-    or (fPES_PFADIC.IN_AMBULANTE = True) then begin
+  if ((fPES_CLIENTE.IN_CNSRFINAL) or (gInContribuinte = False)) and (Copy(vCdCST,2,2) = '10') then begin
+    if ((fPES_CLIENTE.IN_CNSRFINAL) and (gInContribuinte))
+    or (fPES_PFADIC.IN_AMBULANTE) then begin
     end else begin
       vCdCST := Copy(fPRD_PRODUTO.CD_CST, 1, 1);
       vCdCST := vCdCST + '60';
@@ -3140,8 +3140,8 @@ begin
   fFIS_CST.CD_CST := vCdCST;
   fFIS_CST.Listar();
   if (itemXmlF('status', voParams) < 0) then begin
-    raise Exception.Create('CST ' + vCdCST + ' não cadastrado!' + ' / ' := cDS_METHOD);
-    
+    raise Exception.Create('CST ' + vCdCST + ' não cadastrado!' + ' / ' + cDS_METHOD);
+    exit;
   end;
 
   Result := '';
@@ -3194,20 +3194,20 @@ begin
   if (vVlFrete = 0)
   and (vVlSeguro = 0)
   and (vVlDespAcessor = 0)  then begin
-    
+    exit;
   end;
 
   if (gTpOrigemEmissao = 0) then begin
-    raise Exception.Create('Tipo emissão não informado!' + ' / ' := cDS_METHOD);
-    
+    raise Exception.Create('Tipo emissão não informado!' + ' / ' + cDS_METHOD);
+    exit;
   end;
   if (gDsUFDestino = '') then begin
-    raise Exception.Create('UF destino não informada!' + ' / ' := cDS_METHOD);
-    
+    raise Exception.Create('UF destino não informada!' + ' / ' + cDS_METHOD);
+    exit;
   end;
   if (vCdOperacao = 0) then begin
-    raise Exception.Create('Operação não informada!' + ' / ' := cDS_METHOD);
-    
+    raise Exception.Create('Operação não informada!' + ' / ' + cDS_METHOD);
+    exit;
   end;
 
   fPRD_PRODUTO.Limpar();
@@ -3216,12 +3216,12 @@ begin
   fGER_OPERACAO.CD_OPERACAO := vCdOperacao;
   fGER_OPERACAO.Listar();
   if (itemXmlF('status', voParams) < 0) then begin
-    raise Exception.Create('Operação ' + FloatToStr(vCdOperacao) + ' não cadastrada!' + ' / ' := cDS_METHOD);
-    
+    raise Exception.Create('Operação ' + FloatToStr(vCdOperacao) + ' não cadastrada!' + ' / ' + cDS_METHOD);
+    exit;
   end;
 
   if (fGER_OPERACAO.IN_CALCIMPOSTO <> True) then begin
-    
+    exit;
   end;
 
   // Carrega o codigo do primeiro produto da nota fiscal para a nova logica de Subst. tributaria.
@@ -3230,8 +3230,8 @@ begin
     fPRD_PRODUTO.CD_PRODUTO := vCdProduto;
     fPRD_PRODUTO.Listar();
     if (itemXmlF('status', voParams) < 0) then begin
-      raise Exception.Create('Produto ' + FloatToStr(vCdProduto) + ' não cadastrado!' + ' / ' := cDS_METHOD);
-      
+      raise Exception.Create('Produto ' + FloatToStr(vCdProduto) + ' não cadastrado!' + ' / ' + cDS_METHOD);
+      exit;
     end;
 
     //Incluído para calcular corretamente o imposto sobre os valores da capa
@@ -3241,7 +3241,7 @@ begin
     voParams := cPRDSVCO007.Instance.buscaDadosFilial(viParams); // PRDSVCO008
     if (itemXmlF('status', voParams) < 0) then begin
       raise Exception.Create(itemXml('message', voParams));
-      
+      exit;
     end;
     gInProdPropria := voParams.IN_PRODPROPRIA;
   end ;
@@ -3250,8 +3250,8 @@ begin
   fPES_PESSOA.CD_PESSOA := vCdPessoa;
   fPES_PESSOA.Listar();
   if (itemXmlF('status', voParams) < 0) then begin
-    raise Exception.Create('Pessoa ' + FloatToStr(vCdPessoa) + ' não cadastrada!' + ' / ' := cDS_METHOD);
-    
+    raise Exception.Create('Pessoa ' + FloatToStr(vCdPessoa) + ' não cadastrada!' + ' / ' + cDS_METHOD);
+    exit;
   end;
 
   if ((fGER_OPERACAO.TP_OPERACAO = 'S') and (fGER_OPERACAO.TP_MODALIDADE = 4))
@@ -3260,8 +3260,8 @@ begin
     fPES_CLIENTE.CD_CLIENTE := vCdPessoa;
     fPES_CLIENTE.Listar();
     if (itemXmlF('status', voParams) < 0) then begin
-      raise Exception.Create('Cliente ' + FloatToStr(vCdPessoa) + ' não cadastrado!' + ' / ' := cDS_METHOD);
-      
+      raise Exception.Create('Cliente ' + FloatToStr(vCdPessoa) + ' não cadastrado!' + ' / ' + cDS_METHOD);
+      exit;
     end;
   end;
 
@@ -3297,15 +3297,15 @@ begin
   voParams := cFCRSVCO057.Instance.validaPessoaOrgaoPublico(viParams);
   if (itemXmlF('status', voParams) < 0) then begin
     raise Exception.Create(itemXml('message', voParams));
-    
+    exit;
   end;
   vInOrgaoPublico := voParams.IN_ORGAOPUBLICO;
 
-  if (vInOrgaoPublico = True) and (gDsUFOrigem = 'DF') then begin
+  if (vInOrgaoPublico) and (gDsUFOrigem = 'DF') then begin
     gInContribuinte := True;
   end else begin
-     if (fPES_CLIENTE.IN_CNSRFINAL = True) or (fPES_PESSOA.TP_PESSOA = 'F') or (gInPjIsento) then begin
-      if not (fPES_CLIENTE.IN_CNSRFINAL = True) and (fPES_PESSOA.TP_PESSOA = 'J') and (gInPjIsento) then begin
+     if (fPES_CLIENTE.IN_CNSRFINAL) or (fPES_PESSOA.TP_PESSOA = 'F') or (gInPjIsento) then begin
+      if not (fPES_CLIENTE.IN_CNSRFINAL) and (fPES_PESSOA.TP_PESSOA = 'J') and (gInPjIsento) then begin
         gInContribuinte := True;
       end else begin
         if (fPES_PESSOA.TP_PESSOA = 'F')
@@ -3335,8 +3335,8 @@ begin
   //quando era emissão de terceiros. Esta variável está sendo usado tbm para emissão própria no cálculo do ICMS.
   if (fPES_PESSOA.TP_PESSOA <> 'F') then begin
     if (fPES_PESJURIDICA.IsEmpty()) then begin
-      raise Exception.Create('Pessoa ' + FloatToStr(vCdPessoa) + ' não é jurídica!' + ' / ' := cDS_METHOD);
-      
+      raise Exception.Create('Pessoa ' + FloatToStr(vCdPessoa) + ' não é jurídica!' + ' / ' + cDS_METHOD);
+      exit;
     end;
     gTpRegimeOrigem := fPES_PESJURIDICA.TP_REGIMETRIB;
   end;
@@ -3384,16 +3384,16 @@ begin
   end;
 
   if (vCdRegraFiscal = 0) then begin
-    raise Exception.Create('Nenhuma regra fiscal cadastrada p/ a operação ' + FloatToStr(vCdOperacao) + '!' + ' / ' := cDS_METHOD);
-    
+    raise Exception.Create('Nenhuma regra fiscal cadastrada p/ a operação ' + FloatToStr(vCdOperacao) + '!' + ' / ' + cDS_METHOD);
+    exit;
   end;
 
   fFIS_REGRAFISCAL.Limpar();
   fFIS_REGRAFISCAL.CD_REGRAFISCAL := vCdRegraFiscal;
   fFIS_REGRAFISCAL.Listar();
   if (itemXmlF('status', voParams) < 0) then begin
-    raise Exception.Create('Regra fiscal ' + FloatToStr(vCdRegraFiscal) + ' não cadastrada!' + ' / ' := cDS_METHOD);
-    
+    raise Exception.Create('Regra fiscal ' + FloatToStr(vCdRegraFiscal) + ' não cadastrada!' + ' / ' + cDS_METHOD);
+    exit;
   end;
 
   if (vCdCST <> '') then begin
@@ -3436,8 +3436,8 @@ begin
   fFIS_ALIQUOTAICMSUF.CD_UFDESTINO := gDsUFDestino;
   fFIS_ALIQUOTAICMSUF.Listar();
   if (itemXmlF('status', voParams) < 0) then begin
-    raise Exception.Create('Nenhuma alíquota cadastada de ' + gDsUfOrigem + ' para ' + gDsUFDestino + '!' + ' / ' := cDS_METHOD);
-    
+    raise Exception.Create('Nenhuma alíquota cadastada de ' + gDsUfOrigem + ' para ' + gDsUFDestino + '!' + ' / ' + cDS_METHOD);
+    exit;
   end;
 
   fFIS_IMPOSTO.Limpar();
@@ -3462,7 +3462,7 @@ begin
   or (vCdDecreto = 10201)
   or (vCdDecreto = 10202)
   or (vCdDecreto = 10203)
-  or (vInSubstituicao = True) then begin
+  or (vInSubstituicao) then begin
     putitem(vDsLstCdImposto, '2');
   end;
   putitem(vDsLstCdImposto, '5');
@@ -3479,7 +3479,7 @@ begin
     voParams := cFISSVCO069.Instance.retornaImposto(viParams);
     if (itemXmlF('status', voParams) < 0) then begin
       raise Exception.Create(itemXml('message', voParams));
-      
+      exit;
     end;
 
     if (voParams <> '') then begin
@@ -3493,8 +3493,8 @@ begin
       if (xStatus = -7) then begin
         fFIS_IMPOSTO.Consultar();
       end else if (itemXmlF('status', voParams) < 0) then begin
-        raise Exception.Create('Imposto ' + FloatToStr(vCdImposto) + ' não cadastrado!' + ' / ' := cDS_METHOD);
-        
+        raise Exception.Create('Imposto ' + FloatToStr(vCdImposto) + ' não cadastrado!' + ' / ' + cDS_METHOD);
+        exit;
       end;
 
       if (vCdImposto = 1) then begin //ICMS;
@@ -3532,8 +3532,8 @@ begin
   fFIS_CST.CD_CST := gCdCST;
   fFIS_CST.Listar();
   if (itemXmlF('status', voParams) < 0) then begin
-    raise Exception.Create('CST ' + gCdCST + ' não cadastrado!' + ' / ' := cDS_METHOD);
-    
+    raise Exception.Create('CST ' + gCdCST + ' não cadastrado!' + ' / ' + cDS_METHOD);
+    exit;
   end;
 
   Result := '';
@@ -3584,16 +3584,16 @@ begin
   gCdDecretoItemCapa := 0;
 
   if (gTpOrigemEmissao = 0) then begin
-    raise Exception.Create('Tipo emissão não informado!' + ' / ' := cDS_METHOD);
-    
+    raise Exception.Create('Tipo emissão não informado!' + ' / ' + cDS_METHOD);
+    exit;
   end;
   if (gDsUFDestino = '') then begin
-    raise Exception.Create('UF destino não informada!' + ' / ' := cDS_METHOD);
-    
+    raise Exception.Create('UF destino não informada!' + ' / ' + cDS_METHOD);
+    exit;
   end ;
   if (vCdOperacao = 0) then begin
-    raise Exception.Create('Operação não informada!' + ' / ' := cDS_METHOD);
-    
+    raise Exception.Create('Operação não informada!' + ' / ' + cDS_METHOD);
+    exit;
   end;
 
   fPRD_PRODUTO.Limpar();
@@ -3602,34 +3602,34 @@ begin
   fGER_OPERACAO.CD_OPERACAO := vCdOperacao;
   fGER_OPERACAO.Listar();
   if (itemXmlF('status', voParams) < 0) then begin
-    raise Exception.Create('Operação ' + FloatToStr(vCdOperacao) + ' não cadastrada!' + ' / ' := cDS_METHOD);
-    
+    raise Exception.Create('Operação ' + FloatToStr(vCdOperacao) + ' não cadastrada!' + ' / ' + cDS_METHOD);
+    exit;
   end;
 
   if (vCdProduto = 0)
   and (vCdMPTer = '')
   and (gCdServico = 0) then begin
-    return(0); exit;
+    exit;
   end;
 
   if (fGER_OPERACAO.IN_CALCIMPOSTO <> True) then begin
-    return(0); exit;
+    exit;
   end;
 
   if (gCdCST = '') then begin
-    raise Exception.Create('CST não informado!' + ' / ' := cDS_METHOD);
-    
+    raise Exception.Create('CST não informado!' + ' / ' + cDS_METHOD);
+    exit;
   end;
 
   if (gInPDVOtimizado <> True) then begin
     if (gVlTotalBruto = 0) then begin
-      raise Exception.Create('Valor total bruto não informado p/ o produto ' + FloatToStr(vCdProduto) + '!' + ' / ' := cDS_METHOD);
-      
+      raise Exception.Create('Valor total bruto não informado p/ o produto ' + FloatToStr(vCdProduto) + '!' + ' / ' + cDS_METHOD);
+      exit;
     end;
 
     if (gVlTotalLiquido = 0) then begin
-      raise Exception.Create('Valor total líquido não informado p/ oproduto ' + FloatToStr(vCdProduto) + '!' + ' / ' := cDS_METHOD);
-      
+      raise Exception.Create('Valor total líquido não informado p/ oproduto ' + FloatToStr(vCdProduto) + '!' + ' / ' + cDS_METHOD);
+      exit;
     end;
   end;
 
@@ -3637,8 +3637,8 @@ begin
   fPES_PESSOA.CD_PESSOA := vCdPessoa;
   fPES_PESSOA.Listar();
   if (itemXmlF('status', voParams) < 0) then begin
-    raise Exception.Create('Pessoa ' + FloatToStr(vCdPessoa) + ' não cadastrada!' + ' / ' := cDS_METHOD);
-    
+    raise Exception.Create('Pessoa ' + FloatToStr(vCdPessoa) + ' não cadastrada!' + ' / ' + cDS_METHOD);
+    exit;
   end;
 
   //Venda / Devolução de venda
@@ -3648,8 +3648,8 @@ begin
     fPES_CLIENTE.CD_CLIENTE := vCdPessoa;
     fPES_CLIENTE.Listar();
     if (itemXmlF('status', voParams) < 0) then begin
-      raise Exception.Create('Cliente ' + FloatToStr(vCdPessoa) + ' não cadastrado!' + ' / ' := cDS_METHOD);
-      
+      raise Exception.Create('Cliente ' + FloatToStr(vCdPessoa) + ' não cadastrado!' + ' / ' + cDS_METHOD);
+      exit;
     end;
   end;
 
@@ -3684,15 +3684,15 @@ begin
   voParams := cFCRSVCO057.Instance.validaPessoaOrgaoPublico(viParams);
   if (itemXmlF('status', voParams) < 0) then begin
     raise Exception.Create(itemXml('message', voParams));
-    
+    exit;
   end;
   vInOrgaoPublico := voParams.IN_ORGAOPUBLICO;
 
-  if (vInOrgaoPublico = True) and (gDsUFOrigem = 'DF') then begin
+  if (vInOrgaoPublico) and (gDsUFOrigem = 'DF') then begin
     gInContribuinte := True;
   end else begin
-    if (fPES_CLIENTE.IN_CNSRFINAL = True) or (fPES_PESSOA.TP_PESSOA = 'F') or (gInPjIsento) then begin
-      if not (fPES_CLIENTE.IN_CNSRFINAL = True) and (fPES_PESSOA.TP_PESSOA = 'J') and (gInPjIsento) then begin
+    if (fPES_CLIENTE.IN_CNSRFINAL) or (fPES_PESSOA.TP_PESSOA = 'F') or (gInPjIsento) then begin
+      if not (fPES_CLIENTE.IN_CNSRFINAL) and (fPES_PESSOA.TP_PESSOA = 'J') and (gInPjIsento) then begin
         gInContribuinte := True;
       end else begin
         if (fPES_PESSOA.TP_PESSOA = 'F')
@@ -3722,8 +3722,8 @@ begin
   //quando era emissão de terceiros. Esta variável está sendo usado tbm para emissão própria no cálculo do ICMS.
   if (fPES_PESSOA.TP_PESSOA <> 'F') then begin
     if (fPES_PESJURIDICA.IsEmpty()) then begin
-      raise Exception.Create('Pessoa ' + FloatToStr(vCdPessoa) + ' não é jurídica!' + ' / ' := cDS_METHOD);
-      
+      raise Exception.Create('Pessoa ' + FloatToStr(vCdPessoa) + ' não é jurídica!' + ' / ' + cDS_METHOD);
+      exit;
     end;
     gTpRegimeOrigem := fPES_PESJURIDICA.TP_REGIMETRIB;
   end;
@@ -3744,23 +3744,23 @@ begin
     gInProdPropria := False;
     vCdRegraFiscal := fGER_OPERACAO.CD_REGRAFISCAL;
     if (vCdRegraFiscal = 0) then begin
-      raise Exception.Create('Nenhuma regra fiscal cadastrada p/ a operação ' + FloatToStr(vCdOperacao) + '!' + ' / ' := cDS_METHOD);
-      
+      raise Exception.Create('Nenhuma regra fiscal cadastrada p/ a operação ' + FloatToStr(vCdOperacao) + '!' + ' / ' + cDS_METHOD);
+      exit;
     end;
   end else if (vCdMPTer <> '') then begin
     gInProdPropria := False;
     vCdRegraFiscal := fGER_OPERACAO.CD_REGRAFISCAL;
     if (vCdRegraFiscal = 0) then begin
-      raise Exception.Create('Nenhuma regra fiscal cadastrada p/ a operação ' + FloatToStr(vCdOperacao) + '!' + ' / ' := cDS_METHOD);
-      
+      raise Exception.Create('Nenhuma regra fiscal cadastrada p/ a operação ' + FloatToStr(vCdOperacao) + '!' + ' / ' + cDS_METHOD);
+      exit;
     end;
   end else begin
     fPRD_PRODUTO.Limpar();
     fPRD_PRODUTO.CD_PRODUTO := vCdProduto;
     fPRD_PRODUTO.Listar();
     if (itemXmlF('status', voParams) < 0) then begin
-      raise Exception.Create('Produto ' + FloatToStr(vCdProduto) + ' não cadastrado!' + ' / ' := cDS_METHOD);
-      
+      raise Exception.Create('Produto ' + FloatToStr(vCdProduto) + ' não cadastrado!' + ' / ' + cDS_METHOD);
+      exit;
     end;
 
     viParams := '';
@@ -3769,7 +3769,7 @@ begin
     voParams := cPRDSVCO007.Instance.buscaDadosFilial(viParams); // PRDSVCO008
     if (itemXmlF('status', voParams) < 0) then begin
       raise Exception.Create(itemXml('message', voParams));
-      
+      exit;
     end;
     gInProdPropria := voParams.IN_PRODPROPRIA;
 
@@ -3784,8 +3784,8 @@ begin
     end;
 
     if (vCdRegraFiscal = 0) then begin
-      raise Exception.Create('Nenhuma regra fiscal cadastrada p/ o produto ' + FloatToStr(vCdProduto) + ' e a operação ' + FloatToStr(vCdOperacao) + '!' + ' / ' := cDS_METHOD);
-      
+      raise Exception.Create('Nenhuma regra fiscal cadastrada p/ o produto ' + FloatToStr(vCdProduto) + ' e a operação ' + FloatToStr(vCdOperacao) + '!' + ' / ' + cDS_METHOD);
+      exit;
     end;
   end;
 
@@ -3793,8 +3793,8 @@ begin
   fFIS_REGRAFISCAL.CD_REGRAFISCAL := vCdRegraFiscal;
   fFIS_REGRAFISCAL.Listar();
   if (itemXmlF('status', voParams) < 0) then begin
-    raise Exception.Create('Regra fiscal ' + FloatToStr(vCdRegraFiscal) + ' não cadastrada!' + ' / ' := cDS_METHOD);
-    
+    raise Exception.Create('Regra fiscal ' + FloatToStr(vCdRegraFiscal) + ' não cadastrada!' + ' / ' + cDS_METHOD);
+    exit;
   end;
 
   fFIS_ALIQUOTAICMSUF.Limpar();
@@ -3802,8 +3802,8 @@ begin
   fFIS_ALIQUOTAICMSUF.CD_UFDESTINO := gDsUFDestino;
   fFIS_ALIQUOTAICMSUF.Listar();
   if (itemXmlF('status', voParams) < 0) then begin
-    raise Exception.Create('Nenhuma alíquota cadastada de ' + gDsUfOrigem + ' para ' + gDsUFDestino + '!' + ' / ' := cDS_METHOD);
-    
+    raise Exception.Create('Nenhuma alíquota cadastada de ' + gDsUfOrigem + ' para ' + gDsUFDestino + '!' + ' / ' + cDS_METHOD);
+    exit;
   end;
 
   fFIS_IMPOSTO.Limpar();
@@ -3843,7 +3843,7 @@ begin
     voParams := cFISSVCO069.Instance.retornaImposto(viParams);
     if (itemXmlF('status', voParams) < 0) then begin
       raise Exception.Create(itemXml('message', voParams));
-      
+      exit;
     end;
 
     if (voParams <> '') then begin
@@ -3857,8 +3857,8 @@ begin
       if (xStatus = -7) then begin
         fFIS_IMPOSTO.Consultar();
       end else if (itemXmlF('status', voParams) < 0) then begin
-        raise Exception.Create('Imposto ' + FloatToStr(vCdImposto) + ' não cadastrado!' + ' / ' := cDS_METHOD);
-        
+        raise Exception.Create('Imposto ' + FloatToStr(vCdImposto) + ' não cadastrado!' + ' / ' + cDS_METHOD);
+        exit;
       end;
 
       if (vCdImposto = 1) then begin //ICMS;
@@ -3898,8 +3898,8 @@ begin
   fFIS_CST.CD_CST := gCdCST;
   fFIS_CST.Listar();
   if (itemXmlF('status', voParams) < 0) then begin
-    raise Exception.Create('CST ' + gCdCST + ' não cadastrado!' + ' / ' := cDS_METHOD);
-    
+    raise Exception.Create('CST ' + gCdCST + ' não cadastrado!' + ' / ' + cDS_METHOD);
+    exit;
   end;
 
   Result := '';

@@ -301,16 +301,16 @@ begin
 
   if (pParams.IN_CONSULTAR) then begin
     if (pParams.CD_EMPRESA = 0) then begin
-      raise Exception.Create('Empresa não informada!' + ' / ' := cDS_METHOD);
-      
+      raise Exception.Create('Empresa não informada!' + ' / ' + cDS_METHOD);
+      exit;
     end;
     if (pParams.NR_TRANSACAO = 0) then begin
-      raise Exception.Create('Número da transação não informada!' + ' / ' := cDS_METHOD);
-      
+      raise Exception.Create('Número da transação não informada!' + ' / ' + cDS_METHOD);
+      exit;
     end;
     if (pParams.DT_TRANSACAO = '') then begin
-      raise Exception.Create('Data transação não informada!' + ' / ' := cDS_METHOD);
-      
+      raise Exception.Create('Data transação não informada!' + ' / ' + cDS_METHOD);
+      exit;
     end;
 
     fTRA_TRANSACAO.Limpar();
@@ -319,14 +319,14 @@ begin
     fTRA_TRANSACAO.DT_TRANSACAO := pParams.DT_TRANSACAO;
     fTRA_TRANSACAO.Listar();
     if (itemXmlF('status', voParams) < 0) then begin
-      raise Exception.Create('Transação ' := pParams.NR_TRANSACAO + ' não encontrada!' + ' / ' := cDS_METHOD);
-      
+      raise Exception.Create('Transação ' + pParams.NR_TRANSACAO + ' não encontrada!' + ' / ' + cDS_METHOD);
+      exit;
     end;
   end else begin
     if (fTRA_TRANSACAO.CD_EMPRESA = 0)
     or (fTRA_TRANSACAO.NR_TRANSACAO = 0)
     or (fTRA_TRANSACAO.DT_TRANSACAO = '') then begin
-      
+      exit;
     end;
 
     fTRA_TRANSITEM.Limpar();
@@ -441,7 +441,7 @@ begin
 
   if debug then MensagemLog(cDS_METHOD, 'Result: ' + Result);
 
-  return(0); exit;
+  exit;
 end;
 
 //---------------------------------------------------------------------
@@ -456,16 +456,16 @@ begin
 
   if (pParams.IN_CONSULTAR) then begin
     if (pParams.CD_EMPRESA = 0) then begin
-      raise Exception.Create('Empresa não informada!' + ' / ' := cDS_METHOD);
-      
+      raise Exception.Create('Empresa não informada!' + ' / ' + cDS_METHOD);
+      exit;
     end;
     if (pParams.NR_TRANSACAO = 0) then begin
-      raise Exception.Create('Número da transação não informada!' + ' / ' := cDS_METHOD);
-      
+      raise Exception.Create('Número da transação não informada!' + ' / ' + cDS_METHOD);
+      exit;
     end;
     if (pParams.DT_TRANSACAO = '') then begin
-      raise Exception.Create('Data transação não informada!' + ' / ' := cDS_METHOD);
-      
+      raise Exception.Create('Data transação não informada!' + ' / ' + cDS_METHOD);
+      exit;
     end;
 
     fTRA_TRANSACAO.Limpar();
@@ -474,14 +474,14 @@ begin
     fTRA_TRANSACAO.DT_TRANSACAO := pParams.DT_TRANSACAO;
     fTRA_TRANSACAO.Listar();
     if (itemXmlF('status', voParams) < 0) then begin
-      raise Exception.Create('Transação ' := pParams.NR_TRANSACAO + ' não encontrada!' + ' / ' := cDS_METHOD);
-      
+      raise Exception.Create('Transação ' + pParams.NR_TRANSACAO + ' não encontrada!' + ' / ' + cDS_METHOD);
+      exit;
     end;
   end else begin
     if (fTRA_TRANSACAO.CD_EMPRESA = 0)
     or (fTRA_TRANSACAO.NR_TRANSACAO = 0)
     or (fTRA_TRANSACAO.DT_TRANSACAO = '') then begin
-      
+      exit;
     end;
   end;
 
@@ -525,7 +525,7 @@ begin
 
   if debug then MensagemLog(cDS_METHOD, 'Result: ' + Result);
 
-  return(0); exit;
+  exit;
 end;
 
 //----------------------------------------------------------------------
@@ -543,13 +543,13 @@ begin
   piInNaoGravaGuiaRepre := pParams.IN_NAOGRAVAREPRE;
 
   if (fGER_OPERACAO.TP_MODALIDADE = 3) then begin
-    if (gInGuiaReprAuto = True) and (piCdPessoa <> piCdPessoaAnt) and (piInNaoGravaGuiaRepre <> True) then begin
+    if (gInGuiaReprAuto) and (piCdPessoa <> piCdPessoaAnt) and (piInNaoGravaGuiaRepre <> True) then begin
       viParams := '';
       viParams.CD_PESSOA := piCdPessoa;
       voParams := cPESSVCO005.Instance.buscaDadosPessoa(viParams);
       if (itemXmlF('status', voParams) < 0) then begin
         raise Exception.Create(itemXml('message', voParams));
-        
+        exit;
       end;
       if (fTRA_TRANSACAO.CD_GUIA = 0) and ((itemF('CD_REPRESENTANT', tTRA_TRANSACAO) = 0) or (gInGravaRepreGuiaTra)) then begin
         fTRA_TRANSACAO.CD_GUIA := voParams.CD_GUIA;
@@ -559,13 +559,13 @@ begin
       end;
     end;
   end else if (fGER_OPERACAO.TP_MODALIDADE = 4) and (fGER_OPERACAO.TP_OPERACAO = 'S') then begin
-    if (gInGuiaReprAuto = True) and (piCdPessoa <> piCdPessoaAnt) and (piInNaoGravaGuiaRepre <> True) then begin
+    if (gInGuiaReprAuto) and (piCdPessoa <> piCdPessoaAnt) and (piInNaoGravaGuiaRepre <> True) then begin
       viParams := '';
       viParams.CD_PESSOA := piCdPessoa;
       voParams := cPESSVCO005.Instance.buscaDadosPessoa(viParams);
       if (itemXmlF('status', voParams) < 0) then begin
         raise Exception.Create(itemXml('message', voParams));
-        
+        exit;
       end;
       if (fTRA_TRANSACAO.CD_GUIA = 0) and ((itemF('CD_REPRESENTANT', tTRA_TRANSACAO) = 0) or (gInGravaRepreGuiaTra)) then begin
         fTRA_TRANSACAO.CD_GUIA := voParams.CD_GUIA;
@@ -581,19 +581,19 @@ begin
     voParams := cPESSVCO005.Instance.buscaDadosPessoa(viParams);
     if (itemXmlF('status', voParams) < 0) then begin
       raise Exception.Create(itemXml('message', voParams));
-      
+      exit;
     end;
 
     vInGuiaInativo := voParams.IN_GUIAINATIVO;
     if (vInGuiaInativo) then begin
-      raise Exception.Create('Guia ' + fTRA_TRANSACAO.CD_GUIA + ' está inativo!' + ' / ' := cDS_METHOD);
-      
+      raise Exception.Create('Guia ' + fTRA_TRANSACAO.CD_GUIA + ' está inativo!' + ' / ' + cDS_METHOD);
+      exit;
     end;
 
     vInGuiaBloqueado := voParams.IN_GUIABLOQUEADO;
     if (vInGuiaBloqueado) then begin
-      raise Exception.Create('Guia ' + fTRA_TRANSACAO.CD_GUIA + ' está bloqueado!' + ' / ' := cDS_METHOD);
-      
+      raise Exception.Create('Guia ' + fTRA_TRANSACAO.CD_GUIA + ' está bloqueado!' + ' / ' + cDS_METHOD);
+      exit;
     end;
   end;
   if (fTRA_TRANSACAO.CD_REPRESENTANT <> 0) then begin
@@ -602,27 +602,27 @@ begin
     voParams := cPESSVCO005.Instance.buscaDadosPessoa(viParams);
     if (itemXmlF('status', voParams) < 0) then begin
       raise Exception.Create(itemXml('message', voParams));
-      
+      exit;
     end;
 
     vInRepreInativo := voParams.IN_REPREINATIVO;
     if (vInRepreInativo) then begin
-      raise Exception.Create('Representante ' + fTRA_TRANSACAO.CD_REPRESENTANT + ' está inativo!' + ' / ' := cDS_METHOD);
-      
+      raise Exception.Create('Representante ' + fTRA_TRANSACAO.CD_REPRESENTANT + ' está inativo!' + ' / ' + cDS_METHOD);
+      exit;
     end;
 
     vInRepreBloqueado := voParams.IN_REPREBLOQUEADO;
     if (vInRepreBloqueado) then begin
-      raise Exception.Create('Representante ' + fTRA_TRANSACAO.CD_REPRESENTANT + ' está bloqueado!' + ' / ' := cDS_METHOD);
-      
+      raise Exception.Create('Representante ' + fTRA_TRANSACAO.CD_REPRESENTANT + ' está bloqueado!' + ' / ' + cDS_METHOD);
+      exit;
     end;
   end;
   if not (fTRA_TRANSACAO.CD_REPRESENTANT <> 0) and (itemF('CD_GUIA', tTRA_TRANSACAO) <> 0) and (gInGravaRepreGuiaTra) then begin
-    raise Exception.Create('Não é permitido lançar guia e representante na mesma transação!' + ' / ' := cDS_METHOD);
-    
+    raise Exception.Create('Não é permitido lançar guia e representante na mesma transação!' + ' / ' + cDS_METHOD);
+    exit;
   end;
 
-  return(0); exit;
+  exit;
 end;
 
 //--------------------------------------------------------------------
@@ -639,7 +639,7 @@ begin
   vInkardex := pParams.IN_KARDEX;
 
   if (gTpValidaTransacaoPrd = 2) then begin
-    return(0); exit;
+    exit;
   end else begin
     if (vCdProduto <> 0) then begin
       fV_BAL_BALANCO.Limpar();
@@ -654,8 +654,8 @@ begin
         fBAL_BALANCOTR.Listar();
         if (itemXmlF('status', voParams) < 0) then begin
           if (gTpValidaTransacaoPrd = 1) then begin
-            raise Exception.Create('Produto ' + FloatToStr(vCdProduto) + ' não pode ser gravado + ' / ' := o mesmo se encontra em balanço em andamento!', cDS_METHOD);
-            
+            raise Exception.Create('Produto ' + FloatToStr(vCdProduto) + ' não pode ser gravado + ' / ' + o mesmo se encontra em balanço em andamento!', cDS_METHOD);
+            exit;
 
           end else if (gTpValidaTransacaoPrd = 3) and (vInKardex) then begin
             vCdSaldoOperacao := 0;
@@ -678,8 +678,8 @@ begin
               end;
             end;
             if (vCdSaldoOperacao = fV_BAL_BALANCO.CD_SALDO) then begin
-              raise Exception.Create('Produto ' + FloatToStr(vCdProduto) + ' não pode ser gravado + ' / ' := o mesmo se encontra em balanço em andamento!', cDS_METHOD);
-              
+              raise Exception.Create('Produto ' + FloatToStr(vCdProduto) + ' não pode ser gravado + ' / ' + o mesmo se encontra em balanço em andamento!', cDS_METHOD);
+              exit;
             end;
           end;
         end;
@@ -687,7 +687,7 @@ begin
     end;
   end;
 
-  return(0); exit;
+  exit;
 end;
 
 //------------------------------------------------------------------
@@ -729,28 +729,28 @@ begin
   end;
 
   if (vCdEmpresa = 0) then begin
-    raise Exception.Create('Empresa não informada!' + ' / ' := cDS_METHOD);
-    
+    raise Exception.Create('Empresa não informada!' + ' / ' + cDS_METHOD);
+    exit;
   end;
   if (vDtTransacao = 0) then begin
-    raise Exception.Create('Data transação não informada!' + ' / ' := cDS_METHOD);
-    
+    raise Exception.Create('Data transação não informada!' + ' / ' + cDS_METHOD);
+    exit;
   end;
   if (vCdPessoa = 0) then begin
-    raise Exception.Create('Pessoa não informada!' + ' / ' := cDS_METHOD);
-    
+    raise Exception.Create('Pessoa não informada!' + ' / ' + cDS_METHOD);
+    exit;
   end;
   if (vCdOperacao = 0) then begin
-    raise Exception.Create('Operação não informada!' + ' / ' := cDS_METHOD);
-    
+    raise Exception.Create('Operação não informada!' + ' / ' + cDS_METHOD);
+    exit;
   end;
   if (vCdCondPgto = 0) then begin
-    raise Exception.Create('Condição de pagamento não informada!' + ' / ' := cDS_METHOD);
-    
+    raise Exception.Create('Condição de pagamento não informada!' + ' / ' + cDS_METHOD);
+    exit;
   end;
   if (vCdCompVend = 0) then begin
-    raise Exception.Create('Comprador/Vendedor não informado!' + ' / ' := cDS_METHOD);
-    
+    raise Exception.Create('Comprador/Vendedor não informado!' + ' / ' + cDS_METHOD);
+    exit;
   end;
 
   vDtSistema := xParamEmp.DT_SISTEMA;
@@ -760,7 +760,7 @@ begin
   voParams := cTRASVCO016.Instance.validaCapaTransacao(viParams);
   if (itemXmlF('status', voParams) < 0) then begin
     raise Exception.Create(itemXml('message', voParams));
-    
+    exit;
   end;
 
   viParams := '';
@@ -781,7 +781,7 @@ begin
   voParams := cPESSVCO005.Instance.buscaEnderecoFaturamento(viParams);
   if (itemXmlF('status', voParams) < 0) then begin
     raise Exception.Create(itemXml('message', voParams));
-    
+    exit;
   end;
 
   if debug then MensagemLogTempo('endereco de faturamento');
@@ -794,7 +794,7 @@ begin
   voParams := cGERSVCO103.Instance.validaCondPgtoOperacao(viParams);
   if (itemXmlF('status', voParams) < 0) then begin
     raise Exception.Create(itemXml('message', voParams));
-    
+    exit;
   end;
 
   if debug then MensagemLogTempo('condicao pagamento');
@@ -806,12 +806,12 @@ begin
     voParams := cFCRSVCO015.Instance.buscaLimiteCliente(viParams);
     if (itemXmlF('status', voParams) < 0) then begin
       raise Exception.Create(itemXml('message', voParams));
-      
+      exit;
     end;
     vNrDiaVencto := voParams.NR_DIAVENCTO;
     if (gNrDiaVencto > 0) then begin
       if (vNrDiaVencto > gNrDiaVencto) then begin
-        raise Exception.Create('O cliente ' + FloatToStr(vCdPessoa) + ' possui fatura com ' + FloatToStr(vNrDiaVencto) + ' dia(s) vencida + ' / ' := o que ultrapassa o limite de ' + FloatToStr(gNrDiaVencto) + ' dia(s).', cDS_METHOD);
+        raise Exception.Create('O cliente ' + FloatToStr(vCdPessoa) + ' possui fatura com ' + FloatToStr(vNrDiaVencto) + ' dia(s) vencida + ' / ' + o que ultrapassa o limite de ' + FloatToStr(gNrDiaVencto) + ' dia(s).', cDS_METHOD);
         return(-2);
       end;
     end;
@@ -833,8 +833,8 @@ begin
     if (xStatus = -7) then begin
       fTRA_TRANSACAO.Consultar();
       if (fTRA_TRANSACAO.TP_SITUACAO <> 1) and (fTRA_TRANSACAO.TP_SITUACAO <> 2) and (fTRA_TRANSACAO.TP_SITUACAO <> 8) then begin
-        raise Exception.Create('Transação não pode ser alterada pois não está em andamento!' + ' / ' := cDS_METHOD);
-        
+        raise Exception.Create('Transação não pode ser alterada pois não está em andamento!' + ' / ' + cDS_METHOD);
+        exit;
       end;
       vCdPessoaAnt := fTRA_TRANSACAO.CD_PESSOA;
     end;
@@ -847,7 +847,7 @@ begin
         voParams := tTRA_REMDES.Excluir();
         if (itemXmlF('status', voParams) < 0) then begin
           raise Exception.Create(itemXml('message', voParams));
-          
+          exit;
         end;
       end;
     end;
@@ -869,8 +869,8 @@ begin
   if (xStatus >= 0) then begin
     fTRA_TRANSACAO.CD_GRUPOEMPRESA := fGER_EMPRESA.CD_GRUPOEMPRESA;
   end else begin
-    raise Exception.Create('Empresa ' + FloatToStr(vCdEmpresa) + ' não cadastrada!' + ' / ' := cDS_METHOD);
-    
+    raise Exception.Create('Empresa ' + FloatToStr(vCdEmpresa) + ' não cadastrada!' + ' / ' + cDS_METHOD);
+    exit;
   end;
 
   if debug then MensagemLogTempo('empresa');
@@ -881,12 +881,12 @@ begin
   if (xStatus >= 0) then begin
     fTRA_TRANSACAO.TP_OPERACAO := fGER_OPERACAO.TP_OPERACAO;
   end else begin
-    raise Exception.Create('Operação ' + FloatToStr(vCdOperacao) + ' não cadastrada!' + ' / ' := cDS_METHOD);
-    
+    raise Exception.Create('Operação ' + FloatToStr(vCdOperacao) + ' não cadastrada!' + ' / ' + cDS_METHOD);
+    exit;
   end;
   if (fGER_OPERACAO.CD_OPERFAT = 0) then begin
-    raise Exception.Create('Operação ' + fGER_OPERACAO.CD_OPERACAO + ' não possui operação de movimento!' + ' / ' := cDS_METHOD);
-    
+    raise Exception.Create('Operação ' + fGER_OPERACAO.CD_OPERACAO + ' não possui operação de movimento!' + ' / ' + cDS_METHOD);
+    exit;
   end;
 
   if debug then MensagemLogTempo('operacao faturamento');
@@ -895,8 +895,8 @@ begin
   fPES_PESSOA.CD_PESSOA := vCdPessoa;
   fPES_PESSOA.Listar();
   if (itemXmlF('status', voParams) < 0) then begin
-    raise Exception.Create('Pessoa ' + FloatToStr(vCdPessoa) + ' não cadastrada!' + ' / ' := cDS_METHOD);
-    
+    raise Exception.Create('Pessoa ' + FloatToStr(vCdPessoa) + ' não cadastrada!' + ' / ' + cDS_METHOD);
+    exit;
   end;
   if (fGER_OPERACAO.TP_MODALIDADE = 4) and (fGER_OPERACAO.TP_OPERACAO = 'S') then begin
     if (fTRA_TRANSACAO.CD_PESSOA = gCdClientePdv) then begin
@@ -905,7 +905,7 @@ begin
       voParams := cADMSVCO025.Instance.CD_CLIENTE_PDV_EMP(viParams);
       if (itemXmlF('status', voParams) < 0) then begin
         raise Exception.Create(itemXml('message', voParams));
-        
+        exit;
       end;
     end;
   end;
@@ -922,19 +922,19 @@ begin
       voParams := cPESSVCO005.Instance.buscaDadosPessoaFisica(viParams);
       if (itemXmlF('status', voParams) < 0) then begin
         raise Exception.Create(itemXml('message', voParams));
-        
+        exit;
       end;
 
       vDtSPC := voParams.DT_ATUALIZSPC;
       if (vDtSPC <> 0) then begin
         vNrDiaSPC := vDtSistema - vDtSPC;
         if (vNrDiaSPC > vNrDiaUltCompra) then begin
-          raise Exception.Create('O cliente ' + FloatToStr(vCdPessoa) + ' está a ' + FloatToStr(vNrDiaSPC) + ' dia(s) sem efetuar consulta SPC. Verificar o cadastro!' + ' / ' := cDS_METHOD);
-          
+          raise Exception.Create('O cliente ' + FloatToStr(vCdPessoa) + ' está a ' + FloatToStr(vNrDiaSPC) + ' dia(s) sem efetuar consulta SPC. Verificar o cadastro!' + ' / ' + cDS_METHOD);
+          exit;
         end;
       end else begin
-        raise Exception.Create('O cliente ' + FloatToStr(vCdPessoa) + ' não possui consulta SPC. Verificar o cadastro!' + ' / ' := cDS_METHOD);
-        
+        raise Exception.Create('O cliente ' + FloatToStr(vCdPessoa) + ' não possui consulta SPC. Verificar o cadastro!' + ' / ' + cDS_METHOD);
+        exit;
       end;
     end;
   end;
@@ -947,20 +947,20 @@ begin
     fPES_CLIENTE.Listar();
     fPES_CLIENTE.First();
     if not (fPES_CLIENTE.IsDatabase()) then begin
-      raise Exception.Create('Cliente ' + FloatToStr(vCdPessoa) + ' não cadastrado!' + ' / ' := cDS_METHOD);
-      
+      raise Exception.Create('Cliente ' + FloatToStr(vCdPessoa) + ' não cadastrado!' + ' / ' + cDS_METHOD);
+      exit;
     end;
     if (fPES_CLIENTE.IN_BLOQUEADO) then begin
       if (vInNaoVerifCliBloq = False) and (vCdPessoaAnt <> fPES_CLIENTE.CD_CLIENTE) then begin
-        raise Exception.Create('Cliente ' + FloatToStr(vCdPessoa) + ' bloqueado!' + ' / ' := cDS_METHOD);
+        raise Exception.Create('Cliente ' + FloatToStr(vCdPessoa) + ' bloqueado!' + ' / ' + cDS_METHOD);
         return(-3);
       end;
     end;
     if (fPES_CLIENTE.IN_INATIVO) then begin
       if (vInImpressao) then begin
       end else begin
-        raise Exception.Create('Cliente ' + FloatToStr(vCdPessoa) + ' inativo!' + ' / ' := cDS_METHOD);
-        
+        raise Exception.Create('Cliente ' + FloatToStr(vCdPessoa) + ' inativo!' + ' / ' + cDS_METHOD);
+        exit;
       end;
     end;
   end;
@@ -974,7 +974,7 @@ begin
   voParams := validaGuiaRepreCliente(viParams);
   if (itemXmlF('status', voParams) < 0) then begin
     raise Exception.Create(itemXml('message', voParams));
-    
+    exit;
   end;
 
   if debug then MensagemLogTempo('guia / representante');
@@ -985,23 +985,23 @@ begin
     fGER_EMPRESA.CD_PESSOA := vCdPessoa;
     fGER_EMPRESA.Listar();
     if (itemXmlF('status', voParams) < 0) then begin
-      raise Exception.Create('Pessoa ' + FloatToStr(vCdPessoa) + ' não está relacionada a nenhuma empresa para tranferência.' + ' / ' := cDS_METHOD);
-      
+      raise Exception.Create('Pessoa ' + FloatToStr(vCdPessoa) + ' não está relacionada a nenhuma empresa para tranferência.' + ' / ' + cDS_METHOD);
+      exit;
     end;
     if (fGER_EMPRESA.CD_CCUSTO > 0) and (vCdCCusto = 0) or (fGER_EMPRESA.CD_CCUSTO = 0) and (vCdCCusto > 0) then begin
-      raise Exception.Create('Empresa ' + fGER_EMPRESA.CD_EMPRESA + ' incompatível para transferência com ' + FloatToStr(vCdEmpresa) + '!' + ' / ' := cDS_METHOD);
-      
+      raise Exception.Create('Empresa ' + fGER_EMPRESA.CD_EMPRESA + ' incompatível para transferência com ' + FloatToStr(vCdEmpresa) + '!' + ' / ' + cDS_METHOD);
+      exit;
     end;
     fGER_EMPRESA.Limpar();
     fGER_EMPRESA.CD_EMPRESA := vCdEmpresa;
     fGER_EMPRESA.Listar();
     if (itemXmlF('status', voParams) < 0) then begin
-      raise Exception.Create('Empresa ' + FloatToStr(vCdEmpresa) + ' não cadastrada!' + ' / ' := cDS_METHOD);
-      
+      raise Exception.Create('Empresa ' + FloatToStr(vCdEmpresa) + ' não cadastrada!' + ' / ' + cDS_METHOD);
+      exit;
     end;
     if (vCdPessoa = fGER_EMPRESA.CD_PESSOA) and (itemF('TP_DOCTO', tGER_OPERACAO) = 1) then begin
-      raise Exception.Create('Não é permitido fazer transferência para a mesma empresa!' + ' / ' := cDS_METHOD);
-      
+      raise Exception.Create('Não é permitido fazer transferência para a mesma empresa!' + ' / ' + cDS_METHOD);
+      exit;
     end;
   end;
 
@@ -1020,7 +1020,7 @@ begin
       voParams := cGERSVCO011.Instance.getNumSeq(viParams);
       if (itemXmlF('status', voParams) < 0) then begin
         raise Exception.Create(itemXml('message', voParams));
-        
+        exit;
       end;
       vNrTransacao := voParams.NR_SEQUENCIA;
     end else if (gTpNumeracaoTra = 02) then begin
@@ -1031,7 +1031,7 @@ begin
       voParams := cGERSVCO011.Instance.getNumSeq(viParams);
       if (itemXmlF('status', voParams) < 0) then begin
         raise Exception.Create(itemXml('message', voParams));
-        
+        exit;
       end;
       vNrTransacao := voParams.NR_SEQUENCIA;
     end else begin
@@ -1041,7 +1041,7 @@ begin
       voParams := cGERSVCO031.Instance.getNumSeq(viParams);
       if (itemXmlF('status', voParams) < 0) then begin
         raise Exception.Create(itemXml('message', voParams));
-        
+        exit;
       end;
       vNrTransacao := voParams.NR_SEQUENCIA;
     end;
@@ -1051,11 +1051,11 @@ begin
 
   if debug then MensagemLogTempo('sequencia');
 
-  if (fTRA_TRANSACAO.DT_TRANSACAO <> vDtSistema) and (vInInclusao = True) and (vInValidaData) then begin
+  if (fTRA_TRANSACAO.DT_TRANSACAO <> vDtSistema) and (vInInclusao) and (vInValidaData) then begin
     vDsMensagem := 'DESCRICAO=A transação ' + FloatToStr(vCdEmpresa) + ' / ' + FloatToStr(vNrTransacao) + ' / ' + DateToStr(vDtTransacao) + ' difere da data do sistema';
     vDsMensagem := vDsMensagem + ' ' + DateToStr(vDtSistema) + '!';
-    raise Exception.Create(vDsMensagem + ' / ' := cDS_METHOD);
-    
+    raise Exception.Create(vDsMensagem + ' / ' + cDS_METHOD);
+    exit;
   end;
   if (fTRA_TRANSACAO.IN_ACEITADEV = '') then begin
     fTRA_TRANSACAO.IN_ACEITADEV := True;
@@ -1073,7 +1073,7 @@ begin
   voParams := calculaTotalTransacao(viParams);
   if (itemXmlF('status', voParams) < 0) then begin
     raise Exception.Create(itemXml('message', voParams));
-    
+    exit;
   end;
 
   if debug then MensagemLogTempo('calcula total');
@@ -1083,13 +1083,13 @@ begin
     fTRA_TRANSACAO.CD_USURELAC := PARAM_GLB.CD_USUARIO;
   end;
 
-  if (vInHomologacaoPAF = True) and (vInVendaEcf) then begin
+  if (vInHomologacaoPAF) and (vInVendaEcf) then begin
     //Data Hora Impressora
     viParams := '';
     voParams := cPAFSVCO003.Instance.getDataHoraImpressora(viParams);
     if (itemXmlF('status', voParams) < 0) then begin
       raise Exception.Create(itemXml('message', voParams));
-      
+      exit;
     end;
     vDtHoraEcf := voParams.DS_DATAHORA;
     fTRA_TRANSACAO.DT_IMPRESSAO := vDtHoraEcf;
@@ -1106,7 +1106,7 @@ begin
   voParams := tTRA_TRANSACAO.Salvar();
   if (itemXmlF('status', voParams) < 0) then begin
     raise Exception.Create(itemXml('message', voParams));
-    
+    exit;
   end;
 
   vNmCheckout := PARAM_GLB.NM_CHECKOUT;
@@ -1120,7 +1120,7 @@ begin
     voParams := cTRASVCO016.Instance.gravaDadosAdicionais(viParams);
     if (itemXmlF('status', voParams) < 0) then begin
       raise Exception.Create(itemXml('message', voParams));
-      
+      exit;
     end;
   end;
 
@@ -1135,18 +1135,18 @@ begin
     voParams := cTRASVCO016.Instance.gravaDadosAdicionais(viParams);
     if (itemXmlF('status', voParams) < 0) then begin
       raise Exception.Create(itemXml('message', voParams));
-      
+      exit;
     end;
   end;
 
-  if ((fGER_OPERACAO.TP_MODALIDADE = 4) or (fGER_OPERACAO.TP_MODALIDADE = 3)) and (gInGuiaReprAuto = True) and (gTpTabPrecoPed = 2) and (itemF('CD_REPRESENTANT', tTRA_TRANSACAO) <> 0) then begin
+  if ((fGER_OPERACAO.TP_MODALIDADE = 4) or (fGER_OPERACAO.TP_MODALIDADE = 3)) and (gInGuiaReprAuto) and (gTpTabPrecoPed = 2) and (itemF('CD_REPRESENTANT', tTRA_TRANSACAO) <> 0) then begin
     viParams := '';
     viParams.CD_CLIENTE := fTRA_TRANSACAO.CD_PESSOA;
     viParams.CD_REPRESENTANT := fTRA_TRANSACAO.CD_REPRESENTANT;
     voParams := cPEDSVCO008.Instance.buscaTabelaPreco(viParams);
     if (itemXmlF('status', voParams) < 0) then begin
       raise Exception.Create(itemXml('message', voParams));
-      
+      exit;
     end;
 
     vDsLstTabPreco := voParams.CD_TABPRECO;
@@ -1163,7 +1163,7 @@ begin
     voParams := cTRASVCO016.Instance.gravaDadosAdicionais(viParams);
     if (itemXmlF('status', voParams) < 0) then begin
       raise Exception.Create(itemXml('message', voParams));
-      
+      exit;
     end;
   end;
 
@@ -1179,7 +1179,7 @@ begin
     voParams := gravaEnderecoTransacao(viParams);
     if (itemXmlF('status', voParams) < 0) then begin
       raise Exception.Create(itemXml('message', voParams));
-      
+      exit;
     end;
   //end;
 
@@ -1187,7 +1187,7 @@ begin
   Result.CD_EMPRESA := fTRA_TRANSACAO.CD_EMPRESA;
   Result.NR_TRANSACAO := fTRA_TRANSACAO.NR_TRANSACAO;
   Result.DT_TRANSACAO := fTRA_TRANSACAO.DT_TRANSACAO;
-  return(0); exit;
+  exit;
 end;
 
 //-------------------------------------------------------------------
@@ -1235,16 +1235,16 @@ begin
   vVlTotalDesc := 0;
 
   if (vCdEmpresa = 0) then begin
-    raise Exception.Create('Empresa não informada!' + ' / ' := cDS_METHOD);
-    
+    raise Exception.Create('Empresa não informada!' + ' / ' + cDS_METHOD);
+    exit;
   end;
   if (vNrTransacao = 0) then begin
-    raise Exception.Create('Número transação não informado!' + ' / ' := cDS_METHOD);
-    
+    raise Exception.Create('Número transação não informado!' + ' / ' + cDS_METHOD);
+    exit;
   end;
   if (vDtTransacao = 0) then begin
-    raise Exception.Create('Data transação não informada!' + ' / ' := cDS_METHOD);
-    
+    raise Exception.Create('Data transação não informada!' + ' / ' + cDS_METHOD);
+    exit;
   end;
 
   if debug then MensagemLogTempo('inicio');
@@ -1255,12 +1255,12 @@ begin
   fTRA_TRANSACAO.DT_TRANSACAO := vDtTransacao;
   fTRA_TRANSACAO.Listar();
   if (itemXmlF('status', voParams) < 0) then begin
-    raise Exception.Create('Transação ' + FloatToStr(vNrTransacao) + ' não cadastrada!' + ' / ' := cDS_METHOD);
-    
+    raise Exception.Create('Transação ' + FloatToStr(vNrTransacao) + ' não cadastrada!' + ' / ' + cDS_METHOD);
+    exit;
   end;
   if (fTRA_TRANSACAO.TP_SITUACAO <> 1) and (fTRA_TRANSACAO.TP_SITUACAO <> 8) then begin
-    raise Exception.Create('Não é possível inserir itens na transação ' + fTRA_TRANSACAO.CD_EMPFAT + ' / ' + item('NR_TRANSACAO' + ' / ' := tTRA_TRANSACAO) + ' pois não está em andamento/bloqueada!', cDS_METHOD);
-    
+    raise Exception.Create('Não é possível inserir itens na transação ' + fTRA_TRANSACAO.CD_EMPFAT + ' / ' + item('NR_TRANSACAO' + ' / ' + tTRA_TRANSACAO) + ' pois não está em andamento/bloqueada!', cDS_METHOD);
+    exit;
   end;
 
   if debug then MensagemLogTempo('transacao');
@@ -1272,12 +1272,12 @@ begin
 
   if (vTpItem = 'S') then begin
     if (vCdServico = 0) then begin
-      raise Exception.Create('Serviço não informado!' + ' / ' := cDS_METHOD);
-      
+      raise Exception.Create('Serviço não informado!' + ' / ' + cDS_METHOD);
+      exit;
     end;
-    if (vInDadosOperacao = True) and (vInServico <> True) then begin
-      raise Exception.Create('A operação ' + fTRA_TRANSACAO.CD_OPERACAO + ' da transação não é uma operação de serviço!' + ' / ' := cDS_METHOD);
-      
+    if (vInDadosOperacao) and (vInServico <> True) then begin
+      raise Exception.Create('A operação ' + fTRA_TRANSACAO.CD_OPERACAO + ' da transação não é uma operação de serviço!' + ' / ' + cDS_METHOD);
+      exit;
     end;
 
     viParams := '';
@@ -1285,13 +1285,13 @@ begin
     voParams := cPCPSVCO020.Instance.buscaDadosServico(viParams);
     if (itemXmlF('status', voParams) < 0) then begin
       raise Exception.Create(itemXml('message', voParams));
-      
+      exit;
     end;
     vDsServico := voParams.DS_SERVICO;
   end else begin
     if (vCdBarraPrd = '') and (vCdMPTer = '') then begin
-      raise Exception.Create('Produto não informado!' + ' / ' := cDS_METHOD);
-      
+      raise Exception.Create('Produto não informado!' + ' / ' + cDS_METHOD);
+      exit;
     end;
     if (vCdMPTer <> '') then begin
       viParams := '';
@@ -1304,15 +1304,15 @@ begin
       voParams := cGERSVCO046.Instance.buscaDadosMPTerceito(viParams);
       if (itemXmlF('status', voParams) < 0) then begin
         raise Exception.Create(itemXml('message', voParams));
-        
+        exit;
       end;
       vDsMP := voParams.DS_MP;
       vCdEspecieMP := voParams.CD_ESPECIE;
       vCdTipi := voParams.CD_TIPI;
     end else begin
-      if (vInDadosOperacao = True) and (vInProdAcabado <> True) and (vInMatPrima <> True) then begin
-        raise Exception.Create('A operação ' + fTRA_TRANSACAO.CD_OPERACAO + ' da transação não é uma operação de produto acabado ou matéria-prima!' + ' / ' := cDS_METHOD);
-        
+      if (vInDadosOperacao) and (vInProdAcabado <> True) and (vInMatPrima <> True) then begin
+        raise Exception.Create('A operação ' + fTRA_TRANSACAO.CD_OPERACAO + ' da transação não é uma operação de produto acabado ou matéria-prima!' + ' / ' + cDS_METHOD);
+        exit;
       end;
 
       viParams := '';
@@ -1321,7 +1321,7 @@ begin
       //voParams := cGERSVCO054.Instance.dadosAdicionaisOperacao(viParams);
       if (itemXmlF('status', voParams) < 0) then begin
         raise Exception.Create(itemXml('message', voParams));
-        
+        exit;
       end;
       vInProdAcabado := voParams.IN_PRODACABADO;
       vInMatPrima := voParams.IN_MATPRIMA;
@@ -1341,12 +1341,12 @@ begin
       voParams := cPRDSVCO004.Instance.verificaProduto(viParams);
       if (itemXmlF('status', voParams) < 0) then begin
         raise Exception.Create(itemXml('message', voParams));
-        
+        exit;
       end;
       vCdProduto := voParams.CD_PRODUTO;
       if (vCdProduto = 0) then begin
-        raise Exception.Create('Produto ' + vCdBarraPrd + ' inválido' + ' / ' := cDS_METHOD);
-        
+        raise Exception.Create('Produto ' + vCdBarraPrd + ' inválido' + ' / ' + cDS_METHOD);
+        exit;
       end;
 
       if (vQtEmbalagem = 0) then begin
@@ -1362,8 +1362,8 @@ begin
       end;
 
       if (vQtEmbalagem > 99999999) then begin
-        raise Exception.Create('A quantidade não pode ser superior a 99.999.999!' + ' / ' := cDS_METHOD);
-        
+        raise Exception.Create('A quantidade não pode ser superior a 99.999.999!' + ' / ' + cDS_METHOD);
+        exit;
       end;
 
       viParams := '';
@@ -1372,7 +1372,7 @@ begin
       voParams := cPRDSVCO008.Instance.validaQtdFracionada(viParams);
       if (itemXmlF('status', voParams) < 0) then begin
         raise Exception.Create(itemXml('message', voParams));
-        
+        exit;
       end;
 
       if (gCdEmpParam = 0) or (gCdEmpParam <> vCdEmpresa) then begin
@@ -1385,18 +1385,18 @@ begin
       voParams := cGERSVCO046.Instance.buscaDadosProduto(viParams);
       if (itemXmlF('status', voParams) < 0) then begin
         raise Exception.Create(itemXml('message', voParams));
-        
+        exit;
       end;
 
       vDsRegProduto := voParams;
 
       if (vDsRegProduto.CD_CST = '') then begin
-        raise Exception.Create('Produto ' + FloatToStr(vCdProduto) + ' sem CST cadastrado!' + ' / ' := cDS_METHOD);
-        
+        raise Exception.Create('Produto ' + FloatToStr(vCdProduto) + ' sem CST cadastrado!' + ' / ' + cDS_METHOD);
+        exit;
       end;
       if (vDsRegProduto.CD_ESPECIE = '') then begin
-        raise Exception.Create('Produto ' + FloatToStr(vCdProduto) + ' sem espécie cadastrada!' + ' / ' := cDS_METHOD);
-        
+        raise Exception.Create('Produto ' + FloatToStr(vCdProduto) + ' sem espécie cadastrada!' + ' / ' + cDS_METHOD);
+        exit;
       end;
       if (vInCodigo <> True) and (gDsSepBarraPrd <> '') then begin
         if (Pos(gDsSepBarraPrd, vCdBarraPrd) > 0) then begin
@@ -1404,8 +1404,8 @@ begin
           fTRA_TRANSITEM.CD_BARRAPRD := vCdBarraPrd;
           fTRA_TRANSITEM.Listar();
           if (xStatus >= 0) then begin
-            raise Exception.Create('Código de barras ' + vCdBarraPrd + ' já cadastrado na transação ' + fTRA_TRANSACAO.CD_EMPFAT + ' / ' + item('NR_TRANSACAO' + ' / ' := tTRA_TRANSACAO) + '!', cDS_METHOD);
-            
+            raise Exception.Create('Código de barras ' + vCdBarraPrd + ' já cadastrado na transação ' + fTRA_TRANSACAO.CD_EMPFAT + ' / ' + item('NR_TRANSACAO' + ' / ' + tTRA_TRANSACAO) + '!', cDS_METHOD);
+            exit;
           end;
         end;
       end;
@@ -1427,16 +1427,16 @@ begin
           fV_PES_ENDERECO.NR_SEQUENCIA := fTRA_TRANSACAO.NR_SEQENDERECO;
           fV_PES_ENDERECO.Listar();
           if (itemXmlF('status', voParams) < 0) then begin
-            raise Exception.Create('endereço ' + fTRA_TRANSACAO.NR_SEQENDERECO + ' não cadastrado para a pessoa ' + FloatToStr(gCdPessoaEndPadrao) + '!' + ' / ' := cDS_METHOD);
-            
+            raise Exception.Create('endereço ' + fTRA_TRANSACAO.NR_SEQENDERECO + ' não cadastrado para a pessoa ' + FloatToStr(gCdPessoaEndPadrao) + '!' + ' / ' + cDS_METHOD);
+            exit;
           end;
         end else begin
-          raise Exception.Create('endereço ' + fTRA_TRANSACAO.NR_SEQENDERECO + ' não cadastrado para a pessoa ' + item('CD_PESSOA' + ' / ' := tPES_PESSOA) + '!', cDS_METHOD);
-          
+          raise Exception.Create('endereço ' + fTRA_TRANSACAO.NR_SEQENDERECO + ' não cadastrado para a pessoa ' + item('CD_PESSOA' + ' / ' + tPES_PESSOA) + '!', cDS_METHOD);
+          exit;
         end;
       end else begin
-        raise Exception.Create('endereço ' + fTRA_TRANSACAO.NR_SEQENDERECO + ' não cadastrado para a pessoa ' + item('CD_PESSOA' + ' / ' := tPES_PESSOA) + '!', cDS_METHOD);
-        
+        raise Exception.Create('endereço ' + fTRA_TRANSACAO.NR_SEQENDERECO + ' não cadastrado para a pessoa ' + item('CD_PESSOA' + ' / ' + tPES_PESSOA) + '!', cDS_METHOD);
+        exit;
       end;
     end;
   end;
@@ -1482,15 +1482,15 @@ begin
     voParams := cFISSVCO015.Instance.buscaCFOP(viParams);
     if (itemXmlF('status', voParams) < 0) then begin
       raise Exception.Create(itemXml('message', voParams));
-      
+      exit;
     end;
 
     vCdCFOP := voParams.CD_CFOP;
   end;
 
   if (vCdCFOP = 0) then begin
-    raise Exception.Create('Nenhum CFOP encontrado para o produto ' + FloatToStr(vCdProduto) + ' da transação ' + FloatToStr(vNrTransacao) + '!' + ' / ' := cDS_METHOD);
-    
+    raise Exception.Create('Nenhum CFOP encontrado para o produto ' + FloatToStr(vCdProduto) + ' da transação ' + FloatToStr(vNrTransacao) + '!' + ' / ' + cDS_METHOD);
+    exit;
   end;
 
   if debug then MensagemLogTempo('CFPO');
@@ -1515,15 +1515,15 @@ begin
     voParams := cFISSVCO015.Instance.buscaCST(viParams);
     if (itemXmlF('status', voParams) < 0) then begin
       raise Exception.Create(itemXml('message', voParams));
-      
+      exit;
     end;
 
     vCdCST := voParams.CD_CST;
   end;
 
   if (vCdCST = '') then begin
-    raise Exception.Create('Produto ' + FloatToStr(vCdProduto) + ' sem CST cadastrado!' + ' / ' := cDS_METHOD);
-    
+    raise Exception.Create('Produto ' + FloatToStr(vCdProduto) + ' sem CST cadastrado!' + ' / ' + cDS_METHOD);
+    exit;
   end;
 
   if debug then MensagemLogTempo('CST');
@@ -1549,7 +1549,7 @@ begin
             voParams := cPEDSVCO008.Instance.buscaValorProduto(viParams);
             if (itemXmlF('status', voParams) < 0) then begin
               raise Exception.Create(itemXml('message', voParams));
-              
+              exit;
             end;
             vVlUnitLiquido := voParams.VL_UNITARIO;
             vVlUnitBruto := voParams.VL_UNITARIO;
@@ -1564,7 +1564,7 @@ begin
             voParams := cGERSVCO012.Instance.buscaValorOperacao(viParams);
             if (itemXmlF('status', voParams) < 0) then begin
               raise Exception.Create(itemXml('message', voParams));
-              
+              exit;
             end;
             vVlBase := voParams.VL_BASE;
             vVlOriginal := voParams.VL_ORIGINAL;
@@ -1581,12 +1581,12 @@ begin
       end;
       if (vVlUnitLiquido = 0) or (vVlUnitBruto = 0) then begin
         if (fGER_OPERACAO.TP_OPERACAO = 'S') and ((fGER_OPERACAO.TP_MODALIDADE = 4) or (fGER_OPERACAO.TP_MODALIDADE = 2) or (fGER_OPERACAO.TP_MODALIDADE = 3) or (fGER_OPERACAO.TP_MODALIDADE = 7)) then begin
-          raise Exception.Create('Produto ' + FloatToStr(vCdProduto) + ' com preço zerado!' + ' / ' := cDS_METHOD);
-          
+          raise Exception.Create('Produto ' + FloatToStr(vCdProduto) + ' com preço zerado!' + ' / ' + cDS_METHOD);
+          exit;
         end;
         if (vInValidaVlZerado) then begin
-          raise Exception.Create('Produto ' + FloatToStr(vCdProduto) + ' com valor zerado!' + ' / ' := cDS_METHOD);
-          
+          raise Exception.Create('Produto ' + FloatToStr(vCdProduto) + ' com valor zerado!' + ' / ' + cDS_METHOD);
+          exit;
         end;
       end;
     end;
@@ -1654,7 +1654,7 @@ begin
     Result.DS_PRODUTO := vDsProduto;
   end;
 
-  return(0); exit;
+  exit;
 end;
 
 //------------------------------------------------------------------
@@ -1718,16 +1718,16 @@ begin
   end;//Z-
 
   if (vCdEmpresa = 0) then begin
-    raise Exception.Create('Empresa não informada!' + ' / ' := cDS_METHOD);
-    
+    raise Exception.Create('Empresa não informada!' + ' / ' + cDS_METHOD);
+    exit;
   end;
   if (vNrTransacao = 0) then begin
-    raise Exception.Create('Número transação não informado!' + ' / ' := cDS_METHOD);
-    
+    raise Exception.Create('Número transação não informado!' + ' / ' + cDS_METHOD);
+    exit;
   end;
   if (vDtTransacao = 0) then begin
-    raise Exception.Create('Data transação não informada!' + ' / ' := cDS_METHOD);
-    
+    raise Exception.Create('Data transação não informada!' + ' / ' + cDS_METHOD);
+    exit;
   end;
 
   if debug then MensagemLogTempo('inicio');
@@ -1736,8 +1736,8 @@ begin
   fGER_EMPRESA.CD_EMPRESA := vCdEmpresa;
   fGER_EMPRESA.Listar();
   if (itemXmlF('status', voParams) < 0) then begin
-    raise Exception.Create('Empresa ' + FloatToStr(vCdEmpresa) + ' não cadastrada!' + ' / ' := cDS_METHOD);
-    
+    raise Exception.Create('Empresa ' + FloatToStr(vCdEmpresa) + ' não cadastrada!' + ' / ' + cDS_METHOD);
+    exit;
   end;
 
   if debug then MensagemLogTempo('empresa');
@@ -1748,8 +1748,8 @@ begin
   fTRA_TRANSACAO.DT_TRANSACAO := vDtTransacao;
   fTRA_TRANSACAO.Listar();
   if (itemXmlF('status', voParams) < 0) then begin
-    raise Exception.Create('Transação ' + FloatToStr(vNrTransacao) + ' não cadastrada!' + ' / ' := cDS_METHOD);
-    
+    raise Exception.Create('Transação ' + FloatToStr(vNrTransacao) + ' não cadastrada!' + ' / ' + cDS_METHOD);
+    exit;
   end;
 
   if debug then MensagemLogTempo('transacao');
@@ -1761,7 +1761,7 @@ begin
     voParams := validaProdutoBalanco(viParams);
     if (itemXmlF('status', voParams) < 0) then begin
       raise Exception.Create(itemXml('message', voParams));
-      
+      exit;
     end;
   end;
 
@@ -1802,16 +1802,16 @@ begin
           fV_PES_ENDERECO.NR_SEQUENCIA := fTRA_TRANSACAO.NR_SEQENDERECO;
           fV_PES_ENDERECO.Listar();
           if (itemXmlF('status', voParams) < 0) then begin
-            raise Exception.Create('endereço ' + fTRA_TRANSACAO.NR_SEQENDERECO + ' não cadastrado para a pessoa ' + FloatToStr(gCdPessoaEndPadrao) + '!' + ' / ' := cDS_METHOD);
-            
+            raise Exception.Create('endereço ' + fTRA_TRANSACAO.NR_SEQENDERECO + ' não cadastrado para a pessoa ' + FloatToStr(gCdPessoaEndPadrao) + '!' + ' / ' + cDS_METHOD);
+            exit;
           end;
         end else begin
-          raise Exception.Create('endereço ' + fTRA_TRANSACAO.NR_SEQENDERECO + ' não cadastrado para a pessoa ' + item('CD_PESSOA' + ' / ' := tPES_PESSOA) + '!', cDS_METHOD);
-          
+          raise Exception.Create('endereço ' + fTRA_TRANSACAO.NR_SEQENDERECO + ' não cadastrado para a pessoa ' + item('CD_PESSOA' + ' / ' + tPES_PESSOA) + '!', cDS_METHOD);
+          exit;
         end;
       end else begin
-        raise Exception.Create('endereço ' + fTRA_TRANSACAO.NR_SEQENDERECO + ' não cadastrado para a pessoa ' + item('CD_PESSOA' + ' / ' := tPES_PESSOA) + '!', cDS_METHOD);
-        
+        raise Exception.Create('endereço ' + fTRA_TRANSACAO.NR_SEQENDERECO + ' não cadastrado para a pessoa ' + item('CD_PESSOA' + ' / ' + tPES_PESSOA) + '!', cDS_METHOD);
+        exit;
       end;
     end;
   end;
@@ -1824,26 +1824,26 @@ begin
     vInSoDescricao := True;
   end else begin
     if (vCdCST = '') then begin
-      raise Exception.Create('Item ' + FloatToStr(vNrItem) + ' / Produto ' + vCdProdutoMsg + ' da transação ' + FloatToStr(vNrTransacao) + ' sem CST informado!' + ' / ' := cDS_METHOD);
-      
+      raise Exception.Create('Item ' + FloatToStr(vNrItem) + ' / Produto ' + vCdProdutoMsg + ' da transação ' + FloatToStr(vNrTransacao) + ' sem CST informado!' + ' / ' + cDS_METHOD);
+      exit;
     end;
     if (vCdCFOP = 0) then begin
-      raise Exception.Create('Item ' + FloatToStr(vNrItem) + ' / Produto ' + vCdProdutoMsg + ' da transação ' + FloatToStr(vNrTransacao) + ' sem CFOP informado!' + ' / ' := cDS_METHOD);
-      
+      raise Exception.Create('Item ' + FloatToStr(vNrItem) + ' / Produto ' + vCdProdutoMsg + ' da transação ' + FloatToStr(vNrTransacao) + ' sem CFOP informado!' + ' / ' + cDS_METHOD);
+      exit;
     end;
     if (vCdCompVend = 0) then begin
-      raise Exception.Create('Item ' + FloatToStr(vNrItem) + ' / Produto ' + vCdProdutoMsg + ' da transação ' + FloatToStr(vNrTransacao) + ' sem Comprador/Vendedor informado!' + ' / ' := cDS_METHOD);
-      
+      raise Exception.Create('Item ' + FloatToStr(vNrItem) + ' / Produto ' + vCdProdutoMsg + ' da transação ' + FloatToStr(vNrTransacao) + ' sem Comprador/Vendedor informado!' + ' / ' + cDS_METHOD);
+      exit;
     end;
     if (fGER_OPERACAO.TP_OPERACAO = 'E') then begin
       if (vCdCFOP >= 4000) then begin
-        raise Exception.Create('CFOP ' + FloatToStr(vCdCFOP) + ' do produto ' + vCdProdutoMsg + ' da transação ' + FloatToStr(vNrTransacao) + ' incompatível com a operação de entrada!' + ' / ' := cDS_METHOD);
-        
+        raise Exception.Create('CFOP ' + FloatToStr(vCdCFOP) + ' do produto ' + vCdProdutoMsg + ' da transação ' + FloatToStr(vNrTransacao) + ' incompatível com a operação de entrada!' + ' / ' + cDS_METHOD);
+        exit;
       end;
     end else if (fGER_OPERACAO.TP_OPERACAO = 'S') then begin
       if (vCdCFOP < 5000) then begin
-        raise Exception.Create('CFOP ' + FloatToStr(vCdCFOP) + ' do produto ' + vCdProdutoMsg + ' da transação ' + FloatToStr(vNrTransacao) + ' incompatível com a operação de saída!' + ' / ' := cDS_METHOD);
-        
+        raise Exception.Create('CFOP ' + FloatToStr(vCdCFOP) + ' do produto ' + vCdProdutoMsg + ' da transação ' + FloatToStr(vNrTransacao) + ' incompatível com a operação de saída!' + ' / ' + cDS_METHOD);
+        exit;
       end;
     end;
     if ((fGER_OPERACAO.TP_OPERACAO = 'E') and ((fGER_OPERACAO.TP_MODALIDADE = 4) or (fGER_OPERACAO.TP_OPERACAO = 'S')) and (fGER_OPERACAO.TP_MODALIDADE = 3)) and (vCdServico = 0) then begin
@@ -1853,7 +1853,7 @@ begin
       voParams := cPRDSVCO008.Instance.validaProdutoFornecedor(viParams);
       if (itemXmlF('status', voParams) < 0) then begin
         raise Exception.Create(itemXml('message', voParams));
-        
+        exit;
       end;
     end;
   end;
@@ -1884,7 +1884,7 @@ begin
         voParams := tTRA_ITEMIMPOSTO.Excluir();
         if (itemXmlF('status', voParams) < 0) then begin
           raise Exception.Create(itemXml('message', voParams));
-          
+          exit;
         end;
       end;
       if (fTRA_TRANSITEM.QT_SOLICITADA = 0) then begin
@@ -1896,7 +1896,7 @@ begin
         voParams := cSICSVCO005.Instance.arredondaQtFracionada(viParams);
         if (itemXmlF('status', voParams) < 0) then begin
           raise Exception.Create(itemXml('message', voParams));
-          
+          exit;
         end;
         vQtArredondada := voParams.QT_SOLICITADA;
       end else begin
@@ -1906,13 +1906,13 @@ begin
   end;
   if (fGER_OPERACAO.TP_DOCTO = 2) or (fGER_OPERACAO.TP_DOCTO = 3) then begin
     if (fTRA_TRANSITEM.NR_ITEM > 990) then begin
-      raise Exception.Create('Quantidade de itens da transação não pode ser maior que 990!Convênio 57/95 do SINTEGRA.' + ' / ' := cDS_METHOD);
-      
+      raise Exception.Create('Quantidade de itens da transação não pode ser maior que 990!Convênio 57/95 do SINTEGRA.' + ' / ' + cDS_METHOD);
+      exit;
     end;
   end else if (gNrItemQuebraNf = 0) then begin
     if (fTRA_TRANSITEM.NR_ITEM > 990) then begin
-      raise Exception.Create('Quantidade de itens da transação não pode ser maior que 990!Convênio 57/95 do SINTEGRA.' + ' / ' := cDS_METHOD);
-      
+      raise Exception.Create('Quantidade de itens da transação não pode ser maior que 990!Convênio 57/95 do SINTEGRA.' + ' / ' + cDS_METHOD);
+      exit;
     end;
   end;
   if (vInSoDescricao) then begin
@@ -1942,7 +1942,7 @@ begin
       voParams := cPRDSVCO008.Instance.buscaDadosFilial(viParams);
       if (itemXmlF('status', voParams) < 0) then begin
         raise Exception.Create(itemXml('message', voParams));
-        
+        exit;
       end;
       vInMatPrima := voParams.IN_MATPRIMA;
       vInProdAcabado := voParams.IN_PRODACABADO;
@@ -1950,8 +1950,8 @@ begin
     end;
     (* if (vTpLote > 0) and (fTRA_TRANSACAO.TP_OPERACAO = 'S') and not (vInNaoValidaLote) and (fGER_OPERACAO.IN_KARDEX) then begin
       if (vDsLstItemLote = '') then begin
-        raise Exception.Create('Lista de itens de lote não informada para o produto ' + FloatToStr(vCdProduto) + ' da transação ' + FloatToStr(vNrTransacao) + '' + ' / ' := cDS_METHOD);
-        
+        raise Exception.Create('Lista de itens de lote não informada para o produto ' + FloatToStr(vCdProduto) + ' da transação ' + FloatToStr(vNrTransacao) + '' + ' / ' + cDS_METHOD);
+        exit;
       end;
     end; *)
 
@@ -1970,13 +1970,13 @@ begin
     end;
     if (vInBloqSaldoNeg)
     and (((gInBloqSaldoNeg = 1)  or
-          ((gInBloqSaldoNeg = 2) and (vInProdAcabado = True))  or
-          ((gInBloqSaldoNeg = 3) and (vInMatPrima = True))  or
+          ((gInBloqSaldoNeg = 2) and (vInProdAcabado))  or
+          ((gInBloqSaldoNeg = 3) and (vInMatPrima))  or
            (gInBloqSaldoNeg = 4)  or
-          ((gInBloqSaldoNeg = 5) and (vInProdAcabado = True))  or
-          ((gInBloqSaldoNeg = 6) and (vInMatPrima = True)))
+          ((gInBloqSaldoNeg = 5) and (vInProdAcabado))  or
+          ((gInBloqSaldoNeg = 6) and (vInMatPrima)))
     and (fTRA_TRANSACAO.TP_OPERACAO = 'S')
-    and ((fGER_OPERACAO.IN_KARDEX = True) or (item_b('IN_KARDEX', tGER_S_OPERACAO) = True)) and (vCdMPTer = '') and (vCdServico = 0)) then begin
+    and ((fGER_OPERACAO.IN_KARDEX) or (item_b('IN_KARDEX', tGER_S_OPERACAO))) and (vCdMPTer = '') and (vCdServico = 0)) then begin
 
       if (vInImpressao) then begin
       end else begin
@@ -1990,7 +1990,7 @@ begin
         voParams := cPRDSVCO015.Instance.verificaSaldoProduto(viParams);
         if (itemXmlF('status', voParams) < 0) then begin
           raise Exception.Create(itemXml('message', voParams));
-          
+          exit;
         end;
 
         vQtDisponivel := voParams.QT_DISPONIVEL;
@@ -2000,8 +2000,8 @@ begin
 
         if ((fTRA_TRANSITEM.QT_SOLICITADA - vQtSolicitadaAnt) > vQtDisponivel) then begin
           if (gInBloqSaldoNeg = 1) or (gInBloqSaldoNeg = 2) or (gInBloqSaldoNeg = 3) then begin
-            raise Exception.Create('Quantidade ' + fTRA_TRANSITEM.QT_SOLICITADA + ' do produto ' + FloatToStr(vCdProduto) + ' da transação ' + FloatToStr(vNrTransacao) + ' maior que disponível ' + FloatToStr(vQtDisponivel) + '! ' + FloatToStr(vQtEstoque) + ' em estoque / ' + FloatToStr(vQtEntrada) + ' em entrada / ' + FloatToStr(vQtSaida) + ' em saída.' + ' / ' := cDS_METHOD);
-            
+            raise Exception.Create('Quantidade ' + fTRA_TRANSITEM.QT_SOLICITADA + ' do produto ' + FloatToStr(vCdProduto) + ' da transação ' + FloatToStr(vNrTransacao) + ' maior que disponível ' + FloatToStr(vQtDisponivel) + '! ' + FloatToStr(vQtEstoque) + ' em estoque / ' + FloatToStr(vQtEntrada) + ' em entrada / ' + FloatToStr(vQtSaida) + ' em saída.' + ' / ' + cDS_METHOD);
+            exit;
           end else if (gInBloqSaldoNeg = 4) or (gInBloqSaldoNeg = 5) or (gInBloqSaldoNeg = 6) then begin
             vDsMensagem := 'Quantidade ' + fTRA_TRANSITEM.QT_SOLICITADA + ' do produto ' + FloatToStr(vCdProduto) + ' da transação ' + FloatToStr(vNrTransacao) + ' maior que disponível ' + FloatToStr(vQtDisponivel) + '! ' + FloatToStr(vQtEstoque) + ' em estoque / ' + FloatToStr(vQtEntrada) + ' em entrada / ' + FloatToStr(vQtSaida) + ' em saída.';
           end;
@@ -2089,14 +2089,14 @@ begin
       voParams := cPRDSVCO007.Instance.buscaValorData(viParams);
       if (itemXmlF('status', voParams) < 0) then begin
         raise Exception.Create(itemXml('message', voParams));
-        
+        exit;
       end;
 
       vVlUnitCustoVenda := voParams.VL_VALOR;
 
       if (vVlUnitCustoVenda > fTRA_TRANSITEM.VL_UNITLIQUIDO) then begin
-        raise Exception.Create('Valor de venda menor que o valor de custo. Parâmetro CD_CUSTO_VALIDA_VENDA!' + ' / ' := cDS_METHOD);
-        
+        raise Exception.Create('Valor de venda menor que o valor de custo. Parâmetro CD_CUSTO_VALIDA_VENDA!' + ' / ' + cDS_METHOD);
+        exit;
       end;
     end;
 
@@ -2104,23 +2104,23 @@ begin
 
     if vTpDescAcresc = 'D' then begin//Zottis 29/04/2014 implantação do acréscimo
       if (fTRA_TRANSITEM.VL_UNITBRUTO < 0) then begin
-        raise Exception.Create('VL_UNITBRUTO do item ' + fTRA_TRANSITEM.NR_ITEM + ' não pode ser negativo!' + ' / ' := cDS_METHOD);
-        
+        raise Exception.Create('VL_UNITBRUTO do item ' + fTRA_TRANSITEM.NR_ITEM + ' não pode ser negativo!' + ' / ' + cDS_METHOD);
+        exit;
       {end else if (fTRA_TRANSITEM.VL_UNITDESC < 0) then begin
-        raise Exception.Create('VL_UNITDESC do item ' + fTRA_TRANSITEM.NR_ITEM + ' não pode ser negativo!' + ' / ' := cDS_METHOD);
-        }
+        raise Exception.Create('VL_UNITDESC do item ' + fTRA_TRANSITEM.NR_ITEM + ' não pode ser negativo!' + ' / ' + cDS_METHOD);
+        exit;}
       end else if (fTRA_TRANSITEM.VL_UNITLIQUIDO < 0) then begin
-        raise Exception.Create('VL_UNITLIQUIDO do item ' + fTRA_TRANSITEM.NR_ITEM + ' não pode ser negativo!' + ' / ' := cDS_METHOD);
-        
+        raise Exception.Create('VL_UNITLIQUIDO do item ' + fTRA_TRANSITEM.NR_ITEM + ' não pode ser negativo!' + ' / ' + cDS_METHOD);
+        exit;
       end else if (fTRA_TRANSITEM.VL_TOTALBRUTO < 0) then begin
-        raise Exception.Create('VL_TOTALBRUTO do item ' + fTRA_TRANSITEM.NR_ITEM + ' não pode ser negativo!' + ' / ' := cDS_METHOD);
-        
+        raise Exception.Create('VL_TOTALBRUTO do item ' + fTRA_TRANSITEM.NR_ITEM + ' não pode ser negativo!' + ' / ' + cDS_METHOD);
+        exit;
       {end else if (fTRA_TRANSITEM.VL_TOTALDESC < 0) then begin
-        raise Exception.Create('VL_TOTALDESC do item ' + fTRA_TRANSITEM.NR_ITEM + ' não pode ser negativo!' + ' / ' := cDS_METHOD);
-        }
+        raise Exception.Create('VL_TOTALDESC do item ' + fTRA_TRANSITEM.NR_ITEM + ' não pode ser negativo!' + ' / ' + cDS_METHOD);
+        exit;}
       end else if (fTRA_TRANSITEM.VL_TOTALLIQUIDO < 0) then begin
-        raise Exception.Create('VL_TOTALLIQUIDO do item ' + fTRA_TRANSITEM.NR_ITEM + ' não pode ser negativo!' + ' / ' := cDS_METHOD);
-        
+        raise Exception.Create('VL_TOTALLIQUIDO do item ' + fTRA_TRANSITEM.NR_ITEM + ' não pode ser negativo!' + ' / ' + cDS_METHOD);
+        exit;
       end;
     end;
 
@@ -2198,7 +2198,7 @@ begin
       //--
 
       //-- nova regra fiscal
-      if (fFIS_REGRAADIC.IN_NOVAREGRA = TRUE) then begin
+      if (fFIS_REGRAADIC.IN_NOVAREGRA) then begin
         viParams.CD_REGRAFISCAL := vCdRegraFiscal;
         voParams := cFISSVCO080.Instance.buscaRegraRelacionada(viParams);
         if (itemXmlF('status', voParams) < 0) then begin
@@ -2259,7 +2259,7 @@ begin
           voParams := tF_TRA_ITEMIMPOSTO.Salvar();
           if (itemXmlF('status', voParams) < 0) then begin
             raise Exception.Create(itemXml('message', voParams));
-            
+            exit;
           end;
         end;
 
@@ -2294,7 +2294,7 @@ begin
   voParams := tTRA_TRANSITEM.Salvar();
   if (itemXmlF('status', voParams) < 0) then begin
     raise Exception.Create(itemXml('message', voParams));
-    
+    exit;
   end;
   if (fTRA_TRANSITEM.CD_PRODUTO = 0) and (itemF('TP_DOCTO', tGER_OPERACAO) = 1) then begin
     vNrDescItem := length(fTRA_TRANSITEM.DS_PRODUTO);
@@ -2319,8 +2319,8 @@ begin
       end;
     end;
     if (vNrDescItem > 500) then begin
-      raise Exception.Create('Item ' + fTRA_TRANSITEM.NR_ITEM + ' da transação ' + FloatToStr(vNrTransacao) + ' possui itens descritivos com tamanho superior a 500 caracteres!' + ' / ' := cDS_METHOD);
-      
+      raise Exception.Create('Item ' + fTRA_TRANSITEM.NR_ITEM + ' da transação ' + FloatToStr(vNrTransacao) + ' possui itens descritivos com tamanho superior a 500 caracteres!' + ' / ' + cDS_METHOD);
+      exit;
     end;
   end;
 
@@ -2337,7 +2337,7 @@ begin
     voParams := cTRASVCO024.Instance.gravaTraItemAdic(viParams);
     if (itemXmlF('status', voParams) < 0) then begin
       raise Exception.Create(itemXml('message', voParams));
-      
+      exit;
     end;
   end;
 
@@ -2354,7 +2354,7 @@ begin
     voParams := cTRASVCO016.Instance.gravaItemLote(viParams);
     if (itemXmlF('status', voParams) < 0) then begin
       raise Exception.Create(itemXml('message', voParams));
-      
+      exit;
     end;
   end; *)
 
@@ -2365,7 +2365,7 @@ begin
     voParams := calculaTotalTransacao(viParams); (* calculaTotalOtimizado(viParams); *)
     if (itemXmlF('status', voParams) < 0) then begin
       raise Exception.Create(itemXml('message', voParams));
-      
+      exit;
     end;
     if (gInGravaTraBloq) then begin
       fTRA_TRANSACAO.TP_SITUACAO := 8;
@@ -2373,7 +2373,7 @@ begin
     voParams := tTRA_TRANSACAO.Salvar();
     if (itemXmlF('status', voParams) < 0) then begin
       raise Exception.Create(itemXml('message', voParams));
-      
+      exit;
     end;
   end;
 
@@ -2394,7 +2394,7 @@ begin
       //voParams := cTRASVCO016.Instance.gravaItemValor(viParams);
       //if (itemXmlF('status', voParams) < 0) then begin
       //  raise Exception.Create(itemXml('message', voParams));
-      //  
+      //  exit;
       //end;
       vDsLstValorVenda := voParams.DS_LSTVALORVENDA;
     end;
@@ -2415,7 +2415,7 @@ begin
 
   gInTransacaoItem := True;
 
-  return(0); exit;
+  exit;
 end;
 
 //---------------------------------------------------------------------
@@ -2430,10 +2430,10 @@ begin
   voParams := cTRASVCO024.Instance.gravaParcelaTransacao(viParams);
   if (itemXmlF('status', voParams) < 0) then begin
     raise Exception.Create(itemXml('message', voParams));
-    
+    exit;
   end;
 
-  return(0); exit;
+  exit;
 end;
 
 //-------------------------------------------------------------------
@@ -2449,8 +2449,8 @@ begin
   vDsLstTransacao := pParams.DS_LSTTRANSACAO;
 
   if (vDsLstTransacao = '') then begin
-    raise Exception.Create('Lista de transação não informada!' + ' / ' := cDS_METHOD);
-    
+    raise Exception.Create('Lista de transação não informada!' + ' / ' + cDS_METHOD);
+    exit;
   end;
 
   fTRA_TRANSACAO.Limpar();
@@ -2463,16 +2463,16 @@ begin
     vDtTransacao := vDsRegistro.DT_TRANSACAO;
 
     if (vCdEmpresa = 0) then begin
-      raise Exception.Create('Empresa não informada!' + ' / ' := cDS_METHOD);
-      
+      raise Exception.Create('Empresa não informada!' + ' / ' + cDS_METHOD);
+      exit;
     end;
     if (vNrTransacao = 0) then begin
-      raise Exception.Create('Número da transação não informado!' + ' / ' := cDS_METHOD);
-      
+      raise Exception.Create('Número da transação não informado!' + ' / ' + cDS_METHOD);
+      exit;
     end;
     if (vDtTransacao = 0) then begin
-      raise Exception.Create('Data transação não informada!' + ' / ' := cDS_METHOD);
-      
+      raise Exception.Create('Data transação não informada!' + ' / ' + cDS_METHOD);
+      exit;
     end;
 
     fTRA_TRANSACAO.Append();
@@ -2483,8 +2483,8 @@ begin
     if (xStatus = -7) then begin
       fTRA_TRANSACAO.Consultar();
     end else if (xStatus = 0) then begin
-      raise Exception.Create('Transação ' + FloatToStr(vNrTransacao) + ' não cadastrada!' + ' / ' := cDS_METHOD);
-      
+      raise Exception.Create('Transação ' + FloatToStr(vNrTransacao) + ' não cadastrada!' + ' / ' + cDS_METHOD);
+      exit;
     end;
 
     viParams := '';
@@ -2492,7 +2492,7 @@ begin
     voParams := calculaTotalTransacao(viParams);
     if (itemXmlF('status', voParams) < 0) then begin
       raise Exception.Create(itemXml('message', voParams));
-      
+      exit;
     end;
 
     fTRA_TRANSACAO.CD_OPERADOR := PARAM_GLB.CD_USUARIO;
@@ -2504,7 +2504,7 @@ begin
   voParams := tTRA_TRANSACAO.Salvar();
   if (itemXmlF('status', voParams) < 0) then begin
     raise Exception.Create(itemXml('message', voParams));
-    
+    exit;
   end;
   if not (fTRA_TRANSACAO.IsEmpty()) then begin
     fTRA_TRANSACAO.First();
@@ -2518,18 +2518,18 @@ begin
         fV_TRA_TOTATRA.Limpar();
       end;
       if (fV_TRA_TOTATRA.QT_TOTALITEM <> itemF('QT_SOLICITADA', tV_TRA_TOTATRA)) then begin
-        raise Exception.Create('Totalização de valor da transação ' + FloatToStr(vNrTransacao) + ' divergente. Capa: ' + fV_TRA_TOTATRA.QT_SOLICITADA + ' Items: ' + item('QT_TOTALITEM' + ' / ' := tV_TRA_TOTATRA) + ' !', cDS_METHOD);
-        
+        raise Exception.Create('Totalização de valor da transação ' + FloatToStr(vNrTransacao) + ' divergente. Capa: ' + fV_TRA_TOTATRA.QT_SOLICITADA + ' Items: ' + item('QT_TOTALITEM' + ' / ' + tV_TRA_TOTATRA) + ' !', cDS_METHOD);
+        exit;
       end;
       if (fV_TRA_TOTATRA.VL_TOTALITEM <> itemF('VL_TRANSACAO', tV_TRA_TOTATRA)) then begin
-        raise Exception.Create('Totalização de valor da transação ' + FloatToStr(vNrTransacao) + ' divergente. Capa: ' + fV_TRA_TOTATRA.VL_TRANSACAO + ' Items: ' + item('VL_TOTALITEM' + ' / ' := tV_TRA_TOTATRA) + ' !', cDS_METHOD);
-        
+        raise Exception.Create('Totalização de valor da transação ' + FloatToStr(vNrTransacao) + ' divergente. Capa: ' + fV_TRA_TOTATRA.VL_TRANSACAO + ' Items: ' + item('VL_TOTALITEM' + ' / ' + tV_TRA_TOTATRA) + ' !', cDS_METHOD);
+        exit;
       end;
       fTRA_TRANSACAO.Next();
     end;
   end;
 
-  return(0); exit;
+  exit;
 end;
 
 //-----------------------------------------------------------------------
@@ -2555,16 +2555,16 @@ begin
   end;
 
   if (vDsLstTransacao = '') then begin
-    raise Exception.Create('Lista de transação não informada!' + ' / ' := cDS_METHOD);
-    
+    raise Exception.Create('Lista de transação não informada!' + ' / ' + cDS_METHOD);
+    exit;
   end;
   if (vTpSituacao = 0) then begin
-    raise Exception.Create('Situação não informada!' + ' / ' := cDS_METHOD);
-    
+    raise Exception.Create('Situação não informada!' + ' / ' + cDS_METHOD);
+    exit;
   end;
   if (vTpSituacao < 0) or (vTpSituacao > 10) then begin
-    raise Exception.Create('Situação ' + FloatToStr(vTpSituacao) + ' inválida!' + ' / ' := cDS_METHOD);
-    
+    raise Exception.Create('Situação ' + FloatToStr(vTpSituacao) + ' inválida!' + ' / ' + cDS_METHOD);
+    exit;
   end;
 
   fTRA_TRANSACAO.Limpar();
@@ -2576,16 +2576,16 @@ begin
     vDtTransacao := vDsRegistro.DT_TRANSACAO;
 
     if (vCdEmpresa = 0) then begin
-      raise Exception.Create('Empresa não informada!' + ' / ' := cDS_METHOD);
-      
+      raise Exception.Create('Empresa não informada!' + ' / ' + cDS_METHOD);
+      exit;
     end;
     if (vNrTransacao = 0) then begin
-      raise Exception.Create('Número da transação não informado!' + ' / ' := cDS_METHOD);
-      
+      raise Exception.Create('Número da transação não informado!' + ' / ' + cDS_METHOD);
+      exit;
     end;
     if (vDtTransacao = 0) then begin
-      raise Exception.Create('Data transação não informada!' + ' / ' := cDS_METHOD);
-      
+      raise Exception.Create('Data transação não informada!' + ' / ' + cDS_METHOD);
+      exit;
     end;
 
     fTRA_TRANSACAO.Append();
@@ -2596,8 +2596,8 @@ begin
     if (xStatus = -7) then begin
       fTRA_TRANSACAO.Consultar();
     end else if (xStatus = 0) then begin
-      raise Exception.Create('Transação ' + FloatToStr(vNrTransacao) + ' não cadastrada!' + ' / ' := cDS_METHOD);
-      
+      raise Exception.Create('Transação ' + FloatToStr(vNrTransacao) + ' não cadastrada!' + ' / ' + cDS_METHOD);
+      exit;
     end;
     if (vTpSituacao = 4) and (vInValidaNF) then begin
       viParams := '';
@@ -2607,7 +2607,7 @@ begin
       voParams := cTRASVCO012.Instance.validaNFTransacao(viParams);
       if (itemXmlF('status', voParams) < 0) then begin
         raise Exception.Create(itemXml('message', voParams));
-        
+        exit;
       end;
     end;
 
@@ -2628,7 +2628,7 @@ begin
     voParams := cGERSVCO031.Instance.getNumSeq(viParams);
     if (itemXmlF('status', voParams) < 0) then begin
       raise Exception.Create(itemXml('message', voParams));
-      
+      exit;
     end;
 
     vNrSequencia := voParams.NR_SEQUENCIA;
@@ -2655,7 +2655,7 @@ begin
         voParams := cTRASVCO016.Instance.gravaLiberacaoTransacao(viParams);
         if (itemXmlF('status', voParams) < 0) then begin
           raise Exception.Create(itemXml('message', voParams));
-          
+          exit;
         end;
       end else if (vCdMotivoBloqAnt = 4) then begin
         viParams := '';
@@ -2664,7 +2664,7 @@ begin
         voParams := cFCRSVCO015.Instance.buscaLimiteCliente(viParams);
         if (itemXmlF('status', voParams) < 0) then begin
           raise Exception.Create(itemXml('message', voParams));
-          
+          exit;
         end;
 
         vNrDiasAtraso := voParams.NR_DIAVENCTO;
@@ -2680,7 +2680,7 @@ begin
           voParams := cTRASVCO016.Instance.gravaLiberacaoTransacao(viParams);
           if (itemXmlF('status', voParams) < 0) then begin
             raise Exception.Create(itemXml('message', voParams));
-            
+            exit;
           end;
         end;
       end;
@@ -2692,10 +2692,10 @@ begin
   voParams := tTRA_TRANSACAO.Salvar();
   if (itemXmlF('status', voParams) < 0) then begin
     raise Exception.Create(itemXml('message', voParams));
-    
+    exit;
   end;
 
-  return(0); exit;
+  exit;
 end;
 
 //------------------------------------------------------------------------
@@ -2713,8 +2713,8 @@ begin
   vInEstorno := pParams.IN_ESTORNO;
 
   if (vDsLstTransacao = '') then begin
-    raise Exception.Create('Lista de transação não informada!' + ' / ' := cDS_METHOD);
-    
+    raise Exception.Create('Lista de transação não informada!' + ' / ' + cDS_METHOD);
+    exit;
   end;
 
   repeat
@@ -2724,16 +2724,16 @@ begin
     vDtTransacao := vDsRegistro.DT_TRANSACAO;
 
     if (vCdEmpresa = 0) then begin
-      raise Exception.Create('Empresa não informada!' + ' / ' := cDS_METHOD);
-      
+      raise Exception.Create('Empresa não informada!' + ' / ' + cDS_METHOD);
+      exit;
     end;
     if (vNrTransacao = 0) then begin
-      raise Exception.Create('Número da transação não informado!' + ' / ' := cDS_METHOD);
-      
+      raise Exception.Create('Número da transação não informado!' + ' / ' + cDS_METHOD);
+      exit;
     end;
     if (vDtTransacao = 0) then begin
-      raise Exception.Create('Data transação não informada!' + ' / ' := cDS_METHOD);
-      
+      raise Exception.Create('Data transação não informada!' + ' / ' + cDS_METHOD);
+      exit;
     end;
 
     fTRA_TRANSACAO.Limpar();
@@ -2742,8 +2742,8 @@ begin
     fTRA_TRANSACAO.DT_TRANSACAO := vDtTransacao;
     fTRA_TRANSACAO.Listar();
     if (itemXmlF('status', voParams) < 0) then begin
-      raise Exception.Create('Transação ' + FloatToStr(vNrTransacao) + ' não cadastrada!' + ' / ' := cDS_METHOD);
-      
+      raise Exception.Create('Transação ' + FloatToStr(vNrTransacao) + ' não cadastrada!' + ' / ' + cDS_METHOD);
+      exit;
     end;
     if not (fTRA_TRANSITEM.IsEmpty()) then begin
       fTRA_TRANSITEM.First();
@@ -2756,7 +2756,7 @@ begin
         voParams := cGERSVCO058.Instance.buscaDadosGerOperCfopTra(viParams);
         if (itemXmlF('status', voParams) < 0) then begin
           raise Exception.Create(itemXml('message', voParams));
-          
+          exit;
         end;
         vInKardex := voParams.IN_KARDEX;
 
@@ -2776,7 +2776,7 @@ begin
           //voParams := cGERSVCO008.Instance.atualizaSaldoOperacao(viParams);
           //if (itemXmlF('status', voParams) < 0) then begin
           //  raise Exception.Create(itemXml('message', voParams));
-          //  
+          //  exit;
           //end;
         end;
 
@@ -2787,7 +2787,7 @@ begin
     delitemGld(vDsLstTransacao, 1);
   until (vDsLstTransacao = '');
 
-  return(0); exit;
+  exit;
 end;
 
 //-------------------------------------------------------------------------
@@ -2817,20 +2817,20 @@ begin
   end;
 
   if (vCdEmpresa = 0) then begin
-    raise Exception.Create('Empresa não informada!' + ' / ' := cDS_METHOD);
-    
+    raise Exception.Create('Empresa não informada!' + ' / ' + cDS_METHOD);
+    exit;
   end;
   if (vNrTransacao = 0) then begin
-    raise Exception.Create('Número transação não informado!' + ' / ' := cDS_METHOD);
-    
+    raise Exception.Create('Número transação não informado!' + ' / ' + cDS_METHOD);
+    exit;
   end;
   if (vDtTransacao = 0) then begin
-    raise Exception.Create('Data transação não informada!' + ' / ' := cDS_METHOD);
-    
+    raise Exception.Create('Data transação não informada!' + ' / ' + cDS_METHOD);
+    exit;
   end;
   if (vNrItem = 0) then begin
-    raise Exception.Create('Item da transação não informado!' + ' / ' := cDS_METHOD);
-    
+    raise Exception.Create('Item da transação não informado!' + ' / ' + cDS_METHOD);
+    exit;
   end;
 
   fTRA_TRANSACAO.Limpar();
@@ -2839,24 +2839,24 @@ begin
   fTRA_TRANSACAO.DT_TRANSACAO := vDtTransacao;
   fTRA_TRANSACAO.Listar();
   if (itemXmlF('status', voParams) < 0) then begin
-    raise Exception.Create('Transação ' + FloatToStr(vNrTransacao) + ' não cadastrada!' + ' / ' := cDS_METHOD);
-    
+    raise Exception.Create('Transação ' + FloatToStr(vNrTransacao) + ' não cadastrada!' + ' / ' + cDS_METHOD);
+    exit;
   end;
 
   fTRA_TRANSITEM.Limpar();
   fTRA_TRANSITEM.NR_ITEM := vNrItem;
   fTRA_TRANSITEM.Listar();
   if (itemXmlF('status', voParams) < 0) then begin
-    raise Exception.Create('Item ' + FloatToStr(vNrItem) + ' da transação ' + FloatToStr(vNrTransacao) + ' não cadastrada!' + ' / ' := cDS_METHOD);
-    
+    raise Exception.Create('Item ' + FloatToStr(vNrItem) + ' da transação ' + FloatToStr(vNrTransacao) + ' não cadastrada!' + ' / ' + cDS_METHOD);
+    exit;
   end;
   if (fTRA_REMDES.IsEmpty() <> False) then begin
-    raise Exception.Create('Transação ' + FloatToStr(vNrTransacao) + ' não possui endereco cadastrado!' + ' / ' := cDS_METHOD);
-    
+    raise Exception.Create('Transação ' + FloatToStr(vNrTransacao) + ' não possui endereco cadastrado!' + ' / ' + cDS_METHOD);
+    exit;
   end;
   if (fTRA_REMDES.CD_PESSOA = 0) then begin
-    raise Exception.Create('endereço da transação ' + FloatToStr(vNrTransacao) + ' não possui pessoa cadastrada!' + ' / ' := cDS_METHOD);
-    
+    raise Exception.Create('endereço da transação ' + FloatToStr(vNrTransacao) + ' não possui pessoa cadastrada!' + ' / ' + cDS_METHOD);
+    exit;
   end;
 
   fTRA_ITEMIMPOSTO.Limpar();
@@ -2869,7 +2869,7 @@ begin
     voParams := tTRA_ITEMIMPOSTO.Excluir();
     if (itemXmlF('status', voParams) < 0) then begin
       raise Exception.Create(itemXml('message', voParams));
-      
+      exit;
     end;
   end;
 
@@ -2895,7 +2895,7 @@ begin
   voParams := cFISSVCO015.Instance.buscaCFOP(viParams);
   if (itemXmlF('status', voParams) < 0) then begin
     raise Exception.Create(itemXml('message', voParams));
-    
+    exit;
   end;
 
   vCdCFOP := voParams.CD_CFOP;
@@ -2922,7 +2922,7 @@ begin
   voParams := cFISSVCO015.Instance.buscaCST(viParams);
   if (itemXmlF('status', voParams) < 0) then begin
     raise Exception.Create(itemXml('message', voParams));
-    
+    exit;
   end;
 
   vCdCST := voParams.CD_CST;
@@ -2997,7 +2997,7 @@ begin
   viParams.CD_TIPI := fTRA_TRANSITEM.CD_TIPI;
 
   //-- nova regra fiscal
-  if (fFIS_REGRAADIC.IN_NOVAREGRA = TRUE) then begin
+  if (fFIS_REGRAADIC.IN_NOVAREGRA) then begin
     viParams.CD_REGRAFISCAL := vCdRegraFiscal;
     voParams := cFISSVCO080.Instance.buscaRegraRelacionada(viParams);
     if (itemXmlF('status', voParams) < 0) then begin
@@ -3090,7 +3090,7 @@ begin
     Result.CD_CFOP := vCdCFOP;
   end;
 
-  return(0); exit;
+  exit;
 end;
 
 //-------------------------------------------------------------------------
@@ -3109,20 +3109,20 @@ begin
   vCdVendedor := pParams.CD_COMPVEND;
 
   if (vCdEmpresa = 0) then begin
-    raise Exception.Create('Empresa não informada!' + ' / ' := cDS_METHOD);
-    
+    raise Exception.Create('Empresa não informada!' + ' / ' + cDS_METHOD);
+    exit;
   end;
   if (vNrTransacao = 0) then begin
-    raise Exception.Create('Número da transação não informado!' + ' / ' := cDS_METHOD);
-    
+    raise Exception.Create('Número da transação não informado!' + ' / ' + cDS_METHOD);
+    exit;
   end;
   if (vDtTransacao = 0) then begin
-    raise Exception.Create('Data transação não informada!' + ' / ' := cDS_METHOD);
-    
+    raise Exception.Create('Data transação não informada!' + ' / ' + cDS_METHOD);
+    exit;
   end;
   if (vCdVendedor = 0) then begin
-    raise Exception.Create('Vendedor não informado!' + ' / ' := cDS_METHOD);
-    
+    raise Exception.Create('Vendedor não informado!' + ' / ' + cDS_METHOD);
+    exit;
   end;
 
   fTRA_TRANSACAO.Limpar();
@@ -3131,8 +3131,8 @@ begin
   fTRA_TRANSACAO.DT_TRANSACAO := vDtTransacao;
   fTRA_TRANSACAO.Listar();
   if (itemXmlF('status', voParams) < 0) then begin
-    raise Exception.Create('Transação ' + FloatToStr(vNrTransacao) + ' não cadastrada!' + ' / ' := cDS_METHOD);
-    
+    raise Exception.Create('Transação ' + FloatToStr(vNrTransacao) + ' não cadastrada!' + ' / ' + cDS_METHOD);
+    exit;
   end;
 
   fTRA_TRANSACAO.CD_COMPVEND := vCdVendedor;
@@ -3150,7 +3150,7 @@ begin
   voParams := tTRA_TRANSACAO.Salvar();
   if (itemXmlF('status', voParams) < 0) then begin
     raise Exception.Create(itemXml('message', voParams));
-    
+    exit;
   end;
 
   viParams := '';
@@ -3161,10 +3161,10 @@ begin
   voParams := cFISSVCO004.Instance.AlteraVendedorNF(viParams);
   if (itemXmlF('status', voParams) < 0) then begin
     raise Exception.Create(itemXml('message', voParams));
-    
+    exit;
   end;
 
-  return(0); exit;
+  exit;
 end;
 
 //---------------------------------------------------------------
@@ -3187,24 +3187,24 @@ begin
   vTpSituacao := pParams.TP_SITUACAO;
 
   if (vCdEmpresa = 0) then begin
-    raise Exception.Create('Empresa não informada!' + ' / ' := cDS_METHOD);
-    
+    raise Exception.Create('Empresa não informada!' + ' / ' + cDS_METHOD);
+    exit;
   end;
   if (vNrTransacao = 0) then begin
-    raise Exception.Create('Número da transação não informado!' + ' / ' := cDS_METHOD);
-    
+    raise Exception.Create('Número da transação não informado!' + ' / ' + cDS_METHOD);
+    exit;
   end;
   if (vDtTransacao = 0) then begin
-    raise Exception.Create('Data transação não informada!' + ' / ' := cDS_METHOD);
-    
+    raise Exception.Create('Data transação não informada!' + ' / ' + cDS_METHOD);
+    exit;
   end;
   if (vTpSituacao = 0) then begin
-    raise Exception.Create('Situação não informada!' + ' / ' := cDS_METHOD);
-    
+    raise Exception.Create('Situação não informada!' + ' / ' + cDS_METHOD);
+    exit;
   end;
   if (vTpSituacao < 0) or (vTpSituacao > 10) then begin
-    raise Exception.Create('Situação ' + FloatToStr(vTpSituacao) + ' inválida!' + ' / ' := cDS_METHOD);
-    
+    raise Exception.Create('Situação ' + FloatToStr(vTpSituacao) + ' inválida!' + ' / ' + cDS_METHOD);
+    exit;
   end;
 
   fTRA_TRANSACAO.Limpar();
@@ -3213,8 +3213,8 @@ begin
   fTRA_TRANSACAO.DT_TRANSACAO := vDtTransacao;
   fTRA_TRANSACAO.Listar();
   if (itemXmlF('status', voParams) < 0) then begin
-    raise Exception.Create('Transação ' + FloatToStr(vNrTransacao) + ' não cadastrada!' + ' / ' := cDS_METHOD);
-    
+    raise Exception.Create('Transação ' + FloatToStr(vNrTransacao) + ' não cadastrada!' + ' / ' + cDS_METHOD);
+    exit;
   end;
 
   fTRA_TRANSACAO.CD_GUIA := vCdGuia;
@@ -3229,10 +3229,10 @@ begin
   voParams := tTRA_TRANSACAO.Salvar();
   if (itemXmlF('status', voParams) < 0) then begin
     raise Exception.Create(itemXml('message', voParams));
-    
+    exit;
   end;
 
-  return(0); exit;
+  exit;
 end;
 
 //------------------------------------------------------------------------
@@ -3252,12 +3252,12 @@ begin
   vCdModeloTra := pParams.CD_MODELOTRA;
 
   if (vDsLstTransacao = '') then begin
-    raise Exception.Create('Lista de transação não informada!' + ' / ' := cDS_METHOD);
-    
+    raise Exception.Create('Lista de transação não informada!' + ' / ' + cDS_METHOD);
+    exit;
   end;
   if (vCdModeloTra = 0) then begin
-    raise Exception.Create('Modelo de transação não informado!' + ' / ' := cDS_METHOD);
-    
+    raise Exception.Create('Modelo de transação não informado!' + ' / ' + cDS_METHOD);
+    exit;
   end;
 
   fTRA_TRANSACAO.Limpar();
@@ -3269,16 +3269,16 @@ begin
     vDtTransacao := vDsRegistro.DT_TRANSACAO;
 
     if (vCdEmpresa = 0) then begin
-      raise Exception.Create('Empresa não informada!' + ' / ' := cDS_METHOD);
-      
+      raise Exception.Create('Empresa não informada!' + ' / ' + cDS_METHOD);
+      exit;
     end;
     if (vNrTransacao = 0) then begin
-      raise Exception.Create('Número da transação não informado!' + ' / ' := cDS_METHOD);
-      
+      raise Exception.Create('Número da transação não informado!' + ' / ' + cDS_METHOD);
+      exit;
     end;
     if (vDtTransacao = 0) then begin
-      raise Exception.Create('Data transação não informada!' + ' / ' := cDS_METHOD);
-      
+      raise Exception.Create('Data transação não informada!' + ' / ' + cDS_METHOD);
+      exit;
     end;
 
     fTRA_TRANSACAO.Append();
@@ -3289,8 +3289,8 @@ begin
     if (xStatus = -7) then begin
       fTRA_TRANSACAO.Consultar();
     end else if (xStatus = 0) then begin
-      raise Exception.Create('Transação ' + FloatToStr(vNrTransacao) + ' não cadastrada!' + ' / ' := cDS_METHOD);
-      
+      raise Exception.Create('Transação ' + FloatToStr(vNrTransacao) + ' não cadastrada!' + ' / ' + cDS_METHOD);
+      exit;
     end;
 
     fTRA_TRANSACAO.CD_MODELOTRA := vCdModeloTra;
@@ -3310,7 +3310,7 @@ begin
   voParams := tTRA_TRANSACAO.Salvar();
   if (itemXmlF('status', voParams) < 0) then begin
     raise Exception.Create(itemXml('message', voParams));
-    
+    exit;
   end;
 
   vInCommitImpTra := viParams.IN_COMMIT_IMP_TRA;
@@ -3318,11 +3318,11 @@ begin
     commit;
     if (itemXmlF('status', voParams) < 0) then begin
       rollback;
-      
+      exit;
     end;
   end;
 
-  return(0); exit;
+  exit;
 end;
 
 //-----------------------------------------------------------------------
@@ -3355,16 +3355,16 @@ begin
   end;
 
   if (vCdEmpresa = 0) then begin
-    raise Exception.Create('Empresa não informada!' + ' / ' := cDS_METHOD);
-    
+    raise Exception.Create('Empresa não informada!' + ' / ' + cDS_METHOD);
+    exit;
   end;
   if (vNrTransacao = 0) then begin
-    raise Exception.Create('Número transação não informado!' + ' / ' := cDS_METHOD);
-    
+    raise Exception.Create('Número transação não informado!' + ' / ' + cDS_METHOD);
+    exit;
   end;
   if (vDtTransacao = 0) then begin
-    raise Exception.Create('Data transação não informada!' + ' / ' := cDS_METHOD);
-    
+    raise Exception.Create('Data transação não informada!' + ' / ' + cDS_METHOD);
+    exit;
   end;
 
   fTRA_TRANSACAO.Limpar();
@@ -3373,8 +3373,8 @@ begin
   fTRA_TRANSACAO.DT_TRANSACAO := vDtTransacao;
   fTRA_TRANSACAO.Listar();
   if (itemXmlF('status', voParams) < 0) then begin
-    raise Exception.Create('Transação ' + FloatToStr(vNrTransacao) + ' não cadastrada!' + ' / ' := cDS_METHOD);
-    
+    raise Exception.Create('Transação ' + FloatToStr(vNrTransacao) + ' não cadastrada!' + ' / ' + cDS_METHOD);
+    exit;
   end;
   if not (fTRA_REMDES.IsEmpty()) then begin
     vDsUFDestino := fTRA_REMDES.DS_SIGLAESTADO;
@@ -3389,8 +3389,8 @@ begin
       fV_PES_ENDERECO.NR_SEQUENCIA := vNrSeqendereco;
       fV_PES_ENDERECO.Listar();
       if (itemXmlF('status', voParams) < 0) then begin
-        raise Exception.Create('endereço ' + FloatToStr(vNrSeqendereco) + ' não cadastrado para a transportadora ' + FloatToStr(vCdTransport) + '!' + ' / ' := cDS_METHOD);
-        
+        raise Exception.Create('endereço ' + FloatToStr(vNrSeqendereco) + ' não cadastrado para a transportadora ' + FloatToStr(vCdTransport) + '!' + ' / ' + cDS_METHOD);
+        exit;
       end;
     end;
     vDsUFDestino := fV_PES_ENDERECO.DS_SIGLAESTADO;
@@ -3427,7 +3427,7 @@ begin
     voParams := tTRA_TRANSPORT.Excluir();
     if (itemXmlF('status', voParams) < 0) then begin
       raise Exception.Create(itemXml('message', voParams));
-      
+      exit;
     end;
   end else begin
     fTRA_TRANSPORT.Limpar();
@@ -3439,15 +3439,15 @@ begin
     voParams := tTRA_TRAIMPOSTO.Excluir();
     if (itemXmlF('status', voParams) < 0) then begin
       raise Exception.Create(itemXml('message', voParams));
-      
+      exit;
     end;
   end else begin
     fTRA_TRAIMPOSTO.Limpar();
   end;
   if (vCdTransport > 0) then begin
     if (vTpFrete = 0) then begin
-      raise Exception.Create('Tipo frete não informado!' + ' / ' := cDS_METHOD);
-      
+      raise Exception.Create('Tipo frete não informado!' + ' / ' + cDS_METHOD);
+      exit;
     end;
 
     fV_PES_ENDERECO.Limpar();
@@ -3461,8 +3461,8 @@ begin
       fV_PES_ENDERECO.NR_SEQUENCIA := vNrSeqendereco;
       fV_PES_ENDERECO.Listar();
       if (itemXmlF('status', voParams) < 0) then begin
-        raise Exception.Create('endereço ' + FloatToStr(vNrSeqendereco) + ' não cadastrado para a transportadora ' + FloatToStr(vCdTransport) + '!' + ' / ' := cDS_METHOD);
-        
+        raise Exception.Create('endereço ' + FloatToStr(vNrSeqendereco) + ' não cadastrado para a transportadora ' + FloatToStr(vCdTransport) + '!' + ' / ' + cDS_METHOD);
+        exit;
       end;
     end;
 
@@ -3477,7 +3477,7 @@ begin
     voParams := cPESSVCO005.Instance.buscaDadosPessoa(viParams);
     if (itemXmlF('status', voParams) < 0) then begin
       raise Exception.Create(itemXml('message', voParams));
-      
+      exit;
     end;
     if (voParams.TP_PESSOA = 'F') then begin
       fTRA_TRANSPORT.NR_RGINSCREST := voParams.NR_RG;
@@ -3506,7 +3506,7 @@ begin
       voParams := cPESSVCO005.Instance.buscaDadosPessoa(viParams);
       if (itemXmlF('status', voParams) < 0) then begin
         raise Exception.Create(itemXml('message', voParams));
-        
+        exit;
       end;
       fTRA_TRANSPORT.NM_TRANSREDESPAC := voParams.NM_PESSOA;
     end;
@@ -3518,8 +3518,8 @@ begin
 
     if (fGER_OPERACAO.TP_DOCTO = 1) then begin
       if (vTpFrete <> 0) then begin
-        raise Exception.Create('Transportadora não informada!' + ' / ' := cDS_METHOD);
-        
+        raise Exception.Create('Transportadora não informada!' + ' / ' + cDS_METHOD);
+        exit;
       end;
       fTRA_TRANSPORT.Append();
       delitem(pParams, 'CD_EMPRESA');
@@ -3611,7 +3611,7 @@ begin
     voParams := cFISSVCO015.Instance.calculaImpostoCapa(viParams);
     if (itemXmlF('status', voParams) < 0) then begin
       raise Exception.Create(itemXml('message', voParams));
-      
+      exit;
     end;
 
     vDsLstImposto := voParams.DS_LSTIMPOSTO;
@@ -3643,7 +3643,7 @@ begin
   voParams := calculaTotalTransacao(viParams);
   if (itemXmlF('status', voParams) < 0) then begin
     raise Exception.Create(itemXml('message', voParams));
-    
+    exit;
   end;
 
   fTRA_TRANSACAO.CD_OPERADOR := PARAM_GLB.CD_USUARIO;
@@ -3663,10 +3663,10 @@ begin
   voParams := tTRA_TRANSACAO.Salvar();
   if (itemXmlF('status', voParams) < 0) then begin
     raise Exception.Create(itemXml('message', voParams));
-    
+    exit;
   end;
 
-  return(0); exit;
+  exit;
 end;
 
 //-----------------------------------------------------------------------
@@ -3692,20 +3692,20 @@ begin
   vInNaoExclui := pParams.IN_NAOEXCLUI;
 
   if (vCdEmpresa = 0) then begin
-    raise Exception.Create('Empresa não informada!' + ' / ' := cDS_METHOD);
-    
+    raise Exception.Create('Empresa não informada!' + ' / ' + cDS_METHOD);
+    exit;
   end;
   if (vNrTransacao = 0) then begin
-    raise Exception.Create('Número transação não informado!' + ' / ' := cDS_METHOD);
-    
+    raise Exception.Create('Número transação não informado!' + ' / ' + cDS_METHOD);
+    exit;
   end;
   if (vDtTransacao = 0) then begin
-    raise Exception.Create('Data transação não informada!' + ' / ' := cDS_METHOD);
-    
+    raise Exception.Create('Data transação não informada!' + ' / ' + cDS_METHOD);
+    exit;
   end;
   if (vNrItem = 0) then begin
-    raise Exception.Create('Item da transação não informado!' + ' / ' := cDS_METHOD);
-    
+    raise Exception.Create('Item da transação não informado!' + ' / ' + cDS_METHOD);
+    exit;
   end;
 
   vDsTransacao := pParams.DS_TRANSACAO;
@@ -3719,8 +3719,8 @@ begin
     fTRA_TRANSACAO.DT_TRANSACAO := vDtTransacao;
     fTRA_TRANSACAO.Listar();
     if (itemXmlF('status', voParams) < 0) then begin
-      raise Exception.Create('Transação ' + FloatToStr(vNrTransacao) + ' não cadastrada!' + ' / ' := cDS_METHOD);
-      
+      raise Exception.Create('Transação ' + FloatToStr(vNrTransacao) + ' não cadastrada!' + ' / ' + cDS_METHOD);
+      exit;
     end;
   end;
 
@@ -3739,8 +3739,8 @@ begin
     fTRA_TRANSITEM.NR_ITEM := vNrItem;
     fTRA_TRANSITEM.Listar();
     if (itemXmlF('status', voParams) < 0) then begin
-      raise Exception.Create('Item ' + FloatToStr(vNrItem) + ' da transação ' + FloatToStr(vNrTransacao) + ' não cadastrada!' + ' / ' := cDS_METHOD);
-      
+      raise Exception.Create('Item ' + FloatToStr(vNrItem) + ' da transação ' + FloatToStr(vNrTransacao) + ' não cadastrada!' + ' / ' + cDS_METHOD);
+      exit;
     end;
   end;  
 
@@ -3751,7 +3751,7 @@ begin
       voParams := tTRA_ITEMVL.Excluir();
       if (itemXmlF('status', voParams) < 0) then begin
         raise Exception.Create(itemXml('message', voParams));
-        
+        exit;
       end;
     end;
   end;
@@ -3771,8 +3771,8 @@ begin
 
       if (vTpValor = 'C') and (vCdCusto = gCdCustoMedio) and (fGER_OPERACAO.TP_OPERACAO = 'E') and (fGER_OPERACAO.TP_MODALIDADE = 4) then begin
         if (vInPadrao) then begin
-          raise Exception.Create('Custo padrão médio (CD_CUSTO_MEDIO_CMP) ' + FloatToStr(vCdCusto) + ' não pode ser o custo padrão!' + ' / ' := cDS_METHOD);
-          
+          raise Exception.Create('Custo padrão médio (CD_CUSTO_MEDIO_CMP) ' + FloatToStr(vCdCusto) + ' não pode ser o custo padrão!' + ' / ' + cDS_METHOD);
+          exit;
         end;
       end else begin
         fTRA_ITEMVL.Append();
@@ -3795,8 +3795,8 @@ begin
 
     if (fGER_OPERACAO.TP_OPERACAO = 'E') and ((fGER_OPERACAO.TP_MODALIDADE = 4) or (fGER_OPERACAO.TP_MODALIDADE = 2)) then begin
       if (vVlPadrao = 0) then begin
-        raise Exception.Create('Nenhum valor padrão encontrado na lista de valores!' + ' / ' := cDS_METHOD);
-        
+        raise Exception.Create('Nenhum valor padrão encontrado na lista de valores!' + ' / ' + cDS_METHOD);
+        exit;
       end;
     end;
 
@@ -3810,7 +3810,7 @@ begin
         voParams := cPRDSVCO007.Instance.buscaValorData(viParams);
         if (itemXmlF('status', voParams) < 0) then begin
           raise Exception.Create(itemXml('message', voParams));
-          
+          exit;
         end;
 
         vVlOriginal := voParams.VL_VALOR;
@@ -3853,7 +3853,7 @@ begin
           voParams := cPRDSVCO007.Instance.buscaValorData(viParams);
           if (itemXmlF('status', voParams) < 0) then begin
             raise Exception.Create(itemXml('message', voParams));
-            
+            exit;
           end;
           vVlOriginal := voParams.VL_VALOR;
 
@@ -3900,7 +3900,7 @@ begin
           voParams := cPRDSVCO007.Instance.buscaValorData(viParams);
           if (itemXmlF('status', voParams) < 0) then begin
             raise Exception.Create(itemXml('message', voParams));
-            
+            exit;
           end;
           vVlOriginal := voParams.VL_VALOR;
 
@@ -3928,11 +3928,11 @@ begin
     voParams := tTRA_ITEMVL.Salvar();
     if (itemXmlF('status', voParams) < 0) then begin
       raise Exception.Create(itemXml('message', voParams));
-      
+      exit;
     end;
   end;
 
-  return(0); exit;
+  exit;
 end;
 
 //-------------------------------------------------------------------
@@ -3956,23 +3956,23 @@ begin
   //vTpContrInspSaldoLote := PARAM_GLB.TP_CONTR_INSP_SALDO_LOTE;
 
   if (vCdEmpresa = 0) then begin
-    raise Exception.Create('Empresa não informada!' + ' / ' := cDS_METHOD);
-    
+    raise Exception.Create('Empresa não informada!' + ' / ' + cDS_METHOD);
+    exit;
   end;
   if (vNrTransacao = 0) then begin
-    raise Exception.Create('Número transação não informado!' + ' / ' := cDS_METHOD);
-    
+    raise Exception.Create('Número transação não informado!' + ' / ' + cDS_METHOD);
+    exit;
   end;
   if (vDtTransacao = 0) then begin
-    raise Exception.Create('Data transação não informada!' + ' / ' := cDS_METHOD);
-    
+    raise Exception.Create('Data transação não informada!' + ' / ' + cDS_METHOD);
+    exit;
   end;
   if (vInTotal) then begin
     vNrItem := 0;
   end else begin
     if (vNrItem = 0) then begin
-      raise Exception.Create('Item da transação não informado!' + ' / ' := cDS_METHOD);
-      
+      raise Exception.Create('Item da transação não informado!' + ' / ' + cDS_METHOD);
+      exit;
     end;
   end;
 
@@ -3982,12 +3982,12 @@ begin
   fTRA_TRANSACAO.DT_TRANSACAO := vDtTransacao;
   fTRA_TRANSACAO.Listar();
   if (itemXmlF('status', voParams) < 0) then begin
-    raise Exception.Create('Transação ' + FloatToStr(vNrTransacao) + ' não cadastrada!' + ' / ' := cDS_METHOD);
-    
+    raise Exception.Create('Transação ' + FloatToStr(vNrTransacao) + ' não cadastrada!' + ' / ' + cDS_METHOD);
+    exit;
   end;
   if (fTRA_TRANSACAO.TP_SITUACAO <> 1) and (fTRA_TRANSACAO.TP_SITUACAO <> 2) then begin
-    raise Exception.Create('Transação ' + FloatToStr(vNrTransacao) + ' não esta em andamento!' + ' / ' := cDS_METHOD);
-    
+    raise Exception.Create('Transação ' + FloatToStr(vNrTransacao) + ' não esta em andamento!' + ' / ' + cDS_METHOD);
+    exit;
   end;
 
   if (fTRA_TRANSACAO.CD_EMPFAT <> itemF('CD_EMPRESA', tTRA_TRANSACAO)) then begin 
@@ -4028,8 +4028,8 @@ begin
           fPRD_LOTEI.Listar();
           if (xStatus >= 0) then begin
             if (vCdOperSaldo <> 0) and (vCdOperSaldo <> fPRD_LOTEI.CD_SALDO) then begin
-              raise Exception.Create('Saldo ' + fPRD_LOTEI.CD_SALDO + ' do item de lote ' + item('CD_EMPRESA' + ' / ' := tPRD_LOTEI) + ' / ' + item('NR_LOTE', tPRD_LOTEI) + ' / ' + item('NR_ITEM', tPRD_LOTEI) + ' diferente do saldo ' + FloatToStr(vCdOperSaldo) + ' que é padrão da operação ' + item('CD_OPERACAO', tTRA_TRANSACAO) + '!', cDS_METHOD);
-              
+              raise Exception.Create('Saldo ' + fPRD_LOTEI.CD_SALDO + ' do item de lote ' + item('CD_EMPRESA' + ' / ' + tPRD_LOTEI) + ' / ' + item('NR_LOTE', tPRD_LOTEI) + ' / ' + item('NR_ITEM', tPRD_LOTEI) + ' diferente do saldo ' + FloatToStr(vCdOperSaldo) + ' que é padrão da operação ' + item('CD_OPERACAO', tTRA_TRANSACAO) + '!', cDS_METHOD);
+              exit;
             end;
           end;
 
@@ -4046,7 +4046,7 @@ begin
           voParams := cPRDSVCO020.Instance.movimentaQtLoteI(viParams);
           if (itemXmlF('status', voParams) < 0) then begin
             raise Exception.Create(itemXml('message', voParams));
-            
+            exit;
           end;
           fTRA_ITEMLOTE.Next();
         end;
@@ -4063,7 +4063,7 @@ begin
     voParams := cTRASVCO016.Instance.removeSerialTransacao(viParams);
     if (itemXmlF('status', voParams) < 0) then begin
       raise Exception.Create(itemXml('message', voParams));
-      
+      exit;
     end; *)
     //--
 
@@ -4076,21 +4076,21 @@ begin
     voParams := gModulo.ExcluirXmlUp('TRA_ITEMIMPOSTO', 'CD_EMPRESA|DT_TRANSACAO|NR_TRANSACAO|NR_ITEM|', viParams);
     if (itemXmlF('status', voParams) < 0) then begin
       raise Exception.Create(itemXml('message', voParams));
-      
+      exit;
     end;
     //--
 
     voParams := tTRA_TRANSITEM.Excluir();
     if (itemXmlF('status', voParams) < 0) then begin
       raise Exception.Create(itemXml('message', voParams));
-      
+      exit;
     end;
 
     viParams := '';
     voParams := calculaTotalTransacao(viParams);
     if (itemXmlF('status', voParams) < 0) then begin
       raise Exception.Create(itemXml('message', voParams));
-      
+      exit;
     end;
 
     fTRA_TRANSACAO.CD_OPERADOR := PARAM_GLB.CD_USUARIO;
@@ -4099,11 +4099,11 @@ begin
     voParams := tTRA_TRANSACAO.Salvar();
     if (itemXmlF('status', voParams) < 0) then begin
       raise Exception.Create(itemXml('message', voParams));
-      
+      exit;
     end;
   end;
 
-  return(0); exit;
+  exit;
 end;
 
 //----------------------------------------------------------------------
@@ -4127,16 +4127,16 @@ begin
   vInAltEnderecoCli := pParams.IN_ALT_ENDERECO_CLI;
 
   if (vCdEmpresa = 0) then begin
-    raise Exception.Create('Empresa não informada!' + ' / ' := cDS_METHOD);
-    
+    raise Exception.Create('Empresa não informada!' + ' / ' + cDS_METHOD);
+    exit;
   end;
   if (vNrTransacao = 0) then begin
-    raise Exception.Create('Número transação não informado!' + ' / ' := cDS_METHOD);
-    
+    raise Exception.Create('Número transação não informado!' + ' / ' + cDS_METHOD);
+    exit;
   end;
   if (vDtTransacao = 0) then begin
-    raise Exception.Create('Data transação não informada!' + ' / ' := cDS_METHOD);
-    
+    raise Exception.Create('Data transação não informada!' + ' / ' + cDS_METHOD);
+    exit;
   end;
 
   fTRA_TRANSACAO.Limpar();
@@ -4145,26 +4145,26 @@ begin
   fTRA_TRANSACAO.DT_TRANSACAO := vDtTransacao;
   fTRA_TRANSACAO.Listar();
   if (itemXmlF('status', voParams) < 0) then begin
-    raise Exception.Create('Transação ' + FloatToStr(vNrTransacao) + ' não cadastrada!' + ' / ' := cDS_METHOD);
-    
+    raise Exception.Create('Transação ' + FloatToStr(vNrTransacao) + ' não cadastrada!' + ' / ' + cDS_METHOD);
+    exit;
   end;
 
   fTRA_REMDES.Limpar();
   fTRA_REMDES.Listar();
   if (xStatus >= 0) then begin
-    if (vInSobrepor = True) or (vDsNome <> '') then begin
+    if (vInSobrepor) or (vDsNome <> '') then begin
       voParams := tTRA_REMDES.Excluir();
       if (itemXmlF('status', voParams) < 0) then begin
         raise Exception.Create(itemXml('message', voParams));
-        
+        exit;
       end;
     end else begin
-      return(0); exit;
+      exit;
     end;
   end else begin
     fTRA_REMDES.Limpar();
   end;
-  if ((fGER_OPERACAO.TP_DOCTO = 2) or (fGER_OPERACAO.TP_DOCTO = 3)) and (inCFPesJuridica = True) and (fPES_PESSOA.TP_PESSOA = 'J') then begin
+  if ((fGER_OPERACAO.TP_DOCTO = 2) or (fGER_OPERACAO.TP_DOCTO = 3)) and (inCFPesJuridica) and (fPES_PESSOA.TP_PESSOA = 'J') then begin
     if (gCdClientePdv <> 0) then begin
       fPES_PESSOA.Limpar();
       fPES_PESSOA.CD_PESSOA := gCdClientePdv;
@@ -4186,16 +4186,16 @@ begin
           fV_PES_ENDERECO.NR_SEQUENCIA := fTRA_TRANSACAO.NR_SEQENDERECO;
           fV_PES_ENDERECO.Listar();
           if (itemXmlF('status', voParams) < 0) then begin
-            raise Exception.Create('endereço ' + fTRA_TRANSACAO.NR_SEQENDERECO + ' não cadastrado para a pessoa ' + FloatToStr(gCdPessoaEndPadrao) + '!' + ' / ' := cDS_METHOD);
-            
+            raise Exception.Create('endereço ' + fTRA_TRANSACAO.NR_SEQENDERECO + ' não cadastrado para a pessoa ' + FloatToStr(gCdPessoaEndPadrao) + '!' + ' / ' + cDS_METHOD);
+            exit;
           end;
         end else begin
-          raise Exception.Create('endereço ' + fTRA_TRANSACAO.NR_SEQENDERECO + ' não cadastrado para a pessoa ' + item('CD_PESSOA' + ' / ' := tPES_PESSOA) + '!', cDS_METHOD);
-          
+          raise Exception.Create('endereço ' + fTRA_TRANSACAO.NR_SEQENDERECO + ' não cadastrado para a pessoa ' + item('CD_PESSOA' + ' / ' + tPES_PESSOA) + '!', cDS_METHOD);
+          exit;
         end;
       end else begin
-        raise Exception.Create('endereço ' + fTRA_TRANSACAO.NR_SEQENDERECO + ' não cadastrado para a pessoa ' + item('CD_PESSOA' + ' / ' := tPES_PESSOA) + '!', cDS_METHOD);
-        
+        raise Exception.Create('endereço ' + fTRA_TRANSACAO.NR_SEQENDERECO + ' não cadastrado para a pessoa ' + item('CD_PESSOA' + ' / ' + tPES_PESSOA) + '!', cDS_METHOD);
+        exit;
       end;
 
     end else begin
@@ -4209,12 +4209,12 @@ begin
             fV_PES_ENDERECO.NR_SEQUENCIA := fTRA_TRANSACAO.NR_SEQENDERECO;
             fV_PES_ENDERECO.Listar();
             if (itemXmlF('status', voParams) < 0) then begin
-              raise Exception.Create('endereço ' + fTRA_TRANSACAO.NR_SEQENDERECO + ' não cadastrado para a pessoa ' + FloatToStr(gCdPessoaEndPadrao) + '!' + ' / ' := cDS_METHOD);
-              
+              raise Exception.Create('endereço ' + fTRA_TRANSACAO.NR_SEQENDERECO + ' não cadastrado para a pessoa ' + FloatToStr(gCdPessoaEndPadrao) + '!' + ' / ' + cDS_METHOD);
+              exit;
             end;
           end else begin
-            raise Exception.Create('endereço ' + fTRA_TRANSACAO.NR_SEQENDERECO + ' não cadastrado para a pessoa ' + item('CD_PESSOA' + ' / ' := tPES_PESSOA) + '!', cDS_METHOD);
-            
+            raise Exception.Create('endereço ' + fTRA_TRANSACAO.NR_SEQENDERECO + ' não cadastrado para a pessoa ' + item('CD_PESSOA' + ' / ' + tPES_PESSOA) + '!', cDS_METHOD);
+            exit;
           end;
         end;
       end;
@@ -4227,7 +4227,7 @@ begin
     or (fPES_PESJURIDICA.NR_INSCESTL = 'ISENTOS') or (fPES_PESJURIDICA.NR_INSCESTL = 'ISENTAS') then begin
       vInPjIsento := True;
     end;
-    if (fPES_CLIENTE.IN_CNSRFINAL = True) or (fPES_PESSOA.TP_PESSOA = 'F') or (vInPjIsento) then begin
+    if (fPES_CLIENTE.IN_CNSRFINAL) or (fPES_PESSOA.TP_PESSOA = 'F') or (vInPjIsento) then begin
       if (fPES_PESSOA.TP_PESSOA = 'F') and (item('NR_CODIGOFISCAL', tPES_CLIENTE) <> '') and ((vUfOrigem = 'PR') or (vUfOrigem = 'SP')) then begin
         vInContribuinte := True;
       end else begin
@@ -4238,9 +4238,9 @@ begin
     end;
     if not (inCFPesJuridica) then begin
       if (fGER_OPERACAO.TP_DOCTO = 2) or (fGER_OPERACAO.TP_DOCTO = 3) then begin
-        if (vInContribuinte = True) and (fPES_CLIENTE.IN_CNSRFINAL <> True) then begin
-          raise Exception.Create('Emissão de cupom fiscal para contribuinte não é permitido. Favor emitir Nota Fiscal!' + ' / ' := cDS_METHOD);
-          
+        if (vInContribuinte) and (fPES_CLIENTE.IN_CNSRFINAL <> True) then begin
+          raise Exception.Create('Emissão de cupom fiscal para contribuinte não é permitido. Favor emitir Nota Fiscal!' + ' / ' + cDS_METHOD);
+          exit;
         end;
       end;
     end;
@@ -4285,8 +4285,8 @@ begin
     end;
   end else begin
     if (vTpPessoa = '') then begin
-      raise Exception.Create('Tipo de pessoa não informado!' + ' / ' := cDS_METHOD);
-      
+      raise Exception.Create('Tipo de pessoa não informado!' + ' / ' + cDS_METHOD);
+      exit;
     end;
     delitem(pParams, 'CD_EMPRESA');
     delitem(pParams, 'NR_TRANSACAO');
@@ -4302,10 +4302,10 @@ begin
   voParams := tTRA_REMDES.Salvar();
   if (itemXmlF('status', voParams) < 0) then begin
     raise Exception.Create(itemXml('message', voParams));
-    
+    exit;
   end;
 
-  return(0); exit;
+  exit;
 end;
 
 //------------------------------------------------------------------------
@@ -4327,24 +4327,24 @@ begin
   vDsObservacao := pParams.DS_OBSERVACAO;
 
   if (vCdEmpresa = 0) then begin
-    raise Exception.Create('Empresa não informada!' + ' / ' := cDS_METHOD);
-    
+    raise Exception.Create('Empresa não informada!' + ' / ' + cDS_METHOD);
+    exit;
   end;
   if (vNrTransacao = 0) then begin
-    raise Exception.Create('Número transação não informado!' + ' / ' := cDS_METHOD);
-    
+    raise Exception.Create('Número transação não informado!' + ' / ' + cDS_METHOD);
+    exit;
   end;
   if (vDtTransacao = 0) then begin
-    raise Exception.Create('Data transação não informada!' + ' / ' := cDS_METHOD);
-    
+    raise Exception.Create('Data transação não informada!' + ' / ' + cDS_METHOD);
+    exit;
   end;
   if (vCdComponente = '') then begin
-    raise Exception.Create('Nome do componente não informado!' + ' / ' := cDS_METHOD);
-    
+    raise Exception.Create('Nome do componente não informado!' + ' / ' + cDS_METHOD);
+    exit;
   end;
   if (vDsObservacao = '') then begin
-    raise Exception.Create('Observação não informada!' + ' / ' := cDS_METHOD);
-    
+    raise Exception.Create('Observação não informada!' + ' / ' + cDS_METHOD);
+    exit;
   end;
 
   fTRA_TRANSACAO.Limpar();
@@ -4353,8 +4353,8 @@ begin
   fTRA_TRANSACAO.DT_TRANSACAO := vDtTransacao;
   fTRA_TRANSACAO.Listar();
   if (itemXmlF('status', voParams) < 0) then begin
-    raise Exception.Create('Transação ' + FloatToStr(vNrTransacao) + ' não cadastrada!' + ' / ' := cDS_METHOD);
-    
+    raise Exception.Create('Transação ' + FloatToStr(vNrTransacao) + ' não cadastrada!' + ' / ' + cDS_METHOD);
+    exit;
   end;
 
   if not (fOBS_TRANSACAO.IsEmpty()) then begin
@@ -4374,10 +4374,10 @@ begin
   voParams := tOBS_TRANSACAO.Salvar();
   if (itemXmlF('status', voParams) < 0) then begin
     raise Exception.Create(itemXml('message', voParams));
-    
+    exit;
   end;
 
-  return(0); exit;
+  exit;
 end;
 
 initialization
