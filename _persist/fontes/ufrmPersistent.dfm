@@ -11,6 +11,9 @@ object F_Persistent: TF_Persistent
   Font.Name = 'MS Sans Serif'
   Font.Style = []
   OldCreateOrder = False
+  DesignSize = (
+    363
+    247)
   PixelsPerInch = 96
   TextHeight = 13
   object BtnTestar: TButton
@@ -30,5 +33,14 @@ object F_Persistent: TF_Persistent
     Caption = 'Gerar'
     TabOrder = 1
     OnClick = BtnGerarClick
+  end
+  object MemoFiltro: TMemo
+    Left = 4
+    Top = 32
+    Width = 357
+    Height = 213
+    Anchors = [akLeft, akTop, akRight, akBottom]
+    BorderStyle = bsNone
+    TabOrder = 2
   end
 end

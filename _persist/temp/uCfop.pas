@@ -1,0 +1,115 @@
+unit uCfop;
+
+interface
+
+uses
+  Classes, SysUtils,
+  mMapping;
+
+type
+  TCfop = class(TmMapping)
+  private
+    fCd_Cfop: Integer;
+    fU_Version: String;
+    fCd_Operador: Integer;
+    fDt_Cadastro: String;
+    fDs_Cfop: String;
+    procedure SetCd_Cfop(const Value : Integer);
+    procedure SetU_Version(const Value : String);
+    procedure SetCd_Operador(const Value : Integer);
+    procedure SetDt_Cadastro(const Value : String);
+    procedure SetDs_Cfop(const Value : String);
+  public
+    constructor Create(AOwner: TComponent); override;
+    destructor Destroy; override;
+    function GetTabela() : TmTabela; override;
+    function GetKeys() : TmKeys; override;
+    function GetCampos() : TmCampos; override;
+  published
+    property Cd_Cfop : Integer read fCd_Cfop write SetCd_Cfop;
+    property U_Version : String read fU_Version write SetU_Version;
+    property Cd_Operador : Integer read fCd_Operador write SetCd_Operador;
+    property Dt_Cadastro : String read fDt_Cadastro write SetDt_Cadastro;
+    property Ds_Cfop : String read fDs_Cfop write SetDs_Cfop;
+  end;
+
+  TCfops = class(TList)
+  public
+    function Add: TCfop; overload;
+  end;
+
+implementation
+
+{ TCfop }
+
+constructor TCfop.Create(AOwner: TComponent);
+begin
+  inherited;
+
+end;
+
+destructor TCfop.Destroy;
+begin
+
+  inherited;
+end;
+
+//--
+
+function TCfop.GetTabela: TmTabela;
+begin
+  Result.Nome := 'CFOP';
+end;
+
+function TCfop.GetKeys: TmKeys;
+begin
+  AddKeysResult(Result, [
+    'Cd_Cfop|CD_CFOP']);
+end;
+
+function TCfop.GetCampos: TmCampos;
+begin
+  AddCamposResult(Result, [
+    'Cd_Cfop|CD_CFOP',
+    'U_Version|U_VERSION',
+    'Cd_Operador|CD_OPERADOR',
+    'Dt_Cadastro|DT_CADASTRO',
+    'Ds_Cfop|DS_CFOP']);
+end;
+
+//--
+
+procedure TCfop.SetCd_Cfop(const Value : Integer);
+begin
+  fCd_Cfop := Value;
+end;
+
+procedure TCfop.SetU_Version(const Value : String);
+begin
+  fU_Version := Value;
+end;
+
+procedure TCfop.SetCd_Operador(const Value : Integer);
+begin
+  fCd_Operador := Value;
+end;
+
+procedure TCfop.SetDt_Cadastro(const Value : String);
+begin
+  fDt_Cadastro := Value;
+end;
+
+procedure TCfop.SetDs_Cfop(const Value : String);
+begin
+  fDs_Cfop := Value;
+end;
+
+{ TCfops }
+
+function TCfops.Add: TCfop;
+begin
+  Result := TCfop.Create(nil);
+  Self.Add(Result);
+end;
+
+end.

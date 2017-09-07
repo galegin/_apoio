@@ -10,6 +10,7 @@ type
   TF_Persistent = class(TForm)
     BtnTestar: TButton;
     BtnGerar: TButton;
+    MemoFiltro: TMemo;
     procedure BtnTestarClick(Sender: TObject);
     procedure BtnGerarClick(Sender: TObject);
   private
@@ -24,63 +25,50 @@ implementation
 {$R *.dfm}
 
 uses
-  uTraTransacao, uclsPersistent, mFilter;
+  uclsPersistent, mContexto,
+  uPessoa, uProduto, uTransacao, uTransitem;
 
 procedure TF_Persistent.BtnTestarClick(Sender: TObject);
 var
-  vLstFilter : TmFilterList;
+  vContexto : TmContexto;
+  vPessoas : TPessoas;
+  vPessoa : TPessoa;
+  I : Integer;
 begin
-  (* with TTra_Transacao.Create do begin
-    Cd_Empresa := 1;
-    Nr_Transacao := 1;
-    Dt_Transacao := StrToDate('14/10/2011');
+  vPessoas := TPessoas.Create;
 
-    Consultar(nil);
+  for I := 1 to 10 do
+    with vPessoas.Add do begin
+      Nr_Cpfcnpj := IntToStr(I);
+      Nm_Pessoa := 'Pessoa ' + IntToStr(I);
+    end;
+
+  for I := 0 to vPessoas.Count - 1 do begin
+    vPessoa := vPessoas[I];
+    vPessoa.Nm_Pessoa := vPessoa.Nm_Pessoa + ' aletrado';
+    vPessoa.Nm_Pessoa := vPessoa.Nm_Pessoa;
   end;
 
-  with TTra_Transacao.Create do begin
-    Cd_Empresa := 1;
+  vContexto := TmContexto.Create(nil);
 
-    Listar(nil);
-  end;
+  vPessoas := vContexto.GetLista(TPessoa, 'Cd_Pessoa = 1') as TPessoas;
+  vContexto.RemLista(vPessoas);
+  vContexto.SetLista(vPessoas);
 
-  with TTra_Transacao.Create do begin
-    Cd_Empresa := 1;
-    Nr_Transacao := 1;
-    Dt_Transacao := Date;
+  vPessoa := vContexto.GetObjeto(TPessoa, 'Cd_Pessoa = 1') as TPessoa;
+  vContexto.RemObjeto(vPessoa);
+  vContexto.SetObjeto(vPessoa);
 
-    Excluir();
+  vPessoa.Free;
 
-    Incluir();
-    Alterar();
+  vContexto.Free;
 
-    Salvar();
-  end; *)
-
-  vLstFilter := TmFilterList.Create;
-  with vLstFilter do begin
-    Add(TmFilter.CreateS('Cd_Empresa', tpfLista, '1,2,3'));
-    Add(TmFilter.CreateD('Dt_Transacao', StrToDate('01/01/2016'), StrToDate('31/12/2016')));
-    Add(TmFilter.CreateF('Nr_Transacao', 1, 999999));
-    Add(TmFilter.CreateS('Nr_Transacao', '1', '999999'));
-    Add(TmFilter.CreateF('Nr_Transacao', tpfDiferente, 1));
-    Add(TmFilter.CreateF('Nr_Transacao', tpfIgual, 2));
-    Add(TmFilter.CreateF('Nr_Transacao', tpfMaior, 3));
-    Add(TmFilter.CreateF('Nr_Transacao', tpfMaiorIgual, 4));
-    Add(TmFilter.CreateF('Nr_Transacao', tpfMenor, 5));
-    Add(TmFilter.CreateF('Nr_Transacao', tpfMenorIgual, 6));
-    Add(TmFilter.Create('Nr_Transacao', tpfNaoNulo));
-    Add(TmFilter.Create('Nr_Transacao', tpfNulo));
-  end;
-    
-  with TTra_Transacao.Create(nil) do begin
-    Listar(vLstFilter);
-  end;
+  ShowMessage('Testado com sucesso!');
 end;
 
 procedure TF_Persistent.BtnGerarClick(Sender: TObject);
 begin
-  TC_Persistent.gerar();
+  TC_Persistent.gerar(MemoFiltro.Text);
 
   ShowMessage('Geracao efetuada com sucesso!');
 end;

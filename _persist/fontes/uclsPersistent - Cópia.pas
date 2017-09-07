@@ -29,28 +29,38 @@ const
 
     'uses' + sLineBreak +
     '  Classes, SysUtils,' + sLineBreak +
-    '  mMapping;' + sLineBreak +
+    '  mCollection, mCollectionItem;' + sLineBreak +
     '' + sLineBreak +
 
     'type' + sLineBreak +
-    '  T{cls} = class(TmMapping)' + sLineBreak +
+    '  T{cls} = class;' + sLineBreak +
+    '  T{cls}Class = class of T{cls};' + sLineBreak +
+    '' + sLineBreak +
+
+    '  T{cls}List = class;' + sLineBreak +
+    '  T{cls}ListClass = class of T{cls}List;' + sLineBreak +
+    '' + sLineBreak +
+
+    '  T{cls} = class(TmCollectionItem)' + sLineBreak +
     '  private' + sLineBreak +
     '{fields}' +
-    '{proc_ints}' +
+    '{proc_int}' +
     '  public' + sLineBreak +
-    '    constructor Create(AOwner: TComponent); override;' + sLineBreak +
+    '    constructor Create(ACollection: TCollection); override;' + sLineBreak +
     '    destructor Destroy; override;' + sLineBreak +
-    '    function GetTabela() : TmTabela; override;' + sLineBreak +
-    '    function GetKeys() : TmKeys; override;' + sLineBreak +
-    '    function GetCampos() : TmCampos; override;' + sLineBreak +
     '  published' + sLineBreak +
     '{properts}' +
     '  end;' + sLineBreak +
     '' + sLineBreak +
 
-    '  T{cls}s = class(TList)' + sLineBreak +
+    '  T{cls}List = class(TmCollection)' + sLineBreak +
+    '  private' + sLineBreak +
+    '    function GetItem(Index: Integer): T{cls};' + sLineBreak +
+    '    procedure SetItem(Index: Integer; Value: T{cls});' + sLineBreak +
     '  public' + sLineBreak +
-    '    function Add: T{cls}; overload;' + sLineBreak +
+    '    constructor Create(AOwner: TPersistent);' + sLineBreak +
+    '    function Add: T{cls};' + sLineBreak +
+    '    property Items[Index: Integer]: T{cls} read GetItem write SetItem; default;' + sLineBreak +
     '  end;' + sLineBreak +
     '' + sLineBreak +
 
@@ -60,7 +70,7 @@ const
     '{ T{cls} }' + sLineBreak +
     '' + sLineBreak +
 
-    'constructor T{cls}.Create(AOwner: TComponent);' + sLineBreak +
+    'constructor T{cls}.Create(ACollection: TCollection);' + sLineBreak +
     'begin' + sLineBreak +
     '  inherited;' + sLineBreak +
     '' + sLineBreak +
@@ -74,39 +84,33 @@ const
     'end;' + sLineBreak +
     '' + sLineBreak +
 
-    '//--' + sLineBreak +
+    '{functions_imp}' +
+
+    '{ T{cls}List }' + sLineBreak +
     '' + sLineBreak +
 
-    'function T{cls}.GetTabela: TmTabela;' + sLineBreak +
+    'constructor T{cls}List.Create(AOwner: TPersistent);' + sLineBreak +
     'begin' + sLineBreak +
-    '  Result.Nome := ''{tabela}'';' + sLineBreak +
+    '  inherited Create(T{cls});' + sLineBreak +
     'end;' + sLineBreak +
     '' + sLineBreak +
 
-    'function T{cls}.GetKeys: TmKeys;' + sLineBreak +
+    'function T{cls}List.Add: T{cls};' + sLineBreak +
     'begin' + sLineBreak +
-    '  AddKeysResult(Result, [{keys}]);' + sLineBreak +
+    '  Result := T{cls}(inherited Add);' + sLineBreak +
+    '  Result.create;' + sLineBreak +
     'end;' + sLineBreak +
     '' + sLineBreak +
 
-    'function T{cls}.GetCampos: TmCampos;' + sLineBreak +
+    'function T{cls}List.GetItem(Index: Integer): T{cls};' + sLineBreak +
     'begin' + sLineBreak +
-    '  AddCamposResult(Result, [{campos}]);' + sLineBreak +
+    '  Result := T{cls}(inherited GetItem(Index));' + sLineBreak +
     'end;' + sLineBreak +
     '' + sLineBreak +
 
-    '//--' + sLineBreak +
-    '' + sLineBreak +
-
-    '{proc_imps}' +
-
-    '{ T{cls}s }' + sLineBreak +
-    '' + sLineBreak +
-
-    'function T{cls}s.Add: T{cls};' + sLineBreak +
+    'procedure T{cls}List.SetItem(Index: Integer; Value: T{cls});' + sLineBreak +
     'begin' + sLineBreak +
-    '  Result := T{cls}.Create(nil);' + sLineBreak +
-    '  Self.Add(Result);' + sLineBreak +
+    '  inherited SetItem(Index, Value);' + sLineBreak +
     'end;' + sLineBreak +
     '' + sLineBreak +
 
@@ -119,13 +123,13 @@ const
     '    property {atr} : {tip} read f{atr} write Set{atr};' + sLineBreak ;
 
   cCNT_PROC_INT =
-    '    procedure Set{atr}(const Value : {tip});' + sLineBreak ;
+    '    procedure Set{atr}(const value : {tip});' + sLineBreak ;
 
   cCNT_PROC_IMP =
-    'procedure T{cls}.Set{atr}(const Value : {tip});' + sLineBreak +
-    'begin' + sLineBreak +
-    '  f{atr} := Value;' + sLineBreak +
-    'end;' + sLineBreak +
+    '    procedure T{cls}.Set{atr}(const value : {tip});' + sLineBreak +
+    '    begin' + sLineBreak +
+    '      f{atr} := value;' + sLineBreak +
+    '    end;' + sLineBreak +
     '' + sLineBreak ;
 
 //var
@@ -165,47 +169,28 @@ const
   procedure processarEntidade(AContexto : TmContexto; AEntidade : String);
   var
     vArquivo, vConteudo,
-    vArq, vCls, vAtr, vTip, vKeys, vCampos,
-    vFields, vField,
-    vProperts, vPropert,
-    vProcInts, vProcInt, vProcImps, vProcImp : String;
+    vFields, vField, vProperts, vPropert, vArq, vCls, vAtr, vTip : String;
     vMetadata : TDataSet;
     vCampo : TField;
-    vKey : Boolean;
     I : Integer;
   begin
     vArq := NomeArquivo(AEntidade);
     vCls := NomeClasse(AEntidade);
 
-    vMetadata := AContexto.Database.Conexao.GetMetadata(AEntidade);
-
     vConteudo := cCNT_CLASSE;
     vConteudo := AnsiReplaceStr(vConteudo, '{arq}', vArq);
     vConteudo := AnsiReplaceStr(vConteudo, '{cls}', vCls);
 
-    vKey := True;
-    vKeys := '';
-    vCampos := '';
+    vMetadata := AContexto.Database.Conexao.GetMetadata(AEntidade);
+
     vFields := '';
     vProperts := '';
-    vProcInts := '';
-    vProcImps := '';
 
     for I := 0 to vMetadata.FieldCount - 1 do begin
       vCampo := vMetadata.Fields[I];
 
       vAtr := NomeAtributo(vCampo.FieldName);
       vTip := TipoAtributo(vCampo.DataType);
-
-      if vAtr = 'U_Version' then
-        vKey := False;
-
-      if vKey then
-        vKeys := vKeys + IfThen(vKeys <> '', ',') + sLineBreak +
-          '    ''' + vAtr + '|' + vCampo.FieldName + '''';
-
-      vCampos := vCampos + IfThen(vCampos <> '', ',') + sLineBreak +
-        '    ''' + vAtr + '|' + vCampo.FieldName + '''';
 
       vField := cCNT_FIELD;
       vField := AnsiReplaceStr(vField, '{atr}', vAtr);
@@ -216,26 +201,10 @@ const
       vPropert := AnsiReplaceStr(vPropert, '{atr}', vAtr);
       vPropert := AnsiReplaceStr(vPropert, '{tip}', vTip);
       vProperts := vProperts + vPropert;
-
-      vProcInt := cCNT_PROC_INT;
-      vProcInt := AnsiReplaceStr(vProcInt, '{atr}', vAtr);
-      vProcInt := AnsiReplaceStr(vProcInt, '{tip}', vTip);
-      vProcInts := vProcInts + vProcInt;
-
-      vProcImp := cCNT_PROC_IMP;
-      vProcImp := AnsiReplaceStr(vProcImp, '{cls}', vCls);
-      vProcImp := AnsiReplaceStr(vProcImp, '{atr}', vAtr);
-      vProcImp := AnsiReplaceStr(vProcImp, '{tip}', vTip);
-      vProcImps := vProcImps + vProcImp;
     end;
 
-    vConteudo := AnsiReplaceStr(vConteudo, '{tabela}', AEntidade);
-    vConteudo := AnsiReplaceStr(vConteudo, '{keys}', vKeys);
-    vConteudo := AnsiReplaceStr(vConteudo, '{campos}', vCampos);
     vConteudo := AnsiReplaceStr(vConteudo, '{fields}', vFields);
     vConteudo := AnsiReplaceStr(vConteudo, '{properts}', vProperts);
-    vConteudo := AnsiReplaceStr(vConteudo, '{proc_ints}', vProcInts);
-    vConteudo := AnsiReplaceStr(vConteudo, '{proc_imps}', vProcImps);
 
     vArquivo := TmPath.Temp() + 'u' + vArq + '.pas';
     TmArquivo.Gravar(vArquivo, vConteudo);
