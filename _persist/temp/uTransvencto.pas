@@ -13,16 +13,16 @@ type
     fNr_Parcela: Integer;
     fU_Version: String;
     fCd_Operador: Integer;
-    fDt_Cadastro: String;
-    fDt_Parcela: String;
-    fVl_Parcela: String;
+    fDt_Cadastro: TDateTime;
+    fDt_Parcela: TDateTime;
+    fVl_Parcela: Real;
     procedure SetCd_Dnatrans(const Value : String);
     procedure SetNr_Parcela(const Value : Integer);
     procedure SetU_Version(const Value : String);
     procedure SetCd_Operador(const Value : Integer);
-    procedure SetDt_Cadastro(const Value : String);
-    procedure SetDt_Parcela(const Value : String);
-    procedure SetVl_Parcela(const Value : String);
+    procedure SetDt_Cadastro(const Value : TDateTime);
+    procedure SetDt_Parcela(const Value : TDateTime);
+    procedure SetVl_Parcela(const Value : Real);
   public
     constructor Create(AOwner: TComponent); override;
     destructor Destroy; override;
@@ -32,9 +32,9 @@ type
     property Nr_Parcela : Integer read fNr_Parcela write SetNr_Parcela;
     property U_Version : String read fU_Version write SetU_Version;
     property Cd_Operador : Integer read fCd_Operador write SetCd_Operador;
-    property Dt_Cadastro : String read fDt_Cadastro write SetDt_Cadastro;
-    property Dt_Parcela : String read fDt_Parcela write SetDt_Parcela;
-    property Vl_Parcela : String read fVl_Parcela write SetVl_Parcela;
+    property Dt_Cadastro : TDateTime read fDt_Cadastro write SetDt_Cadastro;
+    property Dt_Parcela : TDateTime read fDt_Parcela write SetDt_Parcela;
+    property Vl_Parcela : Real read fVl_Parcela write SetVl_Parcela;
   end;
 
   TTransvenctos = class(TList)
@@ -62,7 +62,10 @@ end;
 
 function TTransvencto.GetMapping: PmMapping;
 begin
-  with Result.Tabela do begin
+  Result := New(PmMapping);
+
+  Result.Tabela := New(PmTabela);
+  with Result.Tabela^ do begin
     Nome := 'TRANSVENCTO';
   end;
 
@@ -81,6 +84,10 @@ begin
     Add('Dt_Cadastro', 'DT_CADASTRO');
     Add('Dt_Parcela', 'DT_PARCELA');
     Add('Vl_Parcela', 'VL_PARCELA');
+  end;
+
+  Result.Relacoes := TmRelacoes.Create;
+  with Result.Relacoes do begin
   end;
 end;
 
@@ -106,17 +113,17 @@ begin
   fCd_Operador := Value;
 end;
 
-procedure TTransvencto.SetDt_Cadastro(const Value : String);
+procedure TTransvencto.SetDt_Cadastro(const Value : TDateTime);
 begin
   fDt_Cadastro := Value;
 end;
 
-procedure TTransvencto.SetDt_Parcela(const Value : String);
+procedure TTransvencto.SetDt_Parcela(const Value : TDateTime);
 begin
   fDt_Parcela := Value;
 end;
 
-procedure TTransvencto.SetVl_Parcela(const Value : String);
+procedure TTransvencto.SetVl_Parcela(const Value : Real);
 begin
   fVl_Parcela := Value;
 end;

@@ -12,21 +12,21 @@ type
     fCd_Dnacaixa: String;
     fU_Version: String;
     fCd_Operador: Integer;
-    fDt_Cadastro: String;
+    fDt_Cadastro: TDateTime;
     fCd_Equip: String;
-    fDt_Caixa: String;
+    fDt_Caixa: TDateTime;
     fNr_Seq: Integer;
-    fVl_Abertura: String;
-    fDt_Fechado: String;
+    fVl_Abertura: Real;
+    fDt_Fechado: TDateTime;
     procedure SetCd_Dnacaixa(const Value : String);
     procedure SetU_Version(const Value : String);
     procedure SetCd_Operador(const Value : Integer);
-    procedure SetDt_Cadastro(const Value : String);
+    procedure SetDt_Cadastro(const Value : TDateTime);
     procedure SetCd_Equip(const Value : String);
-    procedure SetDt_Caixa(const Value : String);
+    procedure SetDt_Caixa(const Value : TDateTime);
     procedure SetNr_Seq(const Value : Integer);
-    procedure SetVl_Abertura(const Value : String);
-    procedure SetDt_Fechado(const Value : String);
+    procedure SetVl_Abertura(const Value : Real);
+    procedure SetDt_Fechado(const Value : TDateTime);
   public
     constructor Create(AOwner: TComponent); override;
     destructor Destroy; override;
@@ -35,12 +35,12 @@ type
     property Cd_Dnacaixa : String read fCd_Dnacaixa write SetCd_Dnacaixa;
     property U_Version : String read fU_Version write SetU_Version;
     property Cd_Operador : Integer read fCd_Operador write SetCd_Operador;
-    property Dt_Cadastro : String read fDt_Cadastro write SetDt_Cadastro;
+    property Dt_Cadastro : TDateTime read fDt_Cadastro write SetDt_Cadastro;
     property Cd_Equip : String read fCd_Equip write SetCd_Equip;
-    property Dt_Caixa : String read fDt_Caixa write SetDt_Caixa;
+    property Dt_Caixa : TDateTime read fDt_Caixa write SetDt_Caixa;
     property Nr_Seq : Integer read fNr_Seq write SetNr_Seq;
-    property Vl_Abertura : String read fVl_Abertura write SetVl_Abertura;
-    property Dt_Fechado : String read fDt_Fechado write SetDt_Fechado;
+    property Vl_Abertura : Real read fVl_Abertura write SetVl_Abertura;
+    property Dt_Fechado : TDateTime read fDt_Fechado write SetDt_Fechado;
   end;
 
   TCaixas = class(TList)
@@ -68,7 +68,10 @@ end;
 
 function TCaixa.GetMapping: PmMapping;
 begin
-  with Result.Tabela do begin
+  Result := New(PmMapping);
+
+  Result.Tabela := New(PmTabela);
+  with Result.Tabela^ do begin
     Nome := 'CAIXA';
   end;
 
@@ -89,6 +92,10 @@ begin
     Add('Vl_Abertura', 'VL_ABERTURA');
     Add('Dt_Fechado', 'DT_FECHADO');
   end;
+
+  Result.Relacoes := TmRelacoes.Create;
+  with Result.Relacoes do begin
+  end;
 end;
 
 //--
@@ -108,7 +115,7 @@ begin
   fCd_Operador := Value;
 end;
 
-procedure TCaixa.SetDt_Cadastro(const Value : String);
+procedure TCaixa.SetDt_Cadastro(const Value : TDateTime);
 begin
   fDt_Cadastro := Value;
 end;
@@ -118,7 +125,7 @@ begin
   fCd_Equip := Value;
 end;
 
-procedure TCaixa.SetDt_Caixa(const Value : String);
+procedure TCaixa.SetDt_Caixa(const Value : TDateTime);
 begin
   fDt_Caixa := Value;
 end;
@@ -128,12 +135,12 @@ begin
   fNr_Seq := Value;
 end;
 
-procedure TCaixa.SetVl_Abertura(const Value : String);
+procedure TCaixa.SetVl_Abertura(const Value : Real);
 begin
   fVl_Abertura := Value;
 end;
 
-procedure TCaixa.SetDt_Fechado(const Value : String);
+procedure TCaixa.SetDt_Fechado(const Value : TDateTime);
 begin
   fDt_Fechado := Value;
 end;

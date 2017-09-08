@@ -12,7 +12,7 @@ type
     fCd_Dnaequip: String;
     fU_Version: String;
     fCd_Operador: Integer;
-    fDt_Cadastro: String;
+    fDt_Cadastro: TDateTime;
     fCd_Equip: String;
     fDs_Equip: String;
     fCd_Ambiente: String;
@@ -21,7 +21,7 @@ type
     procedure SetCd_Dnaequip(const Value : String);
     procedure SetU_Version(const Value : String);
     procedure SetCd_Operador(const Value : Integer);
-    procedure SetDt_Cadastro(const Value : String);
+    procedure SetDt_Cadastro(const Value : TDateTime);
     procedure SetCd_Equip(const Value : String);
     procedure SetDs_Equip(const Value : String);
     procedure SetCd_Ambiente(const Value : String);
@@ -35,7 +35,7 @@ type
     property Cd_Dnaequip : String read fCd_Dnaequip write SetCd_Dnaequip;
     property U_Version : String read fU_Version write SetU_Version;
     property Cd_Operador : Integer read fCd_Operador write SetCd_Operador;
-    property Dt_Cadastro : String read fDt_Cadastro write SetDt_Cadastro;
+    property Dt_Cadastro : TDateTime read fDt_Cadastro write SetDt_Cadastro;
     property Cd_Equip : String read fCd_Equip write SetCd_Equip;
     property Ds_Equip : String read fDs_Equip write SetDs_Equip;
     property Cd_Ambiente : String read fCd_Ambiente write SetCd_Ambiente;
@@ -68,7 +68,10 @@ end;
 
 function TEquip.GetMapping: PmMapping;
 begin
-  with Result.Tabela do begin
+  Result := New(PmMapping);
+
+  Result.Tabela := New(PmTabela);
+  with Result.Tabela^ do begin
     Nome := 'EQUIP';
   end;
 
@@ -89,6 +92,10 @@ begin
     Add('Cd_Empresa', 'CD_EMPRESA');
     Add('Cd_Terminal', 'CD_TERMINAL');
   end;
+
+  Result.Relacoes := TmRelacoes.Create;
+  with Result.Relacoes do begin
+  end;
 end;
 
 //--
@@ -108,7 +115,7 @@ begin
   fCd_Operador := Value;
 end;
 
-procedure TEquip.SetDt_Cadastro(const Value : String);
+procedure TEquip.SetDt_Cadastro(const Value : TDateTime);
 begin
   fDt_Cadastro := Value;
 end;

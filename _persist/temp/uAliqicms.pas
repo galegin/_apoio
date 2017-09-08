@@ -13,14 +13,14 @@ type
     fUf_Destino: String;
     fU_Version: String;
     fCd_Operador: Integer;
-    fDt_Cadastro: String;
-    fPr_Aliquota: String;
+    fDt_Cadastro: TDateTime;
+    fPr_Aliquota: Real;
     procedure SetUf_Origem(const Value : String);
     procedure SetUf_Destino(const Value : String);
     procedure SetU_Version(const Value : String);
     procedure SetCd_Operador(const Value : Integer);
-    procedure SetDt_Cadastro(const Value : String);
-    procedure SetPr_Aliquota(const Value : String);
+    procedure SetDt_Cadastro(const Value : TDateTime);
+    procedure SetPr_Aliquota(const Value : Real);
   public
     constructor Create(AOwner: TComponent); override;
     destructor Destroy; override;
@@ -30,8 +30,8 @@ type
     property Uf_Destino : String read fUf_Destino write SetUf_Destino;
     property U_Version : String read fU_Version write SetU_Version;
     property Cd_Operador : Integer read fCd_Operador write SetCd_Operador;
-    property Dt_Cadastro : String read fDt_Cadastro write SetDt_Cadastro;
-    property Pr_Aliquota : String read fPr_Aliquota write SetPr_Aliquota;
+    property Dt_Cadastro : TDateTime read fDt_Cadastro write SetDt_Cadastro;
+    property Pr_Aliquota : Real read fPr_Aliquota write SetPr_Aliquota;
   end;
 
   TAliqicmss = class(TList)
@@ -59,7 +59,10 @@ end;
 
 function TAliqicms.GetMapping: PmMapping;
 begin
-  with Result.Tabela do begin
+  Result := New(PmMapping);
+
+  Result.Tabela := New(PmTabela);
+  with Result.Tabela^ do begin
     Nome := 'ALIQICMS';
   end;
 
@@ -77,6 +80,10 @@ begin
     Add('Cd_Operador', 'CD_OPERADOR');
     Add('Dt_Cadastro', 'DT_CADASTRO');
     Add('Pr_Aliquota', 'PR_ALIQUOTA');
+  end;
+
+  Result.Relacoes := TmRelacoes.Create;
+  with Result.Relacoes do begin
   end;
 end;
 
@@ -102,12 +109,12 @@ begin
   fCd_Operador := Value;
 end;
 
-procedure TAliqicms.SetDt_Cadastro(const Value : String);
+procedure TAliqicms.SetDt_Cadastro(const Value : TDateTime);
 begin
   fDt_Cadastro := Value;
 end;
 
-procedure TAliqicms.SetPr_Aliquota(const Value : String);
+procedure TAliqicms.SetPr_Aliquota(const Value : Real);
 begin
   fPr_Aliquota := Value;
 end;

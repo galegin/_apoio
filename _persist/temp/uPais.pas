@@ -12,13 +12,13 @@ type
     fCd_Pais: Integer;
     fU_Version: String;
     fCd_Operador: Integer;
-    fDt_Cadastro: String;
+    fDt_Cadastro: TDateTime;
     fDs_Pais: String;
     fDs_Sigla: String;
     procedure SetCd_Pais(const Value : Integer);
     procedure SetU_Version(const Value : String);
     procedure SetCd_Operador(const Value : Integer);
-    procedure SetDt_Cadastro(const Value : String);
+    procedure SetDt_Cadastro(const Value : TDateTime);
     procedure SetDs_Pais(const Value : String);
     procedure SetDs_Sigla(const Value : String);
   public
@@ -29,7 +29,7 @@ type
     property Cd_Pais : Integer read fCd_Pais write SetCd_Pais;
     property U_Version : String read fU_Version write SetU_Version;
     property Cd_Operador : Integer read fCd_Operador write SetCd_Operador;
-    property Dt_Cadastro : String read fDt_Cadastro write SetDt_Cadastro;
+    property Dt_Cadastro : TDateTime read fDt_Cadastro write SetDt_Cadastro;
     property Ds_Pais : String read fDs_Pais write SetDs_Pais;
     property Ds_Sigla : String read fDs_Sigla write SetDs_Sigla;
   end;
@@ -59,7 +59,10 @@ end;
 
 function TPais.GetMapping: PmMapping;
 begin
-  with Result.Tabela do begin
+  Result := New(PmMapping);
+
+  Result.Tabela := New(PmTabela);
+  with Result.Tabela^ do begin
     Nome := 'PAIS';
   end;
 
@@ -76,6 +79,10 @@ begin
     Add('Dt_Cadastro', 'DT_CADASTRO');
     Add('Ds_Pais', 'DS_PAIS');
     Add('Ds_Sigla', 'DS_SIGLA');
+  end;
+
+  Result.Relacoes := TmRelacoes.Create;
+  with Result.Relacoes do begin
   end;
 end;
 
@@ -96,7 +103,7 @@ begin
   fCd_Operador := Value;
 end;
 
-procedure TPais.SetDt_Cadastro(const Value : String);
+procedure TPais.SetDt_Cadastro(const Value : TDateTime);
 begin
   fDt_Cadastro := Value;
 end;

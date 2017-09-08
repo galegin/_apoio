@@ -12,23 +12,23 @@ type
     fCd_Usuario: String;
     fU_Version: String;
     fCd_Operador: Integer;
-    fDt_Cadastro: String;
+    fDt_Cadastro: TDateTime;
     fNm_Usuario: String;
     fNm_Login: String;
     fCd_Senha: String;
     fCd_Papel: String;
     fTp_Bloqueio: Integer;
-    fDt_Bloqueio: String;
+    fDt_Bloqueio: TDateTime;
     procedure SetCd_Usuario(const Value : String);
     procedure SetU_Version(const Value : String);
     procedure SetCd_Operador(const Value : Integer);
-    procedure SetDt_Cadastro(const Value : String);
+    procedure SetDt_Cadastro(const Value : TDateTime);
     procedure SetNm_Usuario(const Value : String);
     procedure SetNm_Login(const Value : String);
     procedure SetCd_Senha(const Value : String);
     procedure SetCd_Papel(const Value : String);
     procedure SetTp_Bloqueio(const Value : Integer);
-    procedure SetDt_Bloqueio(const Value : String);
+    procedure SetDt_Bloqueio(const Value : TDateTime);
   public
     constructor Create(AOwner: TComponent); override;
     destructor Destroy; override;
@@ -37,13 +37,13 @@ type
     property Cd_Usuario : String read fCd_Usuario write SetCd_Usuario;
     property U_Version : String read fU_Version write SetU_Version;
     property Cd_Operador : Integer read fCd_Operador write SetCd_Operador;
-    property Dt_Cadastro : String read fDt_Cadastro write SetDt_Cadastro;
+    property Dt_Cadastro : TDateTime read fDt_Cadastro write SetDt_Cadastro;
     property Nm_Usuario : String read fNm_Usuario write SetNm_Usuario;
     property Nm_Login : String read fNm_Login write SetNm_Login;
     property Cd_Senha : String read fCd_Senha write SetCd_Senha;
     property Cd_Papel : String read fCd_Papel write SetCd_Papel;
     property Tp_Bloqueio : Integer read fTp_Bloqueio write SetTp_Bloqueio;
-    property Dt_Bloqueio : String read fDt_Bloqueio write SetDt_Bloqueio;
+    property Dt_Bloqueio : TDateTime read fDt_Bloqueio write SetDt_Bloqueio;
   end;
 
   TUsuarios = class(TList)
@@ -71,7 +71,10 @@ end;
 
 function TUsuario.GetMapping: PmMapping;
 begin
-  with Result.Tabela do begin
+  Result := New(PmMapping);
+
+  Result.Tabela := New(PmTabela);
+  with Result.Tabela^ do begin
     Nome := 'USUARIO';
   end;
 
@@ -93,6 +96,10 @@ begin
     Add('Tp_Bloqueio', 'TP_BLOQUEIO');
     Add('Dt_Bloqueio', 'DT_BLOQUEIO');
   end;
+
+  Result.Relacoes := TmRelacoes.Create;
+  with Result.Relacoes do begin
+  end;
 end;
 
 //--
@@ -112,7 +119,7 @@ begin
   fCd_Operador := Value;
 end;
 
-procedure TUsuario.SetDt_Cadastro(const Value : String);
+procedure TUsuario.SetDt_Cadastro(const Value : TDateTime);
 begin
   fDt_Cadastro := Value;
 end;
@@ -142,7 +149,7 @@ begin
   fTp_Bloqueio := Value;
 end;
 
-procedure TUsuario.SetDt_Bloqueio(const Value : String);
+procedure TUsuario.SetDt_Bloqueio(const Value : TDateTime);
 begin
   fDt_Bloqueio := Value;
 end;

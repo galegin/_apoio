@@ -12,7 +12,7 @@ type
     fCd_Dnahistrel: String;
     fU_Version: String;
     fCd_Operador: Integer;
-    fDt_Cadastro: String;
+    fDt_Cadastro: TDateTime;
     fCd_Equip: String;
     fNr_Histrel: Integer;
     fDs_Histrel: String;
@@ -21,7 +21,7 @@ type
     procedure SetCd_Dnahistrel(const Value : String);
     procedure SetU_Version(const Value : String);
     procedure SetCd_Operador(const Value : Integer);
-    procedure SetDt_Cadastro(const Value : String);
+    procedure SetDt_Cadastro(const Value : TDateTime);
     procedure SetCd_Equip(const Value : String);
     procedure SetNr_Histrel(const Value : Integer);
     procedure SetDs_Histrel(const Value : String);
@@ -35,7 +35,7 @@ type
     property Cd_Dnahistrel : String read fCd_Dnahistrel write SetCd_Dnahistrel;
     property U_Version : String read fU_Version write SetU_Version;
     property Cd_Operador : Integer read fCd_Operador write SetCd_Operador;
-    property Dt_Cadastro : String read fDt_Cadastro write SetDt_Cadastro;
+    property Dt_Cadastro : TDateTime read fDt_Cadastro write SetDt_Cadastro;
     property Cd_Equip : String read fCd_Equip write SetCd_Equip;
     property Nr_Histrel : Integer read fNr_Histrel write SetNr_Histrel;
     property Ds_Histrel : String read fDs_Histrel write SetDs_Histrel;
@@ -68,7 +68,10 @@ end;
 
 function THistrel.GetMapping: PmMapping;
 begin
-  with Result.Tabela do begin
+  Result := New(PmMapping);
+
+  Result.Tabela := New(PmTabela);
+  with Result.Tabela^ do begin
     Nome := 'HISTREL';
   end;
 
@@ -89,6 +92,10 @@ begin
     Add('Nr_Parcela', 'NR_PARCELA');
     Add('Qt_Parcela', 'QT_PARCELA');
   end;
+
+  Result.Relacoes := TmRelacoes.Create;
+  with Result.Relacoes do begin
+  end;
 end;
 
 //--
@@ -108,7 +115,7 @@ begin
   fCd_Operador := Value;
 end;
 
-procedure THistrel.SetDt_Cadastro(const Value : String);
+procedure THistrel.SetDt_Cadastro(const Value : TDateTime);
 begin
   fDt_Cadastro := Value;
 end;

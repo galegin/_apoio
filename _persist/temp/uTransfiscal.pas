@@ -12,7 +12,7 @@ type
     fCd_Dnatrans: String;
     fU_Version: String;
     fCd_Operador: Integer;
-    fDt_Cadastro: String;
+    fDt_Cadastro: TDateTime;
     fTp_Ambiente: Integer;
     fTp_Emissao: Integer;
     fTp_Modalidade: Integer;
@@ -20,16 +20,16 @@ type
     fTp_Docfiscal: Integer;
     fNr_Docfiscal: Integer;
     fCd_Serie: String;
-    fDh_Emissao: String;
-    fDh_Entradasaida: String;
+    fDh_Emissao: TDateTime;
+    fDh_Entradasaida: TDateTime;
     fDs_Chave: String;
-    fDh_Recibo: String;
+    fDh_Recibo: TDateTime;
     fNr_Recibo: String;
     fTp_Processamento: String;
     procedure SetCd_Dnatrans(const Value : String);
     procedure SetU_Version(const Value : String);
     procedure SetCd_Operador(const Value : Integer);
-    procedure SetDt_Cadastro(const Value : String);
+    procedure SetDt_Cadastro(const Value : TDateTime);
     procedure SetTp_Ambiente(const Value : Integer);
     procedure SetTp_Emissao(const Value : Integer);
     procedure SetTp_Modalidade(const Value : Integer);
@@ -37,10 +37,10 @@ type
     procedure SetTp_Docfiscal(const Value : Integer);
     procedure SetNr_Docfiscal(const Value : Integer);
     procedure SetCd_Serie(const Value : String);
-    procedure SetDh_Emissao(const Value : String);
-    procedure SetDh_Entradasaida(const Value : String);
+    procedure SetDh_Emissao(const Value : TDateTime);
+    procedure SetDh_Entradasaida(const Value : TDateTime);
     procedure SetDs_Chave(const Value : String);
-    procedure SetDh_Recibo(const Value : String);
+    procedure SetDh_Recibo(const Value : TDateTime);
     procedure SetNr_Recibo(const Value : String);
     procedure SetTp_Processamento(const Value : String);
   public
@@ -51,7 +51,7 @@ type
     property Cd_Dnatrans : String read fCd_Dnatrans write SetCd_Dnatrans;
     property U_Version : String read fU_Version write SetU_Version;
     property Cd_Operador : Integer read fCd_Operador write SetCd_Operador;
-    property Dt_Cadastro : String read fDt_Cadastro write SetDt_Cadastro;
+    property Dt_Cadastro : TDateTime read fDt_Cadastro write SetDt_Cadastro;
     property Tp_Ambiente : Integer read fTp_Ambiente write SetTp_Ambiente;
     property Tp_Emissao : Integer read fTp_Emissao write SetTp_Emissao;
     property Tp_Modalidade : Integer read fTp_Modalidade write SetTp_Modalidade;
@@ -59,10 +59,10 @@ type
     property Tp_Docfiscal : Integer read fTp_Docfiscal write SetTp_Docfiscal;
     property Nr_Docfiscal : Integer read fNr_Docfiscal write SetNr_Docfiscal;
     property Cd_Serie : String read fCd_Serie write SetCd_Serie;
-    property Dh_Emissao : String read fDh_Emissao write SetDh_Emissao;
-    property Dh_Entradasaida : String read fDh_Entradasaida write SetDh_Entradasaida;
+    property Dh_Emissao : TDateTime read fDh_Emissao write SetDh_Emissao;
+    property Dh_Entradasaida : TDateTime read fDh_Entradasaida write SetDh_Entradasaida;
     property Ds_Chave : String read fDs_Chave write SetDs_Chave;
-    property Dh_Recibo : String read fDh_Recibo write SetDh_Recibo;
+    property Dh_Recibo : TDateTime read fDh_Recibo write SetDh_Recibo;
     property Nr_Recibo : String read fNr_Recibo write SetNr_Recibo;
     property Tp_Processamento : String read fTp_Processamento write SetTp_Processamento;
   end;
@@ -92,7 +92,10 @@ end;
 
 function TTransfiscal.GetMapping: PmMapping;
 begin
-  with Result.Tabela do begin
+  Result := New(PmMapping);
+
+  Result.Tabela := New(PmTabela);
+  with Result.Tabela^ do begin
     Nome := 'TRANSFISCAL';
   end;
 
@@ -121,6 +124,10 @@ begin
     Add('Nr_Recibo', 'NR_RECIBO');
     Add('Tp_Processamento', 'TP_PROCESSAMENTO');
   end;
+
+  Result.Relacoes := TmRelacoes.Create;
+  with Result.Relacoes do begin
+  end;
 end;
 
 //--
@@ -140,7 +147,7 @@ begin
   fCd_Operador := Value;
 end;
 
-procedure TTransfiscal.SetDt_Cadastro(const Value : String);
+procedure TTransfiscal.SetDt_Cadastro(const Value : TDateTime);
 begin
   fDt_Cadastro := Value;
 end;
@@ -180,12 +187,12 @@ begin
   fCd_Serie := Value;
 end;
 
-procedure TTransfiscal.SetDh_Emissao(const Value : String);
+procedure TTransfiscal.SetDh_Emissao(const Value : TDateTime);
 begin
   fDh_Emissao := Value;
 end;
 
-procedure TTransfiscal.SetDh_Entradasaida(const Value : String);
+procedure TTransfiscal.SetDh_Entradasaida(const Value : TDateTime);
 begin
   fDh_Entradasaida := Value;
 end;
@@ -195,7 +202,7 @@ begin
   fDs_Chave := Value;
 end;
 
-procedure TTransfiscal.SetDh_Recibo(const Value : String);
+procedure TTransfiscal.SetDh_Recibo(const Value : TDateTime);
 begin
   fDh_Recibo := Value;
 end;

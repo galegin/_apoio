@@ -12,7 +12,7 @@ type
     fNr_Cpfcnpj: String;
     fU_Version: String;
     fCd_Operador: Integer;
-    fDt_Cadastro: String;
+    fDt_Cadastro: TDateTime;
     fNr_Rgie: String;
     fCd_Pessoa: Integer;
     fNm_Pessoa: String;
@@ -36,7 +36,7 @@ type
     procedure SetNr_Cpfcnpj(const Value : String);
     procedure SetU_Version(const Value : String);
     procedure SetCd_Operador(const Value : Integer);
-    procedure SetDt_Cadastro(const Value : String);
+    procedure SetDt_Cadastro(const Value : TDateTime);
     procedure SetNr_Rgie(const Value : String);
     procedure SetCd_Pessoa(const Value : Integer);
     procedure SetNm_Pessoa(const Value : String);
@@ -65,7 +65,7 @@ type
     property Nr_Cpfcnpj : String read fNr_Cpfcnpj write SetNr_Cpfcnpj;
     property U_Version : String read fU_Version write SetU_Version;
     property Cd_Operador : Integer read fCd_Operador write SetCd_Operador;
-    property Dt_Cadastro : String read fDt_Cadastro write SetDt_Cadastro;
+    property Dt_Cadastro : TDateTime read fDt_Cadastro write SetDt_Cadastro;
     property Nr_Rgie : String read fNr_Rgie write SetNr_Rgie;
     property Cd_Pessoa : Integer read fCd_Pessoa write SetCd_Pessoa;
     property Nm_Pessoa : String read fNm_Pessoa write SetNm_Pessoa;
@@ -113,7 +113,10 @@ end;
 
 function TPessoa.GetMapping: PmMapping;
 begin
-  with Result.Tabela do begin
+  Result := New(PmMapping);
+
+  Result.Tabela := New(PmTabela);
+  with Result.Tabela^ do begin
     Nome := 'PESSOA';
   end;
 
@@ -149,6 +152,10 @@ begin
     Add('Ds_Email', 'DS_EMAIL');
     Add('In_Consumidorfinal', 'IN_CONSUMIDORFINAL');
   end;
+
+  Result.Relacoes := TmRelacoes.Create;
+  with Result.Relacoes do begin
+  end;
 end;
 
 //--
@@ -168,7 +175,7 @@ begin
   fCd_Operador := Value;
 end;
 
-procedure TPessoa.SetDt_Cadastro(const Value : String);
+procedure TPessoa.SetDt_Cadastro(const Value : TDateTime);
 begin
   fDt_Cadastro := Value;
 end;

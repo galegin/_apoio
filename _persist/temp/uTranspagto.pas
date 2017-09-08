@@ -13,16 +13,16 @@ type
     fNr_Pagto: Integer;
     fU_Version: String;
     fCd_Operador: Integer;
-    fDt_Cadastro: String;
+    fDt_Cadastro: TDateTime;
     fTp_Pagto: Integer;
-    fVl_Pagto: String;
+    fVl_Pagto: Real;
     procedure SetCd_Dnatrans(const Value : String);
     procedure SetNr_Pagto(const Value : Integer);
     procedure SetU_Version(const Value : String);
     procedure SetCd_Operador(const Value : Integer);
-    procedure SetDt_Cadastro(const Value : String);
+    procedure SetDt_Cadastro(const Value : TDateTime);
     procedure SetTp_Pagto(const Value : Integer);
-    procedure SetVl_Pagto(const Value : String);
+    procedure SetVl_Pagto(const Value : Real);
   public
     constructor Create(AOwner: TComponent); override;
     destructor Destroy; override;
@@ -32,9 +32,9 @@ type
     property Nr_Pagto : Integer read fNr_Pagto write SetNr_Pagto;
     property U_Version : String read fU_Version write SetU_Version;
     property Cd_Operador : Integer read fCd_Operador write SetCd_Operador;
-    property Dt_Cadastro : String read fDt_Cadastro write SetDt_Cadastro;
+    property Dt_Cadastro : TDateTime read fDt_Cadastro write SetDt_Cadastro;
     property Tp_Pagto : Integer read fTp_Pagto write SetTp_Pagto;
-    property Vl_Pagto : String read fVl_Pagto write SetVl_Pagto;
+    property Vl_Pagto : Real read fVl_Pagto write SetVl_Pagto;
   end;
 
   TTranspagtos = class(TList)
@@ -62,7 +62,10 @@ end;
 
 function TTranspagto.GetMapping: PmMapping;
 begin
-  with Result.Tabela do begin
+  Result := New(PmMapping);
+
+  Result.Tabela := New(PmTabela);
+  with Result.Tabela^ do begin
     Nome := 'TRANSPAGTO';
   end;
 
@@ -81,6 +84,10 @@ begin
     Add('Dt_Cadastro', 'DT_CADASTRO');
     Add('Tp_Pagto', 'TP_PAGTO');
     Add('Vl_Pagto', 'VL_PAGTO');
+  end;
+
+  Result.Relacoes := TmRelacoes.Create;
+  with Result.Relacoes do begin
   end;
 end;
 
@@ -106,7 +113,7 @@ begin
   fCd_Operador := Value;
 end;
 
-procedure TTranspagto.SetDt_Cadastro(const Value : String);
+procedure TTranspagto.SetDt_Cadastro(const Value : TDateTime);
 begin
   fDt_Cadastro := Value;
 end;
@@ -116,7 +123,7 @@ begin
   fTp_Pagto := Value;
 end;
 
-procedure TTranspagto.SetVl_Pagto(const Value : String);
+procedure TTranspagto.SetVl_Pagto(const Value : Real);
 begin
   fVl_Pagto := Value;
 end;

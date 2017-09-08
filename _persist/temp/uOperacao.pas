@@ -12,7 +12,7 @@ type
     fCd_Operacao: String;
     fU_Version: String;
     fCd_Operador: Integer;
-    fDt_Cadastro: String;
+    fDt_Cadastro: TDateTime;
     fDs_Operacao: String;
     fTp_Docfiscal: Integer;
     fTp_Modalidade: Integer;
@@ -23,7 +23,7 @@ type
     procedure SetCd_Operacao(const Value : String);
     procedure SetU_Version(const Value : String);
     procedure SetCd_Operador(const Value : Integer);
-    procedure SetDt_Cadastro(const Value : String);
+    procedure SetDt_Cadastro(const Value : TDateTime);
     procedure SetDs_Operacao(const Value : String);
     procedure SetTp_Docfiscal(const Value : Integer);
     procedure SetTp_Modalidade(const Value : Integer);
@@ -39,7 +39,7 @@ type
     property Cd_Operacao : String read fCd_Operacao write SetCd_Operacao;
     property U_Version : String read fU_Version write SetU_Version;
     property Cd_Operador : Integer read fCd_Operador write SetCd_Operador;
-    property Dt_Cadastro : String read fDt_Cadastro write SetDt_Cadastro;
+    property Dt_Cadastro : TDateTime read fDt_Cadastro write SetDt_Cadastro;
     property Ds_Operacao : String read fDs_Operacao write SetDs_Operacao;
     property Tp_Docfiscal : Integer read fTp_Docfiscal write SetTp_Docfiscal;
     property Tp_Modalidade : Integer read fTp_Modalidade write SetTp_Modalidade;
@@ -74,7 +74,10 @@ end;
 
 function TOperacao.GetMapping: PmMapping;
 begin
-  with Result.Tabela do begin
+  Result := New(PmMapping);
+
+  Result.Tabela := New(PmTabela);
+  with Result.Tabela^ do begin
     Nome := 'OPERACAO';
   end;
 
@@ -97,6 +100,10 @@ begin
     Add('Cd_Regrafiscal', 'CD_REGRAFISCAL');
     Add('Cd_Cfop', 'CD_CFOP');
   end;
+
+  Result.Relacoes := TmRelacoes.Create;
+  with Result.Relacoes do begin
+  end;
 end;
 
 //--
@@ -116,7 +123,7 @@ begin
   fCd_Operador := Value;
 end;
 
-procedure TOperacao.SetDt_Cadastro(const Value : String);
+procedure TOperacao.SetDt_Cadastro(const Value : TDateTime);
 begin
   fDt_Cadastro := Value;
 end;

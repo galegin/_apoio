@@ -77,7 +77,11 @@ const
 
     'function T{cls}.GetMapping: PmMapping;' + sLineBreak +
     'begin' + sLineBreak +
-    '  with Result.Tabela do begin' + sLineBreak +
+    '  Result := New(PmMapping);' + sLineBreak +
+    '' + sLineBreak +
+
+    '  Result.Tabela := New(PmTabela);' + sLineBreak +
+    '  with Result.Tabela^ do begin' + sLineBreak +
     '    Nome := ''{tabela}'';' + sLineBreak +
     '  end;' + sLineBreak +
     '' + sLineBreak +
@@ -91,6 +95,11 @@ const
     '  Result.Campos := TmCampos.Create;' + sLineBreak +
     '  with Result.Campos do begin' + sLineBreak +
     '{campos}' +
+    '  end;' + sLineBreak +
+    '' + sLineBreak +
+
+    '  Result.Relacoes := TmRelacoes.Create;' + sLineBreak +
+    '  with Result.Relacoes do begin' + sLineBreak +
     '  end;' + sLineBreak +
     'end;' + sLineBreak +
     '' + sLineBreak +
@@ -114,6 +123,12 @@ const
 
   cCNT_FIELD =
     '    f{atr}: {tip};' + sLineBreak ;
+
+  cCNT_CAMPO =
+    '    Add(''{atr}'', ''{cpo}'');' + sLineBreak ;
+
+  cCNT_CHAVE =
+    '    Add(''{atr}'', ''{cpo}'');' + sLineBreak ;
 
   cCNT_PROPERT =
     '    property {atr} : {tip} read f{atr} write Set{atr};' + sLineBreak ;
@@ -150,9 +165,9 @@ const
   begin
     case AFieldType of
       ftBoolean: Result := 'Boolean';
-      ftDateTime: Result := 'TDateTime';
-      ftFloat: Result := 'Real';
-      ftInteger: Result := 'Integer';
+      ftDate, ftDateTime, ftTime, ftTimeStamp: Result := 'TDateTime';
+      ftFloat, ftFMTBcd, ftBCD: Result := 'Real';
+      ftInteger, ftWord: Result := 'Integer';
       ftString: Result := 'String';
     else
       Result := 'String';
@@ -162,12 +177,13 @@ const
   procedure processarEntidade(AContexto : TmContexto; AEntidade : String);
   var
     vArquivo, vConteudo,
-    vArq, vCls, vAtr, vTip, vCampos, vChaves,
+    vArq, vCls, vAtr, vTip,
+    vCampos, vCampo, vChaves, vChave,
     vFields, vField,
     vProperts, vPropert,
     vProcInts, vProcInt, vProcImps, vProcImp : String;
     vMetadata : TDataSet;
-    vCampo : TField;
+    vCampoF : TField;
     vKey : Boolean;
     I : Integer;
   begin
@@ -189,20 +205,25 @@ const
     vProcImps := '';
 
     for I := 0 to vMetadata.FieldCount - 1 do begin
-      vCampo := vMetadata.Fields[I];
+      vCampoF := vMetadata.Fields[I];
 
-      vAtr := NomeAtributo(vCampo.FieldName);
-      vTip := TipoAtributo(vCampo.DataType);
+      vAtr := NomeAtributo(vCampoF.FieldName);
+      vTip := TipoAtributo(vCampoF.DataType);
 
       if vAtr = 'U_Version' then
         vKey := False;
 
-      if vKey then
-        vChaves := vChaves +
-          '    Add(''' + vAtr + ''', ''' + vCampo.FieldName + ''');' + sLineBreak;
+      if vKey then begin
+        vChave := cCNT_CHAVE;
+        vChave := AnsiReplaceStr(vChave, '{atr}', vAtr);
+        vChave := AnsiReplaceStr(vChave, '{cpo}', vCampoF.FieldName);
+        vChaves := vChaves + vChave;
+      end;
 
-      vCampos := vCampos +
-        '    Add(''' + vAtr + ''', ''' + vCampo.FieldName + ''');' + sLineBreak;
+      vCampo := cCNT_CAMPO;
+      vCampo := AnsiReplaceStr(vCampo, '{atr}', vAtr);
+      vCampo := AnsiReplaceStr(vCampo, '{cpo}', vCampoF.FieldName);
+      vCampos := vCampos + vCampo;
 
       vField := cCNT_FIELD;
       vField := AnsiReplaceStr(vField, '{atr}', vAtr);

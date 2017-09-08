@@ -1,0 +1,2 @@
+upx "pPersistent.exe"
+pause

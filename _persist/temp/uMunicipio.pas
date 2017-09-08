@@ -12,14 +12,14 @@ type
     fCd_Municipio: Integer;
     fU_Version: String;
     fCd_Operador: Integer;
-    fDt_Cadastro: String;
+    fDt_Cadastro: TDateTime;
     fDs_Municipio: String;
     fDs_Sigla: String;
     fCd_Estado: Integer;
     procedure SetCd_Municipio(const Value : Integer);
     procedure SetU_Version(const Value : String);
     procedure SetCd_Operador(const Value : Integer);
-    procedure SetDt_Cadastro(const Value : String);
+    procedure SetDt_Cadastro(const Value : TDateTime);
     procedure SetDs_Municipio(const Value : String);
     procedure SetDs_Sigla(const Value : String);
     procedure SetCd_Estado(const Value : Integer);
@@ -31,7 +31,7 @@ type
     property Cd_Municipio : Integer read fCd_Municipio write SetCd_Municipio;
     property U_Version : String read fU_Version write SetU_Version;
     property Cd_Operador : Integer read fCd_Operador write SetCd_Operador;
-    property Dt_Cadastro : String read fDt_Cadastro write SetDt_Cadastro;
+    property Dt_Cadastro : TDateTime read fDt_Cadastro write SetDt_Cadastro;
     property Ds_Municipio : String read fDs_Municipio write SetDs_Municipio;
     property Ds_Sigla : String read fDs_Sigla write SetDs_Sigla;
     property Cd_Estado : Integer read fCd_Estado write SetCd_Estado;
@@ -62,7 +62,10 @@ end;
 
 function TMunicipio.GetMapping: PmMapping;
 begin
-  with Result.Tabela do begin
+  Result := New(PmMapping);
+
+  Result.Tabela := New(PmTabela);
+  with Result.Tabela^ do begin
     Nome := 'MUNICIPIO';
   end;
 
@@ -80,6 +83,10 @@ begin
     Add('Ds_Municipio', 'DS_MUNICIPIO');
     Add('Ds_Sigla', 'DS_SIGLA');
     Add('Cd_Estado', 'CD_ESTADO');
+  end;
+
+  Result.Relacoes := TmRelacoes.Create;
+  with Result.Relacoes do begin
   end;
 end;
 
@@ -100,7 +107,7 @@ begin
   fCd_Operador := Value;
 end;
 
-procedure TMunicipio.SetDt_Cadastro(const Value : String);
+procedure TMunicipio.SetDt_Cadastro(const Value : TDateTime);
 begin
   fDt_Cadastro := Value;
 end;

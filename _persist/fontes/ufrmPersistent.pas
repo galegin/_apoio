@@ -26,7 +26,7 @@ implementation
 
 uses
   uclsPersistent, mContexto, mMapping,
-  uPessoa;
+  uPessoa, uProduto, uTransacao, uTransitem;
 
 procedure TF_Persistent.BtnTestarClick(Sender: TObject);
 var
@@ -40,7 +40,29 @@ begin
   for I := 1 to 10 do
     with vPessoas.Add do begin
       Nr_Cpfcnpj := IntToStr(I);
+      U_Version := '';
+      Cd_Operador := 1;
+      Dt_Cadastro := Now;
+      Nr_Rgie := '123';
+      Cd_Pessoa := I * 10;
       Nm_Pessoa := 'Pessoa ' + IntToStr(I);
+      Nm_Fantasia := 'Pessoa ' + IntToStr(I);
+      Cd_Cep := 87200000;
+      Nm_Logradouro := 'Rua';
+      Nr_Logradouro := '0';
+      Ds_Bairro := 'Centro';
+      Ds_Complemento := 'Casa';
+      Cd_Municipio := 1;
+      Ds_Municipio := 'Cianorte';
+      Cd_Estado := 1;
+      Ds_Estado := 'Parana';
+      Ds_SiglaEstado := 'PR';
+      Cd_Pais := 1;
+      Ds_Pais := 'Brasil';
+      Ds_Fone := '04430191234';
+      Ds_Celular := '044999881234';
+      Ds_Email := 'teste@teste.com';
+      In_Consumidorfinal := 'F';
     end;
 
   for I := 0 to vPessoas.Count - 1 do begin
@@ -51,11 +73,13 @@ begin
 
   vContexto := TmContexto.Create(nil);
 
-  vPessoas := vContexto.GetLista(TPessoa, 'Cd_Pessoa = 1', TPessoas) as TPessoas;
+  vContexto.SetLista(vPessoas);
+
+  vPessoas := vContexto.GetLista(TPessoa, 'Cd_Pessoa = 10', TPessoas) as TPessoas;
   vContexto.RemLista(vPessoas);
   vContexto.SetLista(vPessoas);
 
-  vPessoa := vContexto.GetObjeto(TPessoa, 'Cd_Pessoa = 1') as TPessoa;
+  vPessoa := vContexto.GetObjeto(TPessoa, 'Cd_Pessoa = 10') as TPessoa;
   vContexto.RemObjeto(vPessoa);
   vContexto.SetObjeto(vPessoa);
 

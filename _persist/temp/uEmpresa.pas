@@ -12,11 +12,11 @@ type
     fNr_Cpfcnpj: String;
     fU_Version: String;
     fCd_Operador: Integer;
-    fDt_Cadastro: String;
+    fDt_Cadastro: TDateTime;
     procedure SetNr_Cpfcnpj(const Value : String);
     procedure SetU_Version(const Value : String);
     procedure SetCd_Operador(const Value : Integer);
-    procedure SetDt_Cadastro(const Value : String);
+    procedure SetDt_Cadastro(const Value : TDateTime);
   public
     constructor Create(AOwner: TComponent); override;
     destructor Destroy; override;
@@ -25,7 +25,7 @@ type
     property Nr_Cpfcnpj : String read fNr_Cpfcnpj write SetNr_Cpfcnpj;
     property U_Version : String read fU_Version write SetU_Version;
     property Cd_Operador : Integer read fCd_Operador write SetCd_Operador;
-    property Dt_Cadastro : String read fDt_Cadastro write SetDt_Cadastro;
+    property Dt_Cadastro : TDateTime read fDt_Cadastro write SetDt_Cadastro;
   end;
 
   TEmpresas = class(TList)
@@ -53,7 +53,10 @@ end;
 
 function TEmpresa.GetMapping: PmMapping;
 begin
-  with Result.Tabela do begin
+  Result := New(PmMapping);
+
+  Result.Tabela := New(PmTabela);
+  with Result.Tabela^ do begin
     Nome := 'EMPRESA';
   end;
 
@@ -68,6 +71,10 @@ begin
     Add('U_Version', 'U_VERSION');
     Add('Cd_Operador', 'CD_OPERADOR');
     Add('Dt_Cadastro', 'DT_CADASTRO');
+  end;
+
+  Result.Relacoes := TmRelacoes.Create;
+  with Result.Relacoes do begin
   end;
 end;
 
@@ -88,7 +95,7 @@ begin
   fCd_Operador := Value;
 end;
 
-procedure TEmpresa.SetDt_Cadastro(const Value : String);
+procedure TEmpresa.SetDt_Cadastro(const Value : TDateTime);
 begin
   fDt_Cadastro := Value;
 end;

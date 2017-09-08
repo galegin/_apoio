@@ -12,13 +12,13 @@ type
     fCd_Regrafiscal: Integer;
     fU_Version: String;
     fCd_Operador: Integer;
-    fDt_Cadastro: String;
+    fDt_Cadastro: TDateTime;
     fDs_Regrafiscal: String;
     fIn_Calcimposto: String;
     procedure SetCd_Regrafiscal(const Value : Integer);
     procedure SetU_Version(const Value : String);
     procedure SetCd_Operador(const Value : Integer);
-    procedure SetDt_Cadastro(const Value : String);
+    procedure SetDt_Cadastro(const Value : TDateTime);
     procedure SetDs_Regrafiscal(const Value : String);
     procedure SetIn_Calcimposto(const Value : String);
   public
@@ -29,7 +29,7 @@ type
     property Cd_Regrafiscal : Integer read fCd_Regrafiscal write SetCd_Regrafiscal;
     property U_Version : String read fU_Version write SetU_Version;
     property Cd_Operador : Integer read fCd_Operador write SetCd_Operador;
-    property Dt_Cadastro : String read fDt_Cadastro write SetDt_Cadastro;
+    property Dt_Cadastro : TDateTime read fDt_Cadastro write SetDt_Cadastro;
     property Ds_Regrafiscal : String read fDs_Regrafiscal write SetDs_Regrafiscal;
     property In_Calcimposto : String read fIn_Calcimposto write SetIn_Calcimposto;
   end;
@@ -59,7 +59,10 @@ end;
 
 function TRegrafiscal.GetMapping: PmMapping;
 begin
-  with Result.Tabela do begin
+  Result := New(PmMapping);
+
+  Result.Tabela := New(PmTabela);
+  with Result.Tabela^ do begin
     Nome := 'REGRAFISCAL';
   end;
 
@@ -76,6 +79,10 @@ begin
     Add('Dt_Cadastro', 'DT_CADASTRO');
     Add('Ds_Regrafiscal', 'DS_REGRAFISCAL');
     Add('In_Calcimposto', 'IN_CALCIMPOSTO');
+  end;
+
+  Result.Relacoes := TmRelacoes.Create;
+  with Result.Relacoes do begin
   end;
 end;
 
@@ -96,7 +103,7 @@ begin
   fCd_Operador := Value;
 end;
 
-procedure TRegrafiscal.SetDt_Cadastro(const Value : String);
+procedure TRegrafiscal.SetDt_Cadastro(const Value : TDateTime);
 begin
   fDt_Cadastro := Value;
 end;

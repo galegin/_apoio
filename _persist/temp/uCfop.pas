@@ -12,12 +12,12 @@ type
     fCd_Cfop: Integer;
     fU_Version: String;
     fCd_Operador: Integer;
-    fDt_Cadastro: String;
+    fDt_Cadastro: TDateTime;
     fDs_Cfop: String;
     procedure SetCd_Cfop(const Value : Integer);
     procedure SetU_Version(const Value : String);
     procedure SetCd_Operador(const Value : Integer);
-    procedure SetDt_Cadastro(const Value : String);
+    procedure SetDt_Cadastro(const Value : TDateTime);
     procedure SetDs_Cfop(const Value : String);
   public
     constructor Create(AOwner: TComponent); override;
@@ -27,7 +27,7 @@ type
     property Cd_Cfop : Integer read fCd_Cfop write SetCd_Cfop;
     property U_Version : String read fU_Version write SetU_Version;
     property Cd_Operador : Integer read fCd_Operador write SetCd_Operador;
-    property Dt_Cadastro : String read fDt_Cadastro write SetDt_Cadastro;
+    property Dt_Cadastro : TDateTime read fDt_Cadastro write SetDt_Cadastro;
     property Ds_Cfop : String read fDs_Cfop write SetDs_Cfop;
   end;
 
@@ -56,7 +56,10 @@ end;
 
 function TCfop.GetMapping: PmMapping;
 begin
-  with Result.Tabela do begin
+  Result := New(PmMapping);
+
+  Result.Tabela := New(PmTabela);
+  with Result.Tabela^ do begin
     Nome := 'CFOP';
   end;
 
@@ -72,6 +75,10 @@ begin
     Add('Cd_Operador', 'CD_OPERADOR');
     Add('Dt_Cadastro', 'DT_CADASTRO');
     Add('Ds_Cfop', 'DS_CFOP');
+  end;
+
+  Result.Relacoes := TmRelacoes.Create;
+  with Result.Relacoes do begin
   end;
 end;
 
@@ -92,7 +99,7 @@ begin
   fCd_Operador := Value;
 end;
 
-procedure TCfop.SetDt_Cadastro(const Value : String);
+procedure TCfop.SetDt_Cadastro(const Value : TDateTime);
 begin
   fDt_Cadastro := Value;
 end;

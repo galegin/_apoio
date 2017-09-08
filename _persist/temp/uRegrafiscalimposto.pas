@@ -13,9 +13,9 @@ type
     fCd_Imposto: Integer;
     fU_Version: String;
     fCd_Operador: Integer;
-    fDt_Cadastro: String;
-    fPr_Aliquota: String;
-    fPr_Basecalculo: String;
+    fDt_Cadastro: TDateTime;
+    fPr_Aliquota: Real;
+    fPr_Basecalculo: Real;
     fCd_Cst: String;
     fCd_Csosn: String;
     fIn_Isento: String;
@@ -24,9 +24,9 @@ type
     procedure SetCd_Imposto(const Value : Integer);
     procedure SetU_Version(const Value : String);
     procedure SetCd_Operador(const Value : Integer);
-    procedure SetDt_Cadastro(const Value : String);
-    procedure SetPr_Aliquota(const Value : String);
-    procedure SetPr_Basecalculo(const Value : String);
+    procedure SetDt_Cadastro(const Value : TDateTime);
+    procedure SetPr_Aliquota(const Value : Real);
+    procedure SetPr_Basecalculo(const Value : Real);
     procedure SetCd_Cst(const Value : String);
     procedure SetCd_Csosn(const Value : String);
     procedure SetIn_Isento(const Value : String);
@@ -40,9 +40,9 @@ type
     property Cd_Imposto : Integer read fCd_Imposto write SetCd_Imposto;
     property U_Version : String read fU_Version write SetU_Version;
     property Cd_Operador : Integer read fCd_Operador write SetCd_Operador;
-    property Dt_Cadastro : String read fDt_Cadastro write SetDt_Cadastro;
-    property Pr_Aliquota : String read fPr_Aliquota write SetPr_Aliquota;
-    property Pr_Basecalculo : String read fPr_Basecalculo write SetPr_Basecalculo;
+    property Dt_Cadastro : TDateTime read fDt_Cadastro write SetDt_Cadastro;
+    property Pr_Aliquota : Real read fPr_Aliquota write SetPr_Aliquota;
+    property Pr_Basecalculo : Real read fPr_Basecalculo write SetPr_Basecalculo;
     property Cd_Cst : String read fCd_Cst write SetCd_Cst;
     property Cd_Csosn : String read fCd_Csosn write SetCd_Csosn;
     property In_Isento : String read fIn_Isento write SetIn_Isento;
@@ -74,7 +74,10 @@ end;
 
 function TRegrafiscalimposto.GetMapping: PmMapping;
 begin
-  with Result.Tabela do begin
+  Result := New(PmMapping);
+
+  Result.Tabela := New(PmTabela);
+  with Result.Tabela^ do begin
     Nome := 'REGRAFISCALIMPOSTO';
   end;
 
@@ -97,6 +100,10 @@ begin
     Add('Cd_Csosn', 'CD_CSOSN');
     Add('In_Isento', 'IN_ISENTO');
     Add('In_Outro', 'IN_OUTRO');
+  end;
+
+  Result.Relacoes := TmRelacoes.Create;
+  with Result.Relacoes do begin
   end;
 end;
 
@@ -122,17 +129,17 @@ begin
   fCd_Operador := Value;
 end;
 
-procedure TRegrafiscalimposto.SetDt_Cadastro(const Value : String);
+procedure TRegrafiscalimposto.SetDt_Cadastro(const Value : TDateTime);
 begin
   fDt_Cadastro := Value;
 end;
 
-procedure TRegrafiscalimposto.SetPr_Aliquota(const Value : String);
+procedure TRegrafiscalimposto.SetPr_Aliquota(const Value : Real);
 begin
   fPr_Aliquota := Value;
 end;
 
-procedure TRegrafiscalimposto.SetPr_Basecalculo(const Value : String);
+procedure TRegrafiscalimposto.SetPr_Basecalculo(const Value : Real);
 begin
   fPr_Basecalculo := Value;
 end;
