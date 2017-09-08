@@ -33,6 +33,7 @@ var
   vContexto : TmContexto;
   vPessoas : TPessoas;
   vPessoa : TPessoa;
+  vTransacao : TTransacao;
   I : Integer;
 begin
   vPessoas := TPessoas.Create;
@@ -73,6 +74,12 @@ begin
 
   vContexto := TmContexto.Create(nil);
 
+  vTransacao := vContexto.GetObjeto(TTransacao, 'Cd_Dnatrans = ''AC77EFA3#20170421#160''') as TTransacao;
+  vTransacao.Cd_Dnatrans := vTransacao.Cd_Dnatrans;
+  vTransacao.Pessoa.Cd_Pessoa := vTransacao.Pessoa.Cd_Pessoa;
+  TTransitem(vTransacao.Itens[0]).Cd_Produto := TTransitem(vTransacao.Itens[0]).Cd_Produto;
+  TTransitem(vTransacao.Itens[0]).Produto.Cd_Barraprd := TTransitem(vTransacao.Itens[0]).Produto.Cd_Barraprd;
+
   vContexto.SetLista(vPessoas);
 
   vPessoas := vContexto.GetLista(TPessoa, 'Cd_Pessoa = 10', TPessoas) as TPessoas;
@@ -84,6 +91,7 @@ begin
   vContexto.SetObjeto(vPessoa);
 
   vPessoa.Free;
+  vTransacao.Free;
 
   vContexto.Free;
 
