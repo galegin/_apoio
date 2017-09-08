@@ -24,9 +24,7 @@ type
   public
     constructor Create(AOwner: TComponent); override;
     destructor Destroy; override;
-    function GetTabela() : TmTabela; override;
-    function GetKeys() : TmKeys; override;
-    function GetCampos() : TmCampos; override;
+    function GetMapping() : PmMapping; override;
   published
     property Cd_Regrafiscal : Integer read fCd_Regrafiscal write SetCd_Regrafiscal;
     property U_Version : String read fU_Version write SetU_Version;
@@ -59,26 +57,26 @@ end;
 
 //--
 
-function TRegrafiscal.GetTabela: TmTabela;
+function TRegrafiscal.GetMapping: PmMapping;
 begin
-  Result.Nome := 'REGRAFISCAL';
-end;
+  with Result.Tabela do begin
+    Nome := 'REGRAFISCAL';
+  end;
 
-function TRegrafiscal.GetKeys: TmKeys;
-begin
-  AddKeysResult(Result, [
-    'Cd_Regrafiscal|CD_REGRAFISCAL']);
-end;
+  Result.Chaves := TmChaves.Create;
+  with Result.Chaves do begin
+    Add('Cd_Regrafiscal', 'CD_REGRAFISCAL');
+  end;
 
-function TRegrafiscal.GetCampos: TmCampos;
-begin
-  AddCamposResult(Result, [
-    'Cd_Regrafiscal|CD_REGRAFISCAL',
-    'U_Version|U_VERSION',
-    'Cd_Operador|CD_OPERADOR',
-    'Dt_Cadastro|DT_CADASTRO',
-    'Ds_Regrafiscal|DS_REGRAFISCAL',
-    'In_Calcimposto|IN_CALCIMPOSTO']);
+  Result.Campos := TmCampos.Create;
+  with Result.Campos do begin
+    Add('Cd_Regrafiscal', 'CD_REGRAFISCAL');
+    Add('U_Version', 'U_VERSION');
+    Add('Cd_Operador', 'CD_OPERADOR');
+    Add('Dt_Cadastro', 'DT_CADASTRO');
+    Add('Ds_Regrafiscal', 'DS_REGRAFISCAL');
+    Add('In_Calcimposto', 'IN_CALCIMPOSTO');
+  end;
 end;
 
 //--

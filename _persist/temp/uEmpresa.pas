@@ -20,9 +20,7 @@ type
   public
     constructor Create(AOwner: TComponent); override;
     destructor Destroy; override;
-    function GetTabela() : TmTabela; override;
-    function GetKeys() : TmKeys; override;
-    function GetCampos() : TmCampos; override;
+    function GetMapping() : PmMapping; override;
   published
     property Nr_Cpfcnpj : String read fNr_Cpfcnpj write SetNr_Cpfcnpj;
     property U_Version : String read fU_Version write SetU_Version;
@@ -53,24 +51,24 @@ end;
 
 //--
 
-function TEmpresa.GetTabela: TmTabela;
+function TEmpresa.GetMapping: PmMapping;
 begin
-  Result.Nome := 'EMPRESA';
-end;
+  with Result.Tabela do begin
+    Nome := 'EMPRESA';
+  end;
 
-function TEmpresa.GetKeys: TmKeys;
-begin
-  AddKeysResult(Result, [
-    'Nr_Cpfcnpj|NR_CPFCNPJ']);
-end;
+  Result.Chaves := TmChaves.Create;
+  with Result.Chaves do begin
+    Add('Nr_Cpfcnpj', 'NR_CPFCNPJ');
+  end;
 
-function TEmpresa.GetCampos: TmCampos;
-begin
-  AddCamposResult(Result, [
-    'Nr_Cpfcnpj|NR_CPFCNPJ',
-    'U_Version|U_VERSION',
-    'Cd_Operador|CD_OPERADOR',
-    'Dt_Cadastro|DT_CADASTRO']);
+  Result.Campos := TmCampos.Create;
+  with Result.Campos do begin
+    Add('Nr_Cpfcnpj', 'NR_CPFCNPJ');
+    Add('U_Version', 'U_VERSION');
+    Add('Cd_Operador', 'CD_OPERADOR');
+    Add('Dt_Cadastro', 'DT_CADASTRO');
+  end;
 end;
 
 //--

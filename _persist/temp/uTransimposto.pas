@@ -42,9 +42,7 @@ type
   public
     constructor Create(AOwner: TComponent); override;
     destructor Destroy; override;
-    function GetTabela() : TmTabela; override;
-    function GetKeys() : TmKeys; override;
-    function GetCampos() : TmCampos; override;
+    function GetMapping() : PmMapping; override;
   published
     property Cd_Dnatrans : String read fCd_Dnatrans write SetCd_Dnatrans;
     property Nr_Item : Integer read fNr_Item write SetNr_Item;
@@ -86,37 +84,37 @@ end;
 
 //--
 
-function TTransimposto.GetTabela: TmTabela;
+function TTransimposto.GetMapping: PmMapping;
 begin
-  Result.Nome := 'TRANSIMPOSTO';
-end;
+  with Result.Tabela do begin
+    Nome := 'TRANSIMPOSTO';
+  end;
 
-function TTransimposto.GetKeys: TmKeys;
-begin
-  AddKeysResult(Result, [
-    'Cd_Dnatrans|CD_DNATRANS',
-    'Nr_Item|NR_ITEM',
-    'Cd_Imposto|CD_IMPOSTO']);
-end;
+  Result.Chaves := TmChaves.Create;
+  with Result.Chaves do begin
+    Add('Cd_Dnatrans', 'CD_DNATRANS');
+    Add('Nr_Item', 'NR_ITEM');
+    Add('Cd_Imposto', 'CD_IMPOSTO');
+  end;
 
-function TTransimposto.GetCampos: TmCampos;
-begin
-  AddCamposResult(Result, [
-    'Cd_Dnatrans|CD_DNATRANS',
-    'Nr_Item|NR_ITEM',
-    'Cd_Imposto|CD_IMPOSTO',
-    'U_Version|U_VERSION',
-    'Cd_Operador|CD_OPERADOR',
-    'Dt_Cadastro|DT_CADASTRO',
-    'Pr_Aliquota|PR_ALIQUOTA',
-    'Vl_Basecalculo|VL_BASECALCULO',
-    'Pr_Basecalculo|PR_BASECALCULO',
-    'Pr_Redbasecalculo|PR_REDBASECALCULO',
-    'Vl_Imposto|VL_IMPOSTO',
-    'Vl_Outro|VL_OUTRO',
-    'Vl_Isento|VL_ISENTO',
-    'Cd_Cst|CD_CST',
-    'Cd_Csosn|CD_CSOSN']);
+  Result.Campos := TmCampos.Create;
+  with Result.Campos do begin
+    Add('Cd_Dnatrans', 'CD_DNATRANS');
+    Add('Nr_Item', 'NR_ITEM');
+    Add('Cd_Imposto', 'CD_IMPOSTO');
+    Add('U_Version', 'U_VERSION');
+    Add('Cd_Operador', 'CD_OPERADOR');
+    Add('Dt_Cadastro', 'DT_CADASTRO');
+    Add('Pr_Aliquota', 'PR_ALIQUOTA');
+    Add('Vl_Basecalculo', 'VL_BASECALCULO');
+    Add('Pr_Basecalculo', 'PR_BASECALCULO');
+    Add('Pr_Redbasecalculo', 'PR_REDBASECALCULO');
+    Add('Vl_Imposto', 'VL_IMPOSTO');
+    Add('Vl_Outro', 'VL_OUTRO');
+    Add('Vl_Isento', 'VL_ISENTO');
+    Add('Cd_Cst', 'CD_CST');
+    Add('Cd_Csosn', 'CD_CSOSN');
+  end;
 end;
 
 //--

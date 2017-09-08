@@ -30,9 +30,7 @@ type
   public
     constructor Create(AOwner: TComponent); override;
     destructor Destroy; override;
-    function GetTabela() : TmTabela; override;
-    function GetKeys() : TmKeys; override;
-    function GetCampos() : TmCampos; override;
+    function GetMapping() : PmMapping; override;
   published
     property Cd_Dnahistrel : String read fCd_Dnahistrel write SetCd_Dnahistrel;
     property U_Version : String read fU_Version write SetU_Version;
@@ -68,29 +66,29 @@ end;
 
 //--
 
-function THistrel.GetTabela: TmTabela;
+function THistrel.GetMapping: PmMapping;
 begin
-  Result.Nome := 'HISTREL';
-end;
+  with Result.Tabela do begin
+    Nome := 'HISTREL';
+  end;
 
-function THistrel.GetKeys: TmKeys;
-begin
-  AddKeysResult(Result, [
-    'Cd_Dnahistrel|CD_DNAHISTREL']);
-end;
+  Result.Chaves := TmChaves.Create;
+  with Result.Chaves do begin
+    Add('Cd_Dnahistrel', 'CD_DNAHISTREL');
+  end;
 
-function THistrel.GetCampos: TmCampos;
-begin
-  AddCamposResult(Result, [
-    'Cd_Dnahistrel|CD_DNAHISTREL',
-    'U_Version|U_VERSION',
-    'Cd_Operador|CD_OPERADOR',
-    'Dt_Cadastro|DT_CADASTRO',
-    'Cd_Equip|CD_EQUIP',
-    'Nr_Histrel|NR_HISTREL',
-    'Ds_Histrel|DS_HISTREL',
-    'Nr_Parcela|NR_PARCELA',
-    'Qt_Parcela|QT_PARCELA']);
+  Result.Campos := TmCampos.Create;
+  with Result.Campos do begin
+    Add('Cd_Dnahistrel', 'CD_DNAHISTREL');
+    Add('U_Version', 'U_VERSION');
+    Add('Cd_Operador', 'CD_OPERADOR');
+    Add('Dt_Cadastro', 'DT_CADASTRO');
+    Add('Cd_Equip', 'CD_EQUIP');
+    Add('Nr_Histrel', 'NR_HISTREL');
+    Add('Ds_Histrel', 'DS_HISTREL');
+    Add('Nr_Parcela', 'NR_PARCELA');
+    Add('Qt_Parcela', 'QT_PARCELA');
+  end;
 end;
 
 //--

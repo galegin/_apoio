@@ -25,8 +25,8 @@ implementation
 {$R *.dfm}
 
 uses
-  uclsPersistent, mContexto,
-  uPessoa, uProduto, uTransacao, uTransitem;
+  uclsPersistent, mContexto, mMapping,
+  uPessoa;
 
 procedure TF_Persistent.BtnTestarClick(Sender: TObject);
 var
@@ -51,7 +51,7 @@ begin
 
   vContexto := TmContexto.Create(nil);
 
-  vPessoas := vContexto.GetLista(TPessoa, 'Cd_Pessoa = 1') as TPessoas;
+  vPessoas := vContexto.GetLista(TPessoa, 'Cd_Pessoa = 1', TPessoas) as TPessoas;
   vContexto.RemLista(vPessoas);
   vContexto.SetLista(vPessoas);
 

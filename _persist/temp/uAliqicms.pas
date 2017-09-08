@@ -24,9 +24,7 @@ type
   public
     constructor Create(AOwner: TComponent); override;
     destructor Destroy; override;
-    function GetTabela() : TmTabela; override;
-    function GetKeys() : TmKeys; override;
-    function GetCampos() : TmCampos; override;
+    function GetMapping() : PmMapping; override;
   published
     property Uf_Origem : String read fUf_Origem write SetUf_Origem;
     property Uf_Destino : String read fUf_Destino write SetUf_Destino;
@@ -59,27 +57,27 @@ end;
 
 //--
 
-function TAliqicms.GetTabela: TmTabela;
+function TAliqicms.GetMapping: PmMapping;
 begin
-  Result.Nome := 'ALIQICMS';
-end;
+  with Result.Tabela do begin
+    Nome := 'ALIQICMS';
+  end;
 
-function TAliqicms.GetKeys: TmKeys;
-begin
-  AddKeysResult(Result, [
-    'Uf_Origem|UF_ORIGEM',
-    'Uf_Destino|UF_DESTINO']);
-end;
+  Result.Chaves := TmChaves.Create;
+  with Result.Chaves do begin
+    Add('Uf_Origem', 'UF_ORIGEM');
+    Add('Uf_Destino', 'UF_DESTINO');
+  end;
 
-function TAliqicms.GetCampos: TmCampos;
-begin
-  AddCamposResult(Result, [
-    'Uf_Origem|UF_ORIGEM',
-    'Uf_Destino|UF_DESTINO',
-    'U_Version|U_VERSION',
-    'Cd_Operador|CD_OPERADOR',
-    'Dt_Cadastro|DT_CADASTRO',
-    'Pr_Aliquota|PR_ALIQUOTA']);
+  Result.Campos := TmCampos.Create;
+  with Result.Campos do begin
+    Add('Uf_Origem', 'UF_ORIGEM');
+    Add('Uf_Destino', 'UF_DESTINO');
+    Add('U_Version', 'U_VERSION');
+    Add('Cd_Operador', 'CD_OPERADOR');
+    Add('Dt_Cadastro', 'DT_CADASTRO');
+    Add('Pr_Aliquota', 'PR_ALIQUOTA');
+  end;
 end;
 
 //--

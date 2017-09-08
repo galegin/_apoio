@@ -34,9 +34,7 @@ type
   public
     constructor Create(AOwner: TComponent); override;
     destructor Destroy; override;
-    function GetTabela() : TmTabela; override;
-    function GetKeys() : TmKeys; override;
-    function GetCampos() : TmCampos; override;
+    function GetMapping() : PmMapping; override;
   published
     property Cd_Dnapagto : String read fCd_Dnapagto write SetCd_Dnapagto;
     property Nr_Parcela : Integer read fNr_Parcela write SetNr_Parcela;
@@ -74,32 +72,32 @@ end;
 
 //--
 
-function TPagtoparc.GetTabela: TmTabela;
+function TPagtoparc.GetMapping: PmMapping;
 begin
-  Result.Nome := 'PAGTOPARC';
-end;
+  with Result.Tabela do begin
+    Nome := 'PAGTOPARC';
+  end;
 
-function TPagtoparc.GetKeys: TmKeys;
-begin
-  AddKeysResult(Result, [
-    'Cd_Dnapagto|CD_DNAPAGTO',
-    'Nr_Parcela|NR_PARCELA']);
-end;
+  Result.Chaves := TmChaves.Create;
+  with Result.Chaves do begin
+    Add('Cd_Dnapagto', 'CD_DNAPAGTO');
+    Add('Nr_Parcela', 'NR_PARCELA');
+  end;
 
-function TPagtoparc.GetCampos: TmCampos;
-begin
-  AddCamposResult(Result, [
-    'Cd_Dnapagto|CD_DNAPAGTO',
-    'Nr_Parcela|NR_PARCELA',
-    'U_Version|U_VERSION',
-    'Cd_Operador|CD_OPERADOR',
-    'Dt_Cadastro|DT_CADASTRO',
-    'Vl_Parcela|VL_PARCELA',
-    'Tp_Docto|TP_DOCTO',
-    'Nr_Docto|NR_DOCTO',
-    'Dt_Vencto|DT_VENCTO',
-    'Ds_Adicional|DS_ADICIONAL',
-    'Cd_Dnabaixa|CD_DNABAIXA']);
+  Result.Campos := TmCampos.Create;
+  with Result.Campos do begin
+    Add('Cd_Dnapagto', 'CD_DNAPAGTO');
+    Add('Nr_Parcela', 'NR_PARCELA');
+    Add('U_Version', 'U_VERSION');
+    Add('Cd_Operador', 'CD_OPERADOR');
+    Add('Dt_Cadastro', 'DT_CADASTRO');
+    Add('Vl_Parcela', 'VL_PARCELA');
+    Add('Tp_Docto', 'TP_DOCTO');
+    Add('Nr_Docto', 'NR_DOCTO');
+    Add('Dt_Vencto', 'DT_VENCTO');
+    Add('Ds_Adicional', 'DS_ADICIONAL');
+    Add('Cd_Dnabaixa', 'CD_DNABAIXA');
+  end;
 end;
 
 //--

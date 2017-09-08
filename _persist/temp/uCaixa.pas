@@ -30,9 +30,7 @@ type
   public
     constructor Create(AOwner: TComponent); override;
     destructor Destroy; override;
-    function GetTabela() : TmTabela; override;
-    function GetKeys() : TmKeys; override;
-    function GetCampos() : TmCampos; override;
+    function GetMapping() : PmMapping; override;
   published
     property Cd_Dnacaixa : String read fCd_Dnacaixa write SetCd_Dnacaixa;
     property U_Version : String read fU_Version write SetU_Version;
@@ -68,29 +66,29 @@ end;
 
 //--
 
-function TCaixa.GetTabela: TmTabela;
+function TCaixa.GetMapping: PmMapping;
 begin
-  Result.Nome := 'CAIXA';
-end;
+  with Result.Tabela do begin
+    Nome := 'CAIXA';
+  end;
 
-function TCaixa.GetKeys: TmKeys;
-begin
-  AddKeysResult(Result, [
-    'Cd_Dnacaixa|CD_DNACAIXA']);
-end;
+  Result.Chaves := TmChaves.Create;
+  with Result.Chaves do begin
+    Add('Cd_Dnacaixa', 'CD_DNACAIXA');
+  end;
 
-function TCaixa.GetCampos: TmCampos;
-begin
-  AddCamposResult(Result, [
-    'Cd_Dnacaixa|CD_DNACAIXA',
-    'U_Version|U_VERSION',
-    'Cd_Operador|CD_OPERADOR',
-    'Dt_Cadastro|DT_CADASTRO',
-    'Cd_Equip|CD_EQUIP',
-    'Dt_Caixa|DT_CAIXA',
-    'Nr_Seq|NR_SEQ',
-    'Vl_Abertura|VL_ABERTURA',
-    'Dt_Fechado|DT_FECHADO']);
+  Result.Campos := TmCampos.Create;
+  with Result.Campos do begin
+    Add('Cd_Dnacaixa', 'CD_DNACAIXA');
+    Add('U_Version', 'U_VERSION');
+    Add('Cd_Operador', 'CD_OPERADOR');
+    Add('Dt_Cadastro', 'DT_CADASTRO');
+    Add('Cd_Equip', 'CD_EQUIP');
+    Add('Dt_Caixa', 'DT_CAIXA');
+    Add('Nr_Seq', 'NR_SEQ');
+    Add('Vl_Abertura', 'VL_ABERTURA');
+    Add('Dt_Fechado', 'DT_FECHADO');
+  end;
 end;
 
 //--

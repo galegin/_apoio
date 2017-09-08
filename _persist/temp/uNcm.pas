@@ -22,9 +22,7 @@ type
   public
     constructor Create(AOwner: TComponent); override;
     destructor Destroy; override;
-    function GetTabela() : TmTabela; override;
-    function GetKeys() : TmKeys; override;
-    function GetCampos() : TmCampos; override;
+    function GetMapping() : PmMapping; override;
   published
     property Cd_Ncm : String read fCd_Ncm write SetCd_Ncm;
     property U_Version : String read fU_Version write SetU_Version;
@@ -56,25 +54,25 @@ end;
 
 //--
 
-function TNcm.GetTabela: TmTabela;
+function TNcm.GetMapping: PmMapping;
 begin
-  Result.Nome := 'NCM';
-end;
+  with Result.Tabela do begin
+    Nome := 'NCM';
+  end;
 
-function TNcm.GetKeys: TmKeys;
-begin
-  AddKeysResult(Result, [
-    'Cd_Ncm|CD_NCM']);
-end;
+  Result.Chaves := TmChaves.Create;
+  with Result.Chaves do begin
+    Add('Cd_Ncm', 'CD_NCM');
+  end;
 
-function TNcm.GetCampos: TmCampos;
-begin
-  AddCamposResult(Result, [
-    'Cd_Ncm|CD_NCM',
-    'U_Version|U_VERSION',
-    'Cd_Operador|CD_OPERADOR',
-    'Dt_Cadastro|DT_CADASTRO',
-    'Ds_Ncm|DS_NCM']);
+  Result.Campos := TmCampos.Create;
+  with Result.Campos do begin
+    Add('Cd_Ncm', 'CD_NCM');
+    Add('U_Version', 'U_VERSION');
+    Add('Cd_Operador', 'CD_OPERADOR');
+    Add('Dt_Cadastro', 'DT_CADASTRO');
+    Add('Ds_Ncm', 'DS_NCM');
+  end;
 end;
 
 //--

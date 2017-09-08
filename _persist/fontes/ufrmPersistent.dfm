@@ -17,21 +17,21 @@ object F_Persistent: TF_Persistent
   PixelsPerInch = 96
   TextHeight = 13
   object BtnTestar: TButton
-    Left = 4
-    Top = 4
-    Width = 75
-    Height = 25
-    Caption = 'Testar'
-    TabOrder = 0
-    OnClick = BtnTestarClick
-  end
-  object BtnGerar: TButton
     Left = 84
     Top = 4
     Width = 75
     Height = 25
-    Caption = 'Gerar'
+    Caption = 'Testar'
     TabOrder = 1
+    OnClick = BtnTestarClick
+  end
+  object BtnGerar: TButton
+    Left = 4
+    Top = 4
+    Width = 75
+    Height = 25
+    Caption = 'Gerar'
+    TabOrder = 0
     OnClick = BtnGerarClick
   end
   object MemoFiltro: TMemo

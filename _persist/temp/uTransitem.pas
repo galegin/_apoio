@@ -54,9 +54,7 @@ type
   public
     constructor Create(AOwner: TComponent); override;
     destructor Destroy; override;
-    function GetTabela() : TmTabela; override;
-    function GetKeys() : TmKeys; override;
-    function GetCampos() : TmCampos; override;
+    function GetMapping() : PmMapping; override;
   published
     property Cd_Dnatrans : String read fCd_Dnatrans write SetCd_Dnatrans;
     property Nr_Item : Integer read fNr_Item write SetNr_Item;
@@ -104,42 +102,42 @@ end;
 
 //--
 
-function TTransitem.GetTabela: TmTabela;
+function TTransitem.GetMapping: PmMapping;
 begin
-  Result.Nome := 'TRANSITEM';
-end;
+  with Result.Tabela do begin
+    Nome := 'TRANSITEM';
+  end;
 
-function TTransitem.GetKeys: TmKeys;
-begin
-  AddKeysResult(Result, [
-    'Cd_Dnatrans|CD_DNATRANS',
-    'Nr_Item|NR_ITEM']);
-end;
+  Result.Chaves := TmChaves.Create;
+  with Result.Chaves do begin
+    Add('Cd_Dnatrans', 'CD_DNATRANS');
+    Add('Nr_Item', 'NR_ITEM');
+  end;
 
-function TTransitem.GetCampos: TmCampos;
-begin
-  AddCamposResult(Result, [
-    'Cd_Dnatrans|CD_DNATRANS',
-    'Nr_Item|NR_ITEM',
-    'U_Version|U_VERSION',
-    'Cd_Operador|CD_OPERADOR',
-    'Dt_Cadastro|DT_CADASTRO',
-    'Cd_Barraprd|CD_BARRAPRD',
-    'Cd_Produto|CD_PRODUTO',
-    'Ds_Produto|DS_PRODUTO',
-    'Cd_Cfop|CD_CFOP',
-    'Qt_Item|QT_ITEM',
-    'Vl_Custo|VL_CUSTO',
-    'Vl_Unitario|VL_UNITARIO',
-    'Vl_Item|VL_ITEM',
-    'Vl_Variacao|VL_VARIACAO',
-    'Vl_Variacaocapa|VL_VARIACAOCAPA',
-    'Cd_Especie|CD_ESPECIE',
-    'Cd_Ncm|CD_NCM',
-    'Vl_Frete|VL_FRETE',
-    'Vl_Seguro|VL_SEGURO',
-    'Vl_Outro|VL_OUTRO',
-    'Vl_Despesa|VL_DESPESA']);
+  Result.Campos := TmCampos.Create;
+  with Result.Campos do begin
+    Add('Cd_Dnatrans', 'CD_DNATRANS');
+    Add('Nr_Item', 'NR_ITEM');
+    Add('U_Version', 'U_VERSION');
+    Add('Cd_Operador', 'CD_OPERADOR');
+    Add('Dt_Cadastro', 'DT_CADASTRO');
+    Add('Cd_Barraprd', 'CD_BARRAPRD');
+    Add('Cd_Produto', 'CD_PRODUTO');
+    Add('Ds_Produto', 'DS_PRODUTO');
+    Add('Cd_Cfop', 'CD_CFOP');
+    Add('Qt_Item', 'QT_ITEM');
+    Add('Vl_Custo', 'VL_CUSTO');
+    Add('Vl_Unitario', 'VL_UNITARIO');
+    Add('Vl_Item', 'VL_ITEM');
+    Add('Vl_Variacao', 'VL_VARIACAO');
+    Add('Vl_Variacaocapa', 'VL_VARIACAOCAPA');
+    Add('Cd_Especie', 'CD_ESPECIE');
+    Add('Cd_Ncm', 'CD_NCM');
+    Add('Vl_Frete', 'VL_FRETE');
+    Add('Vl_Seguro', 'VL_SEGURO');
+    Add('Vl_Outro', 'VL_OUTRO');
+    Add('Vl_Despesa', 'VL_DESPESA');
+  end;
 end;
 
 //--

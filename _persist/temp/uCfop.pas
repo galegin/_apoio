@@ -22,9 +22,7 @@ type
   public
     constructor Create(AOwner: TComponent); override;
     destructor Destroy; override;
-    function GetTabela() : TmTabela; override;
-    function GetKeys() : TmKeys; override;
-    function GetCampos() : TmCampos; override;
+    function GetMapping() : PmMapping; override;
   published
     property Cd_Cfop : Integer read fCd_Cfop write SetCd_Cfop;
     property U_Version : String read fU_Version write SetU_Version;
@@ -56,25 +54,25 @@ end;
 
 //--
 
-function TCfop.GetTabela: TmTabela;
+function TCfop.GetMapping: PmMapping;
 begin
-  Result.Nome := 'CFOP';
-end;
+  with Result.Tabela do begin
+    Nome := 'CFOP';
+  end;
 
-function TCfop.GetKeys: TmKeys;
-begin
-  AddKeysResult(Result, [
-    'Cd_Cfop|CD_CFOP']);
-end;
+  Result.Chaves := TmChaves.Create;
+  with Result.Chaves do begin
+    Add('Cd_Cfop', 'CD_CFOP');
+  end;
 
-function TCfop.GetCampos: TmCampos;
-begin
-  AddCamposResult(Result, [
-    'Cd_Cfop|CD_CFOP',
-    'U_Version|U_VERSION',
-    'Cd_Operador|CD_OPERADOR',
-    'Dt_Cadastro|DT_CADASTRO',
-    'Ds_Cfop|DS_CFOP']);
+  Result.Campos := TmCampos.Create;
+  with Result.Campos do begin
+    Add('Cd_Cfop', 'CD_CFOP');
+    Add('U_Version', 'U_VERSION');
+    Add('Cd_Operador', 'CD_OPERADOR');
+    Add('Dt_Cadastro', 'DT_CADASTRO');
+    Add('Ds_Cfop', 'DS_CFOP');
+  end;
 end;
 
 //--

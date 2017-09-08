@@ -26,9 +26,7 @@ type
   public
     constructor Create(AOwner: TComponent); override;
     destructor Destroy; override;
-    function GetTabela() : TmTabela; override;
-    function GetKeys() : TmKeys; override;
-    function GetCampos() : TmCampos; override;
+    function GetMapping() : PmMapping; override;
   published
     property Cd_Dnatrans : String read fCd_Dnatrans write SetCd_Dnatrans;
     property Nr_Pagto : Integer read fNr_Pagto write SetNr_Pagto;
@@ -62,28 +60,28 @@ end;
 
 //--
 
-function TTranspagto.GetTabela: TmTabela;
+function TTranspagto.GetMapping: PmMapping;
 begin
-  Result.Nome := 'TRANSPAGTO';
-end;
+  with Result.Tabela do begin
+    Nome := 'TRANSPAGTO';
+  end;
 
-function TTranspagto.GetKeys: TmKeys;
-begin
-  AddKeysResult(Result, [
-    'Cd_Dnatrans|CD_DNATRANS',
-    'Nr_Pagto|NR_PAGTO']);
-end;
+  Result.Chaves := TmChaves.Create;
+  with Result.Chaves do begin
+    Add('Cd_Dnatrans', 'CD_DNATRANS');
+    Add('Nr_Pagto', 'NR_PAGTO');
+  end;
 
-function TTranspagto.GetCampos: TmCampos;
-begin
-  AddCamposResult(Result, [
-    'Cd_Dnatrans|CD_DNATRANS',
-    'Nr_Pagto|NR_PAGTO',
-    'U_Version|U_VERSION',
-    'Cd_Operador|CD_OPERADOR',
-    'Dt_Cadastro|DT_CADASTRO',
-    'Tp_Pagto|TP_PAGTO',
-    'Vl_Pagto|VL_PAGTO']);
+  Result.Campos := TmCampos.Create;
+  with Result.Campos do begin
+    Add('Cd_Dnatrans', 'CD_DNATRANS');
+    Add('Nr_Pagto', 'NR_PAGTO');
+    Add('U_Version', 'U_VERSION');
+    Add('Cd_Operador', 'CD_OPERADOR');
+    Add('Dt_Cadastro', 'DT_CADASTRO');
+    Add('Tp_Pagto', 'TP_PAGTO');
+    Add('Vl_Pagto', 'VL_PAGTO');
+  end;
 end;
 
 //--

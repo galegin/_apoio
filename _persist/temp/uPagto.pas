@@ -36,9 +36,7 @@ type
   public
     constructor Create(AOwner: TComponent); override;
     destructor Destroy; override;
-    function GetTabela() : TmTabela; override;
-    function GetKeys() : TmKeys; override;
-    function GetCampos() : TmCampos; override;
+    function GetMapping() : PmMapping; override;
   published
     property Cd_Dnapagto : String read fCd_Dnapagto write SetCd_Dnapagto;
     property U_Version : String read fU_Version write SetU_Version;
@@ -77,32 +75,32 @@ end;
 
 //--
 
-function TPagto.GetTabela: TmTabela;
+function TPagto.GetMapping: PmMapping;
 begin
-  Result.Nome := 'PAGTO';
-end;
+  with Result.Tabela do begin
+    Nome := 'PAGTO';
+  end;
 
-function TPagto.GetKeys: TmKeys;
-begin
-  AddKeysResult(Result, [
-    'Cd_Dnapagto|CD_DNAPAGTO']);
-end;
+  Result.Chaves := TmChaves.Create;
+  with Result.Chaves do begin
+    Add('Cd_Dnapagto', 'CD_DNAPAGTO');
+  end;
 
-function TPagto.GetCampos: TmCampos;
-begin
-  AddCamposResult(Result, [
-    'Cd_Dnapagto|CD_DNAPAGTO',
-    'U_Version|U_VERSION',
-    'Cd_Operador|CD_OPERADOR',
-    'Dt_Cadastro|DT_CADASTRO',
-    'Cd_Equip|CD_EQUIP',
-    'Dt_Pagto|DT_PAGTO',
-    'Nr_Pagto|NR_PAGTO',
-    'Vl_Pagto|VL_PAGTO',
-    'Vl_Entrada|VL_ENTRADA',
-    'Vl_Troco|VL_TROCO',
-    'Vl_Variacao|VL_VARIACAO',
-    'Cd_Dnacaixa|CD_DNACAIXA']);
+  Result.Campos := TmCampos.Create;
+  with Result.Campos do begin
+    Add('Cd_Dnapagto', 'CD_DNAPAGTO');
+    Add('U_Version', 'U_VERSION');
+    Add('Cd_Operador', 'CD_OPERADOR');
+    Add('Dt_Cadastro', 'DT_CADASTRO');
+    Add('Cd_Equip', 'CD_EQUIP');
+    Add('Dt_Pagto', 'DT_PAGTO');
+    Add('Nr_Pagto', 'NR_PAGTO');
+    Add('Vl_Pagto', 'VL_PAGTO');
+    Add('Vl_Entrada', 'VL_ENTRADA');
+    Add('Vl_Troco', 'VL_TROCO');
+    Add('Vl_Variacao', 'VL_VARIACAO');
+    Add('Cd_Dnacaixa', 'CD_DNACAIXA');
+  end;
 end;
 
 //--

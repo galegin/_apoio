@@ -42,9 +42,7 @@ type
   public
     constructor Create(AOwner: TComponent); override;
     destructor Destroy; override;
-    function GetTabela() : TmTabela; override;
-    function GetKeys() : TmKeys; override;
-    function GetCampos() : TmCampos; override;
+    function GetMapping() : PmMapping; override;
   published
     property Cd_Barraprd : String read fCd_Barraprd write SetCd_Barraprd;
     property U_Version : String read fU_Version write SetU_Version;
@@ -86,35 +84,35 @@ end;
 
 //--
 
-function TProduto.GetTabela: TmTabela;
+function TProduto.GetMapping: PmMapping;
 begin
-  Result.Nome := 'PRODUTO';
-end;
+  with Result.Tabela do begin
+    Nome := 'PRODUTO';
+  end;
 
-function TProduto.GetKeys: TmKeys;
-begin
-  AddKeysResult(Result, [
-    'Cd_Barraprd|CD_BARRAPRD']);
-end;
+  Result.Chaves := TmChaves.Create;
+  with Result.Chaves do begin
+    Add('Cd_Barraprd', 'CD_BARRAPRD');
+  end;
 
-function TProduto.GetCampos: TmCampos;
-begin
-  AddCamposResult(Result, [
-    'Cd_Barraprd|CD_BARRAPRD',
-    'U_Version|U_VERSION',
-    'Cd_Operador|CD_OPERADOR',
-    'Dt_Cadastro|DT_CADASTRO',
-    'Cd_Produto|CD_PRODUTO',
-    'Ds_Produto|DS_PRODUTO',
-    'Cd_Especie|CD_ESPECIE',
-    'Cd_Cst|CD_CST',
-    'Cd_Ncm|CD_NCM',
-    'Pr_Aliquota|PR_ALIQUOTA',
-    'Vl_Custo|VL_CUSTO',
-    'Vl_Venda|VL_VENDA',
-    'Vl_Promocao|VL_PROMOCAO',
-    'Cd_Csosn|CD_CSOSN',
-    'Tp_Producao|TP_PRODUCAO']);
+  Result.Campos := TmCampos.Create;
+  with Result.Campos do begin
+    Add('Cd_Barraprd', 'CD_BARRAPRD');
+    Add('U_Version', 'U_VERSION');
+    Add('Cd_Operador', 'CD_OPERADOR');
+    Add('Dt_Cadastro', 'DT_CADASTRO');
+    Add('Cd_Produto', 'CD_PRODUTO');
+    Add('Ds_Produto', 'DS_PRODUTO');
+    Add('Cd_Especie', 'CD_ESPECIE');
+    Add('Cd_Cst', 'CD_CST');
+    Add('Cd_Ncm', 'CD_NCM');
+    Add('Pr_Aliquota', 'PR_ALIQUOTA');
+    Add('Vl_Custo', 'VL_CUSTO');
+    Add('Vl_Venda', 'VL_VENDA');
+    Add('Vl_Promocao', 'VL_PROMOCAO');
+    Add('Cd_Csosn', 'CD_CSOSN');
+    Add('Tp_Producao', 'TP_PRODUCAO');
+  end;
 end;
 
 //--

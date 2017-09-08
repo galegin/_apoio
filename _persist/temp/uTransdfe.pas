@@ -26,9 +26,7 @@ type
   public
     constructor Create(AOwner: TComponent); override;
     destructor Destroy; override;
-    function GetTabela() : TmTabela; override;
-    function GetKeys() : TmKeys; override;
-    function GetCampos() : TmCampos; override;
+    function GetMapping() : PmMapping; override;
   published
     property Cd_Dnatrans : String read fCd_Dnatrans write SetCd_Dnatrans;
     property Nr_Sequencia : Integer read fNr_Sequencia write SetNr_Sequencia;
@@ -62,28 +60,28 @@ end;
 
 //--
 
-function TTransdfe.GetTabela: TmTabela;
+function TTransdfe.GetMapping: PmMapping;
 begin
-  Result.Nome := 'TRANSDFE';
-end;
+  with Result.Tabela do begin
+    Nome := 'TRANSDFE';
+  end;
 
-function TTransdfe.GetKeys: TmKeys;
-begin
-  AddKeysResult(Result, [
-    'Cd_Dnatrans|CD_DNATRANS',
-    'Nr_Sequencia|NR_SEQUENCIA']);
-end;
+  Result.Chaves := TmChaves.Create;
+  with Result.Chaves do begin
+    Add('Cd_Dnatrans', 'CD_DNATRANS');
+    Add('Nr_Sequencia', 'NR_SEQUENCIA');
+  end;
 
-function TTransdfe.GetCampos: TmCampos;
-begin
-  AddCamposResult(Result, [
-    'Cd_Dnatrans|CD_DNATRANS',
-    'Nr_Sequencia|NR_SEQUENCIA',
-    'U_Version|U_VERSION',
-    'Cd_Operador|CD_OPERADOR',
-    'Dt_Cadastro|DT_CADASTRO',
-    'Ds_Xml|DS_XML',
-    'Ds_Retornoxml|DS_RETORNOXML']);
+  Result.Campos := TmCampos.Create;
+  with Result.Campos do begin
+    Add('Cd_Dnatrans', 'CD_DNATRANS');
+    Add('Nr_Sequencia', 'NR_SEQUENCIA');
+    Add('U_Version', 'U_VERSION');
+    Add('Cd_Operador', 'CD_OPERADOR');
+    Add('Dt_Cadastro', 'DT_CADASTRO');
+    Add('Ds_Xml', 'DS_XML');
+    Add('Ds_Retornoxml', 'DS_RETORNOXML');
+  end;
 end;
 
 //--

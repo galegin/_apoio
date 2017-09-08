@@ -26,9 +26,7 @@ type
   public
     constructor Create(AOwner: TComponent); override;
     destructor Destroy; override;
-    function GetTabela() : TmTabela; override;
-    function GetKeys() : TmKeys; override;
-    function GetCampos() : TmCampos; override;
+    function GetMapping() : PmMapping; override;
   published
     property Cd_Municipio : Integer read fCd_Municipio write SetCd_Municipio;
     property U_Version : String read fU_Version write SetU_Version;
@@ -62,27 +60,27 @@ end;
 
 //--
 
-function TMunicipio.GetTabela: TmTabela;
+function TMunicipio.GetMapping: PmMapping;
 begin
-  Result.Nome := 'MUNICIPIO';
-end;
+  with Result.Tabela do begin
+    Nome := 'MUNICIPIO';
+  end;
 
-function TMunicipio.GetKeys: TmKeys;
-begin
-  AddKeysResult(Result, [
-    'Cd_Municipio|CD_MUNICIPIO']);
-end;
+  Result.Chaves := TmChaves.Create;
+  with Result.Chaves do begin
+    Add('Cd_Municipio', 'CD_MUNICIPIO');
+  end;
 
-function TMunicipio.GetCampos: TmCampos;
-begin
-  AddCamposResult(Result, [
-    'Cd_Municipio|CD_MUNICIPIO',
-    'U_Version|U_VERSION',
-    'Cd_Operador|CD_OPERADOR',
-    'Dt_Cadastro|DT_CADASTRO',
-    'Ds_Municipio|DS_MUNICIPIO',
-    'Ds_Sigla|DS_SIGLA',
-    'Cd_Estado|CD_ESTADO']);
+  Result.Campos := TmCampos.Create;
+  with Result.Campos do begin
+    Add('Cd_Municipio', 'CD_MUNICIPIO');
+    Add('U_Version', 'U_VERSION');
+    Add('Cd_Operador', 'CD_OPERADOR');
+    Add('Dt_Cadastro', 'DT_CADASTRO');
+    Add('Ds_Municipio', 'DS_MUNICIPIO');
+    Add('Ds_Sigla', 'DS_SIGLA');
+    Add('Cd_Estado', 'CD_ESTADO');
+  end;
 end;
 
 //--

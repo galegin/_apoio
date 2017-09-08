@@ -26,9 +26,7 @@ type
   public
     constructor Create(AOwner: TComponent); override;
     destructor Destroy; override;
-    function GetTabela() : TmTabela; override;
-    function GetKeys() : TmKeys; override;
-    function GetCampos() : TmCampos; override;
+    function GetMapping() : PmMapping; override;
   published
     property Cd_Dnatrans : String read fCd_Dnatrans write SetCd_Dnatrans;
     property Nr_Parcela : Integer read fNr_Parcela write SetNr_Parcela;
@@ -62,28 +60,28 @@ end;
 
 //--
 
-function TTransvencto.GetTabela: TmTabela;
+function TTransvencto.GetMapping: PmMapping;
 begin
-  Result.Nome := 'TRANSVENCTO';
-end;
+  with Result.Tabela do begin
+    Nome := 'TRANSVENCTO';
+  end;
 
-function TTransvencto.GetKeys: TmKeys;
-begin
-  AddKeysResult(Result, [
-    'Cd_Dnatrans|CD_DNATRANS',
-    'Nr_Parcela|NR_PARCELA']);
-end;
+  Result.Chaves := TmChaves.Create;
+  with Result.Chaves do begin
+    Add('Cd_Dnatrans', 'CD_DNATRANS');
+    Add('Nr_Parcela', 'NR_PARCELA');
+  end;
 
-function TTransvencto.GetCampos: TmCampos;
-begin
-  AddCamposResult(Result, [
-    'Cd_Dnatrans|CD_DNATRANS',
-    'Nr_Parcela|NR_PARCELA',
-    'U_Version|U_VERSION',
-    'Cd_Operador|CD_OPERADOR',
-    'Dt_Cadastro|DT_CADASTRO',
-    'Dt_Parcela|DT_PARCELA',
-    'Vl_Parcela|VL_PARCELA']);
+  Result.Campos := TmCampos.Create;
+  with Result.Campos do begin
+    Add('Cd_Dnatrans', 'CD_DNATRANS');
+    Add('Nr_Parcela', 'NR_PARCELA');
+    Add('U_Version', 'U_VERSION');
+    Add('Cd_Operador', 'CD_OPERADOR');
+    Add('Dt_Cadastro', 'DT_CADASTRO');
+    Add('Dt_Parcela', 'DT_PARCELA');
+    Add('Vl_Parcela', 'VL_PARCELA');
+  end;
 end;
 
 //--

@@ -24,9 +24,7 @@ type
   public
     constructor Create(AOwner: TComponent); override;
     destructor Destroy; override;
-    function GetTabela() : TmTabela; override;
-    function GetKeys() : TmKeys; override;
-    function GetCampos() : TmCampos; override;
+    function GetMapping() : PmMapping; override;
   published
     property Cd_Pais : Integer read fCd_Pais write SetCd_Pais;
     property U_Version : String read fU_Version write SetU_Version;
@@ -59,26 +57,26 @@ end;
 
 //--
 
-function TPais.GetTabela: TmTabela;
+function TPais.GetMapping: PmMapping;
 begin
-  Result.Nome := 'PAIS';
-end;
+  with Result.Tabela do begin
+    Nome := 'PAIS';
+  end;
 
-function TPais.GetKeys: TmKeys;
-begin
-  AddKeysResult(Result, [
-    'Cd_Pais|CD_PAIS']);
-end;
+  Result.Chaves := TmChaves.Create;
+  with Result.Chaves do begin
+    Add('Cd_Pais', 'CD_PAIS');
+  end;
 
-function TPais.GetCampos: TmCampos;
-begin
-  AddCamposResult(Result, [
-    'Cd_Pais|CD_PAIS',
-    'U_Version|U_VERSION',
-    'Cd_Operador|CD_OPERADOR',
-    'Dt_Cadastro|DT_CADASTRO',
-    'Ds_Pais|DS_PAIS',
-    'Ds_Sigla|DS_SIGLA']);
+  Result.Campos := TmCampos.Create;
+  with Result.Campos do begin
+    Add('Cd_Pais', 'CD_PAIS');
+    Add('U_Version', 'U_VERSION');
+    Add('Cd_Operador', 'CD_OPERADOR');
+    Add('Dt_Cadastro', 'DT_CADASTRO');
+    Add('Ds_Pais', 'DS_PAIS');
+    Add('Ds_Sigla', 'DS_SIGLA');
+  end;
 end;
 
 //--

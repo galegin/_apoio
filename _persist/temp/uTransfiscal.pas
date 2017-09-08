@@ -46,9 +46,7 @@ type
   public
     constructor Create(AOwner: TComponent); override;
     destructor Destroy; override;
-    function GetTabela() : TmTabela; override;
-    function GetKeys() : TmKeys; override;
-    function GetCampos() : TmCampos; override;
+    function GetMapping() : PmMapping; override;
   published
     property Cd_Dnatrans : String read fCd_Dnatrans write SetCd_Dnatrans;
     property U_Version : String read fU_Version write SetU_Version;
@@ -92,37 +90,37 @@ end;
 
 //--
 
-function TTransfiscal.GetTabela: TmTabela;
+function TTransfiscal.GetMapping: PmMapping;
 begin
-  Result.Nome := 'TRANSFISCAL';
-end;
+  with Result.Tabela do begin
+    Nome := 'TRANSFISCAL';
+  end;
 
-function TTransfiscal.GetKeys: TmKeys;
-begin
-  AddKeysResult(Result, [
-    'Cd_Dnatrans|CD_DNATRANS']);
-end;
+  Result.Chaves := TmChaves.Create;
+  with Result.Chaves do begin
+    Add('Cd_Dnatrans', 'CD_DNATRANS');
+  end;
 
-function TTransfiscal.GetCampos: TmCampos;
-begin
-  AddCamposResult(Result, [
-    'Cd_Dnatrans|CD_DNATRANS',
-    'U_Version|U_VERSION',
-    'Cd_Operador|CD_OPERADOR',
-    'Dt_Cadastro|DT_CADASTRO',
-    'Tp_Ambiente|TP_AMBIENTE',
-    'Tp_Emissao|TP_EMISSAO',
-    'Tp_Modalidade|TP_MODALIDADE',
-    'Tp_Operacao|TP_OPERACAO',
-    'Tp_Docfiscal|TP_DOCFISCAL',
-    'Nr_Docfiscal|NR_DOCFISCAL',
-    'Cd_Serie|CD_SERIE',
-    'Dh_Emissao|DH_EMISSAO',
-    'Dh_Entradasaida|DH_ENTRADASAIDA',
-    'Ds_Chave|DS_CHAVE',
-    'Dh_Recibo|DH_RECIBO',
-    'Nr_Recibo|NR_RECIBO',
-    'Tp_Processamento|TP_PROCESSAMENTO']);
+  Result.Campos := TmCampos.Create;
+  with Result.Campos do begin
+    Add('Cd_Dnatrans', 'CD_DNATRANS');
+    Add('U_Version', 'U_VERSION');
+    Add('Cd_Operador', 'CD_OPERADOR');
+    Add('Dt_Cadastro', 'DT_CADASTRO');
+    Add('Tp_Ambiente', 'TP_AMBIENTE');
+    Add('Tp_Emissao', 'TP_EMISSAO');
+    Add('Tp_Modalidade', 'TP_MODALIDADE');
+    Add('Tp_Operacao', 'TP_OPERACAO');
+    Add('Tp_Docfiscal', 'TP_DOCFISCAL');
+    Add('Nr_Docfiscal', 'NR_DOCFISCAL');
+    Add('Cd_Serie', 'CD_SERIE');
+    Add('Dh_Emissao', 'DH_EMISSAO');
+    Add('Dh_Entradasaida', 'DH_ENTRADASAIDA');
+    Add('Ds_Chave', 'DS_CHAVE');
+    Add('Dh_Recibo', 'DH_RECIBO');
+    Add('Nr_Recibo', 'NR_RECIBO');
+    Add('Tp_Processamento', 'TP_PROCESSAMENTO');
+  end;
 end;
 
 //--

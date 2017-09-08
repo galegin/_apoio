@@ -40,9 +40,7 @@ const
     '  public' + sLineBreak +
     '    constructor Create(AOwner: TComponent); override;' + sLineBreak +
     '    destructor Destroy; override;' + sLineBreak +
-    '    function GetTabela() : TmTabela; override;' + sLineBreak +
-    '    function GetKeys() : TmKeys; override;' + sLineBreak +
-    '    function GetCampos() : TmCampos; override;' + sLineBreak +
+    '    function GetMapping() : PmMapping; override;' + sLineBreak +
     '  published' + sLineBreak +
     '{properts}' +
     '  end;' + sLineBreak +
@@ -77,21 +75,23 @@ const
     '//--' + sLineBreak +
     '' + sLineBreak +
 
-    'function T{cls}.GetTabela: TmTabela;' + sLineBreak +
+    'function T{cls}.GetMapping: PmMapping;' + sLineBreak +
     'begin' + sLineBreak +
-    '  Result.Nome := ''{tabela}'';' + sLineBreak +
-    'end;' + sLineBreak +
+    '  with Result.Tabela do begin' + sLineBreak +
+    '    Nome := ''{tabela}'';' + sLineBreak +
+    '  end;' + sLineBreak +
     '' + sLineBreak +
 
-    'function T{cls}.GetKeys: TmKeys;' + sLineBreak +
-    'begin' + sLineBreak +
-    '  AddKeysResult(Result, [{keys}]);' + sLineBreak +
-    'end;' + sLineBreak +
+    '  Result.Chaves := TmChaves.Create;' + sLineBreak +
+    '  with Result.Chaves do begin' + sLineBreak +
+    '{chaves}' +
+    '  end;' + sLineBreak +
     '' + sLineBreak +
 
-    'function T{cls}.GetCampos: TmCampos;' + sLineBreak +
-    'begin' + sLineBreak +
-    '  AddCamposResult(Result, [{campos}]);' + sLineBreak +
+    '  Result.Campos := TmCampos.Create;' + sLineBreak +
+    '  with Result.Campos do begin' + sLineBreak +
+    '{campos}' +
+    '  end;' + sLineBreak +
     'end;' + sLineBreak +
     '' + sLineBreak +
 
@@ -128,9 +128,6 @@ const
     'end;' + sLineBreak +
     '' + sLineBreak ;
 
-//var
-  //vDatabase : IDatabaseIntf;
-
   function NomeArquivo(AEntidade : String) : String;
   begin
     Result := TmString.PrimeiraMaiscula(AEntidade);
@@ -165,7 +162,7 @@ const
   procedure processarEntidade(AContexto : TmContexto; AEntidade : String);
   var
     vArquivo, vConteudo,
-    vArq, vCls, vAtr, vTip, vKeys, vCampos,
+    vArq, vCls, vAtr, vTip, vCampos, vChaves,
     vFields, vField,
     vProperts, vPropert,
     vProcInts, vProcInt, vProcImps, vProcImp : String;
@@ -184,8 +181,8 @@ const
     vConteudo := AnsiReplaceStr(vConteudo, '{cls}', vCls);
 
     vKey := True;
-    vKeys := '';
     vCampos := '';
+    vChaves := '';
     vFields := '';
     vProperts := '';
     vProcInts := '';
@@ -201,11 +198,11 @@ const
         vKey := False;
 
       if vKey then
-        vKeys := vKeys + IfThen(vKeys <> '', ',') + sLineBreak +
-          '    ''' + vAtr + '|' + vCampo.FieldName + '''';
+        vChaves := vChaves +
+          '    Add(''' + vAtr + ''', ''' + vCampo.FieldName + ''');' + sLineBreak;
 
-      vCampos := vCampos + IfThen(vCampos <> '', ',') + sLineBreak +
-        '    ''' + vAtr + '|' + vCampo.FieldName + '''';
+      vCampos := vCampos +
+        '    Add(''' + vAtr + ''', ''' + vCampo.FieldName + ''');' + sLineBreak;
 
       vField := cCNT_FIELD;
       vField := AnsiReplaceStr(vField, '{atr}', vAtr);
@@ -230,8 +227,8 @@ const
     end;
 
     vConteudo := AnsiReplaceStr(vConteudo, '{tabela}', AEntidade);
-    vConteudo := AnsiReplaceStr(vConteudo, '{keys}', vKeys);
     vConteudo := AnsiReplaceStr(vConteudo, '{campos}', vCampos);
+    vConteudo := AnsiReplaceStr(vConteudo, '{chaves}', vChaves);
     vConteudo := AnsiReplaceStr(vConteudo, '{fields}', vFields);
     vConteudo := AnsiReplaceStr(vConteudo, '{properts}', vProperts);
     vConteudo := AnsiReplaceStr(vConteudo, '{proc_ints}', vProcInts);

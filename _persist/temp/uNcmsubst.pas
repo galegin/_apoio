@@ -26,9 +26,7 @@ type
   public
     constructor Create(AOwner: TComponent); override;
     destructor Destroy; override;
-    function GetTabela() : TmTabela; override;
-    function GetKeys() : TmKeys; override;
-    function GetCampos() : TmCampos; override;
+    function GetMapping() : PmMapping; override;
   published
     property Uf_Origem : String read fUf_Origem write SetUf_Origem;
     property Uf_Destino : String read fUf_Destino write SetUf_Destino;
@@ -62,29 +60,29 @@ end;
 
 //--
 
-function TNcmsubst.GetTabela: TmTabela;
+function TNcmsubst.GetMapping: PmMapping;
 begin
-  Result.Nome := 'NCMSUBST';
-end;
+  with Result.Tabela do begin
+    Nome := 'NCMSUBST';
+  end;
 
-function TNcmsubst.GetKeys: TmKeys;
-begin
-  AddKeysResult(Result, [
-    'Uf_Origem|UF_ORIGEM',
-    'Uf_Destino|UF_DESTINO',
-    'Cd_Ncm|CD_NCM']);
-end;
+  Result.Chaves := TmChaves.Create;
+  with Result.Chaves do begin
+    Add('Uf_Origem', 'UF_ORIGEM');
+    Add('Uf_Destino', 'UF_DESTINO');
+    Add('Cd_Ncm', 'CD_NCM');
+  end;
 
-function TNcmsubst.GetCampos: TmCampos;
-begin
-  AddCamposResult(Result, [
-    'Uf_Origem|UF_ORIGEM',
-    'Uf_Destino|UF_DESTINO',
-    'Cd_Ncm|CD_NCM',
-    'U_Version|U_VERSION',
-    'Cd_Operador|CD_OPERADOR',
-    'Dt_Cadastro|DT_CADASTRO',
-    'Cd_Cest|CD_CEST']);
+  Result.Campos := TmCampos.Create;
+  with Result.Campos do begin
+    Add('Uf_Origem', 'UF_ORIGEM');
+    Add('Uf_Destino', 'UF_DESTINO');
+    Add('Cd_Ncm', 'CD_NCM');
+    Add('U_Version', 'U_VERSION');
+    Add('Cd_Operador', 'CD_OPERADOR');
+    Add('Dt_Cadastro', 'DT_CADASTRO');
+    Add('Cd_Cest', 'CD_CEST');
+  end;
 end;
 
 //--

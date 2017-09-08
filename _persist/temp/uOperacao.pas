@@ -34,9 +34,7 @@ type
   public
     constructor Create(AOwner: TComponent); override;
     destructor Destroy; override;
-    function GetTabela() : TmTabela; override;
-    function GetKeys() : TmKeys; override;
-    function GetCampos() : TmCampos; override;
+    function GetMapping() : PmMapping; override;
   published
     property Cd_Operacao : String read fCd_Operacao write SetCd_Operacao;
     property U_Version : String read fU_Version write SetU_Version;
@@ -74,31 +72,31 @@ end;
 
 //--
 
-function TOperacao.GetTabela: TmTabela;
+function TOperacao.GetMapping: PmMapping;
 begin
-  Result.Nome := 'OPERACAO';
-end;
+  with Result.Tabela do begin
+    Nome := 'OPERACAO';
+  end;
 
-function TOperacao.GetKeys: TmKeys;
-begin
-  AddKeysResult(Result, [
-    'Cd_Operacao|CD_OPERACAO']);
-end;
+  Result.Chaves := TmChaves.Create;
+  with Result.Chaves do begin
+    Add('Cd_Operacao', 'CD_OPERACAO');
+  end;
 
-function TOperacao.GetCampos: TmCampos;
-begin
-  AddCamposResult(Result, [
-    'Cd_Operacao|CD_OPERACAO',
-    'U_Version|U_VERSION',
-    'Cd_Operador|CD_OPERADOR',
-    'Dt_Cadastro|DT_CADASTRO',
-    'Ds_Operacao|DS_OPERACAO',
-    'Tp_Docfiscal|TP_DOCFISCAL',
-    'Tp_Modalidade|TP_MODALIDADE',
-    'Tp_Operacao|TP_OPERACAO',
-    'Cd_Serie|CD_SERIE',
-    'Cd_Regrafiscal|CD_REGRAFISCAL',
-    'Cd_Cfop|CD_CFOP']);
+  Result.Campos := TmCampos.Create;
+  with Result.Campos do begin
+    Add('Cd_Operacao', 'CD_OPERACAO');
+    Add('U_Version', 'U_VERSION');
+    Add('Cd_Operador', 'CD_OPERADOR');
+    Add('Dt_Cadastro', 'DT_CADASTRO');
+    Add('Ds_Operacao', 'DS_OPERACAO');
+    Add('Tp_Docfiscal', 'TP_DOCFISCAL');
+    Add('Tp_Modalidade', 'TP_MODALIDADE');
+    Add('Tp_Operacao', 'TP_OPERACAO');
+    Add('Cd_Serie', 'CD_SERIE');
+    Add('Cd_Regrafiscal', 'CD_REGRAFISCAL');
+    Add('Cd_Cfop', 'CD_CFOP');
+  end;
 end;
 
 //--

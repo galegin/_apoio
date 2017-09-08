@@ -32,9 +32,7 @@ type
   public
     constructor Create(AOwner: TComponent); override;
     destructor Destroy; override;
-    function GetTabela() : TmTabela; override;
-    function GetKeys() : TmKeys; override;
-    function GetCampos() : TmCampos; override;
+    function GetMapping() : PmMapping; override;
   published
     property Cd_Usuario : String read fCd_Usuario write SetCd_Usuario;
     property U_Version : String read fU_Version write SetU_Version;
@@ -71,30 +69,30 @@ end;
 
 //--
 
-function TUsuario.GetTabela: TmTabela;
+function TUsuario.GetMapping: PmMapping;
 begin
-  Result.Nome := 'USUARIO';
-end;
+  with Result.Tabela do begin
+    Nome := 'USUARIO';
+  end;
 
-function TUsuario.GetKeys: TmKeys;
-begin
-  AddKeysResult(Result, [
-    'Cd_Usuario|CD_USUARIO']);
-end;
+  Result.Chaves := TmChaves.Create;
+  with Result.Chaves do begin
+    Add('Cd_Usuario', 'CD_USUARIO');
+  end;
 
-function TUsuario.GetCampos: TmCampos;
-begin
-  AddCamposResult(Result, [
-    'Cd_Usuario|CD_USUARIO',
-    'U_Version|U_VERSION',
-    'Cd_Operador|CD_OPERADOR',
-    'Dt_Cadastro|DT_CADASTRO',
-    'Nm_Usuario|NM_USUARIO',
-    'Nm_Login|NM_LOGIN',
-    'Cd_Senha|CD_SENHA',
-    'Cd_Papel|CD_PAPEL',
-    'Tp_Bloqueio|TP_BLOQUEIO',
-    'Dt_Bloqueio|DT_BLOQUEIO']);
+  Result.Campos := TmCampos.Create;
+  with Result.Campos do begin
+    Add('Cd_Usuario', 'CD_USUARIO');
+    Add('U_Version', 'U_VERSION');
+    Add('Cd_Operador', 'CD_OPERADOR');
+    Add('Dt_Cadastro', 'DT_CADASTRO');
+    Add('Nm_Usuario', 'NM_USUARIO');
+    Add('Nm_Login', 'NM_LOGIN');
+    Add('Cd_Senha', 'CD_SENHA');
+    Add('Cd_Papel', 'CD_PAPEL');
+    Add('Tp_Bloqueio', 'TP_BLOQUEIO');
+    Add('Dt_Bloqueio', 'DT_BLOQUEIO');
+  end;
 end;
 
 //--

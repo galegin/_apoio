@@ -34,9 +34,7 @@ type
   public
     constructor Create(AOwner: TComponent); override;
     destructor Destroy; override;
-    function GetTabela() : TmTabela; override;
-    function GetKeys() : TmKeys; override;
-    function GetCampos() : TmCampos; override;
+    function GetMapping() : PmMapping; override;
   published
     property Cd_Dnatrans : String read fCd_Dnatrans write SetCd_Dnatrans;
     property U_Version : String read fU_Version write SetU_Version;
@@ -74,31 +72,31 @@ end;
 
 //--
 
-function TTransacao.GetTabela: TmTabela;
+function TTransacao.GetMapping: PmMapping;
 begin
-  Result.Nome := 'TRANSACAO';
-end;
+  with Result.Tabela do begin
+    Nome := 'TRANSACAO';
+  end;
 
-function TTransacao.GetKeys: TmKeys;
-begin
-  AddKeysResult(Result, [
-    'Cd_Dnatrans|CD_DNATRANS']);
-end;
+  Result.Chaves := TmChaves.Create;
+  with Result.Chaves do begin
+    Add('Cd_Dnatrans', 'CD_DNATRANS');
+  end;
 
-function TTransacao.GetCampos: TmCampos;
-begin
-  AddCamposResult(Result, [
-    'Cd_Dnatrans|CD_DNATRANS',
-    'U_Version|U_VERSION',
-    'Cd_Operador|CD_OPERADOR',
-    'Dt_Cadastro|DT_CADASTRO',
-    'Cd_Equip|CD_EQUIP',
-    'Dt_Transacao|DT_TRANSACAO',
-    'Nr_Transacao|NR_TRANSACAO',
-    'Nr_Cpfcnpj|NR_CPFCNPJ',
-    'Cd_Operacao|CD_OPERACAO',
-    'Cd_Dnapagto|CD_DNAPAGTO',
-    'Dt_Canc|DT_CANC']);
+  Result.Campos := TmCampos.Create;
+  with Result.Campos do begin
+    Add('Cd_Dnatrans', 'CD_DNATRANS');
+    Add('U_Version', 'U_VERSION');
+    Add('Cd_Operador', 'CD_OPERADOR');
+    Add('Dt_Cadastro', 'DT_CADASTRO');
+    Add('Cd_Equip', 'CD_EQUIP');
+    Add('Dt_Transacao', 'DT_TRANSACAO');
+    Add('Nr_Transacao', 'NR_TRANSACAO');
+    Add('Nr_Cpfcnpj', 'NR_CPFCNPJ');
+    Add('Cd_Operacao', 'CD_OPERACAO');
+    Add('Cd_Dnapagto', 'CD_DNAPAGTO');
+    Add('Dt_Canc', 'DT_CANC');
+  end;
 end;
 
 //--

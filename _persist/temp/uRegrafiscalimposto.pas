@@ -34,9 +34,7 @@ type
   public
     constructor Create(AOwner: TComponent); override;
     destructor Destroy; override;
-    function GetTabela() : TmTabela; override;
-    function GetKeys() : TmKeys; override;
-    function GetCampos() : TmCampos; override;
+    function GetMapping() : PmMapping; override;
   published
     property Cd_Regrafiscal : Integer read fCd_Regrafiscal write SetCd_Regrafiscal;
     property Cd_Imposto : Integer read fCd_Imposto write SetCd_Imposto;
@@ -74,32 +72,32 @@ end;
 
 //--
 
-function TRegrafiscalimposto.GetTabela: TmTabela;
+function TRegrafiscalimposto.GetMapping: PmMapping;
 begin
-  Result.Nome := 'REGRAFISCALIMPOSTO';
-end;
+  with Result.Tabela do begin
+    Nome := 'REGRAFISCALIMPOSTO';
+  end;
 
-function TRegrafiscalimposto.GetKeys: TmKeys;
-begin
-  AddKeysResult(Result, [
-    'Cd_Regrafiscal|CD_REGRAFISCAL',
-    'Cd_Imposto|CD_IMPOSTO']);
-end;
+  Result.Chaves := TmChaves.Create;
+  with Result.Chaves do begin
+    Add('Cd_Regrafiscal', 'CD_REGRAFISCAL');
+    Add('Cd_Imposto', 'CD_IMPOSTO');
+  end;
 
-function TRegrafiscalimposto.GetCampos: TmCampos;
-begin
-  AddCamposResult(Result, [
-    'Cd_Regrafiscal|CD_REGRAFISCAL',
-    'Cd_Imposto|CD_IMPOSTO',
-    'U_Version|U_VERSION',
-    'Cd_Operador|CD_OPERADOR',
-    'Dt_Cadastro|DT_CADASTRO',
-    'Pr_Aliquota|PR_ALIQUOTA',
-    'Pr_Basecalculo|PR_BASECALCULO',
-    'Cd_Cst|CD_CST',
-    'Cd_Csosn|CD_CSOSN',
-    'In_Isento|IN_ISENTO',
-    'In_Outro|IN_OUTRO']);
+  Result.Campos := TmCampos.Create;
+  with Result.Campos do begin
+    Add('Cd_Regrafiscal', 'CD_REGRAFISCAL');
+    Add('Cd_Imposto', 'CD_IMPOSTO');
+    Add('U_Version', 'U_VERSION');
+    Add('Cd_Operador', 'CD_OPERADOR');
+    Add('Dt_Cadastro', 'DT_CADASTRO');
+    Add('Pr_Aliquota', 'PR_ALIQUOTA');
+    Add('Pr_Basecalculo', 'PR_BASECALCULO');
+    Add('Cd_Cst', 'CD_CST');
+    Add('Cd_Csosn', 'CD_CSOSN');
+    Add('In_Isento', 'IN_ISENTO');
+    Add('In_Outro', 'IN_OUTRO');
+  end;
 end;
 
 //--

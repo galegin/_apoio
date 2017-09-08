@@ -26,9 +26,7 @@ type
   public
     constructor Create(AOwner: TComponent); override;
     destructor Destroy; override;
-    function GetTabela() : TmTabela; override;
-    function GetKeys() : TmKeys; override;
-    function GetCampos() : TmCampos; override;
+    function GetMapping() : PmMapping; override;
   published
     property Cd_Estado : Integer read fCd_Estado write SetCd_Estado;
     property U_Version : String read fU_Version write SetU_Version;
@@ -62,27 +60,27 @@ end;
 
 //--
 
-function TEstado.GetTabela: TmTabela;
+function TEstado.GetMapping: PmMapping;
 begin
-  Result.Nome := 'ESTADO';
-end;
+  with Result.Tabela do begin
+    Nome := 'ESTADO';
+  end;
 
-function TEstado.GetKeys: TmKeys;
-begin
-  AddKeysResult(Result, [
-    'Cd_Estado|CD_ESTADO']);
-end;
+  Result.Chaves := TmChaves.Create;
+  with Result.Chaves do begin
+    Add('Cd_Estado', 'CD_ESTADO');
+  end;
 
-function TEstado.GetCampos: TmCampos;
-begin
-  AddCamposResult(Result, [
-    'Cd_Estado|CD_ESTADO',
-    'U_Version|U_VERSION',
-    'Cd_Operador|CD_OPERADOR',
-    'Dt_Cadastro|DT_CADASTRO',
-    'Ds_Estado|DS_ESTADO',
-    'Ds_Sigla|DS_SIGLA',
-    'Cd_Pais|CD_PAIS']);
+  Result.Campos := TmCampos.Create;
+  with Result.Campos do begin
+    Add('Cd_Estado', 'CD_ESTADO');
+    Add('U_Version', 'U_VERSION');
+    Add('Cd_Operador', 'CD_OPERADOR');
+    Add('Dt_Cadastro', 'DT_CADASTRO');
+    Add('Ds_Estado', 'DS_ESTADO');
+    Add('Ds_Sigla', 'DS_SIGLA');
+    Add('Cd_Pais', 'CD_PAIS');
+  end;
 end;
 
 //--

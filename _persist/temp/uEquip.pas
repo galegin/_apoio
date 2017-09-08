@@ -30,9 +30,7 @@ type
   public
     constructor Create(AOwner: TComponent); override;
     destructor Destroy; override;
-    function GetTabela() : TmTabela; override;
-    function GetKeys() : TmKeys; override;
-    function GetCampos() : TmCampos; override;
+    function GetMapping() : PmMapping; override;
   published
     property Cd_Dnaequip : String read fCd_Dnaequip write SetCd_Dnaequip;
     property U_Version : String read fU_Version write SetU_Version;
@@ -68,29 +66,29 @@ end;
 
 //--
 
-function TEquip.GetTabela: TmTabela;
+function TEquip.GetMapping: PmMapping;
 begin
-  Result.Nome := 'EQUIP';
-end;
+  with Result.Tabela do begin
+    Nome := 'EQUIP';
+  end;
 
-function TEquip.GetKeys: TmKeys;
-begin
-  AddKeysResult(Result, [
-    'Cd_Dnaequip|CD_DNAEQUIP']);
-end;
+  Result.Chaves := TmChaves.Create;
+  with Result.Chaves do begin
+    Add('Cd_Dnaequip', 'CD_DNAEQUIP');
+  end;
 
-function TEquip.GetCampos: TmCampos;
-begin
-  AddCamposResult(Result, [
-    'Cd_Dnaequip|CD_DNAEQUIP',
-    'U_Version|U_VERSION',
-    'Cd_Operador|CD_OPERADOR',
-    'Dt_Cadastro|DT_CADASTRO',
-    'Cd_Equip|CD_EQUIP',
-    'Ds_Equip|DS_EQUIP',
-    'Cd_Ambiente|CD_AMBIENTE',
-    'Cd_Empresa|CD_EMPRESA',
-    'Cd_Terminal|CD_TERMINAL']);
+  Result.Campos := TmCampos.Create;
+  with Result.Campos do begin
+    Add('Cd_Dnaequip', 'CD_DNAEQUIP');
+    Add('U_Version', 'U_VERSION');
+    Add('Cd_Operador', 'CD_OPERADOR');
+    Add('Dt_Cadastro', 'DT_CADASTRO');
+    Add('Cd_Equip', 'CD_EQUIP');
+    Add('Ds_Equip', 'DS_EQUIP');
+    Add('Cd_Ambiente', 'CD_AMBIENTE');
+    Add('Cd_Empresa', 'CD_EMPRESA');
+    Add('Cd_Terminal', 'CD_TERMINAL');
+  end;
 end;
 
 //--
