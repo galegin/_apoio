@@ -9,44 +9,33 @@ uses
 type
   TOperacao = class(TmMapping)
   private
-    fCd_Operacao: String;
+    fId_Operacao: String;
     fU_Version: String;
     fCd_Operador: Integer;
     fDt_Cadastro: TDateTime;
     fDs_Operacao: String;
-    fTp_Docfiscal: Integer;
+    fTp_Modelonf: Integer;
     fTp_Modalidade: Integer;
     fTp_Operacao: Integer;
     fCd_Serie: String;
-    fCd_Regrafiscal: Integer;
     fCd_Cfop: Integer;
-    procedure SetCd_Operacao(const Value : String);
-    procedure SetU_Version(const Value : String);
-    procedure SetCd_Operador(const Value : Integer);
-    procedure SetDt_Cadastro(const Value : TDateTime);
-    procedure SetDs_Operacao(const Value : String);
-    procedure SetTp_Docfiscal(const Value : Integer);
-    procedure SetTp_Modalidade(const Value : Integer);
-    procedure SetTp_Operacao(const Value : Integer);
-    procedure SetCd_Serie(const Value : String);
-    procedure SetCd_Regrafiscal(const Value : Integer);
-    procedure SetCd_Cfop(const Value : Integer);
+    fId_Regrafiscal: Integer;
   public
     constructor Create(AOwner: TComponent); override;
     destructor Destroy; override;
     function GetMapping() : PmMapping; override;
   published
-    property Cd_Operacao : String read fCd_Operacao write SetCd_Operacao;
-    property U_Version : String read fU_Version write SetU_Version;
-    property Cd_Operador : Integer read fCd_Operador write SetCd_Operador;
-    property Dt_Cadastro : TDateTime read fDt_Cadastro write SetDt_Cadastro;
-    property Ds_Operacao : String read fDs_Operacao write SetDs_Operacao;
-    property Tp_Docfiscal : Integer read fTp_Docfiscal write SetTp_Docfiscal;
-    property Tp_Modalidade : Integer read fTp_Modalidade write SetTp_Modalidade;
-    property Tp_Operacao : Integer read fTp_Operacao write SetTp_Operacao;
-    property Cd_Serie : String read fCd_Serie write SetCd_Serie;
-    property Cd_Regrafiscal : Integer read fCd_Regrafiscal write SetCd_Regrafiscal;
-    property Cd_Cfop : Integer read fCd_Cfop write SetCd_Cfop;
+    property Id_Operacao : String read fId_Operacao write fId_Operacao;
+    property U_Version : String read fU_Version write fU_Version;
+    property Cd_Operador : Integer read fCd_Operador write fCd_Operador;
+    property Dt_Cadastro : TDateTime read fDt_Cadastro write fDt_Cadastro;
+    property Ds_Operacao : String read fDs_Operacao write fDs_Operacao;
+    property Tp_Modelonf : Integer read fTp_Modelonf write fTp_Modelonf;
+    property Tp_Modalidade : Integer read fTp_Modalidade write fTp_Modalidade;
+    property Tp_Operacao : Integer read fTp_Operacao write fTp_Operacao;
+    property Cd_Serie : String read fCd_Serie write fCd_Serie;
+    property Cd_Cfop : Integer read fCd_Cfop write fCd_Cfop;
+    property Id_Regrafiscal : Integer read fId_Regrafiscal write fId_Regrafiscal;
   end;
 
   TOperacaos = class(TList)
@@ -81,24 +70,19 @@ begin
     Nome := 'OPERACAO';
   end;
 
-  Result.Chaves := TmChaves.Create;
-  with Result.Chaves do begin
-    Add('Cd_Operacao', 'CD_OPERACAO');
-  end;
-
   Result.Campos := TmCampos.Create;
   with Result.Campos do begin
-    Add('Cd_Operacao', 'CD_OPERACAO');
-    Add('U_Version', 'U_VERSION');
-    Add('Cd_Operador', 'CD_OPERADOR');
-    Add('Dt_Cadastro', 'DT_CADASTRO');
-    Add('Ds_Operacao', 'DS_OPERACAO');
-    Add('Tp_Docfiscal', 'TP_DOCFISCAL');
-    Add('Tp_Modalidade', 'TP_MODALIDADE');
-    Add('Tp_Operacao', 'TP_OPERACAO');
-    Add('Cd_Serie', 'CD_SERIE');
-    Add('Cd_Regrafiscal', 'CD_REGRAFISCAL');
-    Add('Cd_Cfop', 'CD_CFOP');
+    Add('Id_Operacao', 'ID_OPERACAO', ftKey);
+    Add('U_Version', 'U_VERSION', ftNul);
+    Add('Cd_Operador', 'CD_OPERADOR', ftNul);
+    Add('Dt_Cadastro', 'DT_CADASTRO', ftNul);
+    Add('Ds_Operacao', 'DS_OPERACAO', ftNul);
+    Add('Tp_Modelonf', 'TP_MODELONF', ftNul);
+    Add('Tp_Modalidade', 'TP_MODALIDADE', ftNul);
+    Add('Tp_Operacao', 'TP_OPERACAO', ftNul);
+    Add('Cd_Serie', 'CD_SERIE', ftNul);
+    Add('Cd_Cfop', 'CD_CFOP', ftNul);
+    Add('Id_Regrafiscal', 'ID_REGRAFISCAL', ftReq);
   end;
 
   Result.Relacoes := TmRelacoes.Create;
@@ -107,61 +91,6 @@ begin
 end;
 
 //--
-
-procedure TOperacao.SetCd_Operacao(const Value : String);
-begin
-  fCd_Operacao := Value;
-end;
-
-procedure TOperacao.SetU_Version(const Value : String);
-begin
-  fU_Version := Value;
-end;
-
-procedure TOperacao.SetCd_Operador(const Value : Integer);
-begin
-  fCd_Operador := Value;
-end;
-
-procedure TOperacao.SetDt_Cadastro(const Value : TDateTime);
-begin
-  fDt_Cadastro := Value;
-end;
-
-procedure TOperacao.SetDs_Operacao(const Value : String);
-begin
-  fDs_Operacao := Value;
-end;
-
-procedure TOperacao.SetTp_Docfiscal(const Value : Integer);
-begin
-  fTp_Docfiscal := Value;
-end;
-
-procedure TOperacao.SetTp_Modalidade(const Value : Integer);
-begin
-  fTp_Modalidade := Value;
-end;
-
-procedure TOperacao.SetTp_Operacao(const Value : Integer);
-begin
-  fTp_Operacao := Value;
-end;
-
-procedure TOperacao.SetCd_Serie(const Value : String);
-begin
-  fCd_Serie := Value;
-end;
-
-procedure TOperacao.SetCd_Regrafiscal(const Value : Integer);
-begin
-  fCd_Regrafiscal := Value;
-end;
-
-procedure TOperacao.SetCd_Cfop(const Value : Integer);
-begin
-  fCd_Cfop := Value;
-end;
 
 { TOperacaos }
 

@@ -16,7 +16,6 @@ implementation
 { TC_Persistent }
 
 uses
-  //mDatabaseFactory, mDatabaseIntf, mProperty, mFilter,
   mContexto, mArquivo, mString, mDatabase, mPath;
 
 const
@@ -36,7 +35,6 @@ const
     '  T{cls} = class(TmMapping)' + sLineBreak +
     '  private' + sLineBreak +
     '{fields}' +
-    '{proc_ints}' +
     '  public' + sLineBreak +
     '    constructor Create(AOwner: TComponent); override;' + sLineBreak +
     '    destructor Destroy; override;' + sLineBreak +
@@ -86,12 +84,6 @@ const
     '  end;' + sLineBreak +
     '' + sLineBreak +
 
-    '  Result.Chaves := TmChaves.Create;' + sLineBreak +
-    '  with Result.Chaves do begin' + sLineBreak +
-    '{chaves}' +
-    '  end;' + sLineBreak +
-    '' + sLineBreak +
-
     '  Result.Campos := TmCampos.Create;' + sLineBreak +
     '  with Result.Campos do begin' + sLineBreak +
     '{campos}' +
@@ -106,8 +98,6 @@ const
 
     '//--' + sLineBreak +
     '' + sLineBreak +
-
-    '{proc_imps}' +
 
     '{ T{cls}s }' + sLineBreak +
     '' + sLineBreak +
@@ -125,23 +115,10 @@ const
     '    f{atr}: {tip};' + sLineBreak ;
 
   cCNT_CAMPO =
-    '    Add(''{atr}'', ''{cpo}'');' + sLineBreak ;
-
-  cCNT_CHAVE =
-    '    Add(''{atr}'', ''{cpo}'');' + sLineBreak ;
+    '    Add(''{atr}'', ''{cpo}'', {tip});' + sLineBreak ;
 
   cCNT_PROPERT =
-    '    property {atr} : {tip} read f{atr} write Set{atr};' + sLineBreak ;
-
-  cCNT_PROC_INT =
-    '    procedure Set{atr}(const Value : {tip});' + sLineBreak ;
-
-  cCNT_PROC_IMP =
-    'procedure T{cls}.Set{atr}(const Value : {tip});' + sLineBreak +
-    'begin' + sLineBreak +
-    '  f{atr} := Value;' + sLineBreak +
-    'end;' + sLineBreak +
-    '' + sLineBreak ;
+    '    property {atr} : {tip} read f{atr} write f{atr};' + sLineBreak ;
 
   function NomeArquivo(AEntidade : String) : String;
   begin
@@ -177,11 +154,9 @@ const
   procedure processarEntidade(AContexto : TmContexto; AEntidade : String);
   var
     vArquivo, vConteudo,
-    vArq, vCls, vAtr, vTip,
-    vCampos, vCampo, vChaves, vChave,
-    vFields, vField,
-    vProperts, vPropert,
-    vProcInts, vProcInt, vProcImps, vProcImp : String;
+    vArq, vCls, vAtr, vTip, vTipCpo,
+    vCampos, vCampo, vFields, vField,
+    vProperts, vPropert : String;
     vMetadata : TDataSet;
     vCampoF : TField;
     vKey : Boolean;
@@ -198,11 +173,8 @@ const
 
     vKey := True;
     vCampos := '';
-    vChaves := '';
     vFields := '';
     vProperts := '';
-    vProcInts := '';
-    vProcImps := '';
 
     for I := 0 to vMetadata.FieldCount - 1 do begin
       vCampoF := vMetadata.Fields[I];
@@ -213,16 +185,17 @@ const
       if vAtr = 'U_Version' then
         vKey := False;
 
-      if vKey then begin
-        vChave := cCNT_CHAVE;
-        vChave := AnsiReplaceStr(vChave, '{atr}', vAtr);
-        vChave := AnsiReplaceStr(vChave, '{cpo}', vCampoF.FieldName);
-        vChaves := vChaves + vChave;
-      end;
+      if vKey then
+        vTipCpo := 'tfKey'
+      else if vCampoF.Required then
+        vTipCpo := 'tfReq'
+      else
+        vTipCpo := 'tfNul';
 
       vCampo := cCNT_CAMPO;
       vCampo := AnsiReplaceStr(vCampo, '{atr}', vAtr);
       vCampo := AnsiReplaceStr(vCampo, '{cpo}', vCampoF.FieldName);
+      vCampo := AnsiReplaceStr(vCampo, '{tip}', vTipCpo);
       vCampos := vCampos + vCampo;
 
       vField := cCNT_FIELD;
@@ -234,26 +207,12 @@ const
       vPropert := AnsiReplaceStr(vPropert, '{atr}', vAtr);
       vPropert := AnsiReplaceStr(vPropert, '{tip}', vTip);
       vProperts := vProperts + vPropert;
-
-      vProcInt := cCNT_PROC_INT;
-      vProcInt := AnsiReplaceStr(vProcInt, '{atr}', vAtr);
-      vProcInt := AnsiReplaceStr(vProcInt, '{tip}', vTip);
-      vProcInts := vProcInts + vProcInt;
-
-      vProcImp := cCNT_PROC_IMP;
-      vProcImp := AnsiReplaceStr(vProcImp, '{cls}', vCls);
-      vProcImp := AnsiReplaceStr(vProcImp, '{atr}', vAtr);
-      vProcImp := AnsiReplaceStr(vProcImp, '{tip}', vTip);
-      vProcImps := vProcImps + vProcImp;
     end;
 
     vConteudo := AnsiReplaceStr(vConteudo, '{tabela}', AEntidade);
     vConteudo := AnsiReplaceStr(vConteudo, '{campos}', vCampos);
-    vConteudo := AnsiReplaceStr(vConteudo, '{chaves}', vChaves);
     vConteudo := AnsiReplaceStr(vConteudo, '{fields}', vFields);
     vConteudo := AnsiReplaceStr(vConteudo, '{properts}', vProperts);
-    vConteudo := AnsiReplaceStr(vConteudo, '{proc_ints}', vProcInts);
-    vConteudo := AnsiReplaceStr(vConteudo, '{proc_imps}', vProcImps);
 
     vArquivo := TmPath.Temp() + 'u' + vArq + '.pas';
     TmArquivo.Gravar(vArquivo, vConteudo);

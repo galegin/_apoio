@@ -9,32 +9,31 @@ uses
 type
   TTransdfe = class(TmMapping)
   private
-    fCd_Dnatrans: String;
+    fId_Transacao: String;
     fNr_Sequencia: Integer;
     fU_Version: String;
     fCd_Operador: Integer;
     fDt_Cadastro: TDateTime;
-    fDs_Xml: String;
+    fTp_Evento: Integer;
+    fTp_Ambiente: Integer;
+    fTp_Emissao: Integer;
+    fDs_Envioxml: String;
     fDs_Retornoxml: String;
-    procedure SetCd_Dnatrans(const Value : String);
-    procedure SetNr_Sequencia(const Value : Integer);
-    procedure SetU_Version(const Value : String);
-    procedure SetCd_Operador(const Value : Integer);
-    procedure SetDt_Cadastro(const Value : TDateTime);
-    procedure SetDs_Xml(const Value : String);
-    procedure SetDs_Retornoxml(const Value : String);
   public
     constructor Create(AOwner: TComponent); override;
     destructor Destroy; override;
     function GetMapping() : PmMapping; override;
   published
-    property Cd_Dnatrans : String read fCd_Dnatrans write SetCd_Dnatrans;
-    property Nr_Sequencia : Integer read fNr_Sequencia write SetNr_Sequencia;
-    property U_Version : String read fU_Version write SetU_Version;
-    property Cd_Operador : Integer read fCd_Operador write SetCd_Operador;
-    property Dt_Cadastro : TDateTime read fDt_Cadastro write SetDt_Cadastro;
-    property Ds_Xml : String read fDs_Xml write SetDs_Xml;
-    property Ds_Retornoxml : String read fDs_Retornoxml write SetDs_Retornoxml;
+    property Id_Transacao : String read fId_Transacao write fId_Transacao;
+    property Nr_Sequencia : Integer read fNr_Sequencia write fNr_Sequencia;
+    property U_Version : String read fU_Version write fU_Version;
+    property Cd_Operador : Integer read fCd_Operador write fCd_Operador;
+    property Dt_Cadastro : TDateTime read fDt_Cadastro write fDt_Cadastro;
+    property Tp_Evento : Integer read fTp_Evento write fTp_Evento;
+    property Tp_Ambiente : Integer read fTp_Ambiente write fTp_Ambiente;
+    property Tp_Emissao : Integer read fTp_Emissao write fTp_Emissao;
+    property Ds_Envioxml : String read fDs_Envioxml write fDs_Envioxml;
+    property Ds_Retornoxml : String read fDs_Retornoxml write fDs_Retornoxml;
   end;
 
   TTransdfes = class(TList)
@@ -69,21 +68,18 @@ begin
     Nome := 'TRANSDFE';
   end;
 
-  Result.Chaves := TmChaves.Create;
-  with Result.Chaves do begin
-    Add('Cd_Dnatrans', 'CD_DNATRANS');
-    Add('Nr_Sequencia', 'NR_SEQUENCIA');
-  end;
-
   Result.Campos := TmCampos.Create;
   with Result.Campos do begin
-    Add('Cd_Dnatrans', 'CD_DNATRANS');
-    Add('Nr_Sequencia', 'NR_SEQUENCIA');
-    Add('U_Version', 'U_VERSION');
-    Add('Cd_Operador', 'CD_OPERADOR');
-    Add('Dt_Cadastro', 'DT_CADASTRO');
-    Add('Ds_Xml', 'DS_XML');
-    Add('Ds_Retornoxml', 'DS_RETORNOXML');
+    Add('Id_Transacao', 'ID_TRANSACAO', ftKey);
+    Add('Nr_Sequencia', 'NR_SEQUENCIA', ftKey);
+    Add('U_Version', 'U_VERSION', ftNul);
+    Add('Cd_Operador', 'CD_OPERADOR', ftReq);
+    Add('Dt_Cadastro', 'DT_CADASTRO', ftReq);
+    Add('Tp_Evento', 'TP_EVENTO', ftReq);
+    Add('Tp_Ambiente', 'TP_AMBIENTE', ftReq);
+    Add('Tp_Emissao', 'TP_EMISSAO', ftReq);
+    Add('Ds_Envioxml', 'DS_ENVIOXML', ftReq);
+    Add('Ds_Retornoxml', 'DS_RETORNOXML', ftNul);
   end;
 
   Result.Relacoes := TmRelacoes.Create;
@@ -92,41 +88,6 @@ begin
 end;
 
 //--
-
-procedure TTransdfe.SetCd_Dnatrans(const Value : String);
-begin
-  fCd_Dnatrans := Value;
-end;
-
-procedure TTransdfe.SetNr_Sequencia(const Value : Integer);
-begin
-  fNr_Sequencia := Value;
-end;
-
-procedure TTransdfe.SetU_Version(const Value : String);
-begin
-  fU_Version := Value;
-end;
-
-procedure TTransdfe.SetCd_Operador(const Value : Integer);
-begin
-  fCd_Operador := Value;
-end;
-
-procedure TTransdfe.SetDt_Cadastro(const Value : TDateTime);
-begin
-  fDt_Cadastro := Value;
-end;
-
-procedure TTransdfe.SetDs_Xml(const Value : String);
-begin
-  fDs_Xml := Value;
-end;
-
-procedure TTransdfe.SetDs_Retornoxml(const Value : String);
-begin
-  fDs_Retornoxml := Value;
-end;
 
 { TTransdfes }
 

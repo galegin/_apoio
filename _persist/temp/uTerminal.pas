@@ -1,4 +1,4 @@
-unit uRegrafiscal;
+unit uTerminal;
 
 interface
 
@@ -7,43 +7,43 @@ uses
   mMapping;
 
 type
-  TRegrafiscal = class(TmMapping)
+  TTerminal = class(TmMapping)
   private
-    fId_Regrafiscal: Integer;
+    fId_Terminal: Integer;
     fU_Version: String;
     fCd_Operador: Integer;
     fDt_Cadastro: TDateTime;
-    fDs_Regrafiscal: String;
-    fIn_Calcimposto: String;
+    fCd_Terminal: Integer;
+    fDs_Terminal: String;
   public
     constructor Create(AOwner: TComponent); override;
     destructor Destroy; override;
     function GetMapping() : PmMapping; override;
   published
-    property Id_Regrafiscal : Integer read fId_Regrafiscal write fId_Regrafiscal;
+    property Id_Terminal : Integer read fId_Terminal write fId_Terminal;
     property U_Version : String read fU_Version write fU_Version;
     property Cd_Operador : Integer read fCd_Operador write fCd_Operador;
     property Dt_Cadastro : TDateTime read fDt_Cadastro write fDt_Cadastro;
-    property Ds_Regrafiscal : String read fDs_Regrafiscal write fDs_Regrafiscal;
-    property In_Calcimposto : String read fIn_Calcimposto write fIn_Calcimposto;
+    property Cd_Terminal : Integer read fCd_Terminal write fCd_Terminal;
+    property Ds_Terminal : String read fDs_Terminal write fDs_Terminal;
   end;
 
-  TRegrafiscals = class(TList)
+  TTerminals = class(TList)
   public
-    function Add: TRegrafiscal; overload;
+    function Add: TTerminal; overload;
   end;
 
 implementation
 
-{ TRegrafiscal }
+{ TTerminal }
 
-constructor TRegrafiscal.Create(AOwner: TComponent);
+constructor TTerminal.Create(AOwner: TComponent);
 begin
   inherited;
 
 end;
 
-destructor TRegrafiscal.Destroy;
+destructor TTerminal.Destroy;
 begin
 
   inherited;
@@ -51,23 +51,23 @@ end;
 
 //--
 
-function TRegrafiscal.GetMapping: PmMapping;
+function TTerminal.GetMapping: PmMapping;
 begin
   Result := New(PmMapping);
 
   Result.Tabela := New(PmTabela);
   with Result.Tabela^ do begin
-    Nome := 'REGRAFISCAL';
+    Nome := 'TERMINAL';
   end;
 
   Result.Campos := TmCampos.Create;
   with Result.Campos do begin
-    Add('Id_Regrafiscal', 'ID_REGRAFISCAL', ftKey);
+    Add('Id_Terminal', 'ID_TERMINAL', ftKey);
     Add('U_Version', 'U_VERSION', ftNul);
     Add('Cd_Operador', 'CD_OPERADOR', ftReq);
     Add('Dt_Cadastro', 'DT_CADASTRO', ftReq);
-    Add('Ds_Regrafiscal', 'DS_REGRAFISCAL', ftReq);
-    Add('In_Calcimposto', 'IN_CALCIMPOSTO', ftReq);
+    Add('Cd_Terminal', 'CD_TERMINAL', ftReq);
+    Add('Ds_Terminal', 'DS_TERMINAL', ftReq);
   end;
 
   Result.Relacoes := TmRelacoes.Create;
@@ -77,11 +77,11 @@ end;
 
 //--
 
-{ TRegrafiscals }
+{ TTerminals }
 
-function TRegrafiscals.Add: TRegrafiscal;
+function TTerminals.Add: TTerminal;
 begin
-  Result := TRegrafiscal.Create(nil);
+  Result := TTerminal.Create(nil);
   Self.Add(Result);
 end;
 

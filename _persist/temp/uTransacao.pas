@@ -9,44 +9,33 @@ uses
 type
   TTransacao = class(TmMapping)
   private
-    fCd_Dnatrans: String;
+    fId_Transacao: String;
     fU_Version: String;
     fCd_Operador: Integer;
     fDt_Cadastro: TDateTime;
-    fCd_Equip: String;
+    fId_Empresa: Integer;
+    fId_Pessoa: String;
+    fId_Operacao: String;
     fDt_Transacao: TDateTime;
     fNr_Transacao: Integer;
-    fNr_Cpfcnpj: String;
-    fCd_Operacao: String;
-    fCd_Dnapagto: String;
-    fDt_Canc: TDateTime;
-    procedure SetCd_Dnatrans(const Value : String);
-    procedure SetU_Version(const Value : String);
-    procedure SetCd_Operador(const Value : Integer);
-    procedure SetDt_Cadastro(const Value : TDateTime);
-    procedure SetCd_Equip(const Value : String);
-    procedure SetDt_Transacao(const Value : TDateTime);
-    procedure SetNr_Transacao(const Value : Integer);
-    procedure SetNr_Cpfcnpj(const Value : String);
-    procedure SetCd_Operacao(const Value : String);
-    procedure SetCd_Dnapagto(const Value : String);
-    procedure SetDt_Canc(const Value : TDateTime);
+    fTp_Situacao: Integer;
+    fDt_Cancelamento: TDateTime;
   public
     constructor Create(AOwner: TComponent); override;
     destructor Destroy; override;
     function GetMapping() : PmMapping; override;
   published
-    property Cd_Dnatrans : String read fCd_Dnatrans write SetCd_Dnatrans;
-    property U_Version : String read fU_Version write SetU_Version;
-    property Cd_Operador : Integer read fCd_Operador write SetCd_Operador;
-    property Dt_Cadastro : TDateTime read fDt_Cadastro write SetDt_Cadastro;
-    property Cd_Equip : String read fCd_Equip write SetCd_Equip;
-    property Dt_Transacao : TDateTime read fDt_Transacao write SetDt_Transacao;
-    property Nr_Transacao : Integer read fNr_Transacao write SetNr_Transacao;
-    property Nr_Cpfcnpj : String read fNr_Cpfcnpj write SetNr_Cpfcnpj;
-    property Cd_Operacao : String read fCd_Operacao write SetCd_Operacao;
-    property Cd_Dnapagto : String read fCd_Dnapagto write SetCd_Dnapagto;
-    property Dt_Canc : TDateTime read fDt_Canc write SetDt_Canc;
+    property Id_Transacao : String read fId_Transacao write fId_Transacao;
+    property U_Version : String read fU_Version write fU_Version;
+    property Cd_Operador : Integer read fCd_Operador write fCd_Operador;
+    property Dt_Cadastro : TDateTime read fDt_Cadastro write fDt_Cadastro;
+    property Id_Empresa : Integer read fId_Empresa write fId_Empresa;
+    property Id_Pessoa : String read fId_Pessoa write fId_Pessoa;
+    property Id_Operacao : String read fId_Operacao write fId_Operacao;
+    property Dt_Transacao : TDateTime read fDt_Transacao write fDt_Transacao;
+    property Nr_Transacao : Integer read fNr_Transacao write fNr_Transacao;
+    property Tp_Situacao : Integer read fTp_Situacao write fTp_Situacao;
+    property Dt_Cancelamento : TDateTime read fDt_Cancelamento write fDt_Cancelamento;
   end;
 
   TTransacaos = class(TList)
@@ -81,24 +70,19 @@ begin
     Nome := 'TRANSACAO';
   end;
 
-  Result.Chaves := TmChaves.Create;
-  with Result.Chaves do begin
-    Add('Cd_Dnatrans', 'CD_DNATRANS');
-  end;
-
   Result.Campos := TmCampos.Create;
   with Result.Campos do begin
-    Add('Cd_Dnatrans', 'CD_DNATRANS');
-    Add('U_Version', 'U_VERSION');
-    Add('Cd_Operador', 'CD_OPERADOR');
-    Add('Dt_Cadastro', 'DT_CADASTRO');
-    Add('Cd_Equip', 'CD_EQUIP');
-    Add('Dt_Transacao', 'DT_TRANSACAO');
-    Add('Nr_Transacao', 'NR_TRANSACAO');
-    Add('Nr_Cpfcnpj', 'NR_CPFCNPJ');
-    Add('Cd_Operacao', 'CD_OPERACAO');
-    Add('Cd_Dnapagto', 'CD_DNAPAGTO');
-    Add('Dt_Canc', 'DT_CANC');
+    Add('Id_Transacao', 'ID_TRANSACAO', ftKey);
+    Add('U_Version', 'U_VERSION', ftNul);
+    Add('Cd_Operador', 'CD_OPERADOR', ftReq);
+    Add('Dt_Cadastro', 'DT_CADASTRO', ftReq);
+    Add('Id_Empresa', 'ID_EMPRESA', ftReq);
+    Add('Id_Pessoa', 'ID_PESSOA', ftReq);
+    Add('Id_Operacao', 'ID_OPERACAO', ftReq);
+    Add('Dt_Transacao', 'DT_TRANSACAO', ftReq);
+    Add('Nr_Transacao', 'NR_TRANSACAO', ftReq);
+    Add('Tp_Situacao', 'TP_SITUACAO', ftReq);
+    Add('Dt_Cancelamento', 'DT_CANCELAMENTO', ftNul);
   end;
 
   Result.Relacoes := TmRelacoes.Create;
@@ -107,61 +91,6 @@ begin
 end;
 
 //--
-
-procedure TTransacao.SetCd_Dnatrans(const Value : String);
-begin
-  fCd_Dnatrans := Value;
-end;
-
-procedure TTransacao.SetU_Version(const Value : String);
-begin
-  fU_Version := Value;
-end;
-
-procedure TTransacao.SetCd_Operador(const Value : Integer);
-begin
-  fCd_Operador := Value;
-end;
-
-procedure TTransacao.SetDt_Cadastro(const Value : TDateTime);
-begin
-  fDt_Cadastro := Value;
-end;
-
-procedure TTransacao.SetCd_Equip(const Value : String);
-begin
-  fCd_Equip := Value;
-end;
-
-procedure TTransacao.SetDt_Transacao(const Value : TDateTime);
-begin
-  fDt_Transacao := Value;
-end;
-
-procedure TTransacao.SetNr_Transacao(const Value : Integer);
-begin
-  fNr_Transacao := Value;
-end;
-
-procedure TTransacao.SetNr_Cpfcnpj(const Value : String);
-begin
-  fNr_Cpfcnpj := Value;
-end;
-
-procedure TTransacao.SetCd_Operacao(const Value : String);
-begin
-  fCd_Operacao := Value;
-end;
-
-procedure TTransacao.SetCd_Dnapagto(const Value : String);
-begin
-  fCd_Dnapagto := Value;
-end;
-
-procedure TTransacao.SetDt_Canc(const Value : TDateTime);
-begin
-  fDt_Canc := Value;
-end;
 
 { TTransacaos }
 

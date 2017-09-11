@@ -1,4 +1,4 @@
-unit uRegrafiscal;
+unit uTranscont;
 
 interface
 
@@ -7,43 +7,43 @@ uses
   mMapping;
 
 type
-  TRegrafiscal = class(TmMapping)
+  TTranscont = class(TmMapping)
   private
-    fId_Regrafiscal: Integer;
+    fId_Transacao: String;
     fU_Version: String;
     fCd_Operador: Integer;
     fDt_Cadastro: TDateTime;
-    fDs_Regrafiscal: String;
-    fIn_Calcimposto: String;
+    fTp_Situacao: Integer;
+    fCd_Terminal: Integer;
   public
     constructor Create(AOwner: TComponent); override;
     destructor Destroy; override;
     function GetMapping() : PmMapping; override;
   published
-    property Id_Regrafiscal : Integer read fId_Regrafiscal write fId_Regrafiscal;
+    property Id_Transacao : String read fId_Transacao write fId_Transacao;
     property U_Version : String read fU_Version write fU_Version;
     property Cd_Operador : Integer read fCd_Operador write fCd_Operador;
     property Dt_Cadastro : TDateTime read fDt_Cadastro write fDt_Cadastro;
-    property Ds_Regrafiscal : String read fDs_Regrafiscal write fDs_Regrafiscal;
-    property In_Calcimposto : String read fIn_Calcimposto write fIn_Calcimposto;
+    property Tp_Situacao : Integer read fTp_Situacao write fTp_Situacao;
+    property Cd_Terminal : Integer read fCd_Terminal write fCd_Terminal;
   end;
 
-  TRegrafiscals = class(TList)
+  TTransconts = class(TList)
   public
-    function Add: TRegrafiscal; overload;
+    function Add: TTranscont; overload;
   end;
 
 implementation
 
-{ TRegrafiscal }
+{ TTranscont }
 
-constructor TRegrafiscal.Create(AOwner: TComponent);
+constructor TTranscont.Create(AOwner: TComponent);
 begin
   inherited;
 
 end;
 
-destructor TRegrafiscal.Destroy;
+destructor TTranscont.Destroy;
 begin
 
   inherited;
@@ -51,23 +51,23 @@ end;
 
 //--
 
-function TRegrafiscal.GetMapping: PmMapping;
+function TTranscont.GetMapping: PmMapping;
 begin
   Result := New(PmMapping);
 
   Result.Tabela := New(PmTabela);
   with Result.Tabela^ do begin
-    Nome := 'REGRAFISCAL';
+    Nome := 'TRANSCONT';
   end;
 
   Result.Campos := TmCampos.Create;
   with Result.Campos do begin
-    Add('Id_Regrafiscal', 'ID_REGRAFISCAL', ftKey);
+    Add('Id_Transacao', 'ID_TRANSACAO', ftKey);
     Add('U_Version', 'U_VERSION', ftNul);
     Add('Cd_Operador', 'CD_OPERADOR', ftReq);
     Add('Dt_Cadastro', 'DT_CADASTRO', ftReq);
-    Add('Ds_Regrafiscal', 'DS_REGRAFISCAL', ftReq);
-    Add('In_Calcimposto', 'IN_CALCIMPOSTO', ftReq);
+    Add('Tp_Situacao', 'TP_SITUACAO', ftReq);
+    Add('Cd_Terminal', 'CD_TERMINAL', ftReq);
   end;
 
   Result.Relacoes := TmRelacoes.Create;
@@ -77,11 +77,11 @@ end;
 
 //--
 
-{ TRegrafiscals }
+{ TTransconts }
 
-function TRegrafiscals.Add: TRegrafiscal;
+function TTransconts.Add: TTranscont;
 begin
-  Result := TRegrafiscal.Create(nil);
+  Result := TTranscont.Create(nil);
   Self.Add(Result);
 end;
 

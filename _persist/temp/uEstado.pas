@@ -9,32 +9,27 @@ uses
 type
   TEstado = class(TmMapping)
   private
-    fCd_Estado: Integer;
+    fId_Estado: Integer;
     fU_Version: String;
     fCd_Operador: Integer;
     fDt_Cadastro: TDateTime;
+    fCd_Estado: Integer;
     fDs_Estado: String;
     fDs_Sigla: String;
-    fCd_Pais: Integer;
-    procedure SetCd_Estado(const Value : Integer);
-    procedure SetU_Version(const Value : String);
-    procedure SetCd_Operador(const Value : Integer);
-    procedure SetDt_Cadastro(const Value : TDateTime);
-    procedure SetDs_Estado(const Value : String);
-    procedure SetDs_Sigla(const Value : String);
-    procedure SetCd_Pais(const Value : Integer);
+    fId_Pais: Integer;
   public
     constructor Create(AOwner: TComponent); override;
     destructor Destroy; override;
     function GetMapping() : PmMapping; override;
   published
-    property Cd_Estado : Integer read fCd_Estado write SetCd_Estado;
-    property U_Version : String read fU_Version write SetU_Version;
-    property Cd_Operador : Integer read fCd_Operador write SetCd_Operador;
-    property Dt_Cadastro : TDateTime read fDt_Cadastro write SetDt_Cadastro;
-    property Ds_Estado : String read fDs_Estado write SetDs_Estado;
-    property Ds_Sigla : String read fDs_Sigla write SetDs_Sigla;
-    property Cd_Pais : Integer read fCd_Pais write SetCd_Pais;
+    property Id_Estado : Integer read fId_Estado write fId_Estado;
+    property U_Version : String read fU_Version write fU_Version;
+    property Cd_Operador : Integer read fCd_Operador write fCd_Operador;
+    property Dt_Cadastro : TDateTime read fDt_Cadastro write fDt_Cadastro;
+    property Cd_Estado : Integer read fCd_Estado write fCd_Estado;
+    property Ds_Estado : String read fDs_Estado write fDs_Estado;
+    property Ds_Sigla : String read fDs_Sigla write fDs_Sigla;
+    property Id_Pais : Integer read fId_Pais write fId_Pais;
   end;
 
   TEstados = class(TList)
@@ -69,20 +64,16 @@ begin
     Nome := 'ESTADO';
   end;
 
-  Result.Chaves := TmChaves.Create;
-  with Result.Chaves do begin
-    Add('Cd_Estado', 'CD_ESTADO');
-  end;
-
   Result.Campos := TmCampos.Create;
   with Result.Campos do begin
-    Add('Cd_Estado', 'CD_ESTADO');
-    Add('U_Version', 'U_VERSION');
-    Add('Cd_Operador', 'CD_OPERADOR');
-    Add('Dt_Cadastro', 'DT_CADASTRO');
-    Add('Ds_Estado', 'DS_ESTADO');
-    Add('Ds_Sigla', 'DS_SIGLA');
-    Add('Cd_Pais', 'CD_PAIS');
+    Add('Id_Estado', 'ID_ESTADO', ftKey);
+    Add('U_Version', 'U_VERSION', ftNul);
+    Add('Cd_Operador', 'CD_OPERADOR', ftReq);
+    Add('Dt_Cadastro', 'DT_CADASTRO', ftReq);
+    Add('Cd_Estado', 'CD_ESTADO', ftReq);
+    Add('Ds_Estado', 'DS_ESTADO', ftReq);
+    Add('Ds_Sigla', 'DS_SIGLA', ftReq);
+    Add('Id_Pais', 'ID_PAIS', ftReq);
   end;
 
   Result.Relacoes := TmRelacoes.Create;
@@ -91,41 +82,6 @@ begin
 end;
 
 //--
-
-procedure TEstado.SetCd_Estado(const Value : Integer);
-begin
-  fCd_Estado := Value;
-end;
-
-procedure TEstado.SetU_Version(const Value : String);
-begin
-  fU_Version := Value;
-end;
-
-procedure TEstado.SetCd_Operador(const Value : Integer);
-begin
-  fCd_Operador := Value;
-end;
-
-procedure TEstado.SetDt_Cadastro(const Value : TDateTime);
-begin
-  fDt_Cadastro := Value;
-end;
-
-procedure TEstado.SetDs_Estado(const Value : String);
-begin
-  fDs_Estado := Value;
-end;
-
-procedure TEstado.SetDs_Sigla(const Value : String);
-begin
-  fDs_Sigla := Value;
-end;
-
-procedure TEstado.SetCd_Pais(const Value : Integer);
-begin
-  fCd_Pais := Value;
-end;
 
 { TEstados }
 

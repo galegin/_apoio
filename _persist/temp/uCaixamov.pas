@@ -1,4 +1,4 @@
-unit uCaixa;
+unit uCaixamov;
 
 interface
 
@@ -7,49 +7,49 @@ uses
   mMapping;
 
 type
-  TCaixa = class(TmMapping)
+  TCaixamov = class(TmMapping)
   private
     fId_Caixa: Integer;
+    fNr_Seq: Integer;
     fU_Version: String;
     fCd_Operador: Integer;
     fDt_Cadastro: TDateTime;
-    fCd_Terminal: Integer;
-    fDt_Abertura: TDateTime;
-    fVl_Abertura: Real;
-    fIn_Fechado: String;
-    fDt_Fechado: TDateTime;
+    fTp_Lancto: Integer;
+    fVl_Lancto: Real;
+    fNr_Doc: Integer;
+    fDs_Aux: String;
   public
     constructor Create(AOwner: TComponent); override;
     destructor Destroy; override;
     function GetMapping() : PmMapping; override;
   published
     property Id_Caixa : Integer read fId_Caixa write fId_Caixa;
+    property Nr_Seq : Integer read fNr_Seq write fNr_Seq;
     property U_Version : String read fU_Version write fU_Version;
     property Cd_Operador : Integer read fCd_Operador write fCd_Operador;
     property Dt_Cadastro : TDateTime read fDt_Cadastro write fDt_Cadastro;
-    property Cd_Terminal : Integer read fCd_Terminal write fCd_Terminal;
-    property Dt_Abertura : TDateTime read fDt_Abertura write fDt_Abertura;
-    property Vl_Abertura : Real read fVl_Abertura write fVl_Abertura;
-    property In_Fechado : String read fIn_Fechado write fIn_Fechado;
-    property Dt_Fechado : TDateTime read fDt_Fechado write fDt_Fechado;
+    property Tp_Lancto : Integer read fTp_Lancto write fTp_Lancto;
+    property Vl_Lancto : Real read fVl_Lancto write fVl_Lancto;
+    property Nr_Doc : Integer read fNr_Doc write fNr_Doc;
+    property Ds_Aux : String read fDs_Aux write fDs_Aux;
   end;
 
-  TCaixas = class(TList)
+  TCaixamovs = class(TList)
   public
-    function Add: TCaixa; overload;
+    function Add: TCaixamov; overload;
   end;
 
 implementation
 
-{ TCaixa }
+{ TCaixamov }
 
-constructor TCaixa.Create(AOwner: TComponent);
+constructor TCaixamov.Create(AOwner: TComponent);
 begin
   inherited;
 
 end;
 
-destructor TCaixa.Destroy;
+destructor TCaixamov.Destroy;
 begin
 
   inherited;
@@ -57,26 +57,26 @@ end;
 
 //--
 
-function TCaixa.GetMapping: PmMapping;
+function TCaixamov.GetMapping: PmMapping;
 begin
   Result := New(PmMapping);
 
   Result.Tabela := New(PmTabela);
   with Result.Tabela^ do begin
-    Nome := 'CAIXA';
+    Nome := 'CAIXAMOV';
   end;
 
   Result.Campos := TmCampos.Create;
   with Result.Campos do begin
     Add('Id_Caixa', 'ID_CAIXA', ftKey);
+    Add('Nr_Seq', 'NR_SEQ', ftKey);
     Add('U_Version', 'U_VERSION', ftNul);
     Add('Cd_Operador', 'CD_OPERADOR', ftReq);
     Add('Dt_Cadastro', 'DT_CADASTRO', ftReq);
-    Add('Cd_Terminal', 'CD_TERMINAL', ftReq);
-    Add('Dt_Abertura', 'DT_ABERTURA', ftReq);
-    Add('Vl_Abertura', 'VL_ABERTURA', ftReq);
-    Add('In_Fechado', 'IN_FECHADO', ftReq);
-    Add('Dt_Fechado', 'DT_FECHADO', ftNul);
+    Add('Tp_Lancto', 'TP_LANCTO', ftReq);
+    Add('Vl_Lancto', 'VL_LANCTO', ftReq);
+    Add('Nr_Doc', 'NR_DOC', ftReq);
+    Add('Ds_Aux', 'DS_AUX', ftReq);
   end;
 
   Result.Relacoes := TmRelacoes.Create;
@@ -86,11 +86,11 @@ end;
 
 //--
 
-{ TCaixas }
+{ TCaixamovs }
 
-function TCaixas.Add: TCaixa;
+function TCaixamovs.Add: TCaixamov;
 begin
-  Result := TCaixa.Create(nil);
+  Result := TCaixamov.Create(nil);
   Self.Add(Result);
 end;
 

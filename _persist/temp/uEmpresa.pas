@@ -9,23 +9,21 @@ uses
 type
   TEmpresa = class(TmMapping)
   private
-    fNr_Cpfcnpj: String;
+    fId_Empresa: Integer;
     fU_Version: String;
     fCd_Operador: Integer;
     fDt_Cadastro: TDateTime;
-    procedure SetNr_Cpfcnpj(const Value : String);
-    procedure SetU_Version(const Value : String);
-    procedure SetCd_Operador(const Value : Integer);
-    procedure SetDt_Cadastro(const Value : TDateTime);
+    fId_Pessoa: String;
   public
     constructor Create(AOwner: TComponent); override;
     destructor Destroy; override;
     function GetMapping() : PmMapping; override;
   published
-    property Nr_Cpfcnpj : String read fNr_Cpfcnpj write SetNr_Cpfcnpj;
-    property U_Version : String read fU_Version write SetU_Version;
-    property Cd_Operador : Integer read fCd_Operador write SetCd_Operador;
-    property Dt_Cadastro : TDateTime read fDt_Cadastro write SetDt_Cadastro;
+    property Id_Empresa : Integer read fId_Empresa write fId_Empresa;
+    property U_Version : String read fU_Version write fU_Version;
+    property Cd_Operador : Integer read fCd_Operador write fCd_Operador;
+    property Dt_Cadastro : TDateTime read fDt_Cadastro write fDt_Cadastro;
+    property Id_Pessoa : String read fId_Pessoa write fId_Pessoa;
   end;
 
   TEmpresas = class(TList)
@@ -60,17 +58,13 @@ begin
     Nome := 'EMPRESA';
   end;
 
-  Result.Chaves := TmChaves.Create;
-  with Result.Chaves do begin
-    Add('Nr_Cpfcnpj', 'NR_CPFCNPJ');
-  end;
-
   Result.Campos := TmCampos.Create;
   with Result.Campos do begin
-    Add('Nr_Cpfcnpj', 'NR_CPFCNPJ');
-    Add('U_Version', 'U_VERSION');
-    Add('Cd_Operador', 'CD_OPERADOR');
-    Add('Dt_Cadastro', 'DT_CADASTRO');
+    Add('Id_Empresa', 'ID_EMPRESA', ftKey);
+    Add('U_Version', 'U_VERSION', ftNul);
+    Add('Cd_Operador', 'CD_OPERADOR', ftReq);
+    Add('Dt_Cadastro', 'DT_CADASTRO', ftReq);
+    Add('Id_Pessoa', 'ID_PESSOA', ftReq);
   end;
 
   Result.Relacoes := TmRelacoes.Create;
@@ -79,26 +73,6 @@ begin
 end;
 
 //--
-
-procedure TEmpresa.SetNr_Cpfcnpj(const Value : String);
-begin
-  fNr_Cpfcnpj := Value;
-end;
-
-procedure TEmpresa.SetU_Version(const Value : String);
-begin
-  fU_Version := Value;
-end;
-
-procedure TEmpresa.SetCd_Operador(const Value : Integer);
-begin
-  fCd_Operador := Value;
-end;
-
-procedure TEmpresa.SetDt_Cadastro(const Value : TDateTime);
-begin
-  fDt_Cadastro := Value;
-end;
 
 { TEmpresas }
 

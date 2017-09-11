@@ -15,23 +15,17 @@ type
     fCd_Operador: Integer;
     fDt_Cadastro: TDateTime;
     fPr_Aliquota: Real;
-    procedure SetUf_Origem(const Value : String);
-    procedure SetUf_Destino(const Value : String);
-    procedure SetU_Version(const Value : String);
-    procedure SetCd_Operador(const Value : Integer);
-    procedure SetDt_Cadastro(const Value : TDateTime);
-    procedure SetPr_Aliquota(const Value : Real);
   public
     constructor Create(AOwner: TComponent); override;
     destructor Destroy; override;
     function GetMapping() : PmMapping; override;
   published
-    property Uf_Origem : String read fUf_Origem write SetUf_Origem;
-    property Uf_Destino : String read fUf_Destino write SetUf_Destino;
-    property U_Version : String read fU_Version write SetU_Version;
-    property Cd_Operador : Integer read fCd_Operador write SetCd_Operador;
-    property Dt_Cadastro : TDateTime read fDt_Cadastro write SetDt_Cadastro;
-    property Pr_Aliquota : Real read fPr_Aliquota write SetPr_Aliquota;
+    property Uf_Origem : String read fUf_Origem write fUf_Origem;
+    property Uf_Destino : String read fUf_Destino write fUf_Destino;
+    property U_Version : String read fU_Version write fU_Version;
+    property Cd_Operador : Integer read fCd_Operador write fCd_Operador;
+    property Dt_Cadastro : TDateTime read fDt_Cadastro write fDt_Cadastro;
+    property Pr_Aliquota : Real read fPr_Aliquota write fPr_Aliquota;
   end;
 
   TAliqicmss = class(TList)
@@ -66,20 +60,14 @@ begin
     Nome := 'ALIQICMS';
   end;
 
-  Result.Chaves := TmChaves.Create;
-  with Result.Chaves do begin
-    Add('Uf_Origem', 'UF_ORIGEM');
-    Add('Uf_Destino', 'UF_DESTINO');
-  end;
-
   Result.Campos := TmCampos.Create;
   with Result.Campos do begin
-    Add('Uf_Origem', 'UF_ORIGEM');
-    Add('Uf_Destino', 'UF_DESTINO');
-    Add('U_Version', 'U_VERSION');
-    Add('Cd_Operador', 'CD_OPERADOR');
-    Add('Dt_Cadastro', 'DT_CADASTRO');
-    Add('Pr_Aliquota', 'PR_ALIQUOTA');
+    Add('Uf_Origem', 'UF_ORIGEM', ftKey);
+    Add('Uf_Destino', 'UF_DESTINO', ftKey);
+    Add('U_Version', 'U_VERSION', ftNul);
+    Add('Cd_Operador', 'CD_OPERADOR', ftReq);
+    Add('Dt_Cadastro', 'DT_CADASTRO', ftReq);
+    Add('Pr_Aliquota', 'PR_ALIQUOTA', ftReq);
   end;
 
   Result.Relacoes := TmRelacoes.Create;
@@ -88,36 +76,6 @@ begin
 end;
 
 //--
-
-procedure TAliqicms.SetUf_Origem(const Value : String);
-begin
-  fUf_Origem := Value;
-end;
-
-procedure TAliqicms.SetUf_Destino(const Value : String);
-begin
-  fUf_Destino := Value;
-end;
-
-procedure TAliqicms.SetU_Version(const Value : String);
-begin
-  fU_Version := Value;
-end;
-
-procedure TAliqicms.SetCd_Operador(const Value : Integer);
-begin
-  fCd_Operador := Value;
-end;
-
-procedure TAliqicms.SetDt_Cadastro(const Value : TDateTime);
-begin
-  fDt_Cadastro := Value;
-end;
-
-procedure TAliqicms.SetPr_Aliquota(const Value : Real);
-begin
-  fPr_Aliquota := Value;
-end;
 
 { TAliqicmss }
 

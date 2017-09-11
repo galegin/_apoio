@@ -9,32 +9,27 @@ uses
 type
   TMunicipio = class(TmMapping)
   private
-    fCd_Municipio: Integer;
+    fId_Municipio: Integer;
     fU_Version: String;
     fCd_Operador: Integer;
     fDt_Cadastro: TDateTime;
+    fCd_Municipio: Integer;
     fDs_Municipio: String;
     fDs_Sigla: String;
-    fCd_Estado: Integer;
-    procedure SetCd_Municipio(const Value : Integer);
-    procedure SetU_Version(const Value : String);
-    procedure SetCd_Operador(const Value : Integer);
-    procedure SetDt_Cadastro(const Value : TDateTime);
-    procedure SetDs_Municipio(const Value : String);
-    procedure SetDs_Sigla(const Value : String);
-    procedure SetCd_Estado(const Value : Integer);
+    fId_Estado: Integer;
   public
     constructor Create(AOwner: TComponent); override;
     destructor Destroy; override;
     function GetMapping() : PmMapping; override;
   published
-    property Cd_Municipio : Integer read fCd_Municipio write SetCd_Municipio;
-    property U_Version : String read fU_Version write SetU_Version;
-    property Cd_Operador : Integer read fCd_Operador write SetCd_Operador;
-    property Dt_Cadastro : TDateTime read fDt_Cadastro write SetDt_Cadastro;
-    property Ds_Municipio : String read fDs_Municipio write SetDs_Municipio;
-    property Ds_Sigla : String read fDs_Sigla write SetDs_Sigla;
-    property Cd_Estado : Integer read fCd_Estado write SetCd_Estado;
+    property Id_Municipio : Integer read fId_Municipio write fId_Municipio;
+    property U_Version : String read fU_Version write fU_Version;
+    property Cd_Operador : Integer read fCd_Operador write fCd_Operador;
+    property Dt_Cadastro : TDateTime read fDt_Cadastro write fDt_Cadastro;
+    property Cd_Municipio : Integer read fCd_Municipio write fCd_Municipio;
+    property Ds_Municipio : String read fDs_Municipio write fDs_Municipio;
+    property Ds_Sigla : String read fDs_Sigla write fDs_Sigla;
+    property Id_Estado : Integer read fId_Estado write fId_Estado;
   end;
 
   TMunicipios = class(TList)
@@ -69,20 +64,16 @@ begin
     Nome := 'MUNICIPIO';
   end;
 
-  Result.Chaves := TmChaves.Create;
-  with Result.Chaves do begin
-    Add('Cd_Municipio', 'CD_MUNICIPIO');
-  end;
-
   Result.Campos := TmCampos.Create;
   with Result.Campos do begin
-    Add('Cd_Municipio', 'CD_MUNICIPIO');
-    Add('U_Version', 'U_VERSION');
-    Add('Cd_Operador', 'CD_OPERADOR');
-    Add('Dt_Cadastro', 'DT_CADASTRO');
-    Add('Ds_Municipio', 'DS_MUNICIPIO');
-    Add('Ds_Sigla', 'DS_SIGLA');
-    Add('Cd_Estado', 'CD_ESTADO');
+    Add('Id_Municipio', 'ID_MUNICIPIO', ftKey);
+    Add('U_Version', 'U_VERSION', ftNul);
+    Add('Cd_Operador', 'CD_OPERADOR', ftReq);
+    Add('Dt_Cadastro', 'DT_CADASTRO', ftReq);
+    Add('Cd_Municipio', 'CD_MUNICIPIO', ftReq);
+    Add('Ds_Municipio', 'DS_MUNICIPIO', ftReq);
+    Add('Ds_Sigla', 'DS_SIGLA', ftReq);
+    Add('Id_Estado', 'ID_ESTADO', ftReq);
   end;
 
   Result.Relacoes := TmRelacoes.Create;
@@ -91,41 +82,6 @@ begin
 end;
 
 //--
-
-procedure TMunicipio.SetCd_Municipio(const Value : Integer);
-begin
-  fCd_Municipio := Value;
-end;
-
-procedure TMunicipio.SetU_Version(const Value : String);
-begin
-  fU_Version := Value;
-end;
-
-procedure TMunicipio.SetCd_Operador(const Value : Integer);
-begin
-  fCd_Operador := Value;
-end;
-
-procedure TMunicipio.SetDt_Cadastro(const Value : TDateTime);
-begin
-  fDt_Cadastro := Value;
-end;
-
-procedure TMunicipio.SetDs_Municipio(const Value : String);
-begin
-  fDs_Municipio := Value;
-end;
-
-procedure TMunicipio.SetDs_Sigla(const Value : String);
-begin
-  fDs_Sigla := Value;
-end;
-
-procedure TMunicipio.SetCd_Estado(const Value : Integer);
-begin
-  fCd_Estado := Value;
-end;
 
 { TMunicipios }
 
