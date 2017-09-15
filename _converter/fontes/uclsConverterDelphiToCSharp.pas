@@ -3,44 +3,21 @@ unit uclsConverterDelphiToCSharp;
 interface
 
 uses
-  Classes, SysUtils, StrUtils;
+  Classes, SysUtils, StrUtils,
+  uclsConverterAbstract;
 
 type
-  TpString = (tsAll, tsIni, tsFin, tsPar);
-
-  TrVariavel = record
-    Ent : String;
-    Sai : String;
-  end;
-
-  TrConverter = record
-    Tip : TpString;
-    Ent : String;
-    Sai : String;
-  end;
-
-  TcConverterDelphiToCSharp = class
-  public
-    class function Converter(AString : String) : String;
+  TcConverterDelphiToCSharp = class(TcConverterAbstract)
+  protected
+    function GetConverterArray : TrConverterArray; override;
   end;
 
 implementation
 
-uses
-  mString, ufrmProcessando;
-
 { TcConverterDelphiToCSharp }
 
 const
-  TrVariavelArray : Array [0..4] Of TrVariavel = (
-    (Ent: 'boolean'; Sai: 'bool'),
-    (Ent: 'tdatetime'; Sai: 'DateTime'),
-    (Ent: 'integer'; Sai: 'int'),
-    (Ent: 'real'; Sai: 'double'),
-    (Ent: 'string'; Sai: 'string')
-  );
-
-  TrConverterArray : Array [0..79] Of TrConverter = (
+  RConverterArray : Array [0..79] Of TrConverter = (
     (Tip: tsPar; Ent: 'class function {cls}.{cod}({par}) : {ret};'; Sai: 'public static {ret} {cod}({par})'),
     (Tip: tsPar; Ent: 'function {cls}.{cod}({par}) : {ret};'; Sai: 'public {ret} {cod}({par})'),
     (Tip: tsPar; Ent: 'function {cls}.{cod} : {ret};'; Sai: 'public {ret} {cod}'),
@@ -61,11 +38,11 @@ const
     (Tip: tsPar; Ent: 'constructor {cls}.Create;'; Sai: 'public {cls}()'),
     (Tip: tsPar; Ent: 'destructor {cls}.Destroy;'; Sai: 'public ~{cls}()'),
 
-    (Tip: tsAll; Ent: 'boolean'; Sai: 'bool'),
-    (Tip: tsAll; Ent: 'tdatetime'; Sai: 'DateTime'),
-    (Tip: tsAll; Ent: 'integer'; Sai: 'int'),
-    (Tip: tsAll; Ent: 'real'; Sai: 'double'),
-    (Tip: tsAll; Ent: 'string'; Sai: 'string'),
+    (Tip: tsVar; Ent: 'boolean'; Sai: 'bool'),
+    (Tip: tsVar; Ent: 'tdatetime'; Sai: 'DateTime'),
+    (Tip: tsVar; Ent: 'integer'; Sai: 'int'),
+    (Tip: tsVar; Ent: 'real'; Sai: 'double'),
+    (Tip: tsVar; Ent: 'string'; Sai: 'string'),
 
     (Tip: tsPar; Ent: 'while ({exp}) do begin'; Sai: 'while ({exp}) {'),
     (Tip: tsPar; Ent: 'while {exp} do begin'; Sai: 'while ({exp}) {'),
@@ -143,74 +120,13 @@ const
     (Tip: tsAll; Ent: ' := '; Sai: ' = ')
   );
 
-class function TcConverterDelphiToCSharp.Converter(AString: String): String;
+function TcConverterDelphiToCSharp.GetConverterArray;
 var
-  vStringPart : TmStringPart;
-  vConverter : TrConverter;
-  vLista : TStringList;
-  vLinha, vEnt, vSai : String;
-  I, J : Integer;
+  I: Integer;
 begin
-  vLista := TStringList.Create;
-  vLista.Text := AString;
-
-  if Pos('implementation', vLista.Text) > 0 then
-    while (vLista.Count > 0) and (vLista[0] <> 'implementation') do
-      vLista.Delete(0);
-
-  ufrmProcessando.Instance.Inciar(vLista.Count);
-
-  for I := 0 to vLista.Count - 1 do begin
-    vLinha := vLista[I];
-
-    if (I mod 100) = 0 then
-      ufrmProcessando.Instance.Posicionar(I + 1);
-
-    for J := 1 to High(TrConverterArray) do begin
-      vConverter := TrConverterArray[J];
-
-      case (vConverter.Tip) of
-        tsAll : begin
-          if Pos(lowerCase(vConverter.Ent), lowerCase(vLinha)) > 0 then
-            vLinha := StringReplace(vLinha, vConverter.Ent, vConverter.Sai, [rfReplaceAll, rfIgnoreCase]);
-        end;
-
-        tsIni : begin
-          if TmString.StartsWiths(vLinha, vConverter.Ent) then
-            vLinha := StringReplace(vLinha, vConverter.Ent, vConverter.Sai, [rfReplaceAll, rfIgnoreCase]);
-        end;
-
-        tsFin : begin
-          if TmString.EndWiths(vLinha, vConverter.Ent) then
-            vLinha := StringReplace(vLinha, vConverter.Ent, vConverter.Sai, [rfReplaceAll, rfIgnoreCase]);
-        end;
-
-        tsPar : begin // mString
-          vStringPart := TmStringPart.Create(vConverter.Ent, vConverter.Sai);
-          if Pos(lowerCase(vStringPart._Ini), lowerCase(vLinha)) = 0 then
-            Continue;
-
-          vEnt := vStringPart.GetEnt(vLinha);
-          if vEnt = '' then
-            Continue;
-
-          vSai := vStringPart.GetSai(vLinha);
-          if vSai = '' then
-            Continue;
-
-          if Pos(lowerCase(vEnt), lowerCase(vLinha)) > 0 then
-            vLinha := StringReplace(vLinha, vEnt, vSai, [rfReplaceAll, rfIgnoreCase]);
-        end;
-      end;
-    end;
-
-    vLista[I] := vLinha;
-  end;
-
-  ufrmProcessando.Destroy;
-
-  Result := vLista.Text;
-  vLista.Free;
+  ClrConverterArray(Result);
+  for I := 1 to High(RConverterArray) do
+    AddConverterArray(Result, RConverterArray[I]);
 end;
 
 end.

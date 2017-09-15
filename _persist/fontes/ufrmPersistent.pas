@@ -11,8 +11,10 @@ type
     BtnTestar: TButton;
     BtnGerar: TButton;
     MemoFiltro: TMemo;
-    procedure BtnTestarClick(Sender: TObject);
+    ComboBoxTtipo: TComboBox;
+    procedure FormCreate(Sender: TObject);
     procedure BtnGerarClick(Sender: TObject);
+    procedure BtnTestarClick(Sender: TObject);
   private
   public
   end;
@@ -25,8 +27,29 @@ implementation
 {$R *.dfm}
 
 uses
-  uclsPersistent, mContexto, mMapping,
+  uclsPersistentAbstract,
+  uclsPersistentCollection,
+  uclsPersistentContexto,
+  mContexto, mMapping,
   uPessoa, uProduto, uTransacao, uTransitem;
+
+procedure TF_Persistent.FormCreate(Sender: TObject);
+begin
+  with ComboBoxTtipo do begin
+    Items.Clear;
+    Items.AddObject('Collection', TC_PersistentCollection.Create);
+    Items.AddObject('Contexto', TC_PersistentContexto.Create);
+    ItemIndex := 0;
+  end;
+end;
+
+procedure TF_Persistent.BtnGerarClick(Sender: TObject);
+begin
+  with ComboBoxTtipo do
+    TC_PersistentAbstract(Items.Objects[ItemIndex]).gerar(MemoFiltro.Text);
+
+  ShowMessage('Geracao efetuada com sucesso!');
+end;
 
 procedure TF_Persistent.BtnTestarClick(Sender: TObject);
 var
@@ -96,13 +119,6 @@ begin
   vContexto.Free;
 
   ShowMessage('Testado com sucesso!');
-end;
-
-procedure TF_Persistent.BtnGerarClick(Sender: TObject);
-begin
-  TC_Persistent.gerar(MemoFiltro.Text);
-
-  ShowMessage('Geracao efetuada com sucesso!');
 end;
 
 end.

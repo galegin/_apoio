@@ -217,7 +217,7 @@ begin
   xParam := '';
   putitem(xParam, 'CD_EMPVALOR');
   putitem(xParam, 'CD_MOTIVO_ALTVALOR_CMP');
-  xParam := cADMSVCO001.Instance.GetParametro(xParam);
+  xParam := activateCmp('ADMSVCO001', 'GetParametro', xParam);
 
   gCdEmpresaValorSis := xParam.CD_EMPVALOR;
   gCdMotivoAltValor := xParam.CD_MOTIVO_ALTVALOR_CMP;
@@ -270,7 +270,7 @@ begin
   putitem(xParamEmp, 'IN_GRAVA_OBS_NF');
   putitem(xParamEmp, 'DS_LST_OPER_OBRIG_NF_REF');
   putitem(xParamEmp, 'PR_TOTAL_TRIBUTO');
-  xParamEmp := cADMSVCO001.Instance.GetParamEmpresa(piCdEmpresa, xParamEmp);
+  xParamEmp := activateCmp('ADMSVCO001', 'GetParamEmpresa', piCdEmpresa, xParamEmp);
 
   gNrItemQuebraNf := xParamEmp.NR_ITEM_QUEBRA_NF;
   gCdEmpresaValorEmp := xParamEmp.CD_EMPRESA_VALOR;
@@ -342,7 +342,7 @@ begin
       if (vTpDctoFiscal > 0) then begin
         fF_TMP_NR08.Append();
         fF_TMP_NR08.NR_08 := vTpDctoFiscal;
-        fF_TMP_NR08.Consultar();
+        fF_TMP_NR08.Consultar(nil);
       end;
       delitemGld(gDsLstModDctoFiscal, 1);
     until (gDsLstModDctoFiscal = '');
@@ -444,7 +444,7 @@ begin
     viParams.CD_EMPRESA := fTRA_TRANSACAO.CD_EMPRESA;
     viParams.NR_TRANSACAO := fTRA_TRANSACAO.NR_TRANSACAO;
     viParams.DT_TRANSACAO := fTRA_TRANSACAO.DT_TRANSACAO;
-    voParams := cSICSVCO005.Instance.buscaSequencia(viParams); 
+    voParams := activateCmp('SICSVCO005', 'buscaSequencia', viParams); 
     if (itemXmlF('status', voParams) < 0) then begin
       raise Exception.Create(itemXml('message', voParams));
       exit;
@@ -460,7 +460,7 @@ begin
     if (gNrFatura = 0) then begin
       viParams := '';
       viParams.NM_ENTIDADE := 'FIS_NF';
-      voParams := cGERSVCO031.Instance.getNumSeq(viParams); 
+      voParams := activateCmp('GERSVCO031', 'getNumSeq', viParams); 
       if (itemXmlF('status', voParams) < 0) then begin
         raise Exception.Create(itemXml('message', voParams));
         exit;
@@ -594,7 +594,7 @@ begin
     if (fTRA_TRANSITEM.CD_TIPI = '') then begin
       viParams := '';
       viParams.CD_PRODUTO := fTRA_TRANSITEM.CD_PRODUTO;
-      voParams := cGERSVCO046.Instance.buscaDadosProduto(viParams);
+      voParams := activateCmp('GERSVCO046', 'buscaDadosProduto', viParams);
       if (itemXmlF('status', voParams) < 0) then begin
         raise Exception.Create(itemXml('message', voParams));
         exit;
@@ -605,7 +605,7 @@ begin
       vCdTIPI := fTRA_TRANSITEM.CD_TIPI;
       viParams := '';
       viParams.CD_TIPI := vCdTIPI;
-      voParams := cGERSVCO046.Instance.buscaDadosFiscal(viParams);
+      voParams := activateCmp('GERSVCO046', 'buscaDadosFiscal', viParams);
       if (itemXmlF('status', voParams) < 0) then begin
         raise Exception.Create(itemXml('message', voParams));
         exit;
@@ -614,12 +614,12 @@ begin
       vDsTIPI := voParams.DS_TIPI;
     end;
   end;
-  if (fTRA_TRANSITEM.CD_BARRAPRD <> '') and (item_a('CD_ESPECIE', tTRA_TRANSITEM) <> gCdEspecieServico) then begin
+  if (fTRA_TRANSITEM.CD_BARRAPRD <> '') and (fTRA_TRANSITEM.CD_ESPECIE <> gCdEspecieServico) then begin
     vCdTIPI := fTRA_TRANSITEM.CD_TIPI;
     if (vCdTIPI <> '') then begin
       viParams := '';
       viParams.CD_TIPI := vCdTIPI;
-      voParams := cGERSVCO046.Instance.buscaDadosFiscal(viParams);
+      voParams := activateCmp('GERSVCO046', 'buscaDadosFiscal', viParams);
       if (itemXmlF('status', voParams) < 0) then begin
         raise Exception.Create(itemXml('message', voParams));
         exit;
@@ -650,7 +650,7 @@ begin
   fFIS_NFITEM.QT_FATURADO := fTRA_TRANSITEM.QT_SOLICITADA;
   fFIS_NFITEM.VL_TOTALBRUTO := fTRA_TRANSITEM.VL_TOTALBRUTO;
   fFIS_NFITEM.VL_TOTALLIQUIDO := fTRA_TRANSITEM.VL_TOTALLIQUIDO;
-  fFIS_NFITEM.VL_TOTALDESC := fTRA_TRANSITEM.VL_TOTALDESC + item_f('VL_TOTALDESCCAB', tTRA_TRANSITEM);
+  fFIS_NFITEM.VL_TOTALDESC := fTRA_TRANSITEM.VL_TOTALDESC + fTRA_TRANSITEM.VL_TOTALDESCCAB;
 
   if (gInCalcTributo) then begin
     vVlValor := (fFIS_NFITEM.VL_TOTALBRUTO * gPrTotalTributo) / 100;
@@ -669,28 +669,28 @@ begin
   if (vInCopiaValor) and (gTpAgrupamentoItemNF <> 1) then begin
     fFIS_NFITEM.VL_UNITBRUTO := fTRA_TRANSITEM.VL_UNITBRUTO;
     fFIS_NFITEM.VL_UNITLIQUIDO := fTRA_TRANSITEM.VL_UNITLIQUIDO;
-    fFIS_NFITEM.VL_UNITDESC := fTRA_TRANSITEM.VL_UNITDESC + item_f('VL_UNITDESCCAB', tTRA_TRANSITEM);
+    fFIS_NFITEM.VL_UNITDESC := fTRA_TRANSITEM.VL_UNITDESC + fTRA_TRANSITEM.VL_UNITDESCCAB;
   end else begin
-    vVlValor := fFIS_NFITEM.VL_TOTALBRUTO / item_f('QT_FATURADO', tFIS_NFITEM);
+    vVlValor := fFIS_NFITEM.VL_TOTALBRUTO / fFIS_NFITEM.QT_FATURADO;
     fFIS_NFITEM.VL_UNITBRUTO := rounded(vVlValor, 6);
-    vVlValor := fFIS_NFITEM.VL_TOTALLIQUIDO / item_f('QT_FATURADO', tFIS_NFITEM);
+    vVlValor := fFIS_NFITEM.VL_TOTALLIQUIDO / fFIS_NFITEM.QT_FATURADO;
     fFIS_NFITEM.VL_UNITLIQUIDO := rounded(vVlValor, 6);
-    vVlValor := fFIS_NFITEM.VL_TOTALDESC / item_f('QT_FATURADO', tFIS_NFITEM);
+    vVlValor := fFIS_NFITEM.VL_TOTALDESC / fFIS_NFITEM.QT_FATURADO;
     fFIS_NFITEM.VL_UNITDESC := rounded(vVlValor, 6);
   end;
-  vVlValor := (fFIS_NFITEM.VL_TOTALDESC / item_f('VL_TOTALBRUTO', tFIS_NFITEM)) * 100;
+  vVlValor := (fFIS_NFITEM.VL_TOTALDESC / fFIS_NFITEM.VL_TOTALBRUTO) * 100;
   fFIS_NFITEM.PR_DESCONTO := rounded(vVlValor, 6);
 
   if (gInExibeResumoCfopNF) then begin
     fF_TMP_NR09.Append();
     fF_TMP_NR09.NR_GERAL := fFIS_NFITEM.CD_CFOP;
-    fF_TMP_NR09.Consultar();
+    fF_TMP_NR09.Consultar(nil);
     if (xStatus = -7) then begin
-      fF_TMP_NR09.Consultar();
+      fF_TMP_NR09.Consultar(nil);
     end;
 
-    fF_TMP_NR09.VL_TOTAL := fF_TMP_NR09.VL_TOTAL + item_f('VL_TOTALLIQUIDO', tFIS_NFITEM);
-    fF_TMP_NR09.QT_ITEM := fF_TMP_NR09.QT_ITEM + item_f('QT_FATURADO', tFIS_NFITEM);
+    fF_TMP_NR09.VL_TOTAL := fF_TMP_NR09.VL_TOTAL + fFIS_NFITEM.VL_TOTALLIQUIDO;
+    fF_TMP_NR09.QT_ITEM := fF_TMP_NR09.QT_ITEM + fFIS_NFITEM.QT_FATURADO;
   end;
   if (fTRA_TRANSITEM.CD_ESPECIE = gCdEspecieServico) then begin
     if (fTRA_TRANSITEM.CD_PRODUTO = 0) then begin
@@ -728,7 +728,7 @@ begin
           fPRD_PRODUTOCLAS.Limpar();
           fPRD_PRODUTOCLAS.CD_PRODUTO := fTRA_TRANSITEM.CD_PRODUTO;
           fPRD_PRODUTOCLAS.CD_TIPOCLAS := fPRD_TIPOCLAS.CD_TIPOCLAS;
-          fPRD_PRODUTOCLAS.Listar();
+          fPRD_PRODUTOCLAS.Listar(nil);
           if (xStatus >= 0) then begin
             vCdItem := vCdItem + fPRD_PRODUTOCLAS.CD_CLASSIFICACAO + ' ';
             vDsItem := vDsItem + fPRD_CLASSIFICACAO.DS_CLASSIFICACAO + ' ';
@@ -745,7 +745,7 @@ begin
           viParams := '';
           viParams.CD_PRODUTO := fTRA_TRANSITEM.CD_PRODUTO;
           viParams.CD_PESSOA := fTRA_TRANSACAO.CD_PESSOA;
-          voParams := cPRDSVCO023.Instance.buscaDadosProduto(viParams);
+          voParams := activateCmp('PRDSVCO023', 'buscaDadosProduto', viParams);
           if (itemXmlF('status', voParams) < 0) then begin
             raise Exception.Create(itemXml('message', voParams));
             exit;
@@ -756,7 +756,7 @@ begin
           viParams := '';
           viParams.CD_SEQGRUPO := fTRA_TRANSITEM.CD_SEQGRUPO;
           viParams.CD_PESSOA := fTRA_TRANSACAO.CD_PESSOA;
-          voParams := cPRDSVCO023.Instance.buscaDadosGrupo(viParams);
+          voParams := activateCmp('PRDSVCO023', 'buscaDadosGrupo', viParams);
           if (itemXmlF('status', voParams) < 0) then begin
             raise Exception.Create(itemXml('message', voParams));
             exit;
@@ -778,7 +778,7 @@ begin
         end else begin
           viParams.CD_SEQGRUPO := fTRA_TRANSITEM.CD_SEQGRUPO;
         end;
-        voParams := cPRDSVCO015.Instance.retornaDadosPedidoG(viParams);
+        voParams := activateCmp('PRDSVCO015', 'retornaDadosPedidoG', viParams);
         if (itemXmlF('status', voParams) < 0) then begin
           raise Exception.Create(itemXml('message', voParams));
           exit;
@@ -794,7 +794,7 @@ begin
         end;
         fFIS_NFITEM.DS_PRODUTO := fTRA_TRANSITEM.DS_PRODUTO;
       end;
-      if (fFIS_NFITEM.CD_PRODUTO = '') or (item_a('DS_PRODUTO', tFIS_NFITEM) = '') then begin
+      if (fFIS_NFITEM.CD_PRODUTO = '') or (fFIS_NFITEM.DS_PRODUTO = '') then begin
         if (gTpAgrupamento = 'F') or (gTpAgrupamento = '') then begin
           if (fTRA_TRANSITEM.CD_PRODUTO = 0) then begin
             fFIS_NFITEM.CD_PRODUTO := fTRA_TRANSITEM.CD_BARRAPRD;
@@ -830,7 +830,7 @@ begin
     if (gPrAplicMvaSubTrib <> '') and (gUfOrigem = 'SC') and (gUfDestino = 'SC') and ((gTpRegimeTrib = 2) or (gTpRegimeTrib = 3)) then begin
       fTMP_NR08.Append();
       fTMP_NR08.NR_08 := 1;
-      fTMP_NR08.Consultar();
+      fTMP_NR08.Consultar(nil);
       if (xStatus = 0) then begin
         if (gDsAdicionalRegra = '') then begin
           gDsAdicionalRegra := gDsEmbLegalSubTrib;
@@ -847,9 +847,9 @@ begin
       if (vCdProduto <> 0) then begin
         fFIS_NFITEMPROD.Append();
         fFIS_NFITEMPROD.CD_PRODUTO := vCdProduto;
-        fFIS_NFITEMPROD.Consultar();
+        fFIS_NFITEMPROD.Consultar(nil);
         if (xStatus = -7) then begin
-          fFIS_NFITEMPROD.Consultar();
+          fFIS_NFITEMPROD.Consultar(nil);
         end;
         fFIS_NFITEMPROD.CD_EMPFAT := fTRA_TRANSACAO.CD_EMPFAT;
         fFIS_NFITEMPROD.CD_GRUPOEMPRESA := fTRA_TRANSACAO.CD_GRUPOEMPRESA;
@@ -870,7 +870,7 @@ begin
           viParams := '';
           viParams.CD_PRODUTO := fFIS_NFITEMPROD.CD_PRODUTO;
           viParams.CD_OPERACAO := fGER_OPERACAO.CD_OPERACAO;
-          voParams := cFISSVCO033.Instance.buscaRegraFiscalProduto(viParams);
+          voParams := activateCmp('FISSVCO033', 'buscaRegraFiscalProduto', viParams);
           if (itemXmlF('status', voParams) < 0) then begin
             raise Exception.Create(itemXml('message', voParams));
             exit;
@@ -881,11 +881,11 @@ begin
           if (vCdRegraFiscalProd <> 0) then begin
             fTMP_NR08.Append();
             fTMP_NR08.NR_08 := vCdRegraFiscalProd;
-            fTMP_NR08.Consultar();
+            fTMP_NR08.Consultar(nil);
             if (xStatus = 0) then begin
               viParams := '';
               viParams.CD_REGRAFISCAL := vCdRegraFiscalProd;
-              voParams := cFISSVCO033.Instance.buscaDadosRegraFiscal(viParams);
+              voParams := activateCmp('FISSVCO033', 'buscaDadosRegraFiscal', viParams);
               if (itemXmlF('status', voParams) < 0) then begin
                 raise Exception.Create(itemXml('message', voParams));
                 exit;
@@ -920,16 +920,16 @@ begin
             end;
           end;
         end;
-        if (fGER_OPERACAO.TP_MODALIDADE = 'C') and (item_a('TP_OPERACAO', tGER_OPERACAO) = 'S') and (item_a('TP_MODALIDADE', tGER_S_OPERACAO) = 'C') then begin
+        if (fGER_OPERACAO.TP_MODALIDADE = 'C') and (fGER_OPERACAO.TP_OPERACAO = 'S') and (fGER_S_OPERACAO.TP_MODALIDADE = 'C') then begin
           fFIS_NFITEMCONT.Append();
           fFIS_NFITEMCONT.CD_EMPRESA := fFIS_NFITEMPROD.CD_EMPRESA;
           fFIS_NFITEMCONT.NR_FATURA := fFIS_NFITEMPROD.NR_FATURA;
           fFIS_NFITEMCONT.DT_FATURA := fFIS_NFITEMPROD.DT_FATURA;
           fFIS_NFITEMCONT.NR_ITEM := fFIS_NFITEMPROD.NR_ITEM;
           fFIS_NFITEMCONT.CD_PRODUTO := fFIS_NFITEMPROD.CD_PRODUTO;
-          fFIS_NFITEMCONT.Consultar();
+          fFIS_NFITEMCONT.Consultar(nil);
           if (xStatus = -7) then begin
-            fFIS_NFITEMCONT.Consultar();
+            fFIS_NFITEMCONT.Consultar(nil);
           end;
           fFIS_NFITEMCONT.CD_EMPFAT := fFIS_NFITEMPROD.CD_EMPFAT;
           fFIS_NFITEMCONT.CD_GRUPOEMPRESA := fFIS_NFITEMPROD.CD_GRUPOEMPRESA;
@@ -942,12 +942,12 @@ begin
         if (vDsLstItemUn <> '') then begin
           fFIS_NFITEMUN.Append();
 
-          fFIS_NFITEMUN.Consultar();
+          fFIS_NFITEMUN.Consultar(nil);
           if (xStatus = -7) then begin
-            fFIS_NFITEMUN.Consultar();
+            fFIS_NFITEMUN.Consultar(nil);
           end;
 
-          vDsLstItemUn := fFIS_NFITEMUN.GetValues();
+          fFIS_NFITEMUN.SetValues(vDsLstItemUn);
           fFIS_NFITEMUN.CD_OPERADOR := PARAM_GLB.CD_USUARIO;
           fFIS_NFITEMUN.DT_CADASTRO := Now;
         end;
@@ -966,13 +966,13 @@ begin
             fFIS_NFITEMVL.Append();
             fFIS_NFITEMVL.TP_VALOR := vTpValor;
             fFIS_NFITEMVL.CD_VALOR := vCdValor;
-            fFIS_NFITEMVL.Consultar();
+            fFIS_NFITEMVL.Consultar(nil);
             if (xStatus = -7) then begin
-              fFIS_NFITEMVL.Consultar();
+              fFIS_NFITEMVL.Consultar(nil);
             end;
             delitem(vDsRegistro, 'TP_VALOR');
             delitem(vDsRegistro, 'CD_VALOR');
-            vDsRegistro := fFIS_NFITEMVL.GetValues();
+            fFIS_NFITEMVL.SetValues(vDsRegistro);
             fFIS_NFITEMVL.CD_EMPFAT := fTRA_TRANSACAO.CD_EMPFAT;
             fFIS_NFITEMVL.CD_GRUPOEMPRESA := fTRA_TRANSACAO.CD_GRUPOEMPRESA;
             fFIS_NFITEMVL.CD_OPERADOR := PARAM_GLB.CD_USUARIO;
@@ -986,7 +986,7 @@ begin
             viParams.CD_PRODUTO := fFIS_NFITEMPROD.CD_PRODUTO;
             viParams.DS_LSTSERIAL := vDsLstSerial;
             viParams.TP_SITUACAO := 1;
-            voParams := cPRDSVCO021.Instance.incluiSerialProduto(viParams);
+            voParams := activateCmp('PRDSVCO021', 'incluiSerialProduto', viParams);
             if (itemXmlF('status', voParams) < 0) then begin
               raise Exception.Create(itemXml('message', voParams));
               exit;
@@ -997,9 +997,9 @@ begin
             getitem(vDsRegistro, vDsLstSerial, 1);
             fFIS_NFITEMSERIAL.Append();
             fFIS_NFITEMSERIAL.NR_SEQUENCIA := fFIS_NFITEMSERIAL.RecNo;
-            fFIS_NFITEMSERIAL.Consultar();
+            fFIS_NFITEMSERIAL.Consultar(nil);
             if (xStatus = -7) then begin
-              fFIS_NFITEMSERIAL.Consultar();
+              fFIS_NFITEMSERIAL.Consultar(nil);
             end;
             fFIS_NFITEMSERIAL.CD_EMPFAT := vDsRegistro.CD_EMPFAT;
             fFIS_NFITEMSERIAL.CD_GRUPOEMPRESA := vDsRegistro.CD_GRUPOEMPRESA;
@@ -1013,13 +1013,13 @@ begin
         if (vDsLstDespesa <> '') then begin
           repeat
             getitem(vDsRegistro, vDsLstDespesa, 1);
-            if (vDsRegistro.CD_DESPESAITEM > 0) and (itemXmlF('CD_CCUSTO', vDsRegistro) > 0) then begin
+            if (vDsRegistro.CD_DESPESAITEM > 0) and (vDsRegistro.CD_CCUSTO > 0) then begin
               fFIS_NFITEMDESP.Append();
               fFIS_NFITEMDESP.CD_DESPESAITEM := vDsRegistro.CD_DESPESAITEM;
               fFIS_NFITEMDESP.CD_CCUSTO := vDsRegistro.CD_CCUSTO;
-              fFIS_NFITEMDESP.Consultar();
+              fFIS_NFITEMDESP.Consultar(nil);
               if (xStatus = -7) then begin
-                fFIS_NFITEMDESP.Consultar();
+                fFIS_NFITEMDESP.Consultar(nil);
               end;
               fFIS_NFITEMDESP.PR_RATEIO := vDsRegistro.PR_RATEIO;
               fFIS_NFITEMDESP.CD_OPERADOR := PARAM_GLB.CD_USUARIO;
@@ -1034,9 +1034,9 @@ begin
             if (gInItemLote) then begin
               fFIS_NFITEMPLOTE.Append();
               fFIS_NFITEMPLOTE.NR_SEQUENCIA := fFIS_NFITEMPLOTE.RecNo;
-              fFIS_NFITEMPLOTE.Consultar();
+              fFIS_NFITEMPLOTE.Consultar(nil);
               if (xStatus = -7) then begin
-                fFIS_NFITEMPLOTE.Consultar();
+                fFIS_NFITEMPLOTE.Consultar(nil);
               end;
               fFIS_NFITEMPLOTE.CD_EMPLOTE := vDsRegistro.CD_EMPLOTE;
               fFIS_NFITEMPLOTE.NR_LOTE := vDsRegistro.NR_LOTE;
@@ -1051,9 +1051,9 @@ begin
               if (gTinTinturaria = 1) then begin
                 fFIS_NFITEMPLOTE.Append();
                 fFIS_NFITEMPLOTE.NR_SEQUENCIA := fFIS_NFITEMPLOTE.RecNo;
-                fFIS_NFITEMPLOTE.Consultar();
+                fFIS_NFITEMPLOTE.Consultar(nil);
                 if (xStatus = -7) then begin
-                  fFIS_NFITEMPLOTE.Consultar();
+                  fFIS_NFITEMPLOTE.Consultar(nil);
                 end;
                 fFIS_NFITEMPLOTE.CD_EMPLOTE := vDsRegistro.CD_EMPLOTE;
                 fFIS_NFITEMPLOTE.NR_LOTE := vDsRegistro.NR_LOTE;
@@ -1086,9 +1086,9 @@ begin
             fFIS_NFITEMPPRDFIN.Append();
             fFIS_NFITEMPPRDFIN.CD_EMPPRDFIN := vDsRegistro.CD_EMPPRDFIN;
             fFIS_NFITEMPPRDFIN.NR_PRDFIN := vDsRegistro.NR_PRDFIN;
-            fFIS_NFITEMPPRDFIN.Consultar();
+            fFIS_NFITEMPPRDFIN.Consultar(nil);
             if (xStatus = -7) then begin
-              fFIS_NFITEMPPRDFIN.Consultar();
+              fFIS_NFITEMPPRDFIN.Consultar(nil);
             end;
             fFIS_NFITEMPPRDFIN.CD_OPERADOR := PARAM_GLB.CD_USUARIO;
             fFIS_NFITEMPPRDFIN.DT_CADASTRO := Now;
@@ -1117,16 +1117,16 @@ begin
     fFIS_NF.VL_BASEICMS := 0;
   end;
 
-  fFIS_NF.VL_TOTALPRODUTO := fFIS_NF.VL_TOTALPRODUTO + item_f('VL_TOTALLIQUIDO', tFIS_NFITEM);
-  fFIS_NF.VL_DESCONTO := fFIS_NF.VL_DESCONTO + item_f('VL_TOTALDESC', tFIS_NFITEM);
-  fFIS_NF.QT_FATURADO := fFIS_NF.QT_FATURADO + item_f('QT_FATURADO', tFIS_NFITEM);
+  fFIS_NF.VL_TOTALPRODUTO := fFIS_NF.VL_TOTALPRODUTO + fFIS_NFITEM.VL_TOTALLIQUIDO;
+  fFIS_NF.VL_DESCONTO := fFIS_NF.VL_DESCONTO + fFIS_NFITEM.VL_TOTALDESC;
+  fFIS_NF.QT_FATURADO := fFIS_NF.QT_FATURADO + fFIS_NFITEM.QT_FATURADO;
 
   if (fFIS_NFITEM.CD_DECRETO <> '') and (gInGravaDsDecretoObsNf) and (vInObs) then begin
     fFIS_DECRETO.Append();
     fFIS_DECRETO.CD_DECRETO := fFIS_NFITEM.CD_DECRETO;
-    fFIS_DECRETO.Consultar();
+    fFIS_DECRETO.Consultar(nil);
     if (xStatus = -7) then begin
-      fFIS_DECRETO.Consultar();
+      fFIS_DECRETO.Consultar(nil);
     end;
   end;
 
@@ -1134,7 +1134,7 @@ begin
   if not (fTMP_NR09.IsEmpty()) then begin
     fTMP_NR09.First();
     while not t.EOF do begin
-      fTMP_NR09.SetValues(vDsRegistro);
+      vDsRegistro := fTMP_NR09.GetValues();
       putitem(vLstImposto, vDsRegistro);
       fTMP_NR09.Next();
     end;
@@ -1181,8 +1181,8 @@ begin
     while not t.EOF do begin
       fFIS_NFITEMPROD.First();
 
-      vVlFatorLiquido := (fFIS_NFITEM.VL_DESPACESSOR + item_f('VL_FRETE', tFIS_NFITEM) + item_f('VL_SEGURO', tFIS_NFITEM) + item_f('VL_TOTALLIQUIDO', tFIS_NFITEM)) / item_f('VL_TOTALLIQUIDO', tFIS_NFITEM);
-      vVlFatorBruto := (fFIS_NFITEM.VL_DESPACESSOR + item_f('VL_FRETE', tFIS_NFITEM) + item_f('VL_SEGURO', tFIS_NFITEM) + item_f('VL_TOTALBRUTO', tFIS_NFITEM)) / item_f('VL_TOTALBRUTO', tFIS_NFITEM);
+      vVlFatorLiquido := (fFIS_NFITEM.VL_DESPACESSOR + fFIS_NFITEM.VL_FRETE + fFIS_NFITEM.VL_SEGURO + fFIS_NFITEM.VL_TOTALLIQUIDO) / fFIS_NFITEM.VL_TOTALLIQUIDO;
+      vVlFatorBruto := (fFIS_NFITEM.VL_DESPACESSOR + fFIS_NFITEM.VL_FRETE + fFIS_NFITEM.VL_SEGURO + fFIS_NFITEM.VL_TOTALBRUTO) / fFIS_NFITEM.VL_TOTALBRUTO;
 
       if (fGER_OPERACAO.IN_CALCIMPOSTO) then begin
         if (fFIS_NFITEM.DS_LSTIMPOSTO <> '') then begin
@@ -1222,22 +1222,22 @@ begin
                 end;
               end;
               if (fFIS_NFITEMIMPOST.CD_IMPOSTO = 1) then begin
-                fFIS_NF.VL_BASEICMS := fFIS_NF.VL_BASEICMS + item_f('VL_BASECALC', tFIS_NFITEMIMPOST);
-                fFIS_NF.VL_ICMS := fFIS_NF.VL_ICMS + item_f('VL_IMPOSTO', tFIS_NFITEMIMPOST);
+                fFIS_NF.VL_BASEICMS := fFIS_NF.VL_BASEICMS + fFIS_NFITEMIMPOST.VL_BASECALC;
+                fFIS_NF.VL_ICMS := fFIS_NF.VL_ICMS + fFIS_NFITEMIMPOST.VL_IMPOSTO;
 
                 if (fFIS_NFITEMIMPOST.VL_BASECALC > 0) then begin
                   fTMP_CSTALIQ.Append();
                   fTMP_CSTALIQ.CD_CST := fFIS_NFITEM.CD_CST;
                   fTMP_CSTALIQ.PR_ALIQUOTA := fFIS_NFITEMIMPOST.PR_ALIQUOTA;
-                  fTMP_CSTALIQ.Consultar();
+                  fTMP_CSTALIQ.Consultar(nil);
                   if (xStatus = -7) then begin
-                    fTMP_CSTALIQ.Consultar();
+                    fTMP_CSTALIQ.Consultar(nil);
                   end;
-                  fTMP_CSTALIQ.VL_BASECALC := fTMP_CSTALIQ.VL_BASECALC + item_f('VL_BASECALC', tFIS_NFITEMIMPOST);
-                  fTMP_CSTALIQ.VL_IMPOSTO := fTMP_CSTALIQ.VL_IMPOSTO + item_f('VL_IMPOSTO', tFIS_NFITEMIMPOST);
+                  fTMP_CSTALIQ.VL_BASECALC := fTMP_CSTALIQ.VL_BASECALC + fFIS_NFITEMIMPOST.VL_BASECALC;
+                  fTMP_CSTALIQ.VL_IMPOSTO := fTMP_CSTALIQ.VL_IMPOSTO + fFIS_NFITEMIMPOST.VL_IMPOSTO;
                 end;
                 if (fFIS_NFITEM.CD_DECRETO = 6142) then begin
-                  vVlDiferimento := fFIS_NFITEMIMPOST.VL_BASECALC * item_f('PR_ALIQUOTA', tFIS_NFITEMIMPOST) / 100;
+                  vVlDiferimento := fFIS_NFITEMIMPOST.VL_BASECALC * fFIS_NFITEMIMPOST.PR_ALIQUOTA / 100;
                   vVlDiferimento := rounded(vVlDiferimento, 6);
                   gVlICMSDiferido := gVlICMSDiferido + vVlDiferimento;
                 end;
@@ -1248,15 +1248,15 @@ begin
                 fTMP_K02.PR_REDUBASE := fFIS_NFITEMIMPOST.PR_REDUBASE;
               end;
               if (fFIS_NFITEMIMPOST.CD_IMPOSTO = 2) then begin
-                fFIS_NF.VL_BASEICMSSUBS := fFIS_NF.VL_BASEICMSSUBS + item_f('VL_BASECALC', tFIS_NFITEMIMPOST);
-                fFIS_NF.VL_ICMSSUBST := fFIS_NF.VL_ICMSSUBST + item_f('VL_IMPOSTO', tFIS_NFITEMIMPOST);
+                fFIS_NF.VL_BASEICMSSUBS := fFIS_NF.VL_BASEICMSSUBS + fFIS_NFITEMIMPOST.VL_BASECALC;
+                fFIS_NF.VL_ICMSSUBST := fFIS_NF.VL_ICMSSUBST + fFIS_NFITEMIMPOST.VL_IMPOSTO;
                 fTMP_K02.Append();
                 fTMP_K02.NR_CHAVE01 := fFIS_NFITEMIMPOST.CD_IMPOSTO;
                 fTMP_K02.NR_CHAVE02 := fFIS_NFITEM.RecNo;
                 fTMP_K02.VL_GERAL := fFIS_NFITEMIMPOST.VL_IMPOSTO;
               end;
               if (fFIS_NFITEMIMPOST.CD_IMPOSTO = 3) then begin
-                fFIS_NF.VL_IPI := fFIS_NF.VL_IPI + item_f('VL_IMPOSTO', tFIS_NFITEMIMPOST);
+                fFIS_NF.VL_IPI := fFIS_NF.VL_IPI + fFIS_NFITEMIMPOST.VL_IMPOSTO;
                 fTMP_K02.Append();
                 fTMP_K02.NR_CHAVE01 := fFIS_NFITEMIMPOST.CD_IMPOSTO;
                 fTMP_K02.NR_CHAVE02 := fFIS_NFITEM.RecNo;
@@ -1291,7 +1291,7 @@ begin
         viParams.TP_MODDCTOFISCAL := fFIS_NF.TP_MODDCTOFISCAL;
         viParams.NR_CODIGOFISCAL := gNrCodFiscal;
         viParams.DT_INIVIGENCIA := fFIS_NF.DT_EMISSAO;
-        voParams := cFISSVCO015.Instance.calculaImpostoItem(viParams);
+        voParams := activateCmp('FISSVCO015', 'calculaImpostoItem', viParams);
         if (itemXmlF('status', voParams) < 0) then begin
           raise Exception.Create(itemXml('message', voParams)); exit;
         end;
@@ -1305,7 +1305,7 @@ begin
             getitem(vDsRegistro, vDsLstImposto, 1);
 
             fFIS_NFITEMIMPOST.Append();
-            vDsRegistro := fFIS_NFITEMIMPOST.GetValues();
+            fFIS_NFITEMIMPOST.SetValues(vDsRegistro);
             fFIS_NFITEMIMPOST.CD_EMPFAT := fTRA_TRANSACAO.CD_EMPFAT;
             fFIS_NFITEMIMPOST.CD_GRUPOEMPRESA := fTRA_TRANSACAO.CD_GRUPOEMPRESA;
             fFIS_NFITEMIMPOST.CD_OPERADOR := PARAM_GLB.CD_USUARIO;
@@ -1329,17 +1329,17 @@ begin
                 fTMP_CSTALIQ.Append();
                 fTMP_CSTALIQ.CD_CST := vCdCST;
                 fTMP_CSTALIQ.PR_ALIQUOTA := fFIS_NFITEMIMPOST.PR_ALIQUOTA;
-                fTMP_CSTALIQ.Consultar();
+                fTMP_CSTALIQ.Consultar(nil);
                 if (xStatus = -7) then begin
-                  fTMP_CSTALIQ.Consultar();
+                  fTMP_CSTALIQ.Consultar(nil);
                 end;
-                fTMP_CSTALIQ.VL_BASECALC := fTMP_CSTALIQ.VL_BASECALC + item_f('VL_BASECALC', tFIS_NFITEMIMPOST);
-                fTMP_CSTALIQ.VL_IMPOSTO := fTMP_CSTALIQ.VL_IMPOSTO + item_f('VL_IMPOSTO', tFIS_NFITEMIMPOST);
+                fTMP_CSTALIQ.VL_BASECALC := fTMP_CSTALIQ.VL_BASECALC + fFIS_NFITEMIMPOST.VL_BASECALC;
+                fTMP_CSTALIQ.VL_IMPOSTO := fTMP_CSTALIQ.VL_IMPOSTO + fFIS_NFITEMIMPOST.VL_IMPOSTO;
               end;
-              fFIS_NF.VL_BASEICMS := fFIS_NF.VL_BASEICMS + item_f('VL_BASECALC', tFIS_NFITEMIMPOST);
-              fFIS_NF.VL_ICMS := fFIS_NF.VL_ICMS + item_f('VL_IMPOSTO', tFIS_NFITEMIMPOST);
+              fFIS_NF.VL_BASEICMS := fFIS_NF.VL_BASEICMS + fFIS_NFITEMIMPOST.VL_BASECALC;
+              fFIS_NF.VL_ICMS := fFIS_NF.VL_ICMS + fFIS_NFITEMIMPOST.VL_IMPOSTO;
               if (vCdDecreto = 6142) then begin
-                vVlDiferimento := fFIS_NFITEMIMPOST.VL_BASECALC * item_f('PR_ALIQUOTA', tFIS_NFITEMIMPOST) / 100;
+                vVlDiferimento := fFIS_NFITEMIMPOST.VL_BASECALC * fFIS_NFITEMIMPOST.PR_ALIQUOTA / 100;
                 vVlDiferimento := rounded(vVlDiferimento, 6);
                 gVlICMSDiferido := gVlICMSDiferido + vVlDiferimento;
               end;
@@ -1350,15 +1350,15 @@ begin
               fTMP_K02.PR_REDUBASE := fFIS_NFITEMIMPOST.PR_REDUBASE;
             end;
             if (fFIS_NFITEMIMPOST.CD_IMPOSTO = 2) then begin
-              fFIS_NF.VL_BASEICMSSUBS := fFIS_NF.VL_BASEICMSSUBS + item_f('VL_BASECALC', tFIS_NFITEMIMPOST);
-              fFIS_NF.VL_ICMSSUBST := fFIS_NF.VL_ICMSSUBST + item_f('VL_IMPOSTO', tFIS_NFITEMIMPOST);
+              fFIS_NF.VL_BASEICMSSUBS := fFIS_NF.VL_BASEICMSSUBS + fFIS_NFITEMIMPOST.VL_BASECALC;
+              fFIS_NF.VL_ICMSSUBST := fFIS_NF.VL_ICMSSUBST + fFIS_NFITEMIMPOST.VL_IMPOSTO;
               fTMP_K02.Append();
               fTMP_K02.NR_CHAVE01 := fFIS_NFITEMIMPOST.CD_IMPOSTO;
               fTMP_K02.NR_CHAVE02 := fFIS_NFITEM.RecNo;
               fTMP_K02.VL_GERAL := fFIS_NFITEMIMPOST.VL_IMPOSTO;
             end;
             if (fFIS_NFITEMIMPOST.CD_IMPOSTO = 3) then begin
-              fFIS_NF.VL_IPI := fFIS_NF.VL_IPI + item_f('VL_IMPOSTO', tFIS_NFITEMIMPOST);
+              fFIS_NF.VL_IPI := fFIS_NF.VL_IPI + fFIS_NFITEMIMPOST.VL_IMPOSTO;
               fTMP_K02.Append();
               fTMP_K02.NR_CHAVE01 := fFIS_NFITEMIMPOST.CD_IMPOSTO;
               fTMP_K02.NR_CHAVE02 := fFIS_NFITEM.RecNo;
@@ -1423,9 +1423,9 @@ begin
       if (gInGravaDsDecretoObsNf) and (fFIS_NFITEM.CD_DECRETO > 0) then begin
         fFIS_DECRETO.Append();
         fFIS_DECRETO.CD_DECRETO := fFIS_NFITEM.CD_DECRETO;
-        fFIS_DECRETO.Consultar();
+        fFIS_DECRETO.Consultar(nil);
         if (xStatus = -7) then begin
-          fFIS_DECRETO.Consultar();
+          fFIS_DECRETO.Consultar(nil);
         end;
       end;
 
@@ -1490,7 +1490,7 @@ begin
           fFIS_NFITEM.First();
           fFIS_NFITEMIMPOST.Append();
           fFIS_NFITEMIMPOST.CD_IMPOSTO := 1;
-          fFIS_NFITEMIMPOST.Consultar();
+          fFIS_NFITEMIMPOST.Consultar(nil);
           if (xStatus = 4) then begin
             fFIS_NFITEMIMPOST.VL_BASECALC := fFIS_NFITEMIMPOST.VL_BASECALC + vVlAplicado;
           end else begin
@@ -1526,7 +1526,7 @@ begin
           fFIS_NFITEM.First();
           fFIS_NFITEMIMPOST.Append();
           fFIS_NFITEMIMPOST.CD_IMPOSTO := 1;
-          fFIS_NFITEMIMPOST.Consultar();
+          fFIS_NFITEMIMPOST.Consultar(nil);
           if (xStatus = 4) then begin
             fFIS_NFITEMIMPOST.VL_IMPOSTO := fFIS_NFITEMIMPOST.VL_IMPOSTO + vVlAplicado;
           end else begin
@@ -1562,7 +1562,7 @@ begin
           fFIS_NFITEM.First();
           fFIS_NFITEMIMPOST.Append();
           fFIS_NFITEMIMPOST.CD_IMPOSTO := 2;
-          fFIS_NFITEMIMPOST.Consultar();
+          fFIS_NFITEMIMPOST.Consultar(nil);
           if (xStatus = 4) then begin
             fFIS_NFITEMIMPOST.VL_BASECALC := fFIS_NFITEMIMPOST.VL_BASECALC + vVlAplicado;
           end else begin
@@ -1598,7 +1598,7 @@ begin
           fFIS_NFITEM.First();
           fFIS_NFITEMIMPOST.Append();
           fFIS_NFITEMIMPOST.CD_IMPOSTO := 2;
-          fFIS_NFITEMIMPOST.Consultar();
+          fFIS_NFITEMIMPOST.Consultar(nil);
           if (xStatus = 4) then begin
             fFIS_NFITEMIMPOST.VL_IMPOSTO := fFIS_NFITEMIMPOST.VL_IMPOSTO + vVlAplicado;
           end else begin
@@ -1634,7 +1634,7 @@ begin
           fFIS_NFITEM.First();
           fFIS_NFITEMIMPOST.Append();
           fFIS_NFITEMIMPOST.CD_IMPOSTO := 3;
-          fFIS_NFITEMIMPOST.Consultar();
+          fFIS_NFITEMIMPOST.Consultar(nil);
           if (xStatus = 4) then begin
             fFIS_NFITEMIMPOST.VL_IMPOSTO := fFIS_NFITEMIMPOST.VL_IMPOSTO + vVlAplicado;
           end else begin
@@ -1725,11 +1725,11 @@ begin
   if not (fFIS_NFITEM.IsEmpty()) then begin
     fFIS_NFITEM.First();
     while not t.EOF do begin
-      vVlCalc := (fFIS_NFITEM.VL_TOTALLIQUIDO / item_f('VL_TOTALPRODUTO', tFIS_NF)) * item_f('VL_DESPACESSOR', tFIS_NF);
+      vVlCalc := (fFIS_NFITEM.VL_TOTALLIQUIDO / fFIS_NF.VL_TOTALPRODUTO) * fFIS_NF.VL_DESPACESSOR;
       fFIS_NFITEM.VL_DESPACESSOR := rounded(vVlCalc, 2);
-      vVlCalc := (fFIS_NFITEM.VL_TOTALLIQUIDO / item_f('VL_TOTALPRODUTO', tFIS_NF)) * item_f('VL_FRETE', tFIS_NF);
+      vVlCalc := (fFIS_NFITEM.VL_TOTALLIQUIDO / fFIS_NF.VL_TOTALPRODUTO) * fFIS_NF.VL_FRETE;
       fFIS_NFITEM.VL_FRETE := rounded(vVlCalc, 2);
-      vVlCalc := (fFIS_NFITEM.VL_TOTALLIQUIDO / item_f('VL_TOTALPRODUTO', tFIS_NF)) * item_f('VL_SEGURO', tFIS_NF);
+      vVlCalc := (fFIS_NFITEM.VL_TOTALLIQUIDO / fFIS_NF.VL_TOTALPRODUTO) * fFIS_NF.VL_SEGURO;
       fFIS_NFITEM.VL_SEGURO := rounded(vVlCalc, 2);
       vVlRestoDespAcessor := vVlRestoDespAcessor - fFIS_NFITEM.VL_DESPACESSOR;
       vVlRestoFrete := vVlRestoFrete - fFIS_NFITEM.VL_FRETE;
@@ -1769,7 +1769,7 @@ var
 begin
   vDtSistema := PARAM_GLB.DT_SISTEMA;
 
-  if (fGER_S_OPERACAO.IN_FINANCEIRO <> True) and (item_b('IN_FINANCEIRO', tGER_OPERACAO) <> True) then begin
+  if (fGER_S_OPERACAO.IN_FINANCEIRO <> True) and (fGER_OPERACAO.IN_FINANCEIRO <> True) then begin
     exit;
   end;
 
@@ -1777,7 +1777,7 @@ begin
   viParams.CD_EMPRESA := fTRA_TRANSACAO.CD_EMPRESA;
   viParams.NR_TRANSACAO := fTRA_TRANSACAO.NR_TRANSACAO;
   viParams.DT_TRANSACAO := fTRA_TRANSACAO.DT_TRANSACAO;
-  voParams := cGERSVCO058.Instance.buscaValorFinanceiroTransacao(viParams); 
+  voParams := activateCmp('GERSVCO058', 'buscaValorFinanceiroTransacao', viParams); 
   if (itemXmlF('status', voParams) < 0) then begin
     raise Exception.Create(itemXml('message', voParams));
     exit;
@@ -1824,7 +1824,7 @@ begin
       fFIS_NFVENCTO.VL_PARCELA := fFIS_NFVENCTO.VL_PARCELA + vVlResto;
     end;
   end else begin
-    //raise Exception.Create('Transação ' + fTRA_TRANSACAO.CD_EMPFAT + ' / ' + item_a('NR_TRANSACAO' + ' / ' + tTRA_TRANSACAO) + ' não possui parcelamento!', cDS_METHOD);
+    //raise Exception.Create('Transação ' + fTRA_TRANSACAO.CD_EMPFAT + ' / ' + fTRA_TRANSACAO.NR_TRANSACAO + ' não possui parcelamento!' + ' / ' + cDS_METHOD);
     //exit;
   end;
 
@@ -1844,16 +1844,16 @@ begin
     viParams.CD_EMPRESA := fTRA_TRANSACAO.CD_EMPRESA;
     viParams.NR_TRANSACAO := fTRA_TRANSACAO.NR_TRANSACAO;
     viParams.DT_TRANSACAO := fTRA_TRANSACAO.DT_TRANSACAO;
-    voParams := cTRASVCO004.Instance.gravaEnderecoTransacao(viParams);
+    voParams := activateCmp('TRASVCO004', 'gravaEnderecoTransacao', viParams);
     if (itemXmlF('status', voParams) < 0) then begin
       raise Exception.Create(itemXml('message', voParams));
       exit;
     end;
 
     fTRA_REMDES.Limpar();
-    fTRA_REMDES.Listar();
+    fTRA_REMDES.Listar(nil);
     if (itemXmlF('status', voParams) < 0) then begin
-      raise Exception.Create('Transação ' + fTRA_TRANSACAO.CD_EMPFAT + ' / ' + item_a('NR_TRANSACAO' + ' / ' + tTRA_TRANSACAO) + ' não possui dados do emitende/destinatário!', cDS_METHOD);
+      raise Exception.Create('Transação ' + fTRA_TRANSACAO.CD_EMPFAT + ' / ' + fTRA_TRANSACAO.NR_TRANSACAO + ' não possui dados do emitende/destinatário!' + ' / ' + cDS_METHOD);
       exit;
     end;
   end;
@@ -1941,7 +1941,7 @@ begin
           fOBS_NF.NR_LINHA := vNrLinha;
           fOBS_NF.CD_EMPFAT := fTRA_TRANSACAO.CD_EMPFAT;
           fOBS_NF.CD_GRUPOEMPRESA := fTRA_TRANSACAO.CD_GRUPOEMPRESA;
-          vDsLinha := 'CST ' + fTMP_CSTALIQ.CD_CST + ' ICMS ' + item_a('PR_ALIQUOTA', tTMP_CSTALIQ);
+          vDsLinha := 'CST ' + fTMP_CSTALIQ.CD_CST + ' ICMS ' + fTMP_CSTALIQ.PR_ALIQUOTA;
           gVlBaseCalc := rounded(fTMP_CSTALIQ.VL_BASECALC, 2);
           gVlImposto := rounded(fTMP_CSTALIQ.VL_IMPOSTO, 2);
           vDsLinha := vDsLinha + ' ' + FloatToStr(gVlBaseCalc) + ' = ' + FloatToStr(gVlImposto);
@@ -1963,7 +1963,7 @@ begin
           fOBS_NF.CD_GRUPOEMPRESA := fTRA_TRANSACAO.CD_GRUPOEMPRESA;
           gVlImposto := rounded(fF_TMP_NR09.VL_TOTAL, 2);
           if (gInExibeQtdProdNF) then begin
-            vDsLinha := 'CFOP ' + fF_TMP_NR09.NR_GERAL + ' = ' + FloatToStr(gVlImposto) + ' QT: ' + item_a('QT_ITEM', tF_TMP_NR09);
+            vDsLinha := 'CFOP ' + fF_TMP_NR09.NR_GERAL + ' = ' + FloatToStr(gVlImposto) + ' QT: ' + fF_TMP_NR09.QT_ITEM;
           end else begin
             vDsLinha := 'CFOP ' + fF_TMP_NR09.NR_GERAL + ' = ' + FloatToStr(gVlImposto);
           end;
@@ -2047,7 +2047,7 @@ begin
       fFIS_DECRETO.Next();
     end;
   end;
-  if (gInIncluiIpiDevSimp) and (fGER_OPERACAO.TP_MODALIDADE = 3)and(gInOptSimples) and (item_f('VL_IPI', tFIS_NF) > 0) then begin
+  if (gInIncluiIpiDevSimp) and (fGER_OPERACAO.TP_MODALIDADE = 3)and(gInOptSimples) and (fFIS_NF.VL_IPI > 0) then begin
     vDsLinha := 'VALOR DO IPI: Rg ' + fFIS_NF.VL_IPI + '';
 
     fOBS_NF.Append();
@@ -2209,7 +2209,7 @@ begin
   if (fFIS_NF.IsEmpty()) then begin
     exit;
   end;
-  if (gInIncluiIpiDevSimp) and (fGER_OPERACAO.TP_MODALIDADE = 3)and(gInOptSimples) and (item_f('VL_IPI', tFIS_NF) > 0) then begin
+  if (gInIncluiIpiDevSimp) and (fGER_OPERACAO.TP_MODALIDADE = 3)and(gInOptSimples) and (fFIS_NF.VL_IPI > 0) then begin
     fFIS_NFITEM.First();
     while(xStatus >= 0) do begin
 
@@ -2342,7 +2342,7 @@ begin
 
   if (gDtEncerramento <> 0) and (gDtSaidaEntrada <> 0) then begin
     if (gDtSaidaEntrada <= gDtEncerramento) then begin
-      raise Exception.Create('NF/Fatura ' + fFIS_NF.NR_NF + '/' + item_a('NR_FATURA' + ' / ' + tFIS_NF) + ' possui data de movimento anterior ao encerramento do livro fiscal!', cDS_METHOD);
+      raise Exception.Create('NF/Fatura ' + fFIS_NF.NR_NF + '/' + fFIS_NF.NR_FATURA + ' possui data de movimento anterior ao encerramento do livro fiscal!' + ' / ' + cDS_METHOD);
       exit;
     end;
   end;
@@ -2360,9 +2360,9 @@ begin
       fPRD_TIPOCLAS.CD_TIPOCLAS := vCdTipoClas;
       vCdTipoClas := '';
     end;
-    fPRD_TIPOCLAS.Consultar();
+    fPRD_TIPOCLAS.Consultar(nil);
     if (xStatus = -7) then begin
-      fPRD_TIPOCLAS.Consultar();
+      fPRD_TIPOCLAS.Consultar(nil);
     end else begin
       fPRD_TIPOCLAS.Remove();
     end;
@@ -2394,7 +2394,7 @@ begin
     fTRA_TRANSACAO.CD_EMPRESA := vCdEmpresa;
     fTRA_TRANSACAO.NR_TRANSACAO := vNrTransacao;
     fTRA_TRANSACAO.DT_TRANSACAO := vDtTransacao;
-    fTRA_TRANSACAO.Listar();
+    fTRA_TRANSACAO.Listar(nil);
     if (itemXmlF('status', voParams) < 0) then begin
       raise Exception.Create('Transação ' + FloatToStr(vNrTransacao) + ' não cadastrada!' + ' / ' + cDS_METHOD);
       exit;
@@ -2402,7 +2402,7 @@ begin
 
     viParams := '';
     viParams.CD_PESSOA := fTRA_TRANSACAO.CD_PESSOA;
-    voParams := cPESSVCO005.Instance.buscaDadosPessoa(viParams); 
+    voParams := activateCmp('PESSVCO005', 'buscaDadosPessoa', viParams); 
     if (itemXmlF('status', voParams) < 0) then begin
       raise Exception.Create(itemXml('message', voParams));
       exit;
@@ -2418,7 +2418,7 @@ begin
 
     viParams := '';
     viParams.CD_CLIENTE := fTRA_TRANSACAO.CD_PESSOA;
-    voParams := cFISSVCO032.Instance.carregaPesCliente(viParams); 
+    voParams := activateCmp('FISSVCO032', 'carregaPesCliente', viParams); 
     if (itemXmlF('status', voParams) < 0) then begin
       raise Exception.Create(itemXml('message', voParams));
       exit;
@@ -2439,7 +2439,7 @@ begin
     if (fTRA_TRANSACAO.TP_ORIGEMEMISSAO = 1) then begin
       if (gCdModeloNF > 0) then begin
         fGER_MODNFC.CD_MODELONF := gCdModeloNF;
-        fGER_MODNFC.Listar();
+        fGER_MODNFC.Listar(nil);
         if (xStatus >= 0) then begin
           if (fGER_MODNFC.IN_AGRUPA_GRUPO = '') then begin
             raise Exception.Create('Modelo de NF ' + FloatToStr(gCdModeloNF) + ' não possui tipo de agrupamento de item informado. Utilize o GERFM016 para cadastrar!' + ' / ' + cDS_METHOD);
@@ -2483,9 +2483,9 @@ begin
       fV_FIS_NFREMDES.TP_SITUACAO := '!=X';
       fV_FIS_NFREMDES.TP_ORIGEMEMISSAO := 2;
       fV_FIS_NFREMDES.TP_MODDCTOFISCAL := gTpModDctoFiscalLocal;
-      fV_FIS_NFREMDES.Listar();
+      fV_FIS_NFREMDES.Listar(nil);
       if (xStatus >= 0) then begin
-        if ((fV_FIS_NFREMDES.NR_FATURA <> item_f('NR_FATURA', tFIS_NF)) or (fV_FIS_NFREMDES.DT_FATURA <> item_a('DT_FATURA', tFIS_NF)))
+        if ((fV_FIS_NFREMDES.NR_FATURA <> fFIS_NF.NR_FATURA) or (fV_FIS_NFREMDES.DT_FATURA <> fFIS_NF.DT_FATURA))
         and (fV_FIS_NFREMDES.TP_MODDCTOFISCAL <> 6) and (fV_FIS_NFREMDES.TP_MODDCTOFISCAL <> 21) and (fV_FIS_NFREMDES.TP_MODDCTOFISCAL <> 22) then begin
           raise Exception.Create('NF ' + FloatToStr(gNrNf) + ' ' + FloatToStr(gCdSerie) + ' Modelo Documento ' + FloatToStr(gTpModDctoFiscallocal) + ' já cadastrada para a pessoa ' + fV_FIS_NFREMDES.CD_PESSOAREMDES + '!' + ' / ' + cDS_METHOD);
           exit;
@@ -2496,7 +2496,7 @@ begin
 
     fGER_OPERACAO.Limpar();
     fGER_OPERACAO.CD_OPERACAO := fTRA_TRANSACAO.CD_OPERACAO;
-    fGER_OPERACAO.Listar();
+    fGER_OPERACAO.Listar(nil);
     if (itemXmlF('status', voParams) < 0) then begin
       raise Exception.Create('Operaçao ' + fGER_OPERACAO.CD_OPERACAO + ' não cadastrada!' + ' / ' + cDS_METHOD);
       exit;
@@ -2533,12 +2533,12 @@ begin
         fTRA_TRANSITEM.DT_TRANSACAO := fTRA_TRANSACAO.DT_TRANSACAO;
         fTRA_TRANSITEM.CD_PRODUTO := '=';
         fTRA_TRANSITEM.CD_BARRAPRD := '=';
-        fTRA_TRANSITEM.Listar();
+        fTRA_TRANSITEM.Listar(nil);
         if (xStatus >= 0) then begin
           vInItemDescritivo := True;
         end;
         fTRA_TRANSITEM.Limpar();
-        fTRA_TRANSITEM.Listar();
+        fTRA_TRANSITEM.Listar(nil);
       end;
       if (fGER_S_OPERACAO.TP_MODALIDADE = '6') then begin
         gInQuebraCFOP := False;
@@ -2555,7 +2555,7 @@ begin
 
     viParams := '';
     viParams.CD_REGRAFISCAL := vCdRegraFiscal;
-    voParams := cFISSVCO033.Instance.buscaDadosRegraFiscal(viParams);
+    voParams := activateCmp('FISSVCO033', 'buscaDadosRegraFiscal', viParams);
     if (itemXmlF('status', voParams) < 0) then begin
       raise Exception.Create(itemXml('message', voParams));
       exit;
@@ -2653,7 +2653,7 @@ begin
         if not (fF_TMP_NR08.IsEmpty()) then begin
           fF_TMP_NR08.Append();
           fF_TMP_NR08.NR_08 := fFIS_NF.TP_MODDCTOFISCAL;
-          fF_TMP_NR08.Consultar();
+          fF_TMP_NR08.Consultar(nil);
           if (xStatus = 4) then begin
             gInNFe := True;
           end else begin
@@ -2710,25 +2710,25 @@ begin
           vDsRegistroItem.QT_FATURADO := fTRA_TRANSITEM.QT_SOLICITADA;
           vDsRegistroItem.VL_UNITBRUTO := fTRA_TRANSITEM.VL_UNITBRUTO;
           vDsRegistroItem.VL_UNITLIQUIDO := fTRA_TRANSITEM.VL_UNITLIQUIDO;
-          vVlCalc := fTRA_TRANSITEM.VL_UNITDESC + item_f('VL_UNITDESCCAB', tTRA_TRANSITEM);
+          vVlCalc := fTRA_TRANSITEM.VL_UNITDESC + fTRA_TRANSITEM.VL_UNITDESCCAB;
           vDsRegistroItem.VL_TOTALBRUTO := fTRA_TRANSITEM.VL_TOTALBRUTO;
           vDsRegistroItem.VL_TOTALLIQUIDO := fTRA_TRANSITEM.VL_TOTALLIQUIDO;
           vDsRegistroItem.VL_UNITDESC := vVlCalc;
-          vVlCalc := fTRA_TRANSITEM.VL_TOTALDESC + item_f('VL_TOTALDESCCAB', tTRA_TRANSITEM);
+          vVlCalc := fTRA_TRANSITEM.VL_TOTALDESC + fTRA_TRANSITEM.VL_TOTALDESCCAB;
           vDsRegistroItem.VL_TOTALDESC := vVlCalc;
           if not (fTRA_ITEMIMPOSTO.IsEmpty()) then begin
             fTRA_ITEMIMPOSTO.First();
             while not t.EOF do begin
               fTMP_NR09.Append();
               fTMP_NR09.NR_GERAL := fTRA_ITEMIMPOSTO.CD_IMPOSTO;
-              fTMP_NR09.Consultar();
+              fTMP_NR09.Consultar(nil);
               fTMP_NR09.PR_ALIQUOTA := fTRA_ITEMIMPOSTO.PR_ALIQUOTA;
               fTMP_NR09.PR_BASECALC := fTRA_ITEMIMPOSTO.PR_BASECALC;
               fTMP_NR09.PR_REDUBASE := fTRA_ITEMIMPOSTO.PR_REDUBASE;
-              fTMP_NR09.VL_BASECALC := fTMP_NR09.VL_BASECALC + item_f('VL_BASECALC', tTRA_ITEMIMPOSTO);
-              fTMP_NR09.VL_ISENTO := fTMP_NR09.VL_ISENTO   + item_f('VL_ISENTO', tTRA_ITEMIMPOSTO);
-              fTMP_NR09.VL_OUTRO := fTMP_NR09.VL_OUTRO    + item_f('VL_OUTRO', tTRA_ITEMIMPOSTO);
-              fTMP_NR09.VL_IMPOSTO := fTMP_NR09.VL_IMPOSTO  + item_f('VL_IMPOSTO', tTRA_ITEMIMPOSTO);
+              fTMP_NR09.VL_BASECALC := fTMP_NR09.VL_BASECALC + fTRA_ITEMIMPOSTO.VL_BASECALC;
+              fTMP_NR09.VL_ISENTO := fTMP_NR09.VL_ISENTO   + fTRA_ITEMIMPOSTO.VL_ISENTO;
+              fTMP_NR09.VL_OUTRO := fTMP_NR09.VL_OUTRO    + fTRA_ITEMIMPOSTO.VL_OUTRO;
+              fTMP_NR09.VL_IMPOSTO := fTMP_NR09.VL_IMPOSTO  + fTRA_ITEMIMPOSTO.VL_IMPOSTO;
               fTMP_NR09.CD_CST := fTRA_ITEMIMPOSTO.CD_CST;
 
               fTRA_ITEMIMPOSTO.Next();
@@ -2766,8 +2766,8 @@ begin
             end;
             vDsRegistroItem.DS_LSTVALOR := vDsLstValor;
           end else begin
-            if (fTRA_TRANSACAO.TP_OPERACAO = 'E') and ((fGER_OPERACAO.TP_MODALIDADE = 2) or (fGER_OPERACAO.TP_MODALIDADE = 4)) and (item_a('CD_ESPECIE', tTRA_TRANSITEM) <> gCdEspecieServico) then begin
-              raise Exception.Create('Produto ' + fTRA_TRANSITEM.CD_PRODUTO + ' da transação ' + item_a('NR_TRANSACAO' + ' / ' + tTRA_TRANSITEM) + ' não possui valores cadastrados', cDS_METHOD);
+            if (fTRA_TRANSACAO.TP_OPERACAO = 'E') and ((fGER_OPERACAO.TP_MODALIDADE = 2) or (fGER_OPERACAO.TP_MODALIDADE = 4)) and (fTRA_TRANSITEM.CD_ESPECIE <> gCdEspecieServico) then begin
+              raise Exception.Create('Produto ' + fTRA_TRANSITEM.CD_PRODUTO + ' da transação ' + fTRA_TRANSITEM.NR_TRANSACAO + ' não possui valores cadastrados' + ' / ' + cDS_METHOD);
               exit;
             end;
           end;
@@ -2820,7 +2820,7 @@ begin
             fTRA_ITEMSELOENT.First();
             while not t.EOF do begin
               vDsRegistro := '';
-              fTRA_ITEMSELOENT.SetValues(vDsRegistro);
+              vDsRegistro := fTRA_ITEMSELOENT.GetValues();
               putitem(vDsLstSelo,  vDsRegistro);
               fTRA_ITEMSELOENT.Next();
             end;
@@ -2831,7 +2831,7 @@ begin
           viParams.NR_TRANSACAO := fTRA_TRANSITEM.NR_TRANSACAO;
           viParams.DT_TRANSACAO := fTRA_TRANSITEM.DT_TRANSACAO;
           viParams.NR_ITEM := fTRA_TRANSITEM.NR_ITEM;
-          voParams := cTRASVCO016.Instance.buscaDespesaItem(viParams); 
+          voParams := activateCmp('TRASVCO016', 'buscaDespesaItem', viParams); 
           if (itemXmlF('status', voParams) < 0) then begin
             raise Exception.Create(itemXml('message', voParams));
             exit;
@@ -2848,29 +2848,29 @@ begin
           if (fTRA_TRANSITEM.RecNo < fTRA_TRANSITEM.RecordCount()) then begin
             if (gTpAgrupamentoItemNF = 01) then begin
               if (gTpAgrupamento = 'T') then begin
-                if (fTRA_TRANSITEM.CD_CFOP = vCdCFOPProx) and (item_f('CD_SEQGRUPO', tTRA_TRANSITEM) = vCdSeqGrupoProx) and (item_f('CD_COMPVEND', tTRA_TRANSITEM) = vCdCompVendProx) then begin
+                if (fTRA_TRANSITEM.CD_CFOP = vCdCFOPProx) and (fTRA_TRANSITEM.CD_SEQGRUPO = vCdSeqGrupoProx) and (fTRA_TRANSITEM.CD_COMPVEND = vCdCompVendProx) then begin
                   vInAgrupaItem := True;
                 end;
               end else if (gTpAgrupamento = 'C') then begin
-                if (fTRA_TRANSITEM.CD_CFOP = vCdCFOPProx) and (item_f('CD_SEQGRUPO', tTRA_TRANSITEM) = vCdSeqGrupoProx) and (item_f('CD_COMPVEND', tTRA_TRANSITEM) = vCdCompVendProx) and (fTRA_TRANSITEM.CD_COR = vCdCorProx) then begin
+                if (fTRA_TRANSITEM.CD_CFOP = vCdCFOPProx) and (fTRA_TRANSITEM.CD_SEQGRUPO = vCdSeqGrupoProx) and (fTRA_TRANSITEM.CD_COMPVEND = vCdCompVendProx) and (fTRA_TRANSITEM.CD_COR = vCdCorProx) then begin
                   vInAgrupaItem := True;
                 end;
               end else if (gTpAgrupamento = 'A') then begin
-                if (fTRA_TRANSITEM.CD_CFOP = vCdCFOPProx) and (item_f('CD_SEQGRUPO', tTRA_TRANSITEM) = vCdSeqGrupoProx)   and (item_f('CD_COMPVEND', tTRA_TRANSITEM) = vCdCompVendProx) and (item_f('CD_TAMANHO', tTRA_TRANSITEM) = vCdTamanhoProx) then begin
+                if (fTRA_TRANSITEM.CD_CFOP = vCdCFOPProx) and (fTRA_TRANSITEM.CD_SEQGRUPO = vCdSeqGrupoProx)   and (fTRA_TRANSITEM.CD_COMPVEND = vCdCompVendProx) and (fTRA_TRANSITEM.CD_TAMANHO = vCdTamanhoProx) then begin
                   vInAgrupaItem := True;
                 end;
               end;
             end else begin
               if (gTpAgrupamento = 'T') then begin
-                if (fTRA_TRANSITEM.CD_CFOP = vCdCFOPProx) and (item_f('CD_SEQGRUPO', tTRA_TRANSITEM) = vCdSeqGrupoProx) and (item_f('VL_UNITLIQUIDO', tTRA_TRANSITEM) = vVlUnitProx) and (item_f('CD_COMPVEND', tTRA_TRANSITEM) = vCdCompVendProx) then begin
+                if (fTRA_TRANSITEM.CD_CFOP = vCdCFOPProx) and (fTRA_TRANSITEM.CD_SEQGRUPO = vCdSeqGrupoProx) and (fTRA_TRANSITEM.VL_UNITLIQUIDO = vVlUnitProx) and (fTRA_TRANSITEM.CD_COMPVEND = vCdCompVendProx) then begin
                   vInAgrupaItem := True;
                 end;
               end else if (gTpAgrupamento = 'C') then begin
-                if (fTRA_TRANSITEM.CD_CFOP = vCdCFOPProx) and (item_f('CD_SEQGRUPO', tTRA_TRANSITEM) = vCdSeqGrupoProx) and (item_f('VL_UNITLIQUIDO', tTRA_TRANSITEM) = vVlUnitProx) and (item_f('CD_COMPVEND', tTRA_TRANSITEM) = vCdCompVendProx) and (fTRA_TRANSITEM.CD_COR = vCdCorProx) then begin
+                if (fTRA_TRANSITEM.CD_CFOP = vCdCFOPProx) and (fTRA_TRANSITEM.CD_SEQGRUPO = vCdSeqGrupoProx) and (fTRA_TRANSITEM.VL_UNITLIQUIDO = vVlUnitProx) and (fTRA_TRANSITEM.CD_COMPVEND = vCdCompVendProx) and (fTRA_TRANSITEM.CD_COR = vCdCorProx) then begin
                   vInAgrupaItem := True;
                 end;
               end else if (gTpAgrupamento = 'A') then begin
-                if (fTRA_TRANSITEM.CD_CFOP = vCdCFOPProx) and (item_f('CD_SEQGRUPO', tTRA_TRANSITEM) = vCdSeqGrupoProx) and (item_f('VL_UNITLIQUIDO', tTRA_TRANSITEM) = vVlUnitProx) and (item_f('CD_COMPVEND', tTRA_TRANSITEM) = vCdCompVendProx) and (item_f('CD_TAMANHO', tTRA_TRANSITEM) = vCdTamanhoProx) then begin
+                if (fTRA_TRANSITEM.CD_CFOP = vCdCFOPProx) and (fTRA_TRANSITEM.CD_SEQGRUPO = vCdSeqGrupoProx) and (fTRA_TRANSITEM.VL_UNITLIQUIDO = vVlUnitProx) and (fTRA_TRANSITEM.CD_COMPVEND = vCdCompVendProx) and (fTRA_TRANSITEM.CD_TAMANHO = vCdTamanhoProx) then begin
                   vInAgrupaItem := True;
                 end;
               end;
@@ -2978,9 +2978,9 @@ begin
           exit;
         end;
 
-        putitem_e(tFIS_NF, 'VL_TOTALNOTA', fFIS_NF.VL_TOTALPRODUTO + item_f('VL_DESPACESSOR', tFIS_NF) +
-                                           fFIS_NF.VL_FRETE + item_f('VL_SEGURO', tFIS_NF) +
-                                           fFIS_NF.VL_IPI + item_f('VL_ICMSSUBST', tFIS_NF));
+        putitem_e(tFIS_NF, 'VL_TOTALNOTA', fFIS_NF.VL_TOTALPRODUTO + fFIS_NF.VL_DESPACESSOR +
+                                           fFIS_NF.VL_FRETE + fFIS_NF.VL_SEGURO +
+                                           fFIS_NF.VL_IPI + fFIS_NF.VL_ICMSSUBST);
 
         if (gInLog) then begin
           gHrInicio := Time;
@@ -3105,7 +3105,7 @@ begin
 
   if (fGER_OPERACAO.TP_OPERACAO = 'S') and ((fGER_OPERACAO.TP_MODALIDADE = 3) or (fGER_OPERACAO.TP_MODALIDADE = 4)) then begin
     viParams := pParams;
-    voParams := cFISSVCO024.Instance.gravaObsNfFisco(viParams);
+    voParams := activateCmp('FISSVCO024', 'gravaObsNfFisco', viParams);
     if (itemXmlF('status', voParams) < 0) then begin
       raise Exception.Create(itemXml('message', voParams));
       exit;
@@ -3120,7 +3120,7 @@ begin
         viParams.NR_FATURA := vDsRegistro.NR_FATURA;
         viParams.DT_FATURA := vDsRegistro.DT_FATURA;
         viParams.CD_MODELONF := vDsRegistro.CD_MODELONF;
-        voParams := cFISSVCO024.Instance.gravaObsNfe(viParams);
+        voParams := activateCmp('FISSVCO024', 'gravaObsNfe', viParams);
         if (itemXmlF('status', voParams) < 0) then begin
           raise Exception.Create(itemXml('message', voParams));
           exit;
@@ -3145,7 +3145,7 @@ begin
       viParams.NR_ITEM := vNrItemLote;
       viParams.IN_INCLUSAO := True;
       viParams.DS_LSTNF := vDsLstNF;
-      voParams := cPRDSVCO020.Instance.gravaLoteINF(viParams);
+      voParams := activateCmp('PRDSVCO020', 'gravaLoteINF', viParams);
       if (itemXmlF('status', voParams) < 0) then begin
         raise Exception.Create(itemXml('message', voParams));
         exit;
@@ -3167,7 +3167,7 @@ begin
 
       viParams := vDsRegistro;
       viParams.CD_MODULO := 'FIS';
-      voParams := cCTBSVCO016.Instance.geraContabilizaEmi(viParams);
+      voParams := activateCmp('CTBSVCO016', 'geraContabilizaEmi', viParams);
       if (itemXmlF('status', voParams) < 0) then begin
         raise Exception.Create(itemXml('message', voParams));
         exit;
@@ -3207,7 +3207,7 @@ begin
     end;
   end else begin
     fGER_MODNFC.CD_MODELONF := vCdModeloNF;
-    fGER_MODNFC.Listar();
+    fGER_MODNFC.Listar(nil);
     if (itemXmlF('status', voParams) < 0) then begin
       raise Exception.Create('Modelo de NF ' + FloatToStr(vCdModeloNF) + ' não cadastrado!' + ' / ' + cDS_METHOD);
       exit;
@@ -3216,7 +3216,7 @@ begin
 
   viParams := '';
   viParams.DS_LSTNF := vDsLstNF;
-  voParams := cSICSVCO005.Instance.reservaNumeroNF(viParams); 
+  voParams := activateCmp('SICSVCO005', 'reservaNumeroNF', viParams); 
   if (itemXmlF('status', voParams) < 0) then begin
     raise Exception.Create(itemXml('message', voParams));
     exit;
@@ -3254,9 +3254,9 @@ begin
     fFIS_NF.CD_EMPRESA := vCdEmpresa;
     fFIS_NF.NR_FATURA := vNrFatura;
     fFIS_NF.DT_FATURA := vDtFatura;
-    fFIS_NF.Consultar();
+    fFIS_NF.Consultar(nil);
     if (xStatus = -7) then begin
-      fFIS_NF.Consultar();
+      fFIS_NF.Consultar(nil);
     end else begin
       raise Exception.Create('NF ' + FloatToStr(vCdEmpresa) + ' / ' + FloatToStr(vNrFatura) + ' não cadastrada!' + ' / ' + cDS_METHOD);
       exit;
@@ -3264,7 +3264,7 @@ begin
     vModDctoFiscal := fFIS_NF.TP_MODDCTOFISCAL;
     fGER_OPERACAO.Limpar();
     fGER_OPERACAO.CD_OPERACAO := fFIS_NF.CD_OPERACAO;
-    fGER_OPERACAO.Listar();
+    fGER_OPERACAO.Listar(nil);
     if (itemXmlF('status', voParams) < 0) then begin
       raise Exception.Create('Operaçao ' + fGER_OPERACAO.CD_OPERACAO + ' não cadastrada!' + ' / ' + cDS_METHOD);
       exit;
@@ -3301,7 +3301,7 @@ begin
           end;
 
           newInstanceComponente('GERSVCO001', 'GERSVCO001', 'TRANSACTION=TRUE');
-          voParams := cGERSVCO001.Instance.buscaNrNF(viParams); 
+          voParams := activateCmp('GERSVCO001', 'buscaNrNF', viParams); 
           if (itemXmlF('status', voParams) < 0) then begin
             raise Exception.Create(itemXml('message', voParams));
             exit;
@@ -3321,9 +3321,9 @@ begin
             fFIS_NF.NR_FATURA := vNrFatura;
             fFIS_NF.DT_FATURA := vDtFatura;
             fFIS_NF.TP_MODDCTOFISCAL := vModDctoFiscal;
-            fFIS_NF.Consultar();
+            fFIS_NF.Consultar(nil);
             if (xStatus = -7) then begin
-              fFIS_NF.Consultar();
+              fFIS_NF.Consultar(nil);
             end else begin
               raise Exception.Create('Não possível recarregar a NF ' + FloatToStr(vCdEmpresa) + ' / ' + FloatToStr(vNrFatura) + ' após a rotina de numeração!' + ' / ' + cDS_METHOD);
               exit;
@@ -3374,9 +3374,9 @@ begin
       fFIS_S_NF.TP_SITUACAO := '!=X';
       fFIS_S_NF.TP_ORIGEMEMISSAO := 1;
       fFIS_S_NF.TP_MODDCTOFISCAL := fFIS_NF.TP_MODDCTOFISCAL;
-      fFIS_S_NF.Listar();
+      fFIS_S_NF.Listar(nil);
       if (xStatus >= 0) then begin
-        if (fFIS_S_NF.NR_FATURA <> item_f('NR_FATURA', tFIS_NF)) or (fFIS_S_NF.DT_FATURA <> item_a('DT_FATURA', tFIS_NF)) then begin
+        if (fFIS_S_NF.NR_FATURA <> fFIS_NF.NR_FATURA) or (fFIS_S_NF.DT_FATURA <> fFIS_NF.DT_FATURA) then begin
           raise Exception.Create('NF ' + fFIS_NF.NR_NF + ' já cadastrada!' + ' / ' + cDS_METHOD);
           exit;
         end;
@@ -3385,7 +3385,7 @@ begin
     if (vNrNFTransp <> 0) then begin
       fGER_OPERACAO.Limpar();
       fGER_OPERACAO.CD_OPERACAO := fFIS_NF.CD_OPERACAO;
-      fGER_OPERACAO.Listar();
+      fGER_OPERACAO.Listar(nil);
       if (xStatus >= 0) then begin
         if (fGER_OPERACAO.TP_DOCTO <> 1) then begin
           vNrNFTransp := 0;
@@ -3427,7 +3427,7 @@ begin
     viParams.DS_LSTNF := vDsLstTransp;
     viParams.DS_OBSERVACAO := 'DADOS DA TRANSPORTADORA SE ENCONTRAM NA N.F. ' + FloatToStr(vNrNFTransp);
     newInstanceComponente('FISSVCO004', 'FISSVCO004O', 'TRANSACTION=FALSE');
-    voParams := cFISSVCO004O.Instance.gravaObsNF(viParams);
+    voParams := activateCmp('FISSVCO004O', 'gravaObsNF', viParams);
     if (itemXmlF('status', voParams) < 0) then begin
       raise Exception.Create(itemXml('message', voParams));
       exit;
@@ -3436,7 +3436,7 @@ begin
 
   viParams := '';
   viParams.DS_LSTNF := vDsLstNrNF;
-  voParams := cSICSVCO005.Instance.liberaNumeroNF(viParams); 
+  voParams := activateCmp('SICSVCO005', 'liberaNumeroNF', viParams); 
   if (itemXmlF('status', voParams) < 0) then begin
     raise Exception.Create(itemXml('message', voParams));
     exit;
@@ -3494,7 +3494,7 @@ begin
   fFIS_ECF.Limpar();
   fFIS_ECF.CD_EMPRESA := vCdEmpresa;
   fFIS_ECF.NR_ECF := vNrECF;
-  fFIS_ECF.Listar();
+  fFIS_ECF.Listar(nil);
   if (itemXmlF('status', voParams) < 0) then begin
     raise Exception.Create('Número da ECF ' + FloatToStr(vNrECF) + ' não cadastrado!' + ' / ' + cDS_METHOD);
     exit;
@@ -3504,16 +3504,16 @@ begin
   fFIS_NF.CD_EMPRESA := vCdEmpresa;
   fFIS_NF.NR_FATURA := vNrFatura;
   fFIS_NF.DT_FATURA := vDtFatura;
-  fFIS_NF.Consultar();
+  fFIS_NF.Consultar(nil);
   if (xStatus = -7) then begin
-    fFIS_NF.Consultar();
+    fFIS_NF.Consultar(nil);
   end else if (xStatus = 0) then begin
     raise Exception.Create('NF ' + FloatToStr(vNrFatura) + ' não cadastrada!' + ' / ' + cDS_METHOD);
     exit;
   end;
 
   fFIS_NFECF.Limpar();
-  fFIS_NFECF.Listar();
+  fFIS_NFECF.Listar(nil);
   if (xStatus >= 0) then begin
     voParams := tFIS_NFECF.Excluir();
     if (itemXmlF('status', voParams) < 0) then begin
@@ -3598,16 +3598,16 @@ begin
     fFIS_NF.CD_EMPRESA := vCdEmpresa;
     fFIS_NF.NR_FATURA := vNrFatura;
     fFIS_NF.DT_FATURA := vDtFatura;
-    fFIS_NF.Consultar();
+    fFIS_NF.Consultar(nil);
     if (xStatus = -7) then begin
-      fFIS_NF.Consultar();
+      fFIS_NF.Consultar(nil);
 
       if ((vTpSituacao = 'C') or (vTpSituacao = 'X')) and (vInValidaTransacao) then begin
         fTRA_TRANSACAO.Limpar();
         fTRA_TRANSACAO.CD_EMPRESA := fFIS_NF.CD_EMPRESAORI;
         fTRA_TRANSACAO.NR_TRANSACAO := fFIS_NF.NR_TRANSACAOORI;
         fTRA_TRANSACAO.DT_TRANSACAO := fFIS_NF.DT_TRANSACAOORI;
-        fTRA_TRANSACAO.Listar();
+        fTRA_TRANSACAO.Listar(nil);
         if (xStatus >= 0) then begin
           if (fTRA_TRANSACAO.TP_SITUACAO <> 6) then begin
             raise Exception.Create('Transação ' + fTRA_TRANSACAO.NR_TRANSACAOORI + ' não está cancelada!' + ' / ' + cDS_METHOD);
@@ -3618,14 +3618,14 @@ begin
 
       fGER_OPERACAO.Limpar();
       fGER_OPERACAO.CD_OPERACAO := fFIS_NF.CD_OPERACAO;
-      fGER_OPERACAO.Listar();
+      fGER_OPERACAO.Listar(nil);
       if (itemXmlF('status', voParams) < 0) then begin
         raise Exception.Create('Operaçao ' + fFIS_NF.CD_OPERACAO + ' não cadastrada!' + ' / ' + cDS_METHOD);
         exit;
       end;
       if (gDtEncerramento <> 0) and (fGER_OPERACAO.TP_DOCTO <> 0) then begin
         if (fFIS_NF.DT_SAIDAENTRADA <= gDtEncerramento) then begin
-          raise Exception.Create('NF/Fatura ' + fFIS_NF.NR_NF + '/' + item_a('NR_FATURA' + ' / ' + tFIS_NF) + ' possuir data de movimento anterior ao encerramento do livro fiscal!', cDS_METHOD);
+          raise Exception.Create('NF/Fatura ' + fFIS_NF.NR_NF + '/' + fFIS_NF.NR_FATURA + ' possuir data de movimento anterior ao encerramento do livro fiscal!' + ' / ' + cDS_METHOD);
           exit;
         end;
       end;
@@ -3674,7 +3674,7 @@ begin
 
   fGER_MODNFC.Limpar();
   fGER_MODNFC.CD_MODELONF := vCdModeloNF;
-  fGER_MODNFC.Listar();
+  fGER_MODNFC.Listar(nil);
   if (itemXmlF('status', voParams) < 0) then begin
     raise Exception.Create('Modelo de NF ' + FloatToStr(vCdModeloNF) + ' não cadastrado!' + ' / ' + cDS_METHOD);
     exit;
@@ -3705,9 +3705,9 @@ begin
     fFIS_NF.CD_EMPRESA := vCdEmpresa;
     fFIS_NF.NR_FATURA := vNrFatura;
     fFIS_NF.DT_FATURA := vDtFatura;
-    fFIS_NF.Consultar();
+    fFIS_NF.Consultar(nil);
     if (xStatus = -7) then begin
-      fFIS_NF.Consultar();
+      fFIS_NF.Consultar(nil);
     end else if (xStatus = 0) then begin
       raise Exception.Create('NF ' + FloatToStr(vNrFatura) + ' não cadastrada!' + ' / ' + cDS_METHOD);
       exit;
@@ -3720,9 +3720,9 @@ begin
       fFIS_S_NF.TP_SITUACAO := '!=X';
       fFIS_S_NF.TP_ORIGEMEMISSAO := 1;
       fFIS_S_NF.TP_MODDCTOFISCAL := fFIS_NF.TP_MODDCTOFISCAL;
-      fFIS_S_NF.Listar();
+      fFIS_S_NF.Listar(nil);
       if (xStatus >= 0) then begin
-        if (fFIS_S_NF.NR_FATURA <> item_f('NR_FATURA', tFIS_NF)) or (fFIS_S_NF.DT_FATURA <> item_a('DT_FATURA', tFIS_NF)) then begin
+        if (fFIS_S_NF.NR_FATURA <> fFIS_NF.NR_FATURA) or (fFIS_S_NF.DT_FATURA <> fFIS_NF.DT_FATURA) then begin
           raise Exception.Create('NF ' + fFIS_NF.NR_NF + ' já cadastrada!' + ' / ' + cDS_METHOD);
           exit;
         end;
@@ -3795,7 +3795,7 @@ begin
   if (vInInclusao) then begin
     viParams := '';
     viParams.NM_ENTIDADE := 'FIS_NF';
-    voParams := cGERSVCO031.Instance.getNumSeq(viParams); 
+    voParams := activateCmp('GERSVCO031', 'getNumSeq', viParams); 
     if (itemXmlF('status', voParams) < 0) then begin
       raise Exception.Create(itemXml('message', voParams));
       exit;
@@ -3812,14 +3812,14 @@ begin
     fFIS_NF.CD_EMPRESA := vCdEmpresa;
     fFIS_NF.NR_FATURA := vNrFatura;
     fFIS_NF.DT_FATURA := vDtFatura;
-    fFIS_NF.Listar();
+    fFIS_NF.Listar(nil);
     if (itemXmlF('status', voParams) < 0) then begin
       raise Exception.Create('NF ' + FloatToStr(vNrFatura) + ' não cadastrada!' + ' / ' + cDS_METHOD);
       exit;
     end;
     if (gDtEncerramento <> 0) then begin
       if (fFIS_NF.DT_SAIDAENTRADA <= gDtEncerramento) then begin
-        raise Exception.Create('NF/Fatura ' + fFIS_NF.NR_NF + '/' + item_a('NR_FATURA' + ' / ' + tFIS_NF) + ' possui data de movimento anterior ao encerramento do livro fiscal!', cDS_METHOD);
+        raise Exception.Create('NF/Fatura ' + fFIS_NF.NR_NF + '/' + fFIS_NF.NR_FATURA + ' possui data de movimento anterior ao encerramento do livro fiscal!' + ' / ' + cDS_METHOD);
         exit;
       end;
     end;
@@ -3828,7 +3828,7 @@ begin
       fTRA_TRANSACAO.CD_EMPRESA := fFIS_NF.CD_EMPRESAORI;
       fTRA_TRANSACAO.NR_TRANSACAO := fFIS_NF.NR_TRANSACAOORI;
       fTRA_TRANSACAO.DT_TRANSACAO := fFIS_NF.DT_TRANSACAOORI;
-      fTRA_TRANSACAO.Listar();
+      fTRA_TRANSACAO.Listar(nil);
       if (itemXmlF('status', voParams) < 0) then begin
         raise Exception.Create('Transação ' + fTRA_TRANSACAO.NR_TRANSACAOORI + ' não cadastrada!' + ' / ' + cDS_METHOD);
         exit;
@@ -3841,7 +3841,7 @@ begin
   delitem(pParams, 'NR_FATURA');
   delitem(pParams, 'DT_FATURA');
 
-  pParams := fFIS_NF.GetValues();
+  fFIS_NF.SetValues(pParams);
 
   if (fFIS_NF.DT_SAIDAENTRADA = '') then begin
     raise Exception.Create('Data saída/entrada não informada!' + ' / ' + cDS_METHOD);
@@ -3849,7 +3849,7 @@ begin
   end;
   if (gDtEncerramento <> 0) then begin
     if (fFIS_NF.DT_SAIDAENTRADA <= gDtEncerramento) then begin
-      raise Exception.Create('NF/Fatura ' + fFIS_NF.NR_NF + '/' + item_a('NR_FATURA' + ' / ' + tFIS_NF) + ' possui data de movimento anterior ao encerramento do livro fiscal!', cDS_METHOD);
+      raise Exception.Create('NF/Fatura ' + fFIS_NF.NR_NF + '/' + fFIS_NF.NR_FATURA + ' possui data de movimento anterior ao encerramento do livro fiscal!' + ' / ' + cDS_METHOD);
       exit;
     end;
   end;
@@ -3894,7 +3894,7 @@ begin
 
   fGER_OPERACAO.Limpar();
   fGER_OPERACAO.CD_OPERACAO := fFIS_NF.CD_OPERACAO;
-  fGER_OPERACAO.Listar();
+  fGER_OPERACAO.Listar(nil);
   if (itemXmlF('status', voParams) < 0) then begin
     raise Exception.Create('Operaçao ' + fFIS_NF.CD_OPERACAO + ' não cadastrada!' + ' / ' + cDS_METHOD);
     exit;
@@ -3903,7 +3903,7 @@ begin
     fFIS_NF.CD_EMPFAT := fFIS_NF.CD_EMPRESA;
   end;
 
-  fFIS_NF.VL_TOTALNOTA := fFIS_NF.VL_TOTALPRODUTO + item_f('VL_DESPACESSOR', tFIS_NF) + item_f('VL_FRETE', tFIS_NF) + item_f('VL_SEGURO', tFIS_NF) + item_f('VL_IPI', tFIS_NF) + item_f('VL_ICMSSUBST', tFIS_NF);
+  fFIS_NF.VL_TOTALNOTA := fFIS_NF.VL_TOTALPRODUTO + fFIS_NF.VL_DESPACESSOR + fFIS_NF.VL_FRETE + fFIS_NF.VL_SEGURO + fFIS_NF.VL_IPI + fFIS_NF.VL_ICMSSUBST;
   fFIS_NF.TP_OPERACAO := fGER_OPERACAO.TP_OPERACAO;
   fFIS_NF.CD_GRUPOEMPRESA := vCdGrupoEmpresa;
   fFIS_NF.CD_OPERADOR := PARAM_GLB.CD_USUARIO;
@@ -3979,9 +3979,9 @@ begin
     fFIS_NF.CD_EMPRESA := vCdEmpresa;
     fFIS_NF.NR_FATURA := vNrFatura;
     fFIS_NF.DT_FATURA := vDtFatura;
-    fFIS_NF.Consultar();
+    fFIS_NF.Consultar(nil);
     if (xStatus = -7) then begin
-      fFIS_NF.Consultar();
+      fFIS_NF.Consultar(nil);
     end else if (xStatus <> 4) then begin
       raise Exception.Create('NF ' + FloatToStr(vNrFatura) + ' não cadastrada!' + ' / ' + cDS_METHOD);
       exit;
@@ -4049,21 +4049,21 @@ begin
   fFIS_NF.CD_EMPRESA := vCdEmpresa;
   fFIS_NF.NR_FATURA := vNrFatura;
   fFIS_NF.DT_FATURA := vDtFatura;
-  fFIS_NF.Listar();
+  fFIS_NF.Listar(nil);
   if (itemXmlF('status', voParams) < 0) then begin
     raise Exception.Create('Nota Fiscal não encotrada!' + ' / ' + cDS_METHOD);
     exit;
   end;
   if (gDtEncerramento <> 0) then begin
     if (fFIS_NF.DT_SAIDAENTRADA <= gDtEncerramento) then begin
-      raise Exception.Create('NF/Fatura ' + fFIS_NF.NR_NF + '/' + item_a('NR_FATURA' + ' / ' + tFIS_NF) + ' possui data de movimento anterior ao encerramento do livro fiscal!', cDS_METHOD);
+      raise Exception.Create('NF/Fatura ' + fFIS_NF.NR_NF + '/' + fFIS_NF.NR_FATURA + ' possui data de movimento anterior ao encerramento do livro fiscal!' + ' / ' + cDS_METHOD);
       exit;
     end;
   end;
 
   fFIS_NFITEM.Limpar();
   fFIS_NFITEM.NR_ITEM := vNrItem;
-  fFIS_NFITEM.Listar();
+  fFIS_NFITEM.Listar(nil);
   if (itemXmlF('status', voParams) < 0) then begin
     raise Exception.Create('Itens da Nota Fiscal não encotrada!' + ' / ' + cDS_METHOD);
     exit;
@@ -4071,7 +4071,7 @@ begin
 
   fFIS_NFITEMPROD.Limpar();
   fFIS_NFITEMPROD.CD_PRODUTO := vCdProduto;
-  fFIS_NFITEMPROD.Listar();
+  fFIS_NFITEMPROD.Listar(nil);
   if (itemXmlF('status', voParams) < 0) then begin
     raise Exception.Create('Produto ' + FloatToStr(vCdProduto) + ' não encotrado!' + ' / ' + cDS_METHOD);
     exit;
@@ -4083,7 +4083,7 @@ begin
   delitem(pParams, 'NR_ITEM');
   delitem(pParams, 'CD_PRODUTO');
 
-  pParams := fFIS_NFITEMPROD.GetValues();
+  fFIS_NFITEMPROD.SetValues(pParams);
 
   voParams := tFIS_NFITEMPROD.Salvar();
   if (itemXmlF('status', voParams) < 0) then begin
@@ -4138,14 +4138,14 @@ begin
   fFIS_NF.CD_EMPRESA := vCdEmpresa;
   fFIS_NF.NR_FATURA := vNrFatura;
   fFIS_NF.DT_FATURA := vDtFatura;
-  fFIS_NF.Listar();
+  fFIS_NF.Listar(nil);
   if (itemXmlF('status', voParams) < 0) then begin
     raise Exception.Create('Nota Fiscal não encotrada!' + ' / ' + cDS_METHOD);
     exit;
   end;
   if (gDtEncerramento <> 0) then begin
     if (fFIS_NF.DT_SAIDAENTRADA <= gDtEncerramento) then begin
-      raise Exception.Create('NF/Fatura ' + fFIS_NF.NR_NF + '/' + item_a('NR_FATURA' + ' / ' + tFIS_NF) + ' possui data de movimento anterior ao encerramento do livro fiscal!', cDS_METHOD);
+      raise Exception.Create('NF/Fatura ' + fFIS_NF.NR_NF + '/' + fFIS_NF.NR_FATURA + ' possui data de movimento anterior ao encerramento do livro fiscal!' + ' / ' + cDS_METHOD);
       exit;
     end;
   end;
@@ -4153,7 +4153,7 @@ begin
   end else begin
     fFIS_NFITEM.Limpar();
     fFIS_NFITEM.NR_ITEM := vNrItem;
-    fFIS_NFITEM.Listar();
+    fFIS_NFITEM.Listar(nil);
     if (itemXmlF('status', voParams) < 0) then begin
       raise Exception.Create('Itens da Nota Fiscal não encotrada!' + ' / ' + cDS_METHOD);
       exit;
@@ -4165,7 +4165,7 @@ begin
     delitem(pParams, 'NR_ITEM');
   end;
 
-  pParams := fFIS_NFITEM.GetValues();
+  fFIS_NFITEM.SetValues(pParams);
 
   fFIS_NFITEM.CD_EMPFAT := fFIS_NF.CD_EMPFAT;
   fFIS_NFITEM.CD_GRUPOEMPRESA := fFIS_NF.CD_GRUPOEMPRESA;
@@ -4219,14 +4219,14 @@ begin
   fFIS_NF.CD_EMPRESA := vCdEmpresa;
   fFIS_NF.NR_FATURA := vNrFatura;
   fFIS_NF.DT_FATURA := vDtFatura;
-  fFIS_NF.Listar();
+  fFIS_NF.Listar(nil);
   if (itemXmlF('status', voParams) < 0) then begin
     raise Exception.Create('Nota Fiscal não encotrada!' + ' / ' + cDS_METHOD);
     exit;
   end;
   if (gDtEncerramento <> 0) then begin
     if (fFIS_NF.DT_SAIDAENTRADA <= gDtEncerramento) then begin
-      raise Exception.Create('NF/Fatura ' + fFIS_NF.NR_NF + '/' + item_a('NR_FATURA' + ' / ' + tFIS_NF) + ' possui data de movimento anterior ao encerramento do livro fiscal!', cDS_METHOD);
+      raise Exception.Create('NF/Fatura ' + fFIS_NF.NR_NF + '/' + fFIS_NF.NR_FATURA + ' possui data de movimento anterior ao encerramento do livro fiscal!' + ' / ' + cDS_METHOD);
       exit;
     end;
   end;
@@ -4235,7 +4235,7 @@ begin
   delitem(pParams, 'NR_FATURA');
   delitem(pParams, 'DT_FATURA');
 
-  pParams := fFIS_NFREMDES.GetValues();
+  fFIS_NFREMDES.SetValues(pParams);
   fFIS_NFREMDES.CD_EMPFAT := fFIS_NF.CD_EMPFAT;
   fFIS_NFREMDES.CD_GRUPOEMPRESA := fFIS_NF.CD_GRUPOEMPRESA;
   if (fFIS_NFREMDES.NM_NOME = '') then begin
@@ -4283,14 +4283,14 @@ begin
   fFIS_NF.CD_EMPRESA := vCdEmpresa;
   fFIS_NF.NR_FATURA := vNrFatura;
   fFIS_NF.DT_FATURA := vDtFatura;
-  fFIS_NF.Listar();
+  fFIS_NF.Listar(nil);
   if (itemXmlF('status', voParams) < 0) then begin
     raise Exception.Create('Nota Fiscal não encotrada!' + ' / ' + cDS_METHOD);
     exit;
   end;
   if (gDtEncerramento <> 0) then begin
     if (fFIS_NF.DT_SAIDAENTRADA <= gDtEncerramento) then begin
-      raise Exception.Create('NF/Fatura ' + fFIS_NF.NR_NF + '/' + item_a('NR_FATURA' + ' / ' + tFIS_NF) + ' possui data de movimento anterior ao encerramento do livro fiscal!', cDS_METHOD);
+      raise Exception.Create('NF/Fatura ' + fFIS_NF.NR_NF + '/' + fFIS_NF.NR_FATURA + ' possui data de movimento anterior ao encerramento do livro fiscal!' + ' / ' + cDS_METHOD);
       exit;
     end;
   end;
@@ -4299,7 +4299,7 @@ begin
   delitem(pParams, 'NR_FATURA');
   delitem(pParams, 'DT_FATURA');
 
-  pParams := fFIS_NFTRANSP.GetValues();
+  fFIS_NFTRANSP.SetValues(pParams);
   fFIS_NFTRANSP.CD_EMPFAT := fFIS_NF.CD_EMPFAT;
   fFIS_NFTRANSP.CD_GRUPOEMPRESA := fFIS_NF.CD_GRUPOEMPRESA;
 
@@ -4362,21 +4362,21 @@ begin
   fFIS_NF.CD_EMPRESA := vCdEmpresa;
   fFIS_NF.NR_FATURA := vNrFatura;
   fFIS_NF.DT_FATURA := vDtFatura;
-  fFIS_NF.Listar();
+  fFIS_NF.Listar(nil);
   if (itemXmlF('status', voParams) < 0) then begin
     raise Exception.Create('Nota Fiscal não encotrada!' + ' / ' + cDS_METHOD);
     exit;
   end;
   if (gDtEncerramento <> 0) then begin
     if (fFIS_NF.DT_SAIDAENTRADA <= gDtEncerramento) then begin
-      raise Exception.Create('NF/Fatura ' + fFIS_NF.NR_NF + '/' + item_a('NR_FATURA' + ' / ' + tFIS_NF) + ' possui data de movimento anterior ao encerramento do livro fiscal!', cDS_METHOD);
+      raise Exception.Create('NF/Fatura ' + fFIS_NF.NR_NF + '/' + fFIS_NF.NR_FATURA + ' possui data de movimento anterior ao encerramento do livro fiscal!' + ' / ' + cDS_METHOD);
       exit;
     end;
   end;
 
   fFIS_NFITEM.Limpar();
   fFIS_NFITEM.NR_ITEM := vNrItem;
-  fFIS_NFITEM.Listar();
+  fFIS_NFITEM.Listar(nil);
   if (itemXmlF('status', voParams) < 0) then begin
     raise Exception.Create('Itens da Nota Fiscal não encotrada!' + ' / ' + cDS_METHOD);
     exit;
@@ -4389,7 +4389,7 @@ begin
           getitem(vDsRegistro, vDsImposto, 1);
           fFIS_NFITEMIMPOST.Limpar();
           fFIS_NFITEMIMPOST.CD_IMPOSTO := vDsRegistro.CD_IMPOSTO;
-          fFIS_NFITEMIMPOST.Listar();
+          fFIS_NFITEMIMPOST.Listar(nil);
           if (xStatus >= 0) then begin
             voParams := tFIS_NFITEMIMPOST.Excluir();
             if (itemXmlF('status', voParams) < 0) then begin
@@ -4422,7 +4422,7 @@ begin
 
       fFIS_NFITEMIMPOST.Append();
 
-      vDsRegistro := fFIS_NFITEMIMPOST.GetValues();
+      fFIS_NFITEMIMPOST.SetValues(vDsRegistro);
       fFIS_NFITEMIMPOST.CD_EMPFAT := fFIS_NFITEM.CD_EMPFAT;
       fFIS_NFITEMIMPOST.CD_GRUPOEMPRESA := fFIS_NFITEM.CD_GRUPOEMPRESA;
       fFIS_NFITEMIMPOST.CD_OPERADOR := PARAM_GLB.CD_USUARIO;
@@ -4486,14 +4486,14 @@ begin
   fFIS_NF.CD_EMPRESA := vCdEmpresa;
   fFIS_NF.NR_FATURA := vNrFatura;
   fFIS_NF.DT_FATURA := vDtFatura;
-  fFIS_NF.Listar();
+  fFIS_NF.Listar(nil);
   if (itemXmlF('status', voParams) < 0) then begin
     raise Exception.Create('Nota Fiscal não encotrada!' + ' / ' + cDS_METHOD);
     exit;
   end;
   if (gDtEncerramento <> 0) then begin
     if (fFIS_NF.DT_SAIDAENTRADA <= gDtEncerramento) then begin
-      raise Exception.Create('NF/Fatura ' + fFIS_NF.NR_NF + '/' + item_a('NR_FATURA' + ' / ' + tFIS_NF) + ' possui data de movimento anterior ao encerramento do livro fiscal!', cDS_METHOD);
+      raise Exception.Create('NF/Fatura ' + fFIS_NF.NR_NF + '/' + fFIS_NF.NR_FATURA + ' possui data de movimento anterior ao encerramento do livro fiscal!' + ' / ' + cDS_METHOD);
       exit;
     end;
   end;
@@ -4516,7 +4516,7 @@ begin
 
       fFIS_NFIMPOSTO.Append();
 
-      vDsRegistro := fFIS_NFIMPOSTO.GetValues();
+      fFIS_NFIMPOSTO.SetValues(vDsRegistro);
       fFIS_NFIMPOSTO.CD_EMPFAT := fFIS_NFITEM.CD_EMPFAT;
       fFIS_NFIMPOSTO.CD_GRUPOEMPRESA := fFIS_NFITEM.CD_GRUPOEMPRESA;
       fFIS_NFIMPOSTO.CD_OPERADOR := PARAM_GLB.CD_USUARIO;
@@ -4589,7 +4589,7 @@ begin
     fFIS_NF.CD_EMPRESAORI := vCdEmpTransacao;
     fFIS_NF.NR_TRANSACAOORI := vNrTransacao;
     fFIS_NF.DT_TRANSACAOORI := vDtTransacao;
-    fFIS_NF.Listar();
+    fFIS_NF.Listar(nil);
     if (itemXmlF('status', voParams) < 0) then begin
       fFIS_NF.Limpar();
       exit;
@@ -4616,9 +4616,9 @@ begin
       fFIS_NF.CD_EMPRESA := vCdEmpresa;
       fFIS_NF.NR_FATURA := vNrFatura;
       fFIS_NF.DT_FATURA := vDtFatura;
-      fFIS_NF.Consultar();
+      fFIS_NF.Consultar(nil);
       if (xStatus = -7) then begin
-        fFIS_NF.Consultar();
+        fFIS_NF.Consultar(nil);
       end else if (xStatus = 0) then begin
         raise Exception.Create('NF ' + FloatToStr(vNrFatura) + ' não cadastrada!' + ' / ' + cDS_METHOD);
         exit;
@@ -4699,15 +4699,15 @@ begin
     fFIS_NF.CD_EMPRESA := vCdEmpresa;
     fFIS_NF.NR_FATURA := vNrFatura;
     fFIS_NF.DT_FATURA := vDtFatura;
-    fFIS_NF.Listar();
+    fFIS_NF.Listar(nil);
     if (xStatus >= 0) then begin
       fFIS_NFITEM.Limpar();
       fFIS_NFITEM.NR_ITEM := vNrItem;
-      fFIS_NFITEM.Listar();
+      fFIS_NFITEM.Listar(nil);
       if (xStatus >= 0) then begin
         fFIS_NFITEMPROD.Limpar();
         fFIS_NFITEMPROD.CD_PRODUTO := vCdProduto;
-        fFIS_NFITEMPROD.Listar();
+        fFIS_NFITEMPROD.Listar(nil);
         if (xStatus >= 0) then begin
           vQtSaldo := fFIS_NFITEMPROD.QT_FATURADO;
 
@@ -4721,7 +4721,7 @@ begin
               fFIS_NFITEMCONT.QT_VENDIDA := fFIS_NFITEMCONT.QT_VENDIDA + vQtConsignado;
             end;
 
-            vQtSaldo := vQtSaldo - fFIS_NFITEMCONT.QT_DEVOLVIDA - item_f('QT_VENDIDA', tFIS_NFITEMCONT);
+            vQtSaldo := vQtSaldo - fFIS_NFITEMCONT.QT_DEVOLVIDA - fFIS_NFITEMCONT.QT_VENDIDA;
 
             if (vQtSaldo <= 0) then begin
               fFIS_NFITEMCONT.TP_SITUACAO := 2;
@@ -4752,7 +4752,7 @@ var
   viParams, voParams : String;
 begin
   viParams := pParams;
-  voParams := cFISSVCO024.Instance.gravaLogNF(viParams); 
+  voParams := activateCmp('FISSVCO024', 'gravaLogNF', viParams); 
   if (itemXmlF('status', voParams) < 0) then begin
     raise Exception.Create(itemXml('message', voParams));
     exit;
@@ -4797,15 +4797,15 @@ begin
     fFIS_NF.CD_EMPRESA := vCdEmpresa;
     fFIS_NF.NR_FATURA := vNrFatura;
     fFIS_NF.DT_FATURA := vDtFatura;
-    fFIS_NF.Listar();
+    fFIS_NF.Listar(nil);
     if (xStatus >= 0) then begin
       fFIS_NFITEM.Limpar();
       fFIS_NFITEM.NR_ITEM := vNrItem;
-      fFIS_NFITEM.Listar();
+      fFIS_NFITEM.Listar(nil);
       if (xStatus >= 0) then begin
         fFIS_NFITEMPROD.Limpar();
         fFIS_NFITEMPROD.CD_PRODUTO := vCdProduto;
-        fFIS_NFITEMPROD.Listar();
+        fFIS_NFITEMPROD.Listar(nil);
         if (xStatus >= 0) then begin
           vQtSaldo := fFIS_NFITEMPROD.QT_FATURADO;
 
@@ -4819,7 +4819,7 @@ begin
               fFIS_NFITEMCONT.QT_VENDIDA := fFIS_NFITEMCONT.QT_VENDIDA - vQtConsignado;
             end;
 
-            vQtSaldo := vQtSaldo - fFIS_NFITEMCONT.QT_DEVOLVIDA - item_f('QT_VENDIDA', tFIS_NFITEMCONT);
+            vQtSaldo := vQtSaldo - fFIS_NFITEMCONT.QT_DEVOLVIDA - fFIS_NFITEMCONT.QT_VENDIDA;
 
             if (vQtSaldo > 0) then begin
               fFIS_NFITEMCONT.TP_SITUACAO := 1;
@@ -4872,14 +4872,14 @@ begin
   fFIS_NF.CD_EMPRESA := vCdEmpresa;
   fFIS_NF.NR_FATURA := vNrFatura;
   fFIS_NF.DT_FATURA := vDtFatura;
-  fFIS_NF.Listar();
+  fFIS_NF.Listar(nil);
   if (itemXmlF('status', voParams) < 0) then begin
     raise Exception.Create('Registro não cadastrado!' + ' / ' + cDS_METHOD);
     exit;
   end;
 
   fFIS_NFECF.Limpar();
-  fFIS_NFECF.Listar();
+  fFIS_NFECF.Listar(nil);
   if (xStatus >= 0) then begin
     voParams := tFIS_NFECF.Excluir();
     if (itemXmlF('status', voParams) < 0) then begin
@@ -4911,7 +4911,7 @@ begin
   vVlIPI := 0;
 
   fFIS_NFITEM.Limpar();
-  fFIS_NFITEM.Listar();
+  fFIS_NFITEM.Listar(nil);
   if (xStatus >= 0) then begin
     fFIS_NFITEM.First();
     while not t.EOF do begin
@@ -4949,7 +4949,7 @@ begin
   fFIS_NF.VL_BASEICMSSUBS := vVlBaseICMSSubst;
   fFIS_NF.VL_ICMSSUBST := vVlICMSSubst;
   fFIS_NF.VL_IPI := vVlIPI;
-  fFIS_NF.VL_TOTALNOTA := fFIS_NF.VL_TOTALPRODUTO + item_f('VL_DESPACESSOR', tFIS_NF) + item_f('VL_FRETE', tFIS_NF) + item_f('VL_SEGURO', tFIS_NF) + item_f('VL_IPI', tFIS_NF) + item_f('VL_ICMSSUBST', tFIS_NF);
+  fFIS_NF.VL_TOTALNOTA := fFIS_NF.VL_TOTALPRODUTO + fFIS_NF.VL_DESPACESSOR + fFIS_NF.VL_FRETE + fFIS_NF.VL_SEGURO + fFIS_NF.VL_IPI + fFIS_NF.VL_ICMSSUBST;
 
   exit;
 end;

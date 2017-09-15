@@ -137,12 +137,12 @@ begin
   xParam := '';
   //putitem(xParam, 'CLIENTE_PDV');
   putitem(xParam, 'DS_SEP_NRSEQ_BARRA_PRD');
-  xParam := cADMSVCO001.Instance.GetParametro(xParam);
+  xParam := activateCmp('ADMSVCO001', 'GetParametro', xParam);
 
   //gCdClientePdv := xParam.CLIENTE_PDV;
   gDsSepBarraPrd := xParam.DS_SEP_NRSEQ_BARRA_PRD;
   
-  vResult := cPESSVCL001.Instance.getClientePdv('');
+  vResult := activateCmp('PESSVCL001', 'getClientePdv', '');
   gCdClientePdv := vResult.CLIENTE_PDV;  
 
   xParamEmp := '';
@@ -174,7 +174,7 @@ begin
   putitem(xParamEmp, 'TP_VALIDA_TRANSACAO_PRD');
   putitem(xParamEmp, 'TP_VALORBRUTO_PROMOCAO');
   putitem(xParamEmp, 'VL_MINIMO_PARCELA');
-  xParamEmp := cADMSVCO001.Instance.GetParamEmpresa(piCdEmpresa, xParamEmp);
+  xParamEmp := activateCmp('ADMSVCO001', 'GetParamEmpresa', piCdEmpresa, xParamEmp);
 
   gCdCustoMedio := xParamEmp.CD_CUSTO_MEDIO_CMP;
   gCdOperacaoOI := xParamEmp.CD_OPER_ESTOQ_PROD_OI;
@@ -264,8 +264,8 @@ begin
     viParams := '';
     viParams.CD_PESSOA := fV_PES_ENDERECO.CD_PESSOA;
     viParams.NR_SEQUENCIA := fV_PES_ENDERECO.NR_SEQUENCIA;
-    voParams := cPESSVCO001.Instance.buscarEndereco(viParams);
-    voParams := fV_PES_ENDERECO.GetValues();
+    voParams := activateCmp('PESSVCO001', 'buscarEndereco', viParams);
+    fV_PES_ENDERECO.SetValues(voParams);
   end;
 end;
 
@@ -317,7 +317,7 @@ begin
     fTRA_TRANSACAO.CD_EMPRESA := pParams.CD_EMPRESA;
     fTRA_TRANSACAO.NR_TRANSACAO := pParams.NR_TRANSACAO;
     fTRA_TRANSACAO.DT_TRANSACAO := pParams.DT_TRANSACAO;
-    fTRA_TRANSACAO.Listar();
+    fTRA_TRANSACAO.Listar(nil);
     if (itemXmlF('status', voParams) < 0) then begin
       raise Exception.Create('Transação ' + pParams.NR_TRANSACAO + ' não encontrada!' + ' / ' + cDS_METHOD);
       exit;
@@ -333,7 +333,7 @@ begin
     fTRA_TRANSITEM.CD_EMPRESA := fTRA_TRANSACAO.CD_EMPRESA;
     fTRA_TRANSITEM.NR_TRANSACAO := fTRA_TRANSACAO.NR_TRANSACAO;
     fTRA_TRANSITEM.DT_TRANSACAO := fTRA_TRANSACAO.DT_TRANSACAO;
-    fTRA_TRANSITEM.Listar();
+    fTRA_TRANSITEM.Listar(nil);
   end;
 
   if debug then MensagemLogTempo('transacao');
@@ -344,7 +344,7 @@ begin
       vQtSolicitada := vQtSolicitada + fTRA_TRANSITEM.QT_SOLICITADA;
       vVlTransacao := vVlTransacao + fTRA_TRANSITEM.VL_TOTALLIQUIDO;
       vVlTotalBruto := vVlTotalBruto + fTRA_TRANSITEM.VL_TOTALBRUTO;
-      vVlDesconto := vVlDesconto + (fTRA_TRANSITEM.VL_TOTALDESC + itemF('VL_TOTALDESCCAB', tTRA_TRANSITEM));
+      vVlDesconto := vVlDesconto + (fTRA_TRANSITEM.VL_TOTALDESC + fTRA_TRANSITEM.VL_TOTALDESCCAB);
       if not (fTRA_ITEMIMPOSTO.IsEmpty()) then begin
         fTRA_ITEMIMPOSTO.First();
         while not t.EOF do begin
@@ -433,7 +433,7 @@ begin
                                         fTRA_TRANSACAO.VL_ICMSSUBST);
 
   if (pParams.IN_CONSULTAR) then begin
-    fTRA_TRANSACAO.SetValues(Result);
+    Result := fTRA_TRANSACAO.GetValues();
     if debug then MensagemLogTempo('retorna total da transacao');
   end;
 
@@ -472,7 +472,7 @@ begin
     fTRA_TRANSACAO.CD_EMPRESA := pParams.CD_EMPRESA;
     fTRA_TRANSACAO.NR_TRANSACAO := pParams.NR_TRANSACAO;
     fTRA_TRANSACAO.DT_TRANSACAO := pParams.DT_TRANSACAO;
-    fTRA_TRANSACAO.Listar();
+    fTRA_TRANSACAO.Listar(nil);
     if (itemXmlF('status', voParams) < 0) then begin
       raise Exception.Create('Transação ' + pParams.NR_TRANSACAO + ' não encontrada!' + ' / ' + cDS_METHOD);
       exit;
@@ -489,13 +489,13 @@ begin
   fV_TRA_TOTITEM.CD_EMPRESA := fTRA_TRANSACAO.CD_EMPRESA;
   fV_TRA_TOTITEM.NR_TRANSACAO := fTRA_TRANSACAO.NR_TRANSACAO;
   fV_TRA_TOTITEM.DT_TRANSACAO := fTRA_TRANSACAO.DT_TRANSACAO;
-  fV_TRA_TOTITEM.Listar();
+  fV_TRA_TOTITEM.Listar(nil);
   if (xStatus >= 0) then begin
-    vVlCalc := (fV_TRA_TOTITEM.VL_TOTALDESC + itemF('VL_TOTALDESCCAB', tV_TRA_TOTITEM)) / itemF('VL_TOTALBRUTO', tV_TRA_TOTITEM) * 100;
+    vVlCalc := (fV_TRA_TOTITEM.VL_TOTALDESC + fV_TRA_TOTITEM.VL_TOTALDESCCAB) / fV_TRA_TOTITEM.VL_TOTALBRUTO * 100;
     fTRA_TRANSACAO.PR_DESCONTO := rounded(vVlCalc, 6);
     fTRA_TRANSACAO.QT_SOLICITADA := fV_TRA_TOTITEM.QT_SOLICITADA;
     fTRA_TRANSACAO.VL_TRANSACAO := fV_TRA_TOTITEM.VL_TOTALLIQUIDO;
-    fTRA_TRANSACAO.VL_DESCONTO := fV_TRA_TOTITEM.VL_TOTALDESC + itemF('VL_TOTALDESCCAB', tV_TRA_TOTITEM);
+    fTRA_TRANSACAO.VL_DESCONTO := fV_TRA_TOTITEM.VL_TOTALDESC + fV_TRA_TOTITEM.VL_TOTALDESCCAB;
     fTRA_TRANSACAO.VL_BASEICMS := fV_TRA_TOTITEM.VL_BASEICMS;
     fTRA_TRANSACAO.VL_ICMS := fV_TRA_TOTITEM.VL_ICMS;
     fTRA_TRANSACAO.VL_BASEICMSSUBST := fV_TRA_TOTITEM.VL_BASEICMSSUBST;
@@ -519,7 +519,7 @@ begin
   end;
 
   if (pParams.IN_CONSULTAR) then begin
-    fTRA_TRANSACAO.SetValues(Result);
+    Result := fTRA_TRANSACAO.GetValues();
     if debug then MensagemLogTempo('retorna total da transacao');
   end;  
 
@@ -546,15 +546,15 @@ begin
     if (gInGuiaReprAuto) and (piCdPessoa <> piCdPessoaAnt) and (piInNaoGravaGuiaRepre <> True) then begin
       viParams := '';
       viParams.CD_PESSOA := piCdPessoa;
-      voParams := cPESSVCO005.Instance.buscaDadosPessoa(viParams);
+      voParams := activateCmp('PESSVCO005', 'buscaDadosPessoa', viParams);
       if (itemXmlF('status', voParams) < 0) then begin
         raise Exception.Create(itemXml('message', voParams));
         exit;
       end;
-      if (fTRA_TRANSACAO.CD_GUIA = 0) and ((itemF('CD_REPRESENTANT', tTRA_TRANSACAO) = 0) or (gInGravaRepreGuiaTra)) then begin
+      if (fTRA_TRANSACAO.CD_GUIA = 0) and ((fTRA_TRANSACAO.CD_REPRESENTANT = 0) or (gInGravaRepreGuiaTra)) then begin
         fTRA_TRANSACAO.CD_GUIA := voParams.CD_GUIA;
       end;
-      if (fTRA_TRANSACAO.CD_REPRESENTANT = 0) and ((itemF('CD_GUIA', tTRA_TRANSACAO) = 0) or (gInGravaRepreGuiaTra)) then begin
+      if (fTRA_TRANSACAO.CD_REPRESENTANT = 0) and ((fTRA_TRANSACAO.CD_GUIA = 0) or (gInGravaRepreGuiaTra)) then begin
         fTRA_TRANSACAO.CD_REPRESENTANT := voParams.CD_REPRESENTANT;
       end;
     end;
@@ -562,15 +562,15 @@ begin
     if (gInGuiaReprAuto) and (piCdPessoa <> piCdPessoaAnt) and (piInNaoGravaGuiaRepre <> True) then begin
       viParams := '';
       viParams.CD_PESSOA := piCdPessoa;
-      voParams := cPESSVCO005.Instance.buscaDadosPessoa(viParams);
+      voParams := activateCmp('PESSVCO005', 'buscaDadosPessoa', viParams);
       if (itemXmlF('status', voParams) < 0) then begin
         raise Exception.Create(itemXml('message', voParams));
         exit;
       end;
-      if (fTRA_TRANSACAO.CD_GUIA = 0) and ((itemF('CD_REPRESENTANT', tTRA_TRANSACAO) = 0) or (gInGravaRepreGuiaTra)) then begin
+      if (fTRA_TRANSACAO.CD_GUIA = 0) and ((fTRA_TRANSACAO.CD_REPRESENTANT = 0) or (gInGravaRepreGuiaTra)) then begin
         fTRA_TRANSACAO.CD_GUIA := voParams.CD_GUIA;
       end;
-      if (fTRA_TRANSACAO.CD_REPRESENTANT = 0) and ((itemF('CD_GUIA', tTRA_TRANSACAO) = 0) or (gInGravaRepreGuiaTra)) then begin
+      if (fTRA_TRANSACAO.CD_REPRESENTANT = 0) and ((fTRA_TRANSACAO.CD_GUIA = 0) or (gInGravaRepreGuiaTra)) then begin
         fTRA_TRANSACAO.CD_REPRESENTANT := voParams.CD_REPRESENTANT;
       end;
     end;
@@ -578,7 +578,7 @@ begin
   if (fTRA_TRANSACAO.CD_GUIA <> 0) then begin
     viParams := '';
     viParams.CD_PESSOA := fTRA_TRANSACAO.CD_GUIA;
-    voParams := cPESSVCO005.Instance.buscaDadosPessoa(viParams);
+    voParams := activateCmp('PESSVCO005', 'buscaDadosPessoa', viParams);
     if (itemXmlF('status', voParams) < 0) then begin
       raise Exception.Create(itemXml('message', voParams));
       exit;
@@ -599,7 +599,7 @@ begin
   if (fTRA_TRANSACAO.CD_REPRESENTANT <> 0) then begin
     viParams := '';
     viParams.CD_PESSOA := fTRA_TRANSACAO.CD_REPRESENTANT;
-    voParams := cPESSVCO005.Instance.buscaDadosPessoa(viParams);
+    voParams := activateCmp('PESSVCO005', 'buscaDadosPessoa', viParams);
     if (itemXmlF('status', voParams) < 0) then begin
       raise Exception.Create(itemXml('message', voParams));
       exit;
@@ -617,7 +617,7 @@ begin
       exit;
     end;
   end;
-  if not (fTRA_TRANSACAO.CD_REPRESENTANT <> 0) and (itemF('CD_GUIA', tTRA_TRANSACAO) <> 0) and (gInGravaRepreGuiaTra) then begin
+  if not (fTRA_TRANSACAO.CD_REPRESENTANT <> 0) and (fTRA_TRANSACAO.CD_GUIA <> 0) and (gInGravaRepreGuiaTra) then begin
     raise Exception.Create('Não é permitido lançar guia e representante na mesma transação!' + ' / ' + cDS_METHOD);
     exit;
   end;
@@ -646,12 +646,12 @@ begin
       fV_BAL_BALANCO.CD_EMPRESA := PARAM_GLB.CD_EMPRESA;
       fV_BAL_BALANCO.CD_PRODUTO := vCdProduto;
       fV_BAL_BALANCO.TP_SITUACAOC := 1;
-      fV_BAL_BALANCO.Listar();
+      fV_BAL_BALANCO.Listar(nil);
       if (xStatus >= 0) then begin
         fBAL_BALANCOTR.Limpar();
         fBAL_BALANCOTR.CD_EMPBALANCO := PARAM_GLB.CD_EMPRESA;
         fBAL_BALANCOTR.NR_TRANSACAO := fTRA_TRANSACAO.NR_TRANSACAO;
-        fBAL_BALANCOTR.Listar();
+        fBAL_BALANCOTR.Listar(nil);
         if (itemXmlF('status', voParams) < 0) then begin
           if (gTpValidaTransacaoPrd = 1) then begin
             raise Exception.Create('Produto ' + FloatToStr(vCdProduto) + ' não pode ser gravado + ' / ' + o mesmo se encontra em balanço em andamento!', cDS_METHOD);
@@ -663,13 +663,13 @@ begin
               fGER_OPERSALDOPRD.Limpar();
               fGER_OPERSALDOPRD.CD_OPERACAO := vCdOperacao;
               fGER_OPERSALDOPRD.IN_PADRAO := True;
-              fGER_OPERSALDOPRD.Listar();
+              fGER_OPERSALDOPRD.Listar(nil);
               if (xStatus >= 0) then begin
                 vCdSaldoOperacao := fGER_OPERSALDOPRD.CD_SALDO;
               end else begin
                 fGER_OPERSALDOPRD.Limpar();
                 fGER_OPERSALDOPRD.CD_OPERACAO := vCdOperacao;
-                fGER_OPERSALDOPRD.Listar();
+                fGER_OPERSALDOPRD.Listar(nil);
                 if (xStatus >= 0) then begin
                   vCdSaldoOperacao := fGER_OPERSALDOPRD.CD_SALDO;
                 end else begin
@@ -757,7 +757,7 @@ begin
 
   viParams := '';
   viParams.CD_PESSOA := vCdPessoa;
-  voParams := cTRASVCO016.Instance.validaCapaTransacao(viParams);
+  voParams := activateCmp('TRASVCO016', 'validaCapaTransacao', viParams);
   if (itemXmlF('status', voParams) < 0) then begin
     raise Exception.Create(itemXml('message', voParams));
     exit;
@@ -766,7 +766,7 @@ begin
   viParams := '';
   fGER_OPERACAO.Limpar();
   fGER_OPERACAO.CD_OPERACAO := vCdOperacao;
-  fGER_OPERACAO.Listar();
+  fGER_OPERACAO.Listar(nil);
   if (xStatus >= 0) then begin
     if ((fGER_OPERACAO.TP_DOCTO = 2) or (fGER_OPERACAO.TP_DOCTO = 3))
     and ((fGER_OPERACAO.TP_MODALIDADE = 4) or (fGER_OPERACAO.TP_MODALIDADE = 8) or (fGER_OPERACAO.TP_MODALIDADE = 3)) then begin
@@ -778,7 +778,7 @@ begin
   if debug then MensagemLogTempo('operacao');
 
   viParams.CD_PESSOA := vCdPessoa;
-  voParams := cPESSVCO005.Instance.buscaEnderecoFaturamento(viParams);
+  voParams := activateCmp('PESSVCO005', 'buscaEnderecoFaturamento', viParams);
   if (itemXmlF('status', voParams) < 0) then begin
     raise Exception.Create(itemXml('message', voParams));
     exit;
@@ -791,7 +791,7 @@ begin
   viParams := '';
   viParams.CD_OPERACAO := vCdOperacao;
   viParams.CD_CONDPGTO := vCdCondPgto;
-  voParams := cGERSVCO103.Instance.validaCondPgtoOperacao(viParams);
+  voParams := activateCmp('GERSVCO103', 'validaCondPgtoOperacao', viParams);
   if (itemXmlF('status', voParams) < 0) then begin
     raise Exception.Create(itemXml('message', voParams));
     exit;
@@ -803,7 +803,7 @@ begin
     viParams := '';
     viParams.CD_CLIENTE := vCdPessoa;
     viParams.IN_TOTAL := True;
-    voParams := cFCRSVCO015.Instance.buscaLimiteCliente(viParams);
+    voParams := activateCmp('FCRSVCO015', 'buscaLimiteCliente', viParams);
     if (itemXmlF('status', voParams) < 0) then begin
       raise Exception.Create(itemXml('message', voParams));
       exit;
@@ -829,9 +829,9 @@ begin
     fTRA_TRANSACAO.CD_EMPRESA := vCdEmpresa;
     fTRA_TRANSACAO.NR_TRANSACAO := vNrTransacao;
     fTRA_TRANSACAO.DT_TRANSACAO := vDtTransacao;
-    fTRA_TRANSACAO.Consultar();
+    fTRA_TRANSACAO.Consultar(nil);
     if (xStatus = -7) then begin
-      fTRA_TRANSACAO.Consultar();
+      fTRA_TRANSACAO.Consultar(nil);
       if (fTRA_TRANSACAO.TP_SITUACAO <> 1) and (fTRA_TRANSACAO.TP_SITUACAO <> 2) and (fTRA_TRANSACAO.TP_SITUACAO <> 8) then begin
         raise Exception.Create('Transação não pode ser alterada pois não está em andamento!' + ' / ' + cDS_METHOD);
         exit;
@@ -857,7 +857,7 @@ begin
 
   if debug then MensagemLogTempo('endereco');
 
-  pParams := fTRA_TRANSACAO.GetValues();
+  fTRA_TRANSACAO.SetValues(pParams);
   fTRA_TRANSACAO.NR_SEQENDERECO := vNrSeqendereco;
   if (fTRA_TRANSACAO.CD_EMPFAT = 0) then begin
     fTRA_TRANSACAO.CD_EMPFAT := fTRA_TRANSACAO.CD_EMPRESA;
@@ -865,7 +865,7 @@ begin
 
   fGER_EMPRESA.Limpar();
   fGER_EMPRESA.CD_EMPRESA := vCdEmpresa;
-  fGER_EMPRESA.Listar();
+  fGER_EMPRESA.Listar(nil);
   if (xStatus >= 0) then begin
     fTRA_TRANSACAO.CD_GRUPOEMPRESA := fGER_EMPRESA.CD_GRUPOEMPRESA;
   end else begin
@@ -877,7 +877,7 @@ begin
 
   fGER_OPERACAO.Limpar();
   fGER_OPERACAO.CD_OPERACAO := vCdOperacao;
-  fGER_OPERACAO.Listar();
+  fGER_OPERACAO.Listar(nil);
   if (xStatus >= 0) then begin
     fTRA_TRANSACAO.TP_OPERACAO := fGER_OPERACAO.TP_OPERACAO;
   end else begin
@@ -893,7 +893,7 @@ begin
 
   fPES_PESSOA.Limpar();
   fPES_PESSOA.CD_PESSOA := vCdPessoa;
-  fPES_PESSOA.Listar();
+  fPES_PESSOA.Listar(nil);
   if (itemXmlF('status', voParams) < 0) then begin
     raise Exception.Create('Pessoa ' + FloatToStr(vCdPessoa) + ' não cadastrada!' + ' / ' + cDS_METHOD);
     exit;
@@ -902,7 +902,7 @@ begin
     if (fTRA_TRANSACAO.CD_PESSOA = gCdClientePdv) then begin
       viParams := '';
       viParams.CD_PESSOA := fTRA_TRANSACAO.CD_PESSOA;
-      voParams := cADMSVCO025.Instance.CD_CLIENTE_PDV_EMP(viParams);
+      voParams := activateCmp('ADMSVCO025', 'CD_CLIENTE_PDV_EMP', viParams);
       if (itemXmlF('status', voParams) < 0) then begin
         raise Exception.Create(itemXml('message', voParams));
         exit;
@@ -915,11 +915,11 @@ begin
   vNrDiaUltCompra := xParamEmp.NR_DIAS_ULTCOMPRA_CLIENTE;
   //vCdClientePdvEmp := xParamEmp.CD_CLIENTE_PDV_EMP;
 
-  if (vNrDiaUltCompra > 0) and ((fGER_OPERACAO.TP_MODALIDADE = 4) or (fGER_OPERACAO.TP_MODALIDADE = 7) or (fGER_OPERACAO.TP_MODALIDADE = 'C')) and (item('TP_OPERACAO', tGER_OPERACAO) = 'S') then begin
+  if (vNrDiaUltCompra > 0) and ((fGER_OPERACAO.TP_MODALIDADE = 4) or (fGER_OPERACAO.TP_MODALIDADE = 7) or (fGER_OPERACAO.TP_MODALIDADE = 'C')) and (fGER_OPERACAO.TP_OPERACAO = 'S') then begin
     if (vCdPessoa <> gCdClientePdv) {and (vCdPessoa <> vCdClientePdvEmp)} and (fPES_PESSOA.TP_PESSOA = 'F') then begin
       viParams := '';
       viParams.CD_PESSOA := vCdPessoa;
-      voParams := cPESSVCO005.Instance.buscaDadosPessoaFisica(viParams);
+      voParams := activateCmp('PESSVCO005', 'buscaDadosPessoaFisica', viParams);
       if (itemXmlF('status', voParams) < 0) then begin
         raise Exception.Create(itemXml('message', voParams));
         exit;
@@ -941,10 +941,10 @@ begin
 
   if debug then MensagemLogTempo('pessoa - fisica');
 
-  if (fGER_OPERACAO.TP_OPERACAO = 'S') and ((fGER_OPERACAO.TP_MODALIDADE = 4) or (fGER_OPERACAO.TP_MODALIDADE = 7) or (fGER_OPERACAO.TP_MODALIDADE = 8) or (item('TP_MODALIDADE', tGER_OPERACAO) = 'C')) then begin
+  if (fGER_OPERACAO.TP_OPERACAO = 'S') and ((fGER_OPERACAO.TP_MODALIDADE = 4) or (fGER_OPERACAO.TP_MODALIDADE = 7) or (fGER_OPERACAO.TP_MODALIDADE = 8) or (fGER_OPERACAO.TP_MODALIDADE = 'C')) then begin
     fPES_CLIENTE.Limpar();
     fPES_CLIENTE.CD_CLIENTE := vCdPessoa;
-    fPES_CLIENTE.Listar();
+    fPES_CLIENTE.Listar(nil);
     fPES_CLIENTE.First();
     if not (fPES_CLIENTE.IsDatabase()) then begin
       raise Exception.Create('Cliente ' + FloatToStr(vCdPessoa) + ' não cadastrado!' + ' / ' + cDS_METHOD);
@@ -983,7 +983,7 @@ begin
     vCdCCusto := fGER_EMPRESA.CD_CCUSTO;
     fGER_EMPRESA.Limpar();
     fGER_EMPRESA.CD_PESSOA := vCdPessoa;
-    fGER_EMPRESA.Listar();
+    fGER_EMPRESA.Listar(nil);
     if (itemXmlF('status', voParams) < 0) then begin
       raise Exception.Create('Pessoa ' + FloatToStr(vCdPessoa) + ' não está relacionada a nenhuma empresa para tranferência.' + ' / ' + cDS_METHOD);
       exit;
@@ -994,12 +994,12 @@ begin
     end;
     fGER_EMPRESA.Limpar();
     fGER_EMPRESA.CD_EMPRESA := vCdEmpresa;
-    fGER_EMPRESA.Listar();
+    fGER_EMPRESA.Listar(nil);
     if (itemXmlF('status', voParams) < 0) then begin
       raise Exception.Create('Empresa ' + FloatToStr(vCdEmpresa) + ' não cadastrada!' + ' / ' + cDS_METHOD);
       exit;
     end;
-    if (vCdPessoa = fGER_EMPRESA.CD_PESSOA) and (itemF('TP_DOCTO', tGER_OPERACAO) = 1) then begin
+    if (vCdPessoa = fGER_EMPRESA.CD_PESSOA) and (fGER_OPERACAO.TP_DOCTO = 1) then begin
       raise Exception.Create('Não é permitido fazer transferência para a mesma empresa!' + ' / ' + cDS_METHOD);
       exit;
     end;
@@ -1017,7 +1017,7 @@ begin
       viParams.NM_ENTIDADE := 'TRA_TRANSACAO';
       viParams.NM_ATRIBUTO := 'NR_TRANSACAO';
       viParams.DT_SEQUENCIA := vDtTransacao;
-      voParams := cGERSVCO011.Instance.getNumSeq(viParams);
+      voParams := activateCmp('GERSVCO011', 'getNumSeq', viParams);
       if (itemXmlF('status', voParams) < 0) then begin
         raise Exception.Create(itemXml('message', voParams));
         exit;
@@ -1028,7 +1028,7 @@ begin
       viParams.NM_ENTIDADE := 'TRA_TRANSACAO';
       viParams.NM_ATRIBUTO := 'NR_TRANSACAO';
       viParams.DT_SEQUENCIA := '01/01/2001';
-      voParams := cGERSVCO011.Instance.getNumSeq(viParams);
+      voParams := activateCmp('GERSVCO011', 'getNumSeq', viParams);
       if (itemXmlF('status', voParams) < 0) then begin
         raise Exception.Create(itemXml('message', voParams));
         exit;
@@ -1038,7 +1038,7 @@ begin
       viParams := '';
       viParams.NM_ENTIDADE := 'TRA_TRANSACAO';
       viParams.NM_ATRIBUTO := 'NR_TRANSACAO';
-      voParams := cGERSVCO031.Instance.getNumSeq(viParams);
+      voParams := activateCmp('GERSVCO031', 'getNumSeq', viParams);
       if (itemXmlF('status', voParams) < 0) then begin
         raise Exception.Create(itemXml('message', voParams));
         exit;
@@ -1086,7 +1086,7 @@ begin
   if (vInHomologacaoPAF) and (vInVendaEcf) then begin
     //Data Hora Impressora
     viParams := '';
-    voParams := cPAFSVCO003.Instance.getDataHoraImpressora(viParams);
+    voParams := activateCmp('PAFSVCO003', 'getDataHoraImpressora', viParams);
     if (itemXmlF('status', voParams) < 0) then begin
       raise Exception.Create(itemXml('message', voParams));
       exit;
@@ -1117,7 +1117,7 @@ begin
     viParams.DT_TRANSACAO := vDtTransacao;
     viParams.NM_CHECKOUT := vNmCheckout;
     viParams.IN_CHECKOUT := True;
-    voParams := cTRASVCO016.Instance.gravaDadosAdicionais(viParams);
+    voParams := activateCmp('TRASVCO016', 'gravaDadosAdicionais', viParams);
     if (itemXmlF('status', voParams) < 0) then begin
       raise Exception.Create(itemXml('message', voParams));
       exit;
@@ -1132,18 +1132,18 @@ begin
     viParams.DT_TRANSACAO := vDtTransacao;
     viParams.DT_BASEPARCELA := vDtBaseParcela;
     viParams.IN_BASEPARCELA := True;
-    voParams := cTRASVCO016.Instance.gravaDadosAdicionais(viParams);
+    voParams := activateCmp('TRASVCO016', 'gravaDadosAdicionais', viParams);
     if (itemXmlF('status', voParams) < 0) then begin
       raise Exception.Create(itemXml('message', voParams));
       exit;
     end;
   end;
 
-  if ((fGER_OPERACAO.TP_MODALIDADE = 4) or (fGER_OPERACAO.TP_MODALIDADE = 3)) and (gInGuiaReprAuto) and (gTpTabPrecoPed = 2) and (itemF('CD_REPRESENTANT', tTRA_TRANSACAO) <> 0) then begin
+  if ((fGER_OPERACAO.TP_MODALIDADE = 4) or (fGER_OPERACAO.TP_MODALIDADE = 3)) and (gInGuiaReprAuto) and (gTpTabPrecoPed = 2) and (fTRA_TRANSACAO.CD_REPRESENTANT <> 0) then begin
     viParams := '';
     viParams.CD_CLIENTE := fTRA_TRANSACAO.CD_PESSOA;
     viParams.CD_REPRESENTANT := fTRA_TRANSACAO.CD_REPRESENTANT;
-    voParams := cPEDSVCO008.Instance.buscaTabelaPreco(viParams);
+    voParams := activateCmp('PEDSVCO008', 'buscaTabelaPreco', viParams);
     if (itemXmlF('status', voParams) < 0) then begin
       raise Exception.Create(itemXml('message', voParams));
       exit;
@@ -1160,7 +1160,7 @@ begin
     viParams.CD_TABPRECO := vCdTabPreco;
     viParams.IN_TABPRECO := True;
     viParams.IN_TABPRECOZERO := True;
-    voParams := cTRASVCO016.Instance.gravaDadosAdicionais(viParams);
+    voParams := activateCmp('TRASVCO016', 'gravaDadosAdicionais', viParams);
     if (itemXmlF('status', voParams) < 0) then begin
       raise Exception.Create(itemXml('message', voParams));
       exit;
@@ -1253,13 +1253,13 @@ begin
   fTRA_TRANSACAO.CD_EMPRESA := vCdEmpresa;
   fTRA_TRANSACAO.NR_TRANSACAO := vNrTransacao;
   fTRA_TRANSACAO.DT_TRANSACAO := vDtTransacao;
-  fTRA_TRANSACAO.Listar();
+  fTRA_TRANSACAO.Listar(nil);
   if (itemXmlF('status', voParams) < 0) then begin
     raise Exception.Create('Transação ' + FloatToStr(vNrTransacao) + ' não cadastrada!' + ' / ' + cDS_METHOD);
     exit;
   end;
   if (fTRA_TRANSACAO.TP_SITUACAO <> 1) and (fTRA_TRANSACAO.TP_SITUACAO <> 8) then begin
-    raise Exception.Create('Não é possível inserir itens na transação ' + fTRA_TRANSACAO.CD_EMPFAT + ' / ' + item('NR_TRANSACAO' + ' / ' + tTRA_TRANSACAO) + ' pois não está em andamento/bloqueada!', cDS_METHOD);
+    raise Exception.Create('Não é possível inserir itens na transação ' + fTRA_TRANSACAO.CD_EMPFAT + ' / ' + fTRA_TRANSACAO.NR_TRANSACAO + ' pois não está em andamento/bloqueada!' + ' / ' + cDS_METHOD);
     exit;
   end;
 
@@ -1282,7 +1282,7 @@ begin
 
     viParams := '';
     viParams.CD_SERVICO := vCdServico;
-    voParams := cPCPSVCO020.Instance.buscaDadosServico(viParams);
+    voParams := activateCmp('PCPSVCO020', 'buscaDadosServico', viParams);
     if (itemXmlF('status', voParams) < 0) then begin
       raise Exception.Create(itemXml('message', voParams));
       exit;
@@ -1301,7 +1301,7 @@ begin
         viParams.CD_PESSOA := fTRA_TRANSACAO.CD_PESSOA;
       end;
       viParams.CD_MPTER := vCdMPTer;
-      voParams := cGERSVCO046.Instance.buscaDadosMPTerceito(viParams);
+      voParams := activateCmp('GERSVCO046', 'buscaDadosMPTerceito', viParams);
       if (itemXmlF('status', voParams) < 0) then begin
         raise Exception.Create(itemXml('message', voParams));
         exit;
@@ -1318,7 +1318,7 @@ begin
       viParams := '';
       viParams.CD_EMPRESA := vCdEmpresa;
       viParams.CD_OPERACAO := fTRA_TRANSACAO.CD_OPERACAO;
-      //voParams := cGERSVCO054.Instance.dadosAdicionaisOperacao(viParams);
+      //voParams := activateCmp('GERSVCO054', 'dadosAdicionaisOperacao', viParams);
       if (itemXmlF('status', voParams) < 0) then begin
         raise Exception.Create(itemXml('message', voParams));
         exit;
@@ -1338,7 +1338,7 @@ begin
       //viParams.TP_LOTE := vTpLote;
       viParams.TP_INSPECAO := vTpInspecao;
       viParams.IN_PRODUTOBLOQ := vInProdutoBloq;
-      voParams := cPRDSVCO004.Instance.verificaProduto(viParams);
+      voParams := activateCmp('PRDSVCO004', 'verificaProduto', viParams);
       if (itemXmlF('status', voParams) < 0) then begin
         raise Exception.Create(itemXml('message', voParams));
         exit;
@@ -1369,7 +1369,7 @@ begin
       viParams := '';
       viParams.CD_PRODUTO := vCdProduto;
       viParams.QT_QUANTIDADE := vQtEmbalagem;
-      voParams := cPRDSVCO008.Instance.validaQtdFracionada(viParams);
+      voParams := activateCmp('PRDSVCO008', 'validaQtdFracionada', viParams);
       if (itemXmlF('status', voParams) < 0) then begin
         raise Exception.Create(itemXml('message', voParams));
         exit;
@@ -1382,7 +1382,7 @@ begin
 
       viParams := '';
       viParams.CD_PRODUTO := vCdProduto;
-      voParams := cGERSVCO046.Instance.buscaDadosProduto(viParams);
+      voParams := activateCmp('GERSVCO046', 'buscaDadosProduto', viParams);
       if (itemXmlF('status', voParams) < 0) then begin
         raise Exception.Create(itemXml('message', voParams));
         exit;
@@ -1402,9 +1402,9 @@ begin
         if (Pos(gDsSepBarraPrd, vCdBarraPrd) > 0) then begin
           fTRA_TRANSITEM.Limpar();
           fTRA_TRANSITEM.CD_BARRAPRD := vCdBarraPrd;
-          fTRA_TRANSITEM.Listar();
+          fTRA_TRANSITEM.Listar(nil);
           if (xStatus >= 0) then begin
-            raise Exception.Create('Código de barras ' + vCdBarraPrd + ' já cadastrado na transação ' + fTRA_TRANSACAO.CD_EMPFAT + ' / ' + item('NR_TRANSACAO' + ' / ' + tTRA_TRANSACAO) + '!', cDS_METHOD);
+            raise Exception.Create('Código de barras ' + vCdBarraPrd + ' já cadastrado na transação ' + fTRA_TRANSACAO.CD_EMPFAT + ' / ' + fTRA_TRANSACAO.NR_TRANSACAO + '!' + ' / ' + cDS_METHOD);
             exit;
           end;
         end;
@@ -1418,24 +1418,24 @@ begin
     fV_PES_ENDERECO.Limpar();
     fV_PES_ENDERECO.CD_PESSOA := fTRA_TRANSACAO.CD_PESSOA;
     fV_PES_ENDERECO.NR_SEQUENCIA := fTRA_TRANSACAO.NR_SEQENDERECO;
-    fV_PES_ENDERECO.Listar();
+    fV_PES_ENDERECO.Listar(nil);
     if (itemXmlF('status', voParams) < 0) then begin
-      if ((fGER_OPERACAO.TP_DOCTO = 2) or (fGER_OPERACAO.TP_DOCTO = 3)) and ((itemF('TP_MODALIDADE', tGER_OPERACAO) = 4) or (itemF('TP_MODALIDADE', tGER_OPERACAO) = 8) or (itemF('TP_MODALIDADE', tGER_OPERACAO) = 3)) then begin
+      if ((fGER_OPERACAO.TP_DOCTO = 2) or (fGER_OPERACAO.TP_DOCTO = 3)) and ((fGER_OPERACAO.TP_MODALIDADE = 4) or (fGER_OPERACAO.TP_MODALIDADE = 8) or (fGER_OPERACAO.TP_MODALIDADE = 3)) then begin
         if (gCdPessoaEndPadrao <> 0) then begin
           fV_PES_ENDERECO.Limpar();
           fV_PES_ENDERECO.CD_PESSOA := gCdPessoaEndPadrao;
           fV_PES_ENDERECO.NR_SEQUENCIA := fTRA_TRANSACAO.NR_SEQENDERECO;
-          fV_PES_ENDERECO.Listar();
+          fV_PES_ENDERECO.Listar(nil);
           if (itemXmlF('status', voParams) < 0) then begin
             raise Exception.Create('endereço ' + fTRA_TRANSACAO.NR_SEQENDERECO + ' não cadastrado para a pessoa ' + FloatToStr(gCdPessoaEndPadrao) + '!' + ' / ' + cDS_METHOD);
             exit;
           end;
         end else begin
-          raise Exception.Create('endereço ' + fTRA_TRANSACAO.NR_SEQENDERECO + ' não cadastrado para a pessoa ' + item('CD_PESSOA' + ' / ' + tPES_PESSOA) + '!', cDS_METHOD);
+          raise Exception.Create('endereço ' + fTRA_TRANSACAO.NR_SEQENDERECO + ' não cadastrado para a pessoa ' + fPES_PESSOA.CD_PESSOA + '!' + ' / ' + cDS_METHOD);
           exit;
         end;
       end else begin
-        raise Exception.Create('endereço ' + fTRA_TRANSACAO.NR_SEQENDERECO + ' não cadastrado para a pessoa ' + item('CD_PESSOA' + ' / ' + tPES_PESSOA) + '!', cDS_METHOD);
+        raise Exception.Create('endereço ' + fTRA_TRANSACAO.NR_SEQENDERECO + ' não cadastrado para a pessoa ' + fPES_PESSOA.CD_PESSOA + '!' + ' / ' + cDS_METHOD);
         exit;
       end;
     end;
@@ -1459,7 +1459,7 @@ begin
     fTRA_REMDES.CD_EMPRESA := vCdEmpresa;
     fTRA_REMDES.NR_TRANSACAO := vNrTransacao;
     fTRA_REMDES.DT_TRANSACAO := vDtTransacao;
-    fTRA_REMDES.Listar();
+    fTRA_REMDES.Listar(nil);
     if (xStatus >= 0) then begin
       if (fTRA_REMDES.CD_PESSOA <> '') then begin
         viParams.CD_PESSOA := fTRA_REMDES.CD_PESSOA;
@@ -1479,7 +1479,7 @@ begin
     viParams.CD_OPERACAO := fGER_OPERACAO.CD_OPERACAO;
     viParams.TP_AREACOMERCIO := vTpAreaComercio;
     viParams.TP_ORIGEMEMISSAO := fTRA_TRANSACAO.TP_ORIGEMEMISSAO;
-    voParams := cFISSVCO015.Instance.buscaCFOP(viParams);
+    voParams := activateCmp('FISSVCO015', 'buscaCFOP', viParams);
     if (itemXmlF('status', voParams) < 0) then begin
       raise Exception.Create(itemXml('message', voParams));
       exit;
@@ -1512,7 +1512,7 @@ begin
     viParams.TP_AREACOMERCIO := vTpAreaComercio;
     viParams.TP_ORIGEMEMISSAO := fTRA_TRANSACAO.TP_ORIGEMEMISSAO;
     viParams.CD_CFOP := vCdCFOP;
-    voParams := cFISSVCO015.Instance.buscaCST(viParams);
+    voParams := activateCmp('FISSVCO015', 'buscaCST', viParams);
     if (itemXmlF('status', voParams) < 0) then begin
       raise Exception.Create(itemXml('message', voParams));
       exit;
@@ -1546,7 +1546,7 @@ begin
             viParams.CD_TABPRECO := vCdTabPreco;
             viParams.CD_CONDPGTO := fTRA_TRANSACAO.CD_CONDPGTO;
             viParams.CD_OPERACAO := fTRA_TRANSACAO.CD_OPERACAO;
-            voParams := cPEDSVCO008.Instance.buscaValorProduto(viParams);
+            voParams := activateCmp('PEDSVCO008', 'buscaValorProduto', viParams);
             if (itemXmlF('status', voParams) < 0) then begin
               raise Exception.Create(itemXml('message', voParams));
               exit;
@@ -1561,7 +1561,7 @@ begin
             viParams.CD_OPERACAO := fTRA_TRANSACAO.CD_OPERACAO;
             viParams.DT_VALOR := vDtValor;
             viParams.IN_VALOR_PADRAO_TRANSF := vInValorPadraoTransf;
-            voParams := cGERSVCO012.Instance.buscaValorOperacao(viParams);
+            voParams := activateCmp('GERSVCO012', 'buscaValorOperacao', viParams);
             if (itemXmlF('status', voParams) < 0) then begin
               raise Exception.Create(itemXml('message', voParams));
               exit;
@@ -1734,7 +1734,7 @@ begin
 
   fGER_EMPRESA.Limpar();
   fGER_EMPRESA.CD_EMPRESA := vCdEmpresa;
-  fGER_EMPRESA.Listar();
+  fGER_EMPRESA.Listar(nil);
   if (itemXmlF('status', voParams) < 0) then begin
     raise Exception.Create('Empresa ' + FloatToStr(vCdEmpresa) + ' não cadastrada!' + ' / ' + cDS_METHOD);
     exit;
@@ -1746,7 +1746,7 @@ begin
   fTRA_TRANSACAO.CD_EMPRESA := vCdEmpresa;
   fTRA_TRANSACAO.NR_TRANSACAO := vNrTransacao;
   fTRA_TRANSACAO.DT_TRANSACAO := vDtTransacao;
-  fTRA_TRANSACAO.Listar();
+  fTRA_TRANSACAO.Listar(nil);
   if (itemXmlF('status', voParams) < 0) then begin
     raise Exception.Create('Transação ' + FloatToStr(vNrTransacao) + ' não cadastrada!' + ' / ' + cDS_METHOD);
     exit;
@@ -1778,9 +1778,9 @@ begin
 
       fTMP_NR09.Append();
       fTMP_NR09.NR_GERAL := vCdOper;
-      fTMP_NR09.Consultar();
+      fTMP_NR09.Consultar(nil);
       if (xStatus = -7) then begin
-        fTMP_NR09.Consultar();
+        fTMP_NR09.Consultar(nil);
       end;
 
       delitem(gCdOperKardex, 1);
@@ -1793,24 +1793,24 @@ begin
     fV_PES_ENDERECO.Limpar();
     fV_PES_ENDERECO.CD_PESSOA := fPES_PESSOA.CD_PESSOA;
     fV_PES_ENDERECO.NR_SEQUENCIA := fTRA_TRANSACAO.NR_SEQENDERECO;
-    fV_PES_ENDERECO.Listar();
+    fV_PES_ENDERECO.Listar(nil);
     if (itemXmlF('status', voParams) < 0) then begin
-      if ((fGER_OPERACAO.TP_DOCTO = 2) or (fGER_OPERACAO.TP_DOCTO = 3)) and ((itemF('TP_MODALIDADE', tGER_OPERACAO) = 4) or (itemF('TP_MODALIDADE', tGER_OPERACAO) = 8) or (itemF('TP_MODALIDADE', tGER_OPERACAO) = 3)) then begin
+      if ((fGER_OPERACAO.TP_DOCTO = 2) or (fGER_OPERACAO.TP_DOCTO = 3)) and ((fGER_OPERACAO.TP_MODALIDADE = 4) or (fGER_OPERACAO.TP_MODALIDADE = 8) or (fGER_OPERACAO.TP_MODALIDADE = 3)) then begin
         if (gCdPessoaEndPadrao <> 0) then begin
           fV_PES_ENDERECO.Limpar();
           fV_PES_ENDERECO.CD_PESSOA := gCdPessoaEndPadrao;
           fV_PES_ENDERECO.NR_SEQUENCIA := fTRA_TRANSACAO.NR_SEQENDERECO;
-          fV_PES_ENDERECO.Listar();
+          fV_PES_ENDERECO.Listar(nil);
           if (itemXmlF('status', voParams) < 0) then begin
             raise Exception.Create('endereço ' + fTRA_TRANSACAO.NR_SEQENDERECO + ' não cadastrado para a pessoa ' + FloatToStr(gCdPessoaEndPadrao) + '!' + ' / ' + cDS_METHOD);
             exit;
           end;
         end else begin
-          raise Exception.Create('endereço ' + fTRA_TRANSACAO.NR_SEQENDERECO + ' não cadastrado para a pessoa ' + item('CD_PESSOA' + ' / ' + tPES_PESSOA) + '!', cDS_METHOD);
+          raise Exception.Create('endereço ' + fTRA_TRANSACAO.NR_SEQENDERECO + ' não cadastrado para a pessoa ' + fPES_PESSOA.CD_PESSOA + '!' + ' / ' + cDS_METHOD);
           exit;
         end;
       end else begin
-        raise Exception.Create('endereço ' + fTRA_TRANSACAO.NR_SEQENDERECO + ' não cadastrado para a pessoa ' + item('CD_PESSOA' + ' / ' + tPES_PESSOA) + '!', cDS_METHOD);
+        raise Exception.Create('endereço ' + fTRA_TRANSACAO.NR_SEQENDERECO + ' não cadastrado para a pessoa ' + fPES_PESSOA.CD_PESSOA + '!' + ' / ' + cDS_METHOD);
         exit;
       end;
     end;
@@ -1850,7 +1850,7 @@ begin
       viParams := '';
       viParams.CD_FORNECEDOR := fTRA_TRANSACAO.CD_PESSOA;
       viParams.CD_PRODUTO := vCdProduto;
-      voParams := cPRDSVCO008.Instance.validaProdutoFornecedor(viParams);
+      voParams := activateCmp('PRDSVCO008', 'validaProdutoFornecedor', viParams);
       if (itemXmlF('status', voParams) < 0) then begin
         raise Exception.Create(itemXml('message', voParams));
         exit;
@@ -1876,9 +1876,9 @@ begin
     fTRA_TRANSITEM.NR_ITEM := vNrItem;
   end else begin
     fTRA_TRANSITEM.NR_ITEM := vNrItem;
-    fTRA_TRANSITEM.Consultar();
+    fTRA_TRANSITEM.Consultar(nil);
     if (xStatus = -7) then begin
-      fTRA_TRANSITEM.Consultar();
+      fTRA_TRANSITEM.Consultar(nil);
       vQtSolicitadaAnt := fTRA_TRANSITEM.QT_SOLICITADA;
       if not (fTRA_ITEMIMPOSTO.IsEmpty()) then begin
         voParams := tTRA_ITEMIMPOSTO.Excluir();
@@ -1893,7 +1893,7 @@ begin
         viParams.NR_TRANSACAO := fTRA_TRANSITEM.NR_TRANSACAO;
         viParams.DT_TRANSACAO := fTRA_TRANSITEM.DT_TRANSACAO;
         viParams.NR_ITEM := fTRA_TRANSITEM.NR_ITEM;
-        voParams := cSICSVCO005.Instance.arredondaQtFracionada(viParams);
+        voParams := activateCmp('SICSVCO005', 'arredondaQtFracionada', viParams);
         if (itemXmlF('status', voParams) < 0) then begin
           raise Exception.Create(itemXml('message', voParams));
           exit;
@@ -1923,7 +1923,7 @@ begin
     delitem(pParams, 'DT_TRANSACAO');
     delitem(pParams, 'NR_ITEM');
 
-    pParams := fTRA_TRANSITEM.GetValues();
+    fTRA_TRANSITEM.SetValues(pParams);
     fTRA_TRANSITEM.CD_EMPRESA := vCdEmpresa;
     fTRA_TRANSITEM.NR_TRANSACAO := vNrTransacao;
     fTRA_TRANSITEM.DT_TRANSACAO := vDtTransacao;
@@ -1939,7 +1939,7 @@ begin
       viParams := '';
       viParams.CD_EMPRESA := fGER_EMPRESA.CD_EMPRESA;
       viParams.CD_PRODUTO := vCdProduto;
-      voParams := cPRDSVCO008.Instance.buscaDadosFilial(viParams);
+      voParams := activateCmp('PRDSVCO008', 'buscaDadosFilial', viParams);
       if (itemXmlF('status', voParams) < 0) then begin
         raise Exception.Create(itemXml('message', voParams));
         exit;
@@ -1961,7 +1961,7 @@ begin
     if not (fTMP_NR09.IsEmpty()) then begin
       fTMP_NR09.Append();
       fTMP_NR09.NR_GERAL := fTRA_TRANSACAO.CD_OPERACAO;
-      fTMP_NR09.Consultar();
+      fTMP_NR09.Consultar(nil);
       if (xStatus = 4) then begin
         vInBloqSaldoNeg := False;
       end else begin
@@ -1976,7 +1976,7 @@ begin
           ((gInBloqSaldoNeg = 5) and (vInProdAcabado))  or
           ((gInBloqSaldoNeg = 6) and (vInMatPrima)))
     and (fTRA_TRANSACAO.TP_OPERACAO = 'S')
-    and ((fGER_OPERACAO.IN_KARDEX) or (item_b('IN_KARDEX', tGER_S_OPERACAO))) and (vCdMPTer = '') and (vCdServico = 0)) then begin
+    and ((fGER_OPERACAO.IN_KARDEX) or (fGER_S_OPERACAO.IN_KARDEX)) and (vCdMPTer = '') and (vCdServico = 0)) then begin
 
       if (vInImpressao) then begin
       end else begin
@@ -1987,7 +1987,7 @@ begin
         viParams.CD_OPERACAO := fTRA_TRANSACAO.CD_OPERACAO;
         viParams.IN_VALIDALOCAL := False;
         viParams.IN_TRANSACAO := vInTransacao;
-        voParams := cPRDSVCO015.Instance.verificaSaldoProduto(viParams);
+        voParams := activateCmp('PRDSVCO015', 'verificaSaldoProduto', viParams);
         if (itemXmlF('status', voParams) < 0) then begin
           raise Exception.Create(itemXml('message', voParams));
           exit;
@@ -2011,8 +2011,8 @@ begin
 
   //aqui
 
-    if (fTRA_TRANSITEM.VL_TOTALDESC > 0) or (itemF('VL_TOTALDESCCAB', tTRA_TRANSITEM) > 0) then begin
-      vVlDif := fTRA_TRANSITEM.VL_TOTALBRUTO - (itemF('VL_TOTALLIQUIDO', tTRA_TRANSITEM) + itemF('VL_TOTALDESC', tTRA_TRANSITEM) + itemF('VL_TOTALDESCCAB', tTRA_TRANSITEM));
+    if (fTRA_TRANSITEM.VL_TOTALDESC > 0) or (fTRA_TRANSITEM.VL_TOTALDESCCAB > 0) then begin
+      vVlDif := fTRA_TRANSITEM.VL_TOTALBRUTO - (fTRA_TRANSITEM.VL_TOTALLIQUIDO + fTRA_TRANSITEM.VL_TOTALDESC + fTRA_TRANSITEM.VL_TOTALDESCCAB);
 
       if (vVlDif <> 0) then begin
         if (vQtArredondada = 0) then begin
@@ -2020,7 +2020,7 @@ begin
             vQtArredondada := fTRA_TRANSITEM.QT_SOLICITADA;
           end;
         end;
-        if (fTRA_TRANSITEM.VL_TOTALDESC > itemF('VL_TOTALDESCCAB', tTRA_TRANSITEM)) then begin
+        if (fTRA_TRANSITEM.VL_TOTALDESC > fTRA_TRANSITEM.VL_TOTALDESCCAB) then begin
           fTRA_TRANSITEM.VL_TOTALDESC := fTRA_TRANSITEM.VL_TOTALDESC + vVlDif;
           vVlCalc := fTRA_TRANSITEM.VL_TOTALDESC / vQtArredondada;
           fTRA_TRANSITEM.VL_UNITDESC := rounded(vVlCalc, 6);
@@ -2038,10 +2038,10 @@ begin
     end;
     if ((PARAM_GLB.TP_ARREDOND_VL_UNIT_VD = 1) or (PARAM_GLB.TP_ARREDOND_VL_UNIT_VD = 2)) and (vInVenda) then begin
       if (fTRA_TRANSITEM.QT_SOLICITADA > 0) then begin
-        if (fTRA_TRANSITEM.VL_UNITDESC > 0) or (itemF('VL_UNITDESCCAB', tTRA_TRANSITEM) > 0) then begin
-          vVlDifUnitario := fTRA_TRANSITEM.VL_UNITBRUTO - (itemF('VL_UNITLIQUIDO', tTRA_TRANSITEM) + itemF('VL_UNITDESC', tTRA_TRANSITEM) + itemF('VL_UNITDESCCAB', tTRA_TRANSITEM));
+        if (fTRA_TRANSITEM.VL_UNITDESC > 0) or (fTRA_TRANSITEM.VL_UNITDESCCAB > 0) then begin
+          vVlDifUnitario := fTRA_TRANSITEM.VL_UNITBRUTO - (fTRA_TRANSITEM.VL_UNITLIQUIDO + fTRA_TRANSITEM.VL_UNITDESC + fTRA_TRANSITEM.VL_UNITDESCCAB);
           if (vVlDifUnitario <> 0) then begin
-            if (fTRA_TRANSITEM.VL_UNITDESC > itemF('VL_UNITDESCCAB', tTRA_TRANSITEM)) then begin
+            if (fTRA_TRANSITEM.VL_UNITDESC > fTRA_TRANSITEM.VL_UNITDESCCAB) then begin
               fTRA_TRANSITEM.VL_UNITDESC := fTRA_TRANSITEM.VL_UNITDESC + vVlDifUnitario;
             end else begin
               fTRA_TRANSITEM.VL_UNITDESCCAB := fTRA_TRANSITEM.VL_UNITDESCCAB + vVlDifUnitario;
@@ -2052,26 +2052,26 @@ begin
           vVlCalc := rounded(fTRA_TRANSITEM.VL_UNITBRUTO, 2);
           fTRA_TRANSITEM.VL_UNITBRUTO := vVlCalc;
 
-          vVlCalc := fTRA_TRANSITEM.VL_UNITBRUTO * itemF('QT_SOLICITADA', tTRA_TRANSITEM);
+          vVlCalc := fTRA_TRANSITEM.VL_UNITBRUTO * fTRA_TRANSITEM.QT_SOLICITADA;
           fTRA_TRANSITEM.VL_TOTALBRUTO := rounded(vVlCalc, 2);
-          fTRA_TRANSITEM.VL_TOTALLIQUIDO := fTRA_TRANSITEM.VL_TOTALBRUTO - (itemF('VL_TOTALDESCCAB', tTRA_TRANSITEM) + itemF('VL_TOTALDESC', tTRA_TRANSITEM));
+          fTRA_TRANSITEM.VL_TOTALLIQUIDO := fTRA_TRANSITEM.VL_TOTALBRUTO - (fTRA_TRANSITEM.VL_TOTALDESCCAB + fTRA_TRANSITEM.VL_TOTALDESC);
 
-          vVlCalc := fTRA_TRANSITEM.VL_TOTALLIQUIDO /  itemF('QT_SOLICITADA', tTRA_TRANSITEM);
+          vVlCalc := fTRA_TRANSITEM.VL_TOTALLIQUIDO /  fTRA_TRANSITEM.QT_SOLICITADA;
           fTRA_TRANSITEM.VL_UNITLIQUIDO := rounded(vVlCalc, 6);
 
         end else if (PARAM_GLB.TP_ARREDOND_VL_UNIT_VD = 2) then begin
           vVlCalc := rounded(fTRA_TRANSITEM.VL_UNITBRUTO, 2);
           fTRA_TRANSITEM.VL_UNITBRUTO := vVlCalc;
 
-          vVlCalc := fTRA_TRANSITEM.VL_UNITBRUTO * itemF('QT_SOLICITADA', tTRA_TRANSITEM);
+          vVlCalc := fTRA_TRANSITEM.VL_UNITBRUTO * fTRA_TRANSITEM.QT_SOLICITADA;
           vVlInteiro := int(vVlCalc);
           vVlFracionado := vVlCalc - vVlInteiro;
           vVlFracionado := int(vVlFracionado * 10000) / 10000;
           vVlCalc := vVlInteiro + vVlFracionado;
           fTRA_TRANSITEM.VL_TOTALBRUTO := vVlCalc;
-          fTRA_TRANSITEM.VL_TOTALLIQUIDO := fTRA_TRANSITEM.VL_TOTALBRUTO - (itemF('VL_TOTALDESCCAB', tTRA_TRANSITEM) + itemF('VL_TOTALDESC', tTRA_TRANSITEM));
+          fTRA_TRANSITEM.VL_TOTALLIQUIDO := fTRA_TRANSITEM.VL_TOTALBRUTO - (fTRA_TRANSITEM.VL_TOTALDESCCAB + fTRA_TRANSITEM.VL_TOTALDESC);
 
-          vVlCalc := fTRA_TRANSITEM.VL_TOTALLIQUIDO /  itemF('QT_SOLICITADA', tTRA_TRANSITEM);
+          vVlCalc := fTRA_TRANSITEM.VL_TOTALLIQUIDO /  fTRA_TRANSITEM.QT_SOLICITADA;
           fTRA_TRANSITEM.VL_UNITLIQUIDO := rounded(vVlCalc, 6);
         end;
       end;
@@ -2086,7 +2086,7 @@ begin
       viParams.CD_PRODUTO := vCdProduto;
       viParams.TP_VALOR := 'C';
       viParams.CD_VALOR := vCdCustoVenda;
-      voParams := cPRDSVCO007.Instance.buscaValorData(viParams);
+      voParams := activateCmp('PRDSVCO007', 'buscaValorData', viParams);
       if (itemXmlF('status', voParams) < 0) then begin
         raise Exception.Create(itemXml('message', voParams));
         exit;
@@ -2124,7 +2124,7 @@ begin
       end;
     end;
 
-    if (fTRA_TRANSITEM.QT_SOLICITADA > 0) and (itemF('VL_UNITBRUTO', tTRA_TRANSITEM) > 0) and (itemF('VL_UNITLIQUIDO', tTRA_TRANSITEM) > 0) then begin
+    if (fTRA_TRANSITEM.QT_SOLICITADA > 0) and (fTRA_TRANSITEM.VL_UNITBRUTO > 0) and (fTRA_TRANSITEM.VL_UNITLIQUIDO > 0) then begin
       if (fTRA_TRANSITEM.VL_TOTALBRUTO = 0) then begin
         fTRA_TRANSITEM.VL_TOTALBRUTO := 0.01;
       end;
@@ -2142,7 +2142,7 @@ begin
           fPRD_PRDREGRAFISCAL.Limpar();
           fPRD_PRDREGRAFISCAL.CD_PRODUTO := fTRA_TRANSITEM.CD_PRODUTO;
           fPRD_PRDREGRAFISCAL.CD_OPERACAO := fGER_OPERACAO.CD_OPERACAO;
-          fPRD_PRDREGRAFISCAL.Listar();
+          fPRD_PRDREGRAFISCAL.Listar(nil);
           if (xStatus >= 0) then begin
             vCdRegraFiscal := fPRD_PRDREGRAFISCAL.CD_REGRAFISCAL;
           end else begin
@@ -2156,7 +2156,7 @@ begin
       if (vCdRegraFiscal > 0) then begin
         fFIS_REGRAADIC.Limpar();
         fFIS_REGRAADIC.CD_REGRAFISCAL := vCdRegraFiscal;
-        fFIS_REGRAADIC.Listar();
+        fFIS_REGRAADIC.Listar(nil);
         if (itemXmlF('status', voParams) < 0) then begin
           fFIS_REGRAADIC.Limpar();
         end;
@@ -2200,7 +2200,7 @@ begin
       //-- nova regra fiscal
       if (fFIS_REGRAADIC.IN_NOVAREGRA) then begin
         viParams.CD_REGRAFISCAL := vCdRegraFiscal;
-        voParams := cFISSVCO080.Instance.buscaRegraRelacionada(viParams);
+        voParams := activateCmp('FISSVCO080', 'buscaRegraRelacionada', viParams);
         if (itemXmlF('status', voParams) < 0) then begin
           raise Exception.Create(itemXml('message', voParams)); exit;
         end;
@@ -2208,7 +2208,7 @@ begin
 
         viParams.CD_REGRAFISCAL := vCdRegraFiscal;
         viParams.IN_CONTRIBUINTE := voParams.IN_CONTRIBUINTE;
-        voParams := cFISSVCO080.Instance.calculaImpostoItem(viParams);
+        voParams := activateCmp('FISSVCO080', 'calculaImpostoItem', viParams);
         if (itemXmlF('status', voParams) < 0) then begin
           raise Exception.Create(itemXml('message', voParams)); exit;
         end;
@@ -2221,7 +2221,7 @@ begin
         fTRA_ITEMADIC.DT_CADASTRO := Now;
       end else begin
       //--
-        voParams := cFISSVCO015.Instance.calculaImpostoItem(viParams);
+        voParams := activateCmp('FISSVCO015', 'calculaImpostoItem', viParams);
         if (itemXmlF('status', voParams) < 0) then begin
           raise Exception.Create(itemXml('message', voParams)); exit;
         end;
@@ -2246,8 +2246,8 @@ begin
           fF_TRA_ITEMIMPOSTO.Limpar();
           //fF_TRA_ITEMIMPOSTO.Append();
           //fF_TRA_ITEMIMPOSTO.CD_IMPOSTO := vDsRegistro.CD_IMPOSTO;
-          //fF_TRA_ITEMIMPOSTO.Consultar();
-          vDsRegistro := fF_TRA_ITEMIMPOSTO.GetValues();
+          //fF_TRA_ITEMIMPOSTO.Consultar(nil);
+          fF_TRA_ITEMIMPOSTO.SetValues(vDsRegistro);
           fF_TRA_ITEMIMPOSTO.CD_EMPRESA := fTRA_TRANSITEM.CD_EMPRESA;
           fF_TRA_ITEMIMPOSTO.NR_TRANSACAO := fTRA_TRANSITEM.NR_TRANSACAO;
           fF_TRA_ITEMIMPOSTO.DT_TRANSACAO := fTRA_TRANSITEM.DT_TRANSACAO;
@@ -2276,7 +2276,7 @@ begin
       fTRA_TRANSITEM.CD_DECRETO := vCdDecreto;
     end;
 
-    vVlCalc := (fTRA_TRANSITEM.VL_TOTALDESC + itemF('VL_TOTALDESCCAB', tTRA_TRANSITEM)) / itemF('VL_TOTALBRUTO', tTRA_TRANSITEM) * 100;
+    vVlCalc := (fTRA_TRANSITEM.VL_TOTALDESC + fTRA_TRANSITEM.VL_TOTALDESCCAB) / fTRA_TRANSITEM.VL_TOTALBRUTO * 100;
     fTRA_TRANSITEM.PR_DESCONTO := rounded(vVlCalc, 6);
 
     if (fTRA_TRANSITEM.PR_DESCONTO <> 0) then begin
@@ -2296,7 +2296,7 @@ begin
     raise Exception.Create(itemXml('message', voParams));
     exit;
   end;
-  if (fTRA_TRANSITEM.CD_PRODUTO = 0) and (itemF('TP_DOCTO', tGER_OPERACAO) = 1) then begin
+  if (fTRA_TRANSITEM.CD_PRODUTO = 0) and (fGER_OPERACAO.TP_DOCTO = 1) then begin
     vNrDescItem := length(fTRA_TRANSITEM.DS_PRODUTO);
 
     fTRA_TRANSITEM.Limpar();
@@ -2304,7 +2304,7 @@ begin
     fTRA_TRANSITEM.NR_TRANSACAO := vNrTransacao;
     fTRA_TRANSITEM.DT_TRANSACAO := vDtTransacao;
     fTRA_TRANSITEM.NR_ITEM := '<' + FloatToStr(vNrItem);
-    fTRA_TRANSITEM.Listar();
+    fTRA_TRANSITEM.Listar(nil);
     if (xStatus >= 0) then begin
       tTRA_TRANSITEM.IndexFieldNames := 'NR_ITEM';
       fTRA_TRANSITEM.First();
@@ -2334,7 +2334,7 @@ begin
     viParams.NR_ITEM := fTRA_TRANSITEM.NR_ITEM;
     viParams.VL_BASE := vVlBase;
     viParams.VL_ORIGINAL := vVlOriginal;
-    voParams := cTRASVCO024.Instance.gravaTraItemAdic(viParams);
+    voParams := activateCmp('TRASVCO024', 'gravaTraItemAdic', viParams);
     if (itemXmlF('status', voParams) < 0) then begin
       raise Exception.Create(itemXml('message', voParams));
       exit;
@@ -2351,7 +2351,7 @@ begin
     viParams.NR_ITEM := fTRA_TRANSITEM.NR_ITEM;
     viParams.DS_LSTITEMLOTE := vDsLstItemLote;
     viParams.IN_SEMMOVIMENTO := vInSemMovimento;
-    voParams := cTRASVCO016.Instance.gravaItemLote(viParams);
+    voParams := activateCmp('TRASVCO016', 'gravaItemLote', viParams);
     if (itemXmlF('status', voParams) < 0) then begin
       raise Exception.Create(itemXml('message', voParams));
       exit;
@@ -2379,7 +2379,7 @@ begin
 
   if debug then MensagemLogTempo('calcula total');
 
-  if ((fGER_OPERACAO.TP_OPERACAO = 'E') and ((fGER_OPERACAO.TP_MODALIDADE = 4) or (fGER_OPERACAO.TP_MODALIDADE = 2)) or (itemF('CD_OPERACAO', tGER_OPERACAO) = gCdOperacaoOI)) then begin
+  if ((fGER_OPERACAO.TP_OPERACAO = 'E') and ((fGER_OPERACAO.TP_MODALIDADE = 4) or (fGER_OPERACAO.TP_MODALIDADE = 2)) or (fGER_OPERACAO.CD_OPERACAO = gCdOperacaoOI)) then begin
   end else begin
     if (gDsLstValorVenda <> '') and (fTRA_TRANSITEM.CD_ESPECIE <> gCdEspecieServico) and (fTRA_TRANSITEM.CD_PRODUTO > 0) then begin
       viParams := '';
@@ -2391,7 +2391,7 @@ begin
       viParams.CD_PRODUTO := fTRA_TRANSITEM.CD_PRODUTO;
       viParams.CD_EMPFAT := fTRA_TRANSACAO.CD_EMPFAT;
       viParams.CD_GRUPOEMPRESA := fTRA_TRANSACAO.CD_GRUPOEMPRESA;
-      //voParams := cTRASVCO016.Instance.gravaItemValor(viParams);
+      //voParams := activateCmp('TRASVCO016', 'gravaItemValor', viParams);
       //if (itemXmlF('status', voParams) < 0) then begin
       //  raise Exception.Create(itemXml('message', voParams));
       //  exit;
@@ -2427,7 +2427,7 @@ var
   viParams, voParams : String;
 begin
   viParams := pParams;
-  voParams := cTRASVCO024.Instance.gravaParcelaTransacao(viParams);
+  voParams := activateCmp('TRASVCO024', 'gravaParcelaTransacao', viParams);
   if (itemXmlF('status', voParams) < 0) then begin
     raise Exception.Create(itemXml('message', voParams));
     exit;
@@ -2479,9 +2479,9 @@ begin
     fTRA_TRANSACAO.CD_EMPRESA := vCdEmpresa;
     fTRA_TRANSACAO.NR_TRANSACAO := vNrTransacao;
     fTRA_TRANSACAO.DT_TRANSACAO := vDtTransacao;
-    fTRA_TRANSACAO.Consultar();
+    fTRA_TRANSACAO.Consultar(nil);
     if (xStatus = -7) then begin
-      fTRA_TRANSACAO.Consultar();
+      fTRA_TRANSACAO.Consultar(nil);
     end else if (xStatus = 0) then begin
       raise Exception.Create('Transação ' + FloatToStr(vNrTransacao) + ' não cadastrada!' + ' / ' + cDS_METHOD);
       exit;
@@ -2513,16 +2513,16 @@ begin
       fV_TRA_TOTATRA.CD_EMPRESA := fTRA_TRANSACAO.CD_EMPRESA;
       fV_TRA_TOTATRA.NR_TRANSACAO := fTRA_TRANSACAO.NR_TRANSACAO;
       fV_TRA_TOTATRA.DT_TRANSACAO := fTRA_TRANSACAO.DT_TRANSACAO;
-      fV_TRA_TOTATRA.Listar();
+      fV_TRA_TOTATRA.Listar(nil);
       if (itemXmlF('status', voParams) < 0) then begin
         fV_TRA_TOTATRA.Limpar();
       end;
-      if (fV_TRA_TOTATRA.QT_TOTALITEM <> itemF('QT_SOLICITADA', tV_TRA_TOTATRA)) then begin
-        raise Exception.Create('Totalização de valor da transação ' + FloatToStr(vNrTransacao) + ' divergente. Capa: ' + fV_TRA_TOTATRA.QT_SOLICITADA + ' Items: ' + item('QT_TOTALITEM' + ' / ' + tV_TRA_TOTATRA) + ' !', cDS_METHOD);
+      if (fV_TRA_TOTATRA.QT_TOTALITEM <> fV_TRA_TOTATRA.QT_SOLICITADA) then begin
+        raise Exception.Create('Totalização de valor da transação ' + FloatToStr(vNrTransacao) + ' divergente. Capa: ' + fV_TRA_TOTATRA.QT_SOLICITADA + ' Items: ' + fV_TRA_TOTATRA.QT_TOTALITEM + ' !' + ' / ' + cDS_METHOD);
         exit;
       end;
-      if (fV_TRA_TOTATRA.VL_TOTALITEM <> itemF('VL_TRANSACAO', tV_TRA_TOTATRA)) then begin
-        raise Exception.Create('Totalização de valor da transação ' + FloatToStr(vNrTransacao) + ' divergente. Capa: ' + fV_TRA_TOTATRA.VL_TRANSACAO + ' Items: ' + item('VL_TOTALITEM' + ' / ' + tV_TRA_TOTATRA) + ' !', cDS_METHOD);
+      if (fV_TRA_TOTATRA.VL_TOTALITEM <> fV_TRA_TOTATRA.VL_TRANSACAO) then begin
+        raise Exception.Create('Totalização de valor da transação ' + FloatToStr(vNrTransacao) + ' divergente. Capa: ' + fV_TRA_TOTATRA.VL_TRANSACAO + ' Items: ' + fV_TRA_TOTATRA.VL_TOTALITEM + ' !' + ' / ' + cDS_METHOD);
         exit;
       end;
       fTRA_TRANSACAO.Next();
@@ -2592,9 +2592,9 @@ begin
     fTRA_TRANSACAO.CD_EMPRESA := vCdEmpresa;
     fTRA_TRANSACAO.NR_TRANSACAO := vNrTransacao;
     fTRA_TRANSACAO.DT_TRANSACAO := vDtTransacao;
-    fTRA_TRANSACAO.Consultar();
+    fTRA_TRANSACAO.Consultar(nil);
     if (xStatus = -7) then begin
-      fTRA_TRANSACAO.Consultar();
+      fTRA_TRANSACAO.Consultar(nil);
     end else if (xStatus = 0) then begin
       raise Exception.Create('Transação ' + FloatToStr(vNrTransacao) + ' não cadastrada!' + ' / ' + cDS_METHOD);
       exit;
@@ -2604,7 +2604,7 @@ begin
       viParams.CD_EMPRESA := fTRA_TRANSACAO.CD_EMPRESA;
       viParams.NR_TRANSACAO := fTRA_TRANSACAO.NR_TRANSACAO;
       viParams.DT_TRANSACAO := fTRA_TRANSACAO.DT_TRANSACAO;
-      voParams := cTRASVCO012.Instance.validaNFTransacao(viParams);
+      voParams := activateCmp('TRASVCO012', 'validaNFTransacao', viParams);
       if (itemXmlF('status', voParams) < 0) then begin
         raise Exception.Create(itemXml('message', voParams));
         exit;
@@ -2625,7 +2625,7 @@ begin
 
     viParams := '';
     viParams.NM_ENTIDADE := 'TRA_TRANSACSITT';
-    voParams := cGERSVCO031.Instance.getNumSeq(viParams);
+    voParams := activateCmp('GERSVCO031', 'getNumSeq', viParams);
     if (itemXmlF('status', voParams) < 0) then begin
       raise Exception.Create(itemXml('message', voParams));
       exit;
@@ -2652,7 +2652,7 @@ begin
         viParams.DT_TRANSACAO := fTRA_TRANSACAO.DT_TRANSACAO;
         viParams.CD_LIBERADOR := PARAM_GLB.CD_USUARIO;
         viParams.TP_LIBERACAO := 1;
-        voParams := cTRASVCO016.Instance.gravaLiberacaoTransacao(viParams);
+        voParams := activateCmp('TRASVCO016', 'gravaLiberacaoTransacao', viParams);
         if (itemXmlF('status', voParams) < 0) then begin
           raise Exception.Create(itemXml('message', voParams));
           exit;
@@ -2661,7 +2661,7 @@ begin
         viParams := '';
         viParams.CD_CLIENTE := fTRA_TRANSACAO.CD_PESSOA;
         viParams.IN_TOTAL := True;
-        voParams := cFCRSVCO015.Instance.buscaLimiteCliente(viParams);
+        voParams := activateCmp('FCRSVCO015', 'buscaLimiteCliente', viParams);
         if (itemXmlF('status', voParams) < 0) then begin
           raise Exception.Create(itemXml('message', voParams));
           exit;
@@ -2677,7 +2677,7 @@ begin
           viParams.CD_LIBERADOR := PARAM_GLB.CD_USUARIO;
           viParams.TP_LIBERACAO := 2;
           viParams.NR_DIAATRASO := vNrDiasAtraso;
-          voParams := cTRASVCO016.Instance.gravaLiberacaoTransacao(viParams);
+          voParams := activateCmp('TRASVCO016', 'gravaLiberacaoTransacao', viParams);
           if (itemXmlF('status', voParams) < 0) then begin
             raise Exception.Create(itemXml('message', voParams));
             exit;
@@ -2740,7 +2740,7 @@ begin
     fTRA_TRANSACAO.CD_EMPRESA := vCdEmpresa;
     fTRA_TRANSACAO.NR_TRANSACAO := vNrTransacao;
     fTRA_TRANSACAO.DT_TRANSACAO := vDtTransacao;
-    fTRA_TRANSACAO.Listar();
+    fTRA_TRANSACAO.Listar(nil);
     if (itemXmlF('status', voParams) < 0) then begin
       raise Exception.Create('Transação ' + FloatToStr(vNrTransacao) + ' não cadastrada!' + ' / ' + cDS_METHOD);
       exit;
@@ -2753,7 +2753,7 @@ begin
         viParams.NR_TRANSACAO := fTRA_TRANSITEM.NR_TRANSACAO;
         viParams.DT_TRANSACAO := fTRA_TRANSITEM.DT_TRANSACAO;
         viParams.NR_ITEM := fTRA_TRANSITEM.NR_ITEM;
-        voParams := cGERSVCO058.Instance.buscaDadosGerOperCfopTra(viParams);
+        voParams := activateCmp('GERSVCO058', 'buscaDadosGerOperCfopTra', viParams);
         if (itemXmlF('status', voParams) < 0) then begin
           raise Exception.Create(itemXml('message', voParams));
           exit;
@@ -2773,7 +2773,7 @@ begin
           //viParams.QT_MOVIMENTO := fTRA_TRANSITEM.QT_SOLICITADA;
           //viParams.VL_UNITLIQUIDO := fTRA_TRANSITEM.VL_UNITLIQUIDO;
           //viParams.VL_UNITSEMIMPOSTO := fTRA_TRANSITEM.VL_UNITLIQUIDO;
-          //voParams := cGERSVCO008.Instance.atualizaSaldoOperacao(viParams);
+          //voParams := activateCmp('GERSVCO008', 'atualizaSaldoOperacao', viParams);
           //if (itemXmlF('status', voParams) < 0) then begin
           //  raise Exception.Create(itemXml('message', voParams));
           //  exit;
@@ -2837,7 +2837,7 @@ begin
   fTRA_TRANSACAO.CD_EMPRESA := vCdEmpresa;
   fTRA_TRANSACAO.NR_TRANSACAO := vNrTransacao;
   fTRA_TRANSACAO.DT_TRANSACAO := vDtTransacao;
-  fTRA_TRANSACAO.Listar();
+  fTRA_TRANSACAO.Listar(nil);
   if (itemXmlF('status', voParams) < 0) then begin
     raise Exception.Create('Transação ' + FloatToStr(vNrTransacao) + ' não cadastrada!' + ' / ' + cDS_METHOD);
     exit;
@@ -2845,7 +2845,7 @@ begin
 
   fTRA_TRANSITEM.Limpar();
   fTRA_TRANSITEM.NR_ITEM := vNrItem;
-  fTRA_TRANSITEM.Listar();
+  fTRA_TRANSITEM.Listar(nil);
   if (itemXmlF('status', voParams) < 0) then begin
     raise Exception.Create('Item ' + FloatToStr(vNrItem) + ' da transação ' + FloatToStr(vNrTransacao) + ' não cadastrada!' + ' / ' + cDS_METHOD);
     exit;
@@ -2864,7 +2864,7 @@ begin
   fTRA_ITEMIMPOSTO.NR_TRANSACAO := fTRA_TRANSITEM.NR_TRANSACAO; //--
   fTRA_ITEMIMPOSTO.DT_TRANSACAO := fTRA_TRANSITEM.DT_TRANSACAO; //--
   fTRA_ITEMIMPOSTO.NR_ITEM := fTRA_TRANSITEM.NR_ITEM; //--
-  fTRA_ITEMIMPOSTO.Listar();
+  fTRA_ITEMIMPOSTO.Listar(nil);
   if (xStatus >= 0) then begin
     voParams := tTRA_ITEMIMPOSTO.Excluir();
     if (itemXmlF('status', voParams) < 0) then begin
@@ -2892,7 +2892,7 @@ begin
   viParams.TP_AREACOMERCIO := vTpAreaComercio;
   viParams.TP_ORIGEMEMISSAO := fTRA_TRANSACAO.TP_ORIGEMEMISSAO;
   viParams.CD_REGRAFISCAL := vCdRegraFiscal;
-  voParams := cFISSVCO015.Instance.buscaCFOP(viParams);
+  voParams := activateCmp('FISSVCO015', 'buscaCFOP', viParams);
   if (itemXmlF('status', voParams) < 0) then begin
     raise Exception.Create(itemXml('message', voParams));
     exit;
@@ -2919,7 +2919,7 @@ begin
   viParams.TP_ORIGEMEMISSAO := fTRA_TRANSACAO.TP_ORIGEMEMISSAO;
   viParams.CD_CFOP := vCdCFOP;
   viParams.CD_REGRAFISCAL := vCdRegraFiscal;
-  voParams := cFISSVCO015.Instance.buscaCST(viParams);
+  voParams := activateCmp('FISSVCO015', 'buscaCST', viParams);
   if (itemXmlF('status', voParams) < 0) then begin
     raise Exception.Create(itemXml('message', voParams));
     exit;
@@ -2939,7 +2939,7 @@ begin
       fPRD_PRDREGRAFISCAL.Limpar();
       fPRD_PRDREGRAFISCAL.CD_PRODUTO := fTRA_TRANSITEM.CD_PRODUTO;
       fPRD_PRDREGRAFISCAL.CD_OPERACAO := fGER_OPERACAO.CD_OPERACAO;
-      fPRD_PRDREGRAFISCAL.Listar();
+      fPRD_PRDREGRAFISCAL.Listar(nil);
       if (xStatus >= 0) then begin
         vCdRegraFiscal := fPRD_PRDREGRAFISCAL.CD_REGRAFISCAL;
       end else begin
@@ -2953,7 +2953,7 @@ begin
   if (vCdRegraFiscal > 0) then begin
     fFIS_REGRAADIC.Limpar();
     fFIS_REGRAADIC.CD_REGRAFISCAL := vCdRegraFiscal;
-    fFIS_REGRAADIC.Listar();
+    fFIS_REGRAADIC.Listar(nil);
     if (itemXmlF('status', voParams) < 0) then begin
       fFIS_REGRAADIC.Limpar();
     end;
@@ -2999,7 +2999,7 @@ begin
   //-- nova regra fiscal
   if (fFIS_REGRAADIC.IN_NOVAREGRA) then begin
     viParams.CD_REGRAFISCAL := vCdRegraFiscal;
-    voParams := cFISSVCO080.Instance.buscaRegraRelacionada(viParams);
+    voParams := activateCmp('FISSVCO080', 'buscaRegraRelacionada', viParams);
     if (itemXmlF('status', voParams) < 0) then begin
       raise Exception.Create(itemXml('message', voParams)); exit;
     end;
@@ -3007,7 +3007,7 @@ begin
 
     viParams.CD_REGRAFISCAL := vCdRegraFiscal;
     viParams.IN_CONTRIBUINTE := voParams.IN_CONTRIBUINTE;
-    voParams := cFISSVCO080.Instance.calculaImpostoItem(viParams);
+    voParams := activateCmp('FISSVCO080', 'calculaImpostoItem', viParams);
     if (itemXmlF('status', voParams) < 0) then begin
       raise Exception.Create(itemXml('message', voParams)); exit;
     end;
@@ -3016,7 +3016,7 @@ begin
     vCdCFOP := voParams.CD_CFOP;
   end else begin
   //--
-    voParams := cFISSVCO015.Instance.calculaImpostoItem(viParams);
+    voParams := activateCmp('FISSVCO015', 'calculaImpostoItem', viParams);
     if (itemXmlF('status', voParams) < 0) then begin
       raise Exception.Create(itemXml('message', voParams)); exit;
     end;
@@ -3053,9 +3053,9 @@ begin
       fTRA_ITEMIMPOSTO.DT_TRANSACAO := fTRA_TRANSITEM.DT_TRANSACAO; //--
       fTRA_ITEMIMPOSTO.NR_ITEM := fTRA_TRANSITEM.NR_ITEM; //--
       fTRA_ITEMIMPOSTO.CD_IMPOSTO := vDsRegistro.CD_IMPOSTO;
-      fTRA_ITEMIMPOSTO.Consultar();
+      fTRA_ITEMIMPOSTO.Consultar(nil);
 
-      vDsRegistro := fTRA_ITEMIMPOSTO.GetValues();
+      fTRA_ITEMIMPOSTO.SetValues(vDsRegistro);
 
       fTRA_ITEMIMPOSTO.CD_EMPFAT := fTRA_TRANSACAO.CD_EMPFAT;
       fTRA_ITEMIMPOSTO.CD_GRUPOEMPRESA := fTRA_TRANSACAO.CD_GRUPOEMPRESA;
@@ -3065,7 +3065,7 @@ begin
       fFIS_REGRAIMPOSTO.Limpar();
       fFIS_REGRAIMPOSTO.CD_IMPOSTO := vDsRegistro.CD_IMPOSTO;
       fFIS_REGRAIMPOSTO.CD_REGRAFISCAL := fGER_OPERACAO.CD_REGRAFISCAL;
-      fFIS_REGRAIMPOSTO.Listar();
+      fFIS_REGRAIMPOSTO.Listar(nil);
       if (xStatus >= 0) then begin
         fTRA_ITEMIMPOSTO.CD_CST := fFIS_REGRAIMPOSTO.CD_CST;
       end;
@@ -3129,7 +3129,7 @@ begin
   fTRA_TRANSACAO.CD_EMPRESA := vCdEmpresa;
   fTRA_TRANSACAO.NR_TRANSACAO := vNrTransacao;
   fTRA_TRANSACAO.DT_TRANSACAO := vDtTransacao;
-  fTRA_TRANSACAO.Listar();
+  fTRA_TRANSACAO.Listar(nil);
   if (itemXmlF('status', voParams) < 0) then begin
     raise Exception.Create('Transação ' + FloatToStr(vNrTransacao) + ' não cadastrada!' + ' / ' + cDS_METHOD);
     exit;
@@ -3158,7 +3158,7 @@ begin
   viParams.NR_TRANSACAO := fTRA_TRANSACAO.NR_TRANSACAO;
   viParams.DT_TRANSACAO := fTRA_TRANSACAO.DT_TRANSACAO;
   viParams.CD_COMPVEND := vCdVendedor;
-  voParams := cFISSVCO004.Instance.AlteraVendedorNF(viParams);
+  voParams := activateCmp('FISSVCO004', 'AlteraVendedorNF', viParams);
   if (itemXmlF('status', voParams) < 0) then begin
     raise Exception.Create(itemXml('message', voParams));
     exit;
@@ -3211,7 +3211,7 @@ begin
   fTRA_TRANSACAO.CD_EMPRESA := vCdEmpresa;
   fTRA_TRANSACAO.NR_TRANSACAO := vNrTransacao;
   fTRA_TRANSACAO.DT_TRANSACAO := vDtTransacao;
-  fTRA_TRANSACAO.Listar();
+  fTRA_TRANSACAO.Listar(nil);
   if (itemXmlF('status', voParams) < 0) then begin
     raise Exception.Create('Transação ' + FloatToStr(vNrTransacao) + ' não cadastrada!' + ' / ' + cDS_METHOD);
     exit;
@@ -3285,9 +3285,9 @@ begin
     fTRA_TRANSACAO.CD_EMPRESA := vCdEmpresa;
     fTRA_TRANSACAO.NR_TRANSACAO := vNrTransacao;
     fTRA_TRANSACAO.DT_TRANSACAO := vDtTransacao;
-    fTRA_TRANSACAO.Consultar();
+    fTRA_TRANSACAO.Consultar(nil);
     if (xStatus = -7) then begin
-      fTRA_TRANSACAO.Consultar();
+      fTRA_TRANSACAO.Consultar(nil);
     end else if (xStatus = 0) then begin
       raise Exception.Create('Transação ' + FloatToStr(vNrTransacao) + ' não cadastrada!' + ' / ' + cDS_METHOD);
       exit;
@@ -3371,7 +3371,7 @@ begin
   fTRA_TRANSACAO.CD_EMPRESA := vCdEmpresa;
   fTRA_TRANSACAO.NR_TRANSACAO := vNrTransacao;
   fTRA_TRANSACAO.DT_TRANSACAO := vDtTransacao;
-  fTRA_TRANSACAO.Listar();
+  fTRA_TRANSACAO.Listar(nil);
   if (itemXmlF('status', voParams) < 0) then begin
     raise Exception.Create('Transação ' + FloatToStr(vNrTransacao) + ' não cadastrada!' + ' / ' + cDS_METHOD);
     exit;
@@ -3382,12 +3382,12 @@ begin
     fV_PES_ENDERECO.Limpar();
     viParams := '';
     viParams.CD_PESSOA := fTRA_TRANSACAO.CD_PESSOA;
-    voParams := cPESSVCO005.Instance.buscaEnderecoFaturamento(viParams);
+    voParams := activateCmp('PESSVCO005', 'buscaEnderecoFaturamento', viParams);
     if (xStatus >= 0) then begin
       vNrSeqendereco := voParams.NR_SEQENDERECO;
       fV_PES_ENDERECO.CD_PESSOA := fTRA_TRANSACAO.CD_PESSOA;
       fV_PES_ENDERECO.NR_SEQUENCIA := vNrSeqendereco;
-      fV_PES_ENDERECO.Listar();
+      fV_PES_ENDERECO.Listar(nil);
       if (itemXmlF('status', voParams) < 0) then begin
         raise Exception.Create('endereço ' + FloatToStr(vNrSeqendereco) + ' não cadastrado para a transportadora ' + FloatToStr(vCdTransport) + '!' + ' / ' + cDS_METHOD);
         exit;
@@ -3397,7 +3397,7 @@ begin
     fV_PES_ENDERECO.Limpar();
   end;
 
-  if (fTRA_TRANSACAO.CD_EMPFAT <> itemF('CD_EMPRESA', tTRA_TRANSACAO)) then begin 
+  if (fTRA_TRANSACAO.CD_EMPFAT <> fTRA_TRANSACAO.CD_EMPRESA) then begin 
     viParams := '';
     viParams.CD_EMPRESA := fTRA_TRANSACAO.CD_EMPFAT;
     getParam(pParams);
@@ -3408,19 +3408,19 @@ begin
   fTRA_TRANSACAO.VL_DESPACESSOR := vVlDespAcessor;
 
   fTRA_TRANSPORT.Limpar();
-  fTRA_TRANSPORT.Listar();
+  fTRA_TRANSPORT.Listar(nil);
   if (xStatus >= 0) then begin
     if (vCdTransport = 0) then begin
       fPED_PEDIDOTRA.Limpar();
       fPED_PEDIDOTRA.CD_EMPTRANSACAO := fTRA_TRANSACAO.CD_EMPRESA;
       fPED_PEDIDOTRA.NR_TRANSACAO := fTRA_TRANSACAO.NR_TRANSACAO;
       fPED_PEDIDOTRA.DT_TRANSACAO := fTRA_TRANSACAO.DT_TRANSACAO;
-      fPED_PEDIDOTRA.Listar();
+      fPED_PEDIDOTRA.Listar(nil);
       if (itemXmlF('status', voParams) < 0) then begin
         fTRA_TRANSPORT.First();
         vCdTransport := fTRA_TRANSPORT.CD_TRANSPORT;
         vTpFrete := fTRA_TRANSPORT.TP_FRETE;
-        fTRA_TRANSPORT.SetValues(pParams);
+        pParams := fTRA_TRANSPORT.GetValues();
       end;
     end;
 
@@ -3434,7 +3434,7 @@ begin
   end;
 
   fTRA_TRAIMPOSTO.Limpar();
-  fTRA_TRAIMPOSTO.Listar();
+  fTRA_TRAIMPOSTO.Listar(nil);
   if (xStatus >= 0) then begin
     voParams := tTRA_TRAIMPOSTO.Excluir();
     if (itemXmlF('status', voParams) < 0) then begin
@@ -3454,12 +3454,12 @@ begin
 
     viParams := '';
     viParams.CD_PESSOA := vCdTransport;
-    voParams := cPESSVCO005.Instance.buscaenderecoFaturamento(viParams);
+    voParams := activateCmp('PESSVCO005', 'buscaenderecoFaturamento', viParams);
     if (xStatus >= 0) then begin
       vNrSeqendereco := voParams.NR_SEQENDERECO;
       fV_PES_ENDERECO.CD_PESSOA := vCdTransport;
       fV_PES_ENDERECO.NR_SEQUENCIA := vNrSeqendereco;
-      fV_PES_ENDERECO.Listar();
+      fV_PES_ENDERECO.Listar(nil);
       if (itemXmlF('status', voParams) < 0) then begin
         raise Exception.Create('endereço ' + FloatToStr(vNrSeqendereco) + ' não cadastrado para a transportadora ' + FloatToStr(vCdTransport) + '!' + ' / ' + cDS_METHOD);
         exit;
@@ -3470,11 +3470,11 @@ begin
     delitem(pParams, 'CD_EMPRESA');
     delitem(pParams, 'NR_TRANSACAO');
     delitem(pParams, 'DT_TRANSACAO');
-    pParams := fTRA_TRANSPORT.GetValues();
+    fTRA_TRANSPORT.SetValues(pParams);
 
     viParams := '';
     viParams.CD_PESSOA := vCdTransport;
-    voParams := cPESSVCO005.Instance.buscaDadosPessoa(viParams);
+    voParams := activateCmp('PESSVCO005', 'buscaDadosPessoa', viParams);
     if (itemXmlF('status', voParams) < 0) then begin
       raise Exception.Create(itemXml('message', voParams));
       exit;
@@ -3503,7 +3503,7 @@ begin
     if (fTRA_TRANSPORT.CD_TRANSREDESPAC > 0) and (fTRA_TRANSPORT.NM_TRANSREDESPAC = '') then begin
       viParams := '';
       viParams.CD_PESSOA := fTRA_TRANSPORT.CD_TRANSREDESPAC;
-      voParams := cPESSVCO005.Instance.buscaDadosPessoa(viParams);
+      voParams := activateCmp('PESSVCO005', 'buscaDadosPessoa', viParams);
       if (itemXmlF('status', voParams) < 0) then begin
         raise Exception.Create(itemXml('message', voParams));
         exit;
@@ -3525,7 +3525,7 @@ begin
       delitem(pParams, 'CD_EMPRESA');
       delitem(pParams, 'NR_TRANSACAO');
       delitem(pParams, 'DT_TRANSACAO');
-      pParams := fTRA_TRANSPORT.GetValues();
+      fTRA_TRANSPORT.SetValues(pParams);
       fTRA_TRANSPORT.CD_EMPFAT := fTRA_TRANSACAO.CD_EMPFAT;
       fTRA_TRANSPORT.CD_GRUPOEMPRESA := fTRA_TRANSACAO.CD_GRUPOEMPRESA;
       fTRA_TRANSPORT.CD_OPERADOR := PARAM_GLB.CD_USUARIO;
@@ -3548,7 +3548,7 @@ begin
     fF_TRA_ITEMIMPOSTO.NR_TRANSACAO := fTRA_TRANSACAO.NR_TRANSACAO;
     fF_TRA_ITEMIMPOSTO.DT_TRANSACAO := fTRA_TRANSACAO.DT_TRANSACAO;
     fF_TRA_ITEMIMPOSTO.CD_IMPOSTO := 3;
-    fF_TRA_ITEMIMPOSTO.Listar();
+    fF_TRA_ITEMIMPOSTO.Listar(nil);
     if (xStatus >= 0) then begin
       vVlBaseCalc := 0;
       vVlImposto := 0;
@@ -3608,7 +3608,7 @@ begin
       end;
     end;
 
-    voParams := cFISSVCO015.Instance.calculaImpostoCapa(viParams);
+    voParams := activateCmp('FISSVCO015', 'calculaImpostoCapa', viParams);
     if (itemXmlF('status', voParams) < 0) then begin
       raise Exception.Create(itemXml('message', voParams));
       exit;
@@ -3628,7 +3628,7 @@ begin
         delitem(vDsRegistro, 'NR_ITEM');
 
         fTRA_TRAIMPOSTO.Append();
-        vDsRegistro := fTRA_TRAIMPOSTO.GetValues();
+        fTRA_TRAIMPOSTO.SetValues(vDsRegistro);
         fTRA_TRAIMPOSTO.CD_EMPFAT := fTRA_TRANSACAO.CD_EMPFAT;
         fTRA_TRAIMPOSTO.CD_GRUPOEMPRESA := fTRA_TRANSACAO.CD_GRUPOEMPRESA;
         fTRA_TRAIMPOSTO.CD_OPERADOR := PARAM_GLB.CD_USUARIO;
@@ -3712,19 +3712,19 @@ begin
 
   fTRA_TRANSACAO.Limpar();
   if (vDsTransacao <> '') then begin
-    getlistitensoccXml(vDsTransacao, tTRA_TRANSACAO);
+    TmXml.SetXmlToObjeto(vDsTransacao,TRA_TRANSACAO);
   end else begin
     fTRA_TRANSACAO.CD_EMPRESA := vCdEmpresa;
     fTRA_TRANSACAO.NR_TRANSACAO := vNrTransacao;
     fTRA_TRANSACAO.DT_TRANSACAO := vDtTransacao;
-    fTRA_TRANSACAO.Listar();
+    fTRA_TRANSACAO.Listar(nil);
     if (itemXmlF('status', voParams) < 0) then begin
       raise Exception.Create('Transação ' + FloatToStr(vNrTransacao) + ' não cadastrada!' + ' / ' + cDS_METHOD);
       exit;
     end;
   end;
 
-  if (fTRA_TRANSACAO.CD_EMPFAT <> itemF('CD_EMPRESA', tTRA_TRANSACAO)) then begin
+  if (fTRA_TRANSACAO.CD_EMPFAT <> fTRA_TRANSACAO.CD_EMPRESA) then begin
     viParams := '';
     viParams.CD_EMPRESA := fTRA_TRANSACAO.CD_EMPFAT;
     getParam(pParams);
@@ -3734,10 +3734,10 @@ begin
 
   fTRA_TRANSITEM.Limpar();
   if (vDsTransItem <> '') then begin
-    getlistitensoccXml(vDsTransItem, tTRA_TRANSITEM);
+    TmXml.SetXmlToObjeto(vDsTransItem,TRA_TRANSITEM);
   end else begin
     fTRA_TRANSITEM.NR_ITEM := vNrItem;
-    fTRA_TRANSITEM.Listar();
+    fTRA_TRANSITEM.Listar(nil);
     if (itemXmlF('status', voParams) < 0) then begin
       raise Exception.Create('Item ' + FloatToStr(vNrItem) + ' da transação ' + FloatToStr(vNrTransacao) + ' não cadastrada!' + ' / ' + cDS_METHOD);
       exit;
@@ -3745,7 +3745,7 @@ begin
   end;  
 
   fTRA_ITEMVL.Limpar();
-  fTRA_ITEMVL.Listar();
+  fTRA_ITEMVL.Listar(nil);
   if (xStatus >= 0) then begin
     if (vInNaoExclui <> True) then begin
       voParams := tTRA_ITEMVL.Excluir();
@@ -3776,7 +3776,7 @@ begin
         end;
       end else begin
         fTRA_ITEMVL.Append();
-        vDsRegistro := fTRA_ITEMVL.GetValues();
+        fTRA_ITEMVL.SetValues(vDsRegistro);
         fTRA_ITEMVL.CD_EMPFAT := fTRA_TRANSITEM.CD_EMPFAT;
         fTRA_ITEMVL.CD_GRUPOEMPRESA := fTRA_TRANSITEM.CD_GRUPOEMPRESA;
         fTRA_ITEMVL.CD_OPERADOR := PARAM_GLB.CD_USUARIO;
@@ -3807,7 +3807,7 @@ begin
         viParams.CD_PRODUTO := fTRA_TRANSITEM.CD_PRODUTO;
         viParams.TP_VALOR := 'C';
         viParams.CD_VALOR := gCdCustoMedio;
-        voParams := cPRDSVCO007.Instance.buscaValorData(viParams);
+        voParams := activateCmp('PRDSVCO007', 'buscaValorData', viParams);
         if (itemXmlF('status', voParams) < 0) then begin
           raise Exception.Create(itemXml('message', voParams));
           exit;
@@ -3836,9 +3836,9 @@ begin
         fF_TRA_ITEMIMPOSTO.DT_TRANSACAO := fTRA_TRANSITEM.DT_TRANSACAO;
         fF_TRA_ITEMIMPOSTO.NR_ITEM := fTRA_TRANSITEM.NR_ITEM;
         fF_TRA_ITEMIMPOSTO.CD_IMPOSTO := 2;
-        fF_TRA_ITEMIMPOSTO.Listar();
+        fF_TRA_ITEMIMPOSTO.Listar(nil);
         if (xStatus >= 0) then begin
-          vVlSubstTributaria := fF_TRA_ITEMIMPOSTO.VL_BASECALC / itemF('QT_SOLICITADA', tTRA_TRANSITEM);
+          vVlSubstTributaria := fF_TRA_ITEMIMPOSTO.VL_BASECALC / fTRA_TRANSITEM.QT_SOLICITADA;
           vVlSubstTributaria := rounded(vVlSubstTributaria, 2);
 
           vPos := Pos(';', gDsCustoSubstTributaria);
@@ -3850,7 +3850,7 @@ begin
           viParams.CD_PRODUTO := fTRA_TRANSITEM.CD_PRODUTO;
           viParams.TP_VALOR := 'C';
           viParams.CD_VALOR := vCdCusto;
-          voParams := cPRDSVCO007.Instance.buscaValorData(viParams);
+          voParams := activateCmp('PRDSVCO007', 'buscaValorData', viParams);
           if (itemXmlF('status', voParams) < 0) then begin
             raise Exception.Create(itemXml('message', voParams));
             exit;
@@ -3860,9 +3860,9 @@ begin
           fTRA_ITEMVL.Append();
           fTRA_ITEMVL.TP_VALOR := 'C';
           fTRA_ITEMVL.CD_VALOR := vCdCusto;
-          fTRA_ITEMVL.Consultar();
+          fTRA_ITEMVL.Consultar(nil);
           if (xStatus = -7) then begin
-            fTRA_ITEMVL.Consultar();
+            fTRA_ITEMVL.Consultar(nil);
           end;
           fTRA_ITEMVL.TP_ATUALIZACAO := vTpAtualizacao;
           fTRA_ITEMVL.VL_UNITARIOORIG := vVlOriginal;
@@ -3883,9 +3883,9 @@ begin
         fF_TRA_ITEMIMPOSTO.DT_TRANSACAO := fTRA_TRANSITEM.DT_TRANSACAO;
         fF_TRA_ITEMIMPOSTO.NR_ITEM := fTRA_TRANSITEM.NR_ITEM;
         fF_TRA_ITEMIMPOSTO.CD_IMPOSTO := 2;
-        fF_TRA_ITEMIMPOSTO.Listar();
+        fF_TRA_ITEMIMPOSTO.Listar(nil);
         if (xStatus >= 0) then begin
-          vVlCustoValorRetido := fF_TRA_ITEMIMPOSTO.VL_IMPOSTO / itemF('QT_SOLICITADA', tTRA_TRANSITEM);
+          vVlCustoValorRetido := fF_TRA_ITEMIMPOSTO.VL_IMPOSTO / fTRA_TRANSITEM.QT_SOLICITADA;
           vVlCustoValorRetido := rounded(vVlCustoValorRetido, 2);
 
           vPos := Pos(';', gDsCustoValorRetido);
@@ -3897,7 +3897,7 @@ begin
           viParams.CD_PRODUTO := fTRA_TRANSITEM.CD_PRODUTO;
           viParams.TP_VALOR := 'C';
           viParams.CD_VALOR := vCdCusto;
-          voParams := cPRDSVCO007.Instance.buscaValorData(viParams);
+          voParams := activateCmp('PRDSVCO007', 'buscaValorData', viParams);
           if (itemXmlF('status', voParams) < 0) then begin
             raise Exception.Create(itemXml('message', voParams));
             exit;
@@ -3907,9 +3907,9 @@ begin
           fTRA_ITEMVL.Append();
           fTRA_ITEMVL.TP_VALOR := 'C';
           fTRA_ITEMVL.CD_VALOR := vCdCusto;
-          fTRA_ITEMVL.Consultar();
+          fTRA_ITEMVL.Consultar(nil);
           if (xStatus = -7) then begin
-            fTRA_ITEMVL.Consultar();
+            fTRA_ITEMVL.Consultar(nil);
           end;
 
           fTRA_ITEMVL.TP_ATUALIZACAO := vTpAtualizacao;
@@ -3980,7 +3980,7 @@ begin
   fTRA_TRANSACAO.CD_EMPRESA := vCdEmpresa;
   fTRA_TRANSACAO.NR_TRANSACAO := vNrTransacao;
   fTRA_TRANSACAO.DT_TRANSACAO := vDtTransacao;
-  fTRA_TRANSACAO.Listar();
+  fTRA_TRANSACAO.Listar(nil);
   if (itemXmlF('status', voParams) < 0) then begin
     raise Exception.Create('Transação ' + FloatToStr(vNrTransacao) + ' não cadastrada!' + ' / ' + cDS_METHOD);
     exit;
@@ -3990,7 +3990,7 @@ begin
     exit;
   end;
 
-  if (fTRA_TRANSACAO.CD_EMPFAT <> itemF('CD_EMPRESA', tTRA_TRANSACAO)) then begin 
+  if (fTRA_TRANSACAO.CD_EMPFAT <> fTRA_TRANSACAO.CD_EMPRESA) then begin 
     viParams := '';
     viParams.CD_EMPRESA := fTRA_TRANSACAO.CD_EMPFAT;
     getParam(pParams);
@@ -4005,7 +4005,7 @@ begin
   (* fGER_OPERSALDOPRD.Limpar();
   fGER_OPERSALDOPRD.CD_OPERACAO := fTRA_TRANSACAO.CD_OPERACAO;
   fGER_OPERSALDOPRD.IN_PADRAO := True;
-  fGER_OPERSALDOPRD.Listar();
+  fGER_OPERSALDOPRD.Listar(nil);
   if (xStatus >= 0) then begin
     vCdOperSaldo := fGER_OPERSALDOPRD.CD_SALDO;
   end; *)
@@ -4013,7 +4013,7 @@ begin
 
   fTRA_TRANSITEM.Limpar();
   fTRA_TRANSITEM.NR_ITEM := vNrItem;
-  fTRA_TRANSITEM.Listar();
+  fTRA_TRANSITEM.Listar(nil);
   if (xStatus >= 0) then begin
     //-- MFGALEGO - 09/12/2014 ; erro exclusao imposto
     (* if (vTpContrInspSaldoLote <> 1) then begin
@@ -4025,10 +4025,10 @@ begin
           fPRD_LOTEI.CD_EMPRESA := fTRA_ITEMLOTE.CD_EMPLOTE;
           fPRD_LOTEI.NR_LOTE := fTRA_ITEMLOTE.NR_LOTE;
           fPRD_LOTEI.NR_ITEM := fTRA_ITEMLOTE.NR_ITEMLOTE;
-          fPRD_LOTEI.Listar();
+          fPRD_LOTEI.Listar(nil);
           if (xStatus >= 0) then begin
             if (vCdOperSaldo <> 0) and (vCdOperSaldo <> fPRD_LOTEI.CD_SALDO) then begin
-              raise Exception.Create('Saldo ' + fPRD_LOTEI.CD_SALDO + ' do item de lote ' + item('CD_EMPRESA' + ' / ' + tPRD_LOTEI) + ' / ' + item('NR_LOTE', tPRD_LOTEI) + ' / ' + item('NR_ITEM', tPRD_LOTEI) + ' diferente do saldo ' + FloatToStr(vCdOperSaldo) + ' que é padrão da operação ' + item('CD_OPERACAO', tTRA_TRANSACAO) + '!', cDS_METHOD);
+              raise Exception.Create('Saldo ' + fPRD_LOTEI.CD_SALDO + ' do item de lote ' + fPRD_LOTEI.CD_EMPRESA + ' / ' + fPRD_LOTEI.NR_LOTE + ' / ' + fPRD_LOTEI.NR_ITEM + ' diferente do saldo ' + FloatToStr(vCdOperSaldo) + ' que é padrão da operação ' + fTRA_TRANSACAO.CD_OPERACAO + '!' + ' / ' + cDS_METHOD);
               exit;
             end;
           end;
@@ -4043,7 +4043,7 @@ begin
           if (fGER_OPERACAO.TP_MODALIDADE = 3) then begin
             viParams.IN_VALIDASITUACAO := False;
           end;
-          voParams := cPRDSVCO020.Instance.movimentaQtLoteI(viParams);
+          voParams := activateCmp('PRDSVCO020', 'movimentaQtLoteI', viParams);
           if (itemXmlF('status', voParams) < 0) then begin
             raise Exception.Create(itemXml('message', voParams));
             exit;
@@ -4060,7 +4060,7 @@ begin
     viParams.DT_TRANSACAO := fTRA_TRANSITEM.DT_TRANSACAO;
     viParams.NR_TRANSACAO := fTRA_TRANSITEM.NR_TRANSACAO;
     viParams.NR_ITEM := fTRA_TRANSITEM.NR_ITEM;
-    voParams := cTRASVCO016.Instance.removeSerialTransacao(viParams);
+    voParams := activateCmp('TRASVCO016', 'removeSerialTransacao', viParams);
     if (itemXmlF('status', voParams) < 0) then begin
       raise Exception.Create(itemXml('message', voParams));
       exit;
@@ -4143,14 +4143,14 @@ begin
   fTRA_TRANSACAO.CD_EMPRESA := vCdEmpresa;
   fTRA_TRANSACAO.NR_TRANSACAO := vNrTransacao;
   fTRA_TRANSACAO.DT_TRANSACAO := vDtTransacao;
-  fTRA_TRANSACAO.Listar();
+  fTRA_TRANSACAO.Listar(nil);
   if (itemXmlF('status', voParams) < 0) then begin
     raise Exception.Create('Transação ' + FloatToStr(vNrTransacao) + ' não cadastrada!' + ' / ' + cDS_METHOD);
     exit;
   end;
 
   fTRA_REMDES.Limpar();
-  fTRA_REMDES.Listar();
+  fTRA_REMDES.Listar(nil);
   if (xStatus >= 0) then begin
     if (vInSobrepor) or (vDsNome <> '') then begin
       voParams := tTRA_REMDES.Excluir();
@@ -4168,7 +4168,7 @@ begin
     if (gCdClientePdv <> 0) then begin
       fPES_PESSOA.Limpar();
       fPES_PESSOA.CD_PESSOA := gCdClientePdv;
-      fPES_PESSOA.Listar();
+      fPES_PESSOA.Listar(nil);
     end;
   end;
 
@@ -4177,43 +4177,43 @@ begin
     fV_PES_ENDERECO.Limpar();
     fV_PES_ENDERECO.CD_PESSOA := fPES_PESSOA.CD_PESSOA;
     fV_PES_ENDERECO.NR_SEQUENCIA := fTRA_TRANSACAO.NR_SEQENDERECO;
-    fV_PES_ENDERECO.Listar();
+    fV_PES_ENDERECO.Listar(nil);
     if (itemXmlF('status', voParams) < 0) then begin
-      if ((fGER_OPERACAO.TP_DOCTO = 2) or (fGER_OPERACAO.TP_DOCTO = 3)) and ((itemF('TP_MODALIDADE', tGER_OPERACAO) = 4) or (itemF('TP_MODALIDADE', tGER_OPERACAO) = 8) or (itemF('TP_MODALIDADE', tGER_OPERACAO) = 3)) then begin
+      if ((fGER_OPERACAO.TP_DOCTO = 2) or (fGER_OPERACAO.TP_DOCTO = 3)) and ((fGER_OPERACAO.TP_MODALIDADE = 4) or (fGER_OPERACAO.TP_MODALIDADE = 8) or (fGER_OPERACAO.TP_MODALIDADE = 3)) then begin
         if (gCdPessoaEndPadrao <> 0) then begin
           fV_PES_ENDERECO.Limpar();
           fV_PES_ENDERECO.CD_PESSOA := gCdPessoaEndPadrao;
           fV_PES_ENDERECO.NR_SEQUENCIA := fTRA_TRANSACAO.NR_SEQENDERECO;
-          fV_PES_ENDERECO.Listar();
+          fV_PES_ENDERECO.Listar(nil);
           if (itemXmlF('status', voParams) < 0) then begin
             raise Exception.Create('endereço ' + fTRA_TRANSACAO.NR_SEQENDERECO + ' não cadastrado para a pessoa ' + FloatToStr(gCdPessoaEndPadrao) + '!' + ' / ' + cDS_METHOD);
             exit;
           end;
         end else begin
-          raise Exception.Create('endereço ' + fTRA_TRANSACAO.NR_SEQENDERECO + ' não cadastrado para a pessoa ' + item('CD_PESSOA' + ' / ' + tPES_PESSOA) + '!', cDS_METHOD);
+          raise Exception.Create('endereço ' + fTRA_TRANSACAO.NR_SEQENDERECO + ' não cadastrado para a pessoa ' + fPES_PESSOA.CD_PESSOA + '!' + ' / ' + cDS_METHOD);
           exit;
         end;
       end else begin
-        raise Exception.Create('endereço ' + fTRA_TRANSACAO.NR_SEQENDERECO + ' não cadastrado para a pessoa ' + item('CD_PESSOA' + ' / ' + tPES_PESSOA) + '!', cDS_METHOD);
+        raise Exception.Create('endereço ' + fTRA_TRANSACAO.NR_SEQENDERECO + ' não cadastrado para a pessoa ' + fPES_PESSOA.CD_PESSOA + '!' + ' / ' + cDS_METHOD);
         exit;
       end;
 
     end else begin
 
-      if (fGER_OPERACAO.TP_DOCTO = 2) or (fGER_OPERACAO.TP_DOCTO = 3) and (itemF('TP_MODALIDADE', tGER_OPERACAO) = 4) or (itemF('TP_MODALIDADE', tGER_OPERACAO) = 8) or (itemF('TP_MODALIDADE', tGER_OPERACAO) = 3) and (fGER_OPERACAO.TP_OPERACAO = 'E') and (vInAltEnderecoCli) then begin
+      if (fGER_OPERACAO.TP_DOCTO = 2) or (fGER_OPERACAO.TP_DOCTO = 3) and (fGER_OPERACAO.TP_MODALIDADE = 4) or (fGER_OPERACAO.TP_MODALIDADE = 8) or (fGER_OPERACAO.TP_MODALIDADE = 3) and (fGER_OPERACAO.TP_OPERACAO = 'E') and (vInAltEnderecoCli) then begin
         vUfOrigem := PARAM_GLB.UF_ORIGEM;
         if (vUfOrigem <> fV_PES_ENDERECO.DS_SIGLAESTADO) then begin
           if (gCdPessoaEndPadrao <> 0) then begin
             fV_PES_ENDERECO.Limpar();
             fV_PES_ENDERECO.CD_PESSOA := gCdPessoaEndPadrao;
             fV_PES_ENDERECO.NR_SEQUENCIA := fTRA_TRANSACAO.NR_SEQENDERECO;
-            fV_PES_ENDERECO.Listar();
+            fV_PES_ENDERECO.Listar(nil);
             if (itemXmlF('status', voParams) < 0) then begin
               raise Exception.Create('endereço ' + fTRA_TRANSACAO.NR_SEQENDERECO + ' não cadastrado para a pessoa ' + FloatToStr(gCdPessoaEndPadrao) + '!' + ' / ' + cDS_METHOD);
               exit;
             end;
           end else begin
-            raise Exception.Create('endereço ' + fTRA_TRANSACAO.NR_SEQENDERECO + ' não cadastrado para a pessoa ' + item('CD_PESSOA' + ' / ' + tPES_PESSOA) + '!', cDS_METHOD);
+            raise Exception.Create('endereço ' + fTRA_TRANSACAO.NR_SEQENDERECO + ' não cadastrado para a pessoa ' + fPES_PESSOA.CD_PESSOA + '!' + ' / ' + cDS_METHOD);
             exit;
           end;
         end;
@@ -4228,7 +4228,7 @@ begin
       vInPjIsento := True;
     end;
     if (fPES_CLIENTE.IN_CNSRFINAL) or (fPES_PESSOA.TP_PESSOA = 'F') or (vInPjIsento) then begin
-      if (fPES_PESSOA.TP_PESSOA = 'F') and (item('NR_CODIGOFISCAL', tPES_CLIENTE) <> '') and ((vUfOrigem = 'PR') or (vUfOrigem = 'SP')) then begin
+      if (fPES_PESSOA.TP_PESSOA = 'F') and (fPES_CLIENTE.NR_CODIGOFISCAL <> '') and ((vUfOrigem = 'PR') or (vUfOrigem = 'SP')) then begin
         vInContribuinte := True;
       end else begin
         vInContribuinte := False;
@@ -4266,12 +4266,12 @@ begin
     fTRA_REMDES.NR_CPFCNPJ := fPES_PESSOA.NR_CPFCNPJ;
     fPES_TELEFONE.Limpar();
     fPES_TELEFONE.IN_PADRAO := True;
-    fPES_TELEFONE.Listar();
+    fPES_TELEFONE.Listar(nil);
     if (xStatus >= 0) then begin
       fTRA_REMDES.NR_TELEFONE := fPES_TELEFONE.NR_TELEFONE;
     end else begin
       fPES_TELEFONE.Limpar();
-      fPES_TELEFONE.Listar();
+      fPES_TELEFONE.Listar(nil);
       if (xStatus >= 0) then begin
         fTRA_REMDES.NR_TELEFONE := fPES_TELEFONE.NR_TELEFONE;
       end;
@@ -4291,7 +4291,7 @@ begin
     delitem(pParams, 'CD_EMPRESA');
     delitem(pParams, 'NR_TRANSACAO');
     delitem(pParams, 'DT_TRANSACAO');
-    pParams := fTRA_REMDES.GetValues();
+    fTRA_REMDES.SetValues(pParams);
   end;
 
   fTRA_REMDES.CD_EMPFAT := fTRA_TRANSACAO.CD_EMPFAT;
@@ -4351,7 +4351,7 @@ begin
   fTRA_TRANSACAO.CD_EMPRESA := vCdEmpresa;
   fTRA_TRANSACAO.NR_TRANSACAO := vNrTransacao;
   fTRA_TRANSACAO.DT_TRANSACAO := vDtTransacao;
-  fTRA_TRANSACAO.Listar();
+  fTRA_TRANSACAO.Listar(nil);
   if (itemXmlF('status', voParams) < 0) then begin
     raise Exception.Create('Transação ' + FloatToStr(vNrTransacao) + ' não cadastrada!' + ' / ' + cDS_METHOD);
     exit;

@@ -33,15 +33,11 @@ implementation
 
 uses
   mDiretorio,
+  uclsConverterAbstract,
+  uclsConverterConfigurado,
   uclsConverterDelphiToCSharp,
   uclsConverterDelphiToDelphi,
   uclsConverterUnifaceToCSharp;
-
-const
-  cLstConverter =
-    'Delphi To CSharp' + sLineBreak +
-    'Delphi To Delphi' + sLineBreak +
-    'Uniface To CSharp' ;
 
   procedure TF_Converter.Carregar();
   begin
@@ -61,8 +57,15 @@ const
 
 procedure TF_Converter.FormCreate(Sender: TObject);
 begin
-  tpConverter.Items.Text := cLstConverter;
-  tpConverter.ItemIndex := 1;
+  with tpConverter do begin
+    Items.Clear;
+    Items.AddObject('Configurado', TcConverterConfigurado.Create);
+    Items.AddObject('Delphi To CSharp', TcConverterDelphiToCSharp.Create);
+    Items.AddObject('Delphi To Delphi', TcConverterDelphiToDelphi.Create);
+    Items.AddObject('Uniface To CSharp', TcConverterUnifaceToCSharp.Create);
+    tpConverter.ItemIndex := 0;
+  end;
+
   Carregar();
 end;
 
@@ -79,16 +82,6 @@ begin
 end;
 
 procedure TF_Converter.BtnConverterClick(Sender: TObject);
-
-  function PrcConverter(pString : String) : String;
-  begin
-    case tpConverter.ItemIndex of
-      0 : Result := TcConverterDelphiToCSharp.Converter(pString);
-      1 : Result := TcConverterDelphiToDelphi.Converter(pString);
-      2 : Result := TcConverterUnifaceToCSharp.Converter(pString);
-    end;
-  end;
-
 var
   vList_Arquivo : TrArquivoArray;
   vDirOri, vDirDes : String;
@@ -96,6 +89,8 @@ var
 begin
   MemoOri.Visible := False;
   MemoDes.Visible := False;
+
+  SetLength(vList_Arquivo, 0);
 
   if EditCaminho.Text <> '' then begin
 
@@ -107,13 +102,17 @@ begin
 
     for I := 0 to High(vList_Arquivo) do begin
       MemoOri.Lines.LoadFromFile(vDirOri + vList_Arquivo[I].Arquivo);
-      MemoDes.Text := PrcConverter(MemoOri.Text);
+
+      with tpConverter do
+        MemoDes.Text := TcConverterAbstract(Items.Objects[Itemindex]).Converter(MemoOri.Text);
+
       MemoDes.Lines.SaveToFile(vDirDes + vList_Arquivo[I].Arquivo);
     end;
 
   end else begin
 
-    MemoDes.Text := PrcConverter(MemoOri.Text);
+    with tpConverter do
+      MemoDes.Text := TcConverterAbstract(Items.Objects[Itemindex]).Converter(MemoOri.Text);
 
     DesCarregar();
 

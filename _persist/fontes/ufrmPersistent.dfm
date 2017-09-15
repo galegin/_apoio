@@ -11,6 +11,7 @@ object F_Persistent: TF_Persistent
   Font.Name = 'MS Sans Serif'
   Font.Style = []
   OldCreateOrder = False
+  OnCreate = FormCreate
   DesignSize = (
     363
     247)
@@ -41,6 +42,22 @@ object F_Persistent: TF_Persistent
     Height = 213
     Anchors = [akLeft, akTop, akRight, akBottom]
     BorderStyle = bsNone
+    TabOrder = 3
+  end
+  object ComboBoxTtipo: TComboBox
+    Left = 164
+    Top = 4
+    Width = 197
+    Height = 24
+    BevelKind = bkFlat
+    Font.Charset = DEFAULT_CHARSET
+    Font.Color = clWindowText
+    Font.Height = -13
+    Font.Name = 'MS Sans Serif'
+    Font.Style = []
+    ItemHeight = 16
+    ParentFont = False
     TabOrder = 2
+    Text = 'ComboBoxTtipo'
   end
 end

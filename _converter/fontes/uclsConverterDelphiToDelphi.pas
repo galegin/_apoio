@@ -3,46 +3,31 @@ unit uclsConverterDelphiToDelphi;
 interface
 
 uses
-  Classes, SysUtils, StrUtils;
+  Classes, SysUtils, StrUtils,
+  uclsConverterAbstract;
 
 type
-  TpString = (tsAll, tsIni, tsFin, tsPar);
-
-  TrVariavel = record
-    Ent : String;
-    Sai : String;
-  end;
-
-  TrConverter = record
-    Tip : TpString;
-    Ent : String;
-    Sai : String;
-  end;
-
-  TcConverterDelphiToDelphi = class
-  public
-    class function Converter(AString : String) : String;
+  TcConverterDelphiToDelphi = class(TcConverterAbstract)
+  protected
+    function GetConverterArray : TrConverterArray; override;
   end;
 
 implementation
 
-uses
-  mString, ufrmProcessando;
-
 { TcConverterDelphiToDelphi }
 
 const
-  TrConverterArray : Array [0..98] Of TrConverter = (
+  RConverterArray : Array [0..98] Of TrConverter = (
 
     //-- cDataSetUnf
 
-    (Tip: tsPar; Ent: 'getlistitensocc_a({var},{esp}t{ent});'; Sai: '{var} := f{ent}.GetValues();'),
-    (Tip: tsPar; Ent: 'getlistitensocc_e({var},{esp}t{ent});'; Sai: '{var} := f{ent}.GetValues();'),
-    (Tip: tsPar; Ent: 'getlistitensocc_i({var},{esp}t{ent});'; Sai: '{var} := f{ent}.GetValues();'),
-    (Tip: tsPar; Ent: 'getlistitensocc_o({var},{esp}t{ent});'; Sai: '{var} := f{ent}.GetValues();'),
+    (Tip: tsPar; Ent: 'getlistitensocc_a({var},{esp}t{ent});'; Sai: 'f{ent}.SetValues({var});'),
+    (Tip: tsPar; Ent: 'getlistitensocc_e({var},{esp}t{ent});'; Sai: 'f{ent}.SetValues({var});'),
+    (Tip: tsPar; Ent: 'getlistitensocc_i({var},{esp}t{ent});'; Sai: 'f{ent}.SetValues({var});'),
+    (Tip: tsPar; Ent: 'getlistitensocc_o({var},{esp}t{ent});'; Sai: 'f{ent}.SetValues({var});'),
 
-    (Tip: tsPar; Ent: 'putlistitensocc_e({var},{esp}t{ent});'; Sai: 'f{ent}.SetValues({var});'),
-    (Tip: tsPar; Ent: 'putlistitensocc_o({var},{esp}t{ent});'; Sai: 'f{ent}.SetValues({var});'),
+    (Tip: tsPar; Ent: 'putlistitensocc_e({var},{esp}t{ent});'; Sai: '{var} := f{ent}.GetValues();'),
+    (Tip: tsPar; Ent: 'putlistitensocc_o({var},{esp}t{ent});'; Sai: '{var} := f{ent}.GetValues();'),
 
     (Tip: tsPar; Ent: 'putitem_e({esp}t{ent},{es1}''{cod}''{es2},{val});'; Sai: 'f{ent}.{cod} := {val};'),
     (Tip: tsPar; Ent: 'putitem_o({esp}t{ent},{es1}''{cod}''{es2},{val});'; Sai: 'f{ent}.{cod} := {val};'),
@@ -94,7 +79,6 @@ const
 
     //-- cServiceUnf
 
-    //TcDataSetUnf.getEntidade(
     (Tip: tsPar; Ent: 'TcDataSetUnf.getEntidade({cmp},{es1}''{ent}''{es2},{cod},{con})'; Sai: 'T{ent}.Create(nil)'),
     (Tip: tsPar; Ent: 'TcDataSetUnf.getEntidade({cmp},{es1}''{ent}''{es2},{cod})'; Sai: 'T{ent}.Create(nil)'),
     (Tip: tsPar; Ent: 'TcDataSetUnf.getEntidade({cmp},{es1}''{ent}''{es2})'; Sai: 'T{ent}.Create(nil)'),
@@ -110,10 +94,10 @@ const
 
     //-- cFuncao
 
-    (Tip: tsPar; Ent: 'getlistitensoccApp({str},{esp}t{ent});'; Sai: 'f{ent}.SetValues({str});'),
-    (Tip: tsPar; Ent: 'getlistitensoccIns({str},{esp}t{ent});'; Sai: 'f{ent}.SetValues({str});'),
-    (Tip: tsPar; Ent: 'getlistitensocc({str},{esp}t{ent});'; Sai: 'f{ent}.SetValues({str});'),
-    (Tip: tsPar; Ent: 'putlistitensocc({str},{esp}t{ent});'; Sai: '{str} := f{ent}.GetValues();'),
+    (Tip: tsPar; Ent: 'getlistitensoccApp({str},{esp}t{ent});'; Sai: '{str} := f{ent}.GetValues();'),
+    (Tip: tsPar; Ent: 'getlistitensoccIns({str},{esp}t{ent});'; Sai: '{str} := f{ent}.GetValues();'),
+    (Tip: tsPar; Ent: 'getlistitensocc({str},{esp}t{ent});'; Sai: '{str} := f{ent}.GetValues();'),
+    (Tip: tsPar; Ent: 'putlistitensocc({str},{esp}t{ent});'; Sai: 'f{ent}.SetValues({str});'),
 
     (Tip: tsPar; Ent: 'putitemXml({var},{es1}''{cod}''{es2},{val});'; Sai: '{var}.{cod} := {val};'),
     (Tip: tsPar; Ent: 'putitem({esp}t{ent},{es1}''{cod}''{es2},{val});'; Sai: 'f{ent}.{cod} := {val};'),
@@ -172,70 +156,13 @@ const
 
   );
 
-class function TcConverterDelphiToDelphi.Converter(AString: String): String;
+function TcConverterDelphiToDelphi.GetConverterArray;
 var
-  vStringPart : TmStringPart;
-  vConverter : TrConverter;
-  vLista : TStringList;
-  vLinha, vEnt, vSai : String;
-  I, J : Integer;
+  I: Integer;
 begin
-  vLista := TStringList.Create;
-  vLista.Text := AString;
-
-  ufrmProcessando.Instance.Inciar(vLista.Count);
-
-  for I := 0 to vLista.Count - 1 do begin
-    vLinha := vLista[I];
-
-    if (I mod 100) = 0 then
-      ufrmProcessando.Instance.Posicionar(I + 1);
-
-    for J := 1 to High(TrConverterArray) do begin
-      vConverter := TrConverterArray[J];
-
-      case (vConverter.Tip) of
-        tsAll : begin
-          if Pos(lowerCase(vConverter.Ent), lowerCase(vLinha)) > 0 then
-            vLinha := StringReplace(vLinha, vConverter.Ent, vConverter.Sai, [rfReplaceAll, rfIgnoreCase]);
-        end;
-
-        tsIni : begin
-          if TmString.StartsWiths(Trim(vLinha), vConverter.Ent) then
-            vLinha := StringReplace(vLinha, vConverter.Ent, vConverter.Sai, [rfReplaceAll, rfIgnoreCase]);
-        end;
-
-        tsFin : begin
-          if TmString.EndWiths(Trim(vLinha), vConverter.Ent) then
-            vLinha := StringReplace(vLinha, vConverter.Ent, vConverter.Sai, [rfReplaceAll, rfIgnoreCase]);
-        end;
-
-        tsPar : begin // mString
-          vStringPart := TmStringPart.Create(vConverter.Ent, vConverter.Sai);
-          if Pos(lowerCase(vStringPart._Ini), lowerCase(vLinha)) = 0 then
-            Continue;
-
-          vEnt := vStringPart.GetEnt(vLinha);
-          if vEnt = '' then
-            Continue;
-
-          vSai := vStringPart.GetSai(vLinha);
-          if vSai = '' then
-            Continue;
-
-          if Pos(lowerCase(vEnt), lowerCase(vLinha)) > 0 then
-            vLinha := StringReplace(vLinha, vEnt, vSai, [rfReplaceAll, rfIgnoreCase]);
-        end;
-      end;
-    end;
-
-    vLista[I] := vLinha;
-  end;
-
-  ufrmProcessando.Destroy;
-
-  Result := vLista.Text;
-  vLista.Free;
+  ClrConverterArray(Result);
+  for I := 1 to High(RConverterArray) do
+    AddConverterArray(Result, RConverterArray[I]);
 end;
 
 end.

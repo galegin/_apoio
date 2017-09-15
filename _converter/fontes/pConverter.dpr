@@ -3,6 +3,8 @@ program pConverter;
 uses
   Forms,
   ufrmConverter in 'ufrmConverter.pas' {F_Converter},
+  uclsConverterAbstract in 'uclsConverterAbstract.pas',
+  uclsConverterConfigurado in 'uclsConverterConfigurado.pas',
   uclsConverterDelphiToCSharp in 'uclsConverterDelphiToCSharp.pas',
   uclsConverterDelphiToDelphi in 'uclsConverterDelphiToDelphi.pas',
   uclsConverterUnifaceToCSharp in 'uclsConverterUnifaceToCSharp.pas',
