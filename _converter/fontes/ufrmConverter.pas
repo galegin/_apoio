@@ -10,12 +10,13 @@ type
   TF_Converter = class(TForm)
     Bevel1: TBevel;
     BtnConverter: TButton;
-    tpConverter: TComboBox;
+    ComboBoxTipo: TComboBox;
     MemoOri: TMemo;
     Splitter1: TSplitter;
     MemoDes: TMemo;
     Label1: TLabel;
     EditCaminho: TEdit;
+    CheckBoxBackup: TCheckBox;
     procedure FormCreate(Sender: TObject);
     procedure FormShow(Sender: TObject);
     procedure FormKeyDown(Sender: TObject; var Key: Word; Shift: TShiftState);
@@ -32,7 +33,7 @@ var
 implementation
 
 uses
-  mDiretorio,
+  mDiretorio, mIniFiles, mPath,
   uclsConverterAbstract,
   uclsConverterConfigurado,
   uclsConverterDelphiToCSharp,
@@ -57,14 +58,20 @@ uses
 
 procedure TF_Converter.FormCreate(Sender: TObject);
 begin
-  with tpConverter do begin
+  with ComboBoxTipo do begin
     Items.Clear;
     Items.AddObject('Configurado', TcConverterConfigurado.Create);
     Items.AddObject('Delphi To CSharp', TcConverterDelphiToCSharp.Create);
     Items.AddObject('Delphi To Delphi', TcConverterDelphiToDelphi.Create);
     Items.AddObject('Uniface To CSharp', TcConverterUnifaceToCSharp.Create);
-    tpConverter.ItemIndex := 0;
+    ItemIndex := 0;
   end;
+
+  EditCaminho.Text := TmPath.Temp();
+
+  ComboBoxTipo.ItemIndex := TmIniFiles.PegarI('', '', 'ComboBoxTipo', 0);
+  EditCaminho.Text := TmIniFiles.PegarS('', '', 'EditCaminho', EditCaminho.Text);
+  CheckBoxBackup.Checked := TmIniFiles.PegarB('', '', 'CheckBoxBackup', CheckBoxBackup.Checked);
 
   Carregar();
 end;
@@ -84,7 +91,7 @@ end;
 procedure TF_Converter.BtnConverterClick(Sender: TObject);
 var
   vList_Arquivo : TrArquivoArray;
-  vDirOri, vDirDes : String;
+  vExtensao, vDirOri, vDirDes : String;
   I : Integer;
 begin
   MemoOri.Visible := False;
@@ -92,18 +99,29 @@ begin
 
   SetLength(vList_Arquivo, 0);
 
+  TmIniFiles.Setar('', '', 'ComboBoxTipo', ComboBoxTipo.ItemIndex);
+  TmIniFiles.Setar('', '', 'EditCaminho', EditCaminho.Text);
+  TmIniFiles.Setar('', '', 'CheckBoxBackup', CheckBoxBackup.Checked);
+
+  with ComboBoxTipo do
+    vExtensao := TcConverterAbstract(Items.Objects[Itemindex]).DsExtensao;
+
   if EditCaminho.Text <> '' then begin
 
     vDirOri := EditCaminho.Text;
-    vDirDes := EditCaminho.Text + 'alterado\';
-    TmDiretorio.Create(vDirDes);
+    if CheckBoxBackup.Checked then begin
+      vDirDes := EditCaminho.Text + 'alterado\';
+      TmDiretorio.Create(vDirDes);
+    end else begin
+      vDirDes := EditCaminho.Text;
+    end;
 
-    vList_Arquivo := TmDiretorio.Listar(vDirOri);
+    vList_Arquivo := TmDiretorio.Listar(vDirOri, vExtensao);
 
     for I := 0 to High(vList_Arquivo) do begin
       MemoOri.Lines.LoadFromFile(vDirOri + vList_Arquivo[I].Arquivo);
 
-      with tpConverter do
+      with ComboBoxTipo do
         MemoDes.Text := TcConverterAbstract(Items.Objects[Itemindex]).Converter(MemoOri.Text);
 
       MemoDes.Lines.SaveToFile(vDirDes + vList_Arquivo[I].Arquivo);
@@ -111,7 +129,7 @@ begin
 
   end else begin
 
-    with tpConverter do
+    with ComboBoxTipo do
       MemoDes.Text := TcConverterAbstract(Items.Objects[Itemindex]).Converter(MemoOri.Text);
 
     DesCarregar();

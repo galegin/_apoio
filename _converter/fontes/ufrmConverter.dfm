@@ -41,7 +41,7 @@ object F_Converter: TF_Converter
     Height = 13
     Caption = 'Caminho'
   end
-  object tpConverter: TComboBox
+  object ComboBoxTipo: TComboBox
     Left = 96
     Top = 4
     Width = 165
@@ -104,5 +104,15 @@ object F_Converter: TF_Converter
     BorderStyle = bsNone
     TabOrder = 4
     Text = 'C:\Projetos\_apoio\_converter\delphi_to_delphi\'
+  end
+  object CheckBoxBackup: TCheckBox
+    Left = 608
+    Top = 4
+    Width = 65
+    Height = 17
+    Caption = 'Backup'
+    Checked = True
+    State = cbChecked
+    TabOrder = 5
   end
 end

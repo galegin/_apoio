@@ -9,6 +9,7 @@ uses
 type
   TcConverterUnifaceToCSharp = class(TcConverterAbstract)
   protected
+    function GetDsExtensao: String; override;
     function GetConverterArray : TrConverterArray; override;
   end;
 
@@ -143,6 +144,11 @@ begin
   ClrConverterArray(Result);
   for I := 1 to High(RConverterArray) do
     AddConverterArray(Result, RConverterArray[I]);
+end;
+
+function TcConverterUnifaceToCSharp.GetDsExtensao: String;
+begin
+  Result := '.unf';
 end;
 
 end.

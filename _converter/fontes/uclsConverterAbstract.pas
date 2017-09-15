@@ -18,9 +18,11 @@ type
 
   TcConverterAbstract = class
   protected
+    function GetDsExtensao: String; virtual; abstract;
     function GetConverterArray : TrConverterArray; virtual; abstract;
   public
     function Converter(AString : String) : String;
+    property DsExtensao : String read GetDsExtensao;
   end;
 
   procedure ClrConverterArray(var pConverterArray : TrConverterArray);
