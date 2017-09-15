@@ -12,7 +12,6 @@ object F_Converter: TF_Converter
   Font.Style = []
   KeyPreview = True
   OldCreateOrder = False
-  Position = poScreenCenter
   OnCreate = FormCreate
   OnKeyDown = FormKeyDown
   OnShow = FormShow
@@ -34,17 +33,24 @@ object F_Converter: TF_Converter
     Cursor = crVSplit
     Align = alTop
   end
-  object Label1: TLabel
-    Left = 264
+  object LabelCaminho: TLabel
+    Left = 224
     Top = 4
     Width = 41
     Height = 13
     Caption = 'Caminho'
   end
+  object LabelExtensao: TLabel
+    Left = 520
+    Top = 4
+    Width = 44
+    Height = 13
+    Caption = 'Extensao'
+  end
   object ComboBoxTipo: TComboBox
     Left = 96
     Top = 4
-    Width = 165
+    Width = 125
     Height = 21
     BevelKind = bkFlat
     Style = csDropDownList
@@ -97,22 +103,31 @@ object F_Converter: TF_Converter
     OnClick = BtnConverterClick
   end
   object EditCaminho: TEdit
-    Left = 312
+    Left = 272
     Top = 4
-    Width = 289
+    Width = 245
     Height = 21
     BorderStyle = bsNone
     TabOrder = 4
     Text = 'C:\Projetos\_apoio\_converter\delphi_to_delphi\'
   end
   object CheckBoxBackup: TCheckBox
-    Left = 608
+    Left = 668
     Top = 4
-    Width = 65
+    Width = 57
     Height = 17
     Caption = 'Backup'
     Checked = True
     State = cbChecked
     TabOrder = 5
+  end
+  object EditExtensao: TEdit
+    Left = 568
+    Top = 4
+    Width = 97
+    Height = 21
+    BorderStyle = bsNone
+    TabOrder = 6
+    Text = '.pas'
   end
 end

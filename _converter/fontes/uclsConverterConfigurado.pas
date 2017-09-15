@@ -9,7 +9,6 @@ uses
 type
   TcConverterConfigurado = class(TcConverterAbstract)
   protected
-    function GetDsExtensao: String; override;
     function GetConverterArray : TrConverterArray; override;
   end;
 
@@ -64,11 +63,6 @@ begin
   end;
 
   FreeAndNil(vLista);
-end;
-
-function TcConverterConfigurado.GetDsExtensao: String;
-begin
-  Result := '';
 end;
 
 end.

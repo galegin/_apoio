@@ -9,7 +9,6 @@ uses
 type
   TcConverterDelphiToDelphi = class(TcConverterAbstract)
   protected
-    function GetDsExtensao: String; override;
     function GetConverterArray : TrConverterArray; override;
   end;
 
@@ -164,11 +163,6 @@ begin
   ClrConverterArray(Result);
   for I := 1 to High(RConverterArray) do
     AddConverterArray(Result, RConverterArray[I]);
-end;
-
-function TcConverterDelphiToDelphi.GetDsExtensao: String;
-begin
-  Result := '.pas';
 end;
 
 end.
