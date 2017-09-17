@@ -4,7 +4,7 @@ interface
 
 uses
   Classes, SysUtils, StrUtils, DB,
-  mContexto, 
+  mContexto,
   uclsPersistentAbstract;
 
 type
@@ -18,7 +18,7 @@ implementation
 { TC_PersistentCollection }
 
 uses
-  mArquivo, mString, mDatabase, mPath;
+  mDatabase, mArquivo, mString, mDataSet, mPath;
 
 const
   cCNT_CLASSE =
@@ -62,6 +62,9 @@ const
     '    function Add: T{cls};' + sLineBreak +
     '    property Items[Index: Integer]: T{cls} read GetItem write SetItem; default;' + sLineBreak +
     '  end;' + sLineBreak +
+    '' + sLineBreak +
+
+    '{objects}' +
     '' + sLineBreak +
 
     'implementation' + sLineBreak +
@@ -133,8 +136,19 @@ const
 procedure TC_PersistentCollection.processarEntidade(AContexto : TmContexto; AEntidade : String);
 var
   vArquivo, vConteudo,
-  vFields, vField, vProperts, vPropert, vArq, vCls, vAtr, vTip : String;
-  vMetadata : TDataSet;
+  vFields, vField, vProperts, vPropert,
+  vArq, vCls, vAtr, vTip : String;
+  vObjects : TStringList;
+  vMetadata,
+  vListField,
+  vListPrimary,
+  vListConstraint,
+  vListConstraintKey : TDataSet;
+  vFieldName,
+  vFieldPrimary,
+  vFieldConstraintTable,
+  vFieldConstraintKey : String;
+  vStringPrimary, vStringConstraint : TmStringArray;
   vCampo : TField;
   I : Integer;
 begin
@@ -149,6 +163,7 @@ begin
 
   vFields := '';
   vProperts := '';
+  vObjects := TStringList.Create;
 
   for I := 0 to vMetadata.FieldCount - 1 do begin
     vCampo := vMetadata.Fields[I];
@@ -167,8 +182,55 @@ begin
     vProperts := vProperts + vPropert;
   end;
 
+  vListField := GetListaField(AEntidade);
+  vFieldName := TmDataSet(vListField).PegarS('p_field_name');
+  vListPrimary := GetListaPrimary(AEntidade);
+  vFieldPrimary := TmDataSet(vListPrimary).PegarS('p_field_name');
+
+  //-- depende
+
+  vListConstraint := GetListaConstraint(AEntidade);
+  vListConstraint.First;
+  while not vListConstraint.EOF do begin
+    vFieldConstraintTable := Trim(TmDataSet(vListConstraint).PegarS('p_references_table'));
+    vListConstraintKey := GetListaPrimary(vFieldConstraintTable);
+    vFieldConstraintKey := TmDataSet(vListConstraintKey).PegarS('p_references_field');
+
+    // depende
+    vObjects.Add(vFieldConstraintTable + '=Depende');
+
+    vListConstraint.Next;
+  end;
+
+  //-- complemento / lista
+
+  SetLength(vStringPrimary, 0);
+  SetLength(vStringConstraint, 0);
+
+  vListConstraint := GetListaConstraintRef(AEntidade);
+  vListConstraint.First;
+  while not vListConstraint.EOF do begin
+    vFieldConstraintTable := Trim(TmDataSet(vListConstraint).PegarS('p_relation_name'));
+    vListConstraintKey := GetListaPrimary(vFieldConstraintTable);
+    vFieldConstraintKey := TmDataSet(vListConstraintKey).PegarS('p_field_name');
+
+    vStringPrimary := TmString.Split(vFieldPrimary, ',');
+    vStringConstraint := TmString.Split(vFieldConstraintKey, ',');
+
+    // complemento / lista
+    if Length(vStringPrimary) = Length(vStringConstraint) then
+      vObjects.Add(vFieldConstraintTable + '=Complemento')
+    else
+      vObjects.Add(vFieldConstraintTable + '=Lista');
+
+    vListConstraint.Next;
+  end;
+
+  //--
+
   vConteudo := AnsiReplaceStr(vConteudo, '{fields}', vFields);
   vConteudo := AnsiReplaceStr(vConteudo, '{properts}', vProperts);
+  vConteudo := AnsiReplaceStr(vConteudo, '{objects}', vObjects.Text);
 
   vArquivo := TmPath.Temp() + 'u' + vArq + '.pas';
   TmArquivo.Gravar(vArquivo, vConteudo);

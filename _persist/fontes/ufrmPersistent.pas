@@ -30,7 +30,7 @@ uses
   uclsPersistentAbstract,
   uclsPersistentCollection,
   uclsPersistentContexto,
-  mContexto, mMapping,
+  mContexto, mMapping, mIniFiles,
   uPessoa, uProduto, uTransacao, uTransitem;
 
 procedure TF_Persistent.FormCreate(Sender: TObject);
@@ -41,10 +41,14 @@ begin
     Items.AddObject('Contexto', TC_PersistentContexto.Create);
     ItemIndex := 0;
   end;
+
+  MemoFiltro.Text := TmIniFiles.PegarS('', '', 'LST_ENTIDADE', '');
 end;
 
 procedure TF_Persistent.BtnGerarClick(Sender: TObject);
 begin
+  TmIniFiles.Setar('', '', 'LST_ENTIDADE', MemoFiltro.Text);
+
   with ComboBoxTtipo do
     TC_PersistentAbstract(Items.Objects[ItemIndex]).gerar(MemoFiltro.Text);
 
