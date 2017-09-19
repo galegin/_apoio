@@ -18,7 +18,11 @@ implementation
 { TC_PersistentCollection }
 
 uses
-  mDatabase, mArquivo, mString, mDataSet, mPath;
+  mDatabase,
+  mDatabaseField,
+  mDatabasePrimary,
+  mDatabaseConstraint,
+  mArquivo, mString, mDataSet, mPath;
 
 const
   cCNT_CLASSE =
@@ -139,18 +143,17 @@ var
   vFields, vField, vProperts, vPropert,
   vArq, vCls, vAtr, vTip : String;
   vObjects : TStringList;
-  vMetadata,
-  vListField,
-  vListPrimary,
-  vListConstraint,
-  vListConstraintKey : TDataSet;
-  vFieldName,
-  vFieldPrimary,
-  vFieldConstraintTable,
-  vFieldConstraintKey : String;
-  vStringPrimary, vStringConstraint : TmStringArray;
+  vMetadata : TDataSet;
   vCampo : TField;
   I : Integer;
+
+  //vListField,
+  vListPrimary,
+  vListConstraint, vListConstraintRef : TList;
+  //vObjField : TmDatabaseField;
+  vObjPrimary : TmDatabasePrimary;
+  vObjConstraint, vObjConstraintRef : TmDatabaseConstraint;
+  vStringPrimary, vStringConstraint : TmStringArray;
 begin
   vArq := NomeArquivo(AEntidade);
   vCls := NomeClasse(AEntidade);
@@ -182,24 +185,23 @@ begin
     vProperts := vProperts + vPropert;
   end;
 
-  vListField := GetListaField(AEntidade);
-  vFieldName := TmDataSet(vListField).PegarS('p_field_name');
+  //vListField := GetListaField(AEntidade);
+  //vObjField := TmDatabaseField(vListField[0]);
+
   vListPrimary := GetListaPrimary(AEntidade);
-  vFieldPrimary := TmDataSet(vListPrimary).PegarS('p_field_name');
+  vObjPrimary := TmDatabasePrimary(vListPrimary[0]);
 
   //-- depende
 
   vListConstraint := GetListaConstraint(AEntidade);
-  vListConstraint.First;
-  while not vListConstraint.EOF do begin
-    vFieldConstraintTable := Trim(TmDataSet(vListConstraint).PegarS('p_references_table'));
-    vListConstraintKey := GetListaPrimary(vFieldConstraintTable);
-    vFieldConstraintKey := TmDataSet(vListConstraintKey).PegarS('p_references_field');
+  for I := 0 to vListConstraint.Count - 1 do begin
+    vObjConstraint := TmDatabaseConstraint(vListConstraint[I]);
+
+    vListConstraintRef := GetListaPrimary(vObjConstraint.p_references_table);
+    vObjConstraintRef := TmDatabaseConstraint(vListConstraintRef[I]);
 
     // depende
-    vObjects.Add(vFieldConstraintTable + '=Depende');
-
-    vListConstraint.Next;
+    vObjects.Add(vObjConstraintRef.p_references_table + '=Depende');
   end;
 
   //-- complemento / lista
@@ -208,22 +210,20 @@ begin
   SetLength(vStringConstraint, 0);
 
   vListConstraint := GetListaConstraintRef(AEntidade);
-  vListConstraint.First;
-  while not vListConstraint.EOF do begin
-    vFieldConstraintTable := Trim(TmDataSet(vListConstraint).PegarS('p_relation_name'));
-    vListConstraintKey := GetListaPrimary(vFieldConstraintTable);
-    vFieldConstraintKey := TmDataSet(vListConstraintKey).PegarS('p_field_name');
+  for I := 0 to vListConstraint.Count - 1 do begin
+    vObjConstraint := TmDatabaseConstraint(vListConstraint[I]);
 
-    vStringPrimary := TmString.Split(vFieldPrimary, ',');
-    vStringConstraint := TmString.Split(vFieldConstraintKey, ',');
+    vListConstraintRef := GetListaPrimary(vObjConstraint.p_relation_name);
+    vObjConstraintRef := TmDatabaseConstraint(vListConstraintRef[I]);
+
+    vStringPrimary := TmString.Split(vObjPrimary.p_field_name, ',');
+    vStringConstraint := TmString.Split(vObjConstraintRef.p_field_name, ',');
 
     // complemento / lista
     if Length(vStringPrimary) = Length(vStringConstraint) then
-      vObjects.Add(vFieldConstraintTable + '=Complemento')
+      vObjects.Add(vObjConstraintRef.p_constraint_name + '=Complemento')
     else
-      vObjects.Add(vFieldConstraintTable + '=Lista');
-
-    vListConstraint.Next;
+      vObjects.Add(vObjConstraintRef.p_constraint_name + '=Lista');
   end;
 
   //--

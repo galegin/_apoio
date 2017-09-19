@@ -14,18 +14,21 @@ type
     function NomeAtributo(AAtributo: String): String;
     function NomeClasse(AEntidade: String): String;
     function TipoAtributo(AFieldType: TFieldType): String;
-    function GetListaField(AEntidade: String): TDataSet;
-    function GetListaPrimary(AEntidade: String): TDataSet;
-    function GetListaConstraint(AEntidade: String): TDataSet;
-    function GetListaConstraintRef(AEntidade: String): TDataSet;
-    procedure processarEntidade(AContexto : TmContexto; AEntidade : String); virtual; abstract;
+    function GetListaField(AEntidade: String): TList;
+    function GetListaPrimary(AEntidade: String): TList;
+    function GetListaConstraint(AEntidade: String): TList;
+    function GetListaConstraintRef(AEntidade: String): TList;
+    procedure ProcessarEntidade(AContexto : TmContexto; AEntidade : String); virtual; abstract;
   public
-    procedure gerar(AFiltro : String);
+    procedure Gerar(AFiltro : String);
   end;
 
 implementation
 
 uses
+  mDatabaseField,
+  mDatabasePrimary,
+  mDatabaseConstraint,
   mArquivo, mString, mDatabase, mPath;
 
   function TC_PersistentAbstract.NomeArquivo(AEntidade : String) : String;
@@ -61,7 +64,7 @@ uses
 
 { TC_PersistentAbstract }
 
-procedure TC_PersistentAbstract.gerar;
+procedure TC_PersistentAbstract.Gerar;
 var
   vTables, vViews : TStringList;
   vContexto : TmContexto;
@@ -82,28 +85,24 @@ begin
       processarEntidade(vContexto, vViews[I]);
 end;
 
-function TC_PersistentAbstract.GetListaField(AEntidade: String): TDataSet;
+function TC_PersistentAbstract.GetListaField;
 begin
   //-- sp_field
   //p_relation_name    varchar(100),
   //p_field_name       varchar(4000)
-  Result := mContexto.Instance.Database.Conexao.GetConsulta(
-    'select * from sq_field where p_relation_name = ''' + AEntidade + '''')
+  Result := mContexto.Instance.GetLista(TmDatabaseField, 'p_relation_name = ''' + AEntidade + '''');
 end;
 
-function TC_PersistentAbstract.GetListaPrimary(
-  AEntidade: String): TDataSet;
+function TC_PersistentAbstract.GetListaPrimary;
 begin
   //-- sp_primary
   //p_constraint_name  varchar(100),
   //p_relation_name    varchar(100),
   //p_field_name       varchar(1000)
-  Result := mContexto.Instance.Database.Conexao.GetConsulta(
-    'select * from sq_primary where p_relation_name = ''' + AEntidade + '''')
+  Result := mContexto.Instance.GetLista(TmDatabasePrimary, 'p_relation_name = ''' + AEntidade + '''');
 end;
 
-function TC_PersistentAbstract.GetListaConstraint(
-  AEntidade: String): TDataSet;
+function TC_PersistentAbstract.GetListaConstraint;
 begin
   //-- sp_constraint
   //p_constraint_name  varchar(100),
@@ -112,12 +111,10 @@ begin
   //p_field_name       varchar(1000),
   //p_references_table varchar(100),
   //p_references_field varchar(1000)
-  Result := mContexto.Instance.Database.Conexao.GetConsulta(
-    'select * from sq_constraint where p_relation_name = ''' + AEntidade + '''')
+  Result := mContexto.Instance.GetLista(TmDatabaseConstraint, 'p_relation_name = ''' + AEntidade + '''')
 end;
 
-function TC_PersistentAbstract.GetListaConstraintRef(
-  AEntidade: String): TDataSet;
+function TC_PersistentAbstract.GetListaConstraintRef;
 begin
   //-- sp_constraint
   //p_constraint_name  varchar(100),
@@ -126,8 +123,7 @@ begin
   //p_field_name       varchar(1000),
   //p_references_table varchar(100),
   //p_references_field varchar(1000)
-  Result := mContexto.Instance.Database.Conexao.GetConsulta(
-    'select * from sq_constraint where p_references_table = ''' + AEntidade + '''')
+  Result := mContexto.Instance.GetLista(TmDatabaseConstraint, 'p_references_table = ''' + AEntidade + '''')
 end;
 
 end.
