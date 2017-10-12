@@ -28,26 +28,30 @@ implementation
 
 uses
   uclsPersistentAbstract,
+  uclsPersistentAttribute,
   uclsPersistentCollection,
   uclsPersistentContexto,
-  mContexto, mMapping, mIniFiles,
-  uPessoa, uProduto, uTransacao, uTransitem;
+  mCollection, mCollectionItem,
+  cContexto, mContexto, mMapping, mIniFiles,
+  uPessoa, uProduto, uTransacao, uTransitem,
+  uPessoaJson, uProdutoJson, uTransacaoJson, Contnrs;
 
 procedure TF_Persistent.FormCreate(Sender: TObject);
 begin
   with ComboBoxTtipo do begin
     Items.Clear;
+    Items.AddObject('Attribute', TC_PersistentAttribute.Create);
     Items.AddObject('Collection', TC_PersistentCollection.Create);
     Items.AddObject('Contexto', TC_PersistentContexto.Create);
     ItemIndex := 0;
   end;
 
-  MemoFiltro.Text := TmIniFiles.PegarS('', '', 'LST_ENTIDADE', '');
+  MemoFiltro.Text := TmIniFiles.PegarS('', '', 'Lst_Entidade', '');
 end;
 
 procedure TF_Persistent.BtnGerarClick(Sender: TObject);
 begin
-  TmIniFiles.Setar('', '', 'LST_ENTIDADE', MemoFiltro.Text);
+  TmIniFiles.Setar('', '', 'Lst_Entidade', MemoFiltro.Text);
 
   with ComboBoxTtipo do
     TC_PersistentAbstract(Items.Objects[ItemIndex]).gerar(MemoFiltro.Text);
@@ -63,14 +67,15 @@ var
   vTransacao : TTransacao;
   I : Integer;
 begin
-  vPessoas := TPessoas.Create;
+  vPessoas := TPessoas.Create(nil);
 
   for I := 1 to 10 do
     with vPessoas.Add do begin
-      Nr_Cpfcnpj := IntToStr(I);
+      Id_Pessoa := IntToStr(I);
       U_Version := '';
       Cd_Operador := 1;
       Dt_Cadastro := Now;
+      Nr_Cpfcnpj := IntToStr(I);
       Nr_Rgie := '123';
       Cd_Pessoa := I * 10;
       Nm_Pessoa := 'Pessoa ' + IntToStr(I);
@@ -101,15 +106,15 @@ begin
 
   vContexto := TmContexto.Create(nil);
 
-  vTransacao := vContexto.GetObjeto(TTransacao, 'Cd_Dnatrans = ''AC77EFA3#20170421#160''') as TTransacao;
-  vTransacao.Cd_Dnatrans := vTransacao.Cd_Dnatrans;
-  vTransacao.Pessoa.Cd_Pessoa := vTransacao.Pessoa.Cd_Pessoa;
-  TTransitem(vTransacao.Itens[0]).Cd_Produto := TTransitem(vTransacao.Itens[0]).Cd_Produto;
-  TTransitem(vTransacao.Itens[0]).Produto.Cd_Barraprd := TTransitem(vTransacao.Itens[0]).Produto.Cd_Barraprd;
+  vTransacao := vContexto.GetObjeto(TTransacao, 'Id_Transacao = ''AC77EFA3#20170421#16''') as TTransacao;
+  vTransacao.Id_Transacao := vTransacao.Id_Transacao;
+  vTransacao.Pessoa.Id_Pessoa := vTransacao.Pessoa.Id_Pessoa;
+  vTransacao.Itens[0].Id_Produto := vTransacao.Itens[0].Id_Produto;
+  vTransacao.Itens[0].Produto.Id_Produto := vTransacao.Itens[0].Produto.Id_Produto;
 
   vContexto.SetLista(vPessoas);
 
-  vPessoas := vContexto.GetLista(TPessoa, 'Cd_Pessoa = 10', TPessoas) as TPessoas;
+  vPessoas := vContexto.GetLista(TPessoas, 'Cd_Pessoa = 10') as TPessoas;
   vContexto.RemLista(vPessoas);
   vContexto.SetLista(vPessoas);
 

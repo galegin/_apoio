@@ -14,10 +14,6 @@ type
     function NomeAtributo(AAtributo: String): String;
     function NomeClasse(AEntidade: String): String;
     function TipoAtributo(AFieldType: TFieldType): String;
-    function GetListaField(AEntidade: String): TList;
-    function GetListaPrimary(AEntidade: String): TList;
-    function GetListaConstraint(AEntidade: String): TList;
-    function GetListaConstraintRef(AEntidade: String): TList;
     procedure ProcessarEntidade(AContexto : TmContexto; AEntidade : String); virtual; abstract;
   public
     procedure Gerar(AFiltro : String);
@@ -26,10 +22,7 @@ type
 implementation
 
 uses
-  mDatabaseField,
-  mDatabasePrimary,
-  mDatabaseConstraint,
-  mArquivo, mString, mDatabase, mPath;
+  mProgressBar, mDatabase, mArquivo, mString, mPath;
 
   function TC_PersistentAbstract.NomeArquivo(AEntidade : String) : String;
   begin
@@ -68,62 +61,32 @@ procedure TC_PersistentAbstract.Gerar;
 var
   vTables, vViews : TStringList;
   vContexto : TmContexto;
-  I : Integer;
+
+  procedure prcGerar(AList : TStringList);
+  var
+    I : Integer;
+  begin
+    mProgressBar.Instance.MessageInicio('Processando...', AList.Count);
+
+    for I := 0 to AList.Count - 1 do begin
+      mProgressBar.Instance.MessagePosiciona;
+      if (AFiltro = '') or (Pos(AList[I], AFiltro) > 0) then
+        processarEntidade(vContexto, AList[I]);
+    end;
+
+    mProgressBar.Instance.MessageTermino;
+  end;
+
 begin
   vContexto := mContexto.Instance;
 
   AFiltro := TmString.AllTrim(AFiltro, sLineBreak);
 
   vTables := vContexto.Database.Conexao.GetTables('');
-  for I := 0 to vTables.Count - 1 do
-    if (AFiltro = '') or (Pos(vTables[I], AFiltro) > 0) then
-      processarEntidade(vContexto, vTables[I]);
+  prcGerar(vTables);
 
   vViews := vContexto.Database.Conexao.GetViews('');
-  for I := 0 to vViews.Count - 1 do
-    if (AFiltro = '') or (Pos(vTables[I], AFiltro) > 0) then
-      processarEntidade(vContexto, vViews[I]);
-end;
-
-function TC_PersistentAbstract.GetListaField;
-begin
-  //-- sp_field
-  //p_relation_name    varchar(100),
-  //p_field_name       varchar(4000)
-  Result := mContexto.Instance.GetLista(TmDatabaseField, 'p_relation_name = ''' + AEntidade + '''');
-end;
-
-function TC_PersistentAbstract.GetListaPrimary;
-begin
-  //-- sp_primary
-  //p_constraint_name  varchar(100),
-  //p_relation_name    varchar(100),
-  //p_field_name       varchar(1000)
-  Result := mContexto.Instance.GetLista(TmDatabasePrimary, 'p_relation_name = ''' + AEntidade + '''');
-end;
-
-function TC_PersistentAbstract.GetListaConstraint;
-begin
-  //-- sp_constraint
-  //p_constraint_name  varchar(100),
-  //p_constraint_corr  varchar(100),
-  //p_relation_name    varchar(100),
-  //p_field_name       varchar(1000),
-  //p_references_table varchar(100),
-  //p_references_field varchar(1000)
-  Result := mContexto.Instance.GetLista(TmDatabaseConstraint, 'p_relation_name = ''' + AEntidade + '''')
-end;
-
-function TC_PersistentAbstract.GetListaConstraintRef;
-begin
-  //-- sp_constraint
-  //p_constraint_name  varchar(100),
-  //p_constraint_corr  varchar(100),
-  //p_relation_name    varchar(100),
-  //p_field_name       varchar(1000),
-  //p_references_table varchar(100),
-  //p_references_field varchar(1000)
-  Result := mContexto.Instance.GetLista(TmDatabaseConstraint, 'p_references_table = ''' + AEntidade + '''')
+  prcGerar(vViews);
 end;
 
 end.

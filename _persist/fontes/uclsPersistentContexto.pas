@@ -18,7 +18,7 @@ implementation
 { TC_PersistentContexto }
 
 uses
-  mArquivo, mString, mDatabase, mPath;
+  mDatabase, mArquivo, mString, mPath;
 
 const
   cCNT_CLASSE =
@@ -117,15 +117,15 @@ const
     '    f{atr}: {tip};' + sLineBreak ;
 
   cCNT_CAMPO =
-    '    Add(''{atr}'', ''{cpo}'', {tip});' + sLineBreak ;
+    '    Add(''{atr}'', ''{cpo}'', {fld});' + sLineBreak ;
 
   cCNT_PROPERT =
     '    property {atr} : {tip} read f{atr} write f{atr};' + sLineBreak ;
 
 procedure TC_PersistentContexto.processarEntidade(AContexto : TmContexto; AEntidade : String);
 var
-  vArquivo, vConteudo,
-  vArq, vCls, vAtr, vTip, vTipCpo,
+  vArquivo, vConteudo, vPath,
+  vArq, vCls, vAtr, vTip, vFld,
   vCampos, vCampo, vFields, vField,
   vProperts, vPropert : String;
   vMetadata : TDataSet;
@@ -157,16 +157,16 @@ begin
       vKey := False;
 
     if vKey then
-      vTipCpo := 'tfKey'
+      vFld := 'tfKey'
     else if vCampoF.Required then
-      vTipCpo := 'tfReq'
+      vFld := 'tfReq'
     else
-      vTipCpo := 'tfNul';
+      vFld := 'tfNul';
 
     vCampo := cCNT_CAMPO;
     vCampo := AnsiReplaceStr(vCampo, '{atr}', vAtr);
     vCampo := AnsiReplaceStr(vCampo, '{cpo}', vCampoF.FieldName);
-    vCampo := AnsiReplaceStr(vCampo, '{tip}', vTipCpo);
+    vCampo := AnsiReplaceStr(vCampo, '{fld}', vFld);
     vCampos := vCampos + vCampo;
 
     vField := cCNT_FIELD;
@@ -185,9 +185,9 @@ begin
   vConteudo := AnsiReplaceStr(vConteudo, '{fields}', vFields);
   vConteudo := AnsiReplaceStr(vConteudo, '{properts}', vProperts);
 
-  vArquivo := TmPath.Temp() + 'u' + vArq + '.pas';
+  vPath := 'temp\' + AContexto.Database.Conexao.Parametro.Cd_Ambiente + '\contexto\';
+  vArquivo := TmPath.Current(vPath) + 'u' + vArq + '.pas';
   TmArquivo.Gravar(vArquivo, vConteudo);
 end;
-
 
 end.

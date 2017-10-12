@@ -18,11 +18,7 @@ implementation
 { TC_PersistentCollection }
 
 uses
-  mDatabase,
-  mDatabaseField,
-  mDatabasePrimary,
-  mDatabaseConstraint,
-  mArquivo, mString, mDataSet, mPath;
+  mDatabase, mArquivo, mString, mPath;
 
 const
   cCNT_CLASSE =
@@ -62,13 +58,10 @@ const
     '    function GetItem(Index: Integer): T{cls};' + sLineBreak +
     '    procedure SetItem(Index: Integer; Value: T{cls});' + sLineBreak +
     '  public' + sLineBreak +
-    '    constructor Create(AOwner: TPersistentCollection);' + sLineBreak +
+    '    constructor Create(AOwner: TCollection);' + sLineBreak +
     '    function Add: T{cls};' + sLineBreak +
     '    property Items[Index: Integer]: T{cls} read GetItem write SetItem; default;' + sLineBreak +
     '  end;' + sLineBreak +
-    '' + sLineBreak +
-
-    '{objects}' +
     '' + sLineBreak +
 
     'implementation' + sLineBreak +
@@ -94,7 +87,7 @@ const
     '{ T{cls}List }' + sLineBreak +
     '' + sLineBreak +
 
-    'constructor T{cls}List.Create(AOwner: TPersistentCollection);' + sLineBreak +
+    'constructor T{cls}List.Create(AOwner: TCollection);' + sLineBreak +
     'begin' + sLineBreak +
     '  inherited Create(T{cls});' + sLineBreak +
     'end;' + sLineBreak +
@@ -103,7 +96,6 @@ const
     'function T{cls}List.Add: T{cls};' + sLineBreak +
     'begin' + sLineBreak +
     '  Result := T{cls}(inherited Add);' + sLineBreak +
-    '  Result.create;' + sLineBreak +
     'end;' + sLineBreak +
     '' + sLineBreak +
 
@@ -127,33 +119,14 @@ const
   cCNT_PROPERT =
     '    property {atr} : {tip} read f{atr} write Set{atr};' + sLineBreak ;
 
-  cCNT_PROC_INT =
-    '    procedure Set{atr}(const value : {tip});' + sLineBreak ;
-
-  cCNT_PROC_IMP =
-    '    procedure T{cls}.Set{atr}(const value : {tip});' + sLineBreak +
-    '    begin' + sLineBreak +
-    '      f{atr} := value;' + sLineBreak +
-    '    end;' + sLineBreak +
-    '' + sLineBreak ;
-
 procedure TC_PersistentCollection.processarEntidade(AContexto : TmContexto; AEntidade : String);
 var
-  vArquivo, vConteudo,
+  vArquivo, vConteudo, vPath,
   vFields, vField, vProperts, vPropert,
   vArq, vCls, vAtr, vTip : String;
-  vObjects : TStringList;
   vMetadata : TDataSet;
   vCampo : TField;
   I : Integer;
-
-  //vListField,
-  vListPrimary,
-  vListConstraint, vListConstraintRef : TList;
-  //vObjField : TmDatabaseField;
-  vObjPrimary : TmDatabasePrimary;
-  vObjConstraint, vObjConstraintRef : TmDatabaseConstraint;
-  vStringPrimary, vStringConstraint : TmStringArray;
 begin
   vArq := NomeArquivo(AEntidade);
   vCls := NomeClasse(AEntidade);
@@ -166,7 +139,6 @@ begin
 
   vFields := '';
   vProperts := '';
-  vObjects := TStringList.Create;
 
   for I := 0 to vMetadata.FieldCount - 1 do begin
     vCampo := vMetadata.Fields[I];
@@ -185,54 +157,11 @@ begin
     vProperts := vProperts + vPropert;
   end;
 
-  //vListField := GetListaField(AEntidade);
-  //vObjField := TmDatabaseField(vListField[0]);
-
-  vListPrimary := GetListaPrimary(AEntidade);
-  vObjPrimary := TmDatabasePrimary(vListPrimary[0]);
-
-  //-- depende
-
-  vListConstraint := GetListaConstraint(AEntidade);
-  for I := 0 to vListConstraint.Count - 1 do begin
-    vObjConstraint := TmDatabaseConstraint(vListConstraint[I]);
-
-    vListConstraintRef := GetListaPrimary(vObjConstraint.p_references_table);
-    vObjConstraintRef := TmDatabaseConstraint(vListConstraintRef[I]);
-
-    // depende
-    vObjects.Add(vObjConstraintRef.p_references_table + '=Depende');
-  end;
-
-  //-- complemento / lista
-
-  SetLength(vStringPrimary, 0);
-  SetLength(vStringConstraint, 0);
-
-  vListConstraint := GetListaConstraintRef(AEntidade);
-  for I := 0 to vListConstraint.Count - 1 do begin
-    vObjConstraint := TmDatabaseConstraint(vListConstraint[I]);
-
-    vListConstraintRef := GetListaPrimary(vObjConstraint.p_relation_name);
-    vObjConstraintRef := TmDatabaseConstraint(vListConstraintRef[I]);
-
-    vStringPrimary := TmString.Split(vObjPrimary.p_field_name, ',');
-    vStringConstraint := TmString.Split(vObjConstraintRef.p_field_name, ',');
-
-    // complemento / lista
-    if Length(vStringPrimary) = Length(vStringConstraint) then
-      vObjects.Add(vObjConstraintRef.p_constraint_name + '=Complemento')
-    else
-      vObjects.Add(vObjConstraintRef.p_constraint_name + '=Lista');
-  end;
-
-  //--
-
   vConteudo := AnsiReplaceStr(vConteudo, '{fields}', vFields);
   vConteudo := AnsiReplaceStr(vConteudo, '{properts}', vProperts);
-  vConteudo := AnsiReplaceStr(vConteudo, '{objects}', vObjects.Text);
 
-  vArquivo := TmPath.Temp() + 'u' + vArq + '.pas';
+  vPath := 'temp\' + AContexto.Database.Conexao.Parametro.Cd_Ambiente + '\collection\';
+  vArquivo := TmPath.Current(vPath) + 'u' + vArq + '.pas';
   TmArquivo.Gravar(vArquivo, vConteudo);
 end;
 
