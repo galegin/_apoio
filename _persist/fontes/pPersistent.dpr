@@ -3,8 +3,11 @@ program pPersistent;
 uses
   Forms,
   uclsPersistentAbstract in 'uclsPersistentAbstract.pas',
-  uclsPersistentAttribute in 'uclsPersistentAttribute.pas',
-  uclsPersistentCollection in 'uclsPersistentCollection.pas',
+  uclsPersistentCSharp in 'uclsPersistentCSharp.pas',
+  uclsPersistentDelphi in 'uclsPersistentDelphi.pas',
+  uclsPersistentDelphiXE in 'uclsPersistentDelphiXE.pas',
+  uclsPersistentJava in 'uclsPersistentJava.pas',
+  uclsPersistentPhp in 'uclsPersistentPhp.pas',
   ufrmPersistent in 'ufrmPersistent.pas' {F_Persistent};
 
 {$R *.res}

@@ -28,18 +28,24 @@ implementation
 
 uses
   uclsPersistentAbstract,
-  uclsPersistentAttribute,
-  uclsPersistentCollection,
-  mMapping, mCollection, mCollectionItem,
+  uclsPersistentCSharp,
+  uclsPersistentDelphi,
+  uclsPersistentDelphiXE,
+  uclsPersistentJava,
+  uclsPersistentPhp,
   mContexto, mIniFiles,
+  mMapping, mCollection, mCollectionItem,
   uPessoa, uProduto, uTransacao, uTransitem;
 
 procedure TF_Persistent.FormCreate(Sender: TObject);
 begin
   with ComboBoxTtipo do begin
     Items.Clear;
-    Items.AddObject('Attribute', TC_PersistentAttribute.Create);
-    Items.AddObject('Collection', TC_PersistentCollection.Create);
+    Items.AddObject('CSharp', TC_PersistentCSharp.Create);
+    Items.AddObject('Delphi', TC_PersistentDelphi.Create);
+    Items.AddObject('DelphiXE', TC_PersistentDelphiXE.Create);
+    Items.AddObject('Java', TC_PersistentJava.Create);
+    Items.AddObject('Php', TC_PersistentPhp.Create);
     ItemIndex := 0;
   end;
 
