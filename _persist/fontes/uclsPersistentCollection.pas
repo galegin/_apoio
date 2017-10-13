@@ -4,12 +4,12 @@ interface
 
 uses
   Classes, SysUtils, StrUtils, DB,
-  mContexto,
+  mContexto, mValue,
   uclsPersistentAbstract;
 
 type
   TC_PersistentCollection = class(TC_PersistentAbstract)
-  public
+  protected
     procedure processarEntidade(AContexto : TmContexto; AEntidade : String); override;
   end;
 
@@ -34,14 +34,6 @@ const
     '' + sLineBreak +
 
     'type' + sLineBreak +
-    '  T{cls} = class;' + sLineBreak +
-    '  T{cls}Class = class of T{cls};' + sLineBreak +
-    '' + sLineBreak +
-
-    '  T{cls}List = class;' + sLineBreak +
-    '  T{cls}ListClass = class of T{cls}List;' + sLineBreak +
-    '' + sLineBreak +
-
     '  T{cls} = class(TmCollectionItem)' + sLineBreak +
     '  private' + sLineBreak +
     '{fields}' +
@@ -53,12 +45,12 @@ const
     '  end;' + sLineBreak +
     '' + sLineBreak +
 
-    '  T{cls}List = class(TmCollection)' + sLineBreak +
+    '  T{cls}s = class(TmCollection)' + sLineBreak +
     '  private' + sLineBreak +
     '    function GetItem(Index: Integer): T{cls};' + sLineBreak +
     '    procedure SetItem(Index: Integer; Value: T{cls});' + sLineBreak +
     '  public' + sLineBreak +
-    '    constructor Create(AOwner: TCollection);' + sLineBreak +
+    '    constructor Create(AItemClass: TCollectionItemClass); override;' + sLineBreak +
     '    function Add: T{cls};' + sLineBreak +
     '    property Items[Index: Integer]: T{cls} read GetItem write SetItem; default;' + sLineBreak +
     '  end;' + sLineBreak +
@@ -84,28 +76,28 @@ const
     'end;' + sLineBreak +
     '' + sLineBreak +
 
-    '{ T{cls}List }' + sLineBreak +
+    '{ T{cls}s }' + sLineBreak +
     '' + sLineBreak +
 
-    'constructor T{cls}List.Create(AOwner: TCollection);' + sLineBreak +
+    'constructor T{cls}s.Create(AItemClass: TCollectionItemClass);' + sLineBreak +
     'begin' + sLineBreak +
     '  inherited Create(T{cls});' + sLineBreak +
     'end;' + sLineBreak +
     '' + sLineBreak +
 
-    'function T{cls}List.Add: T{cls};' + sLineBreak +
+    'function T{cls}s.Add: T{cls};' + sLineBreak +
     'begin' + sLineBreak +
     '  Result := T{cls}(inherited Add);' + sLineBreak +
     'end;' + sLineBreak +
     '' + sLineBreak +
 
-    'function T{cls}List.GetItem(Index: Integer): T{cls};' + sLineBreak +
+    'function T{cls}s.GetItem(Index: Integer): T{cls};' + sLineBreak +
     'begin' + sLineBreak +
     '  Result := T{cls}(inherited GetItem(Index));' + sLineBreak +
     'end;' + sLineBreak +
     '' + sLineBreak +
 
-    'procedure T{cls}List.SetItem(Index: Integer; Value: T{cls});' + sLineBreak +
+    'procedure T{cls}s.SetItem(Index: Integer; Value: T{cls});' + sLineBreak +
     'begin' + sLineBreak +
     '  inherited SetItem(Index, Value);' + sLineBreak +
     'end;' + sLineBreak +
@@ -117,7 +109,7 @@ const
     '    f{atr}: {tip};' + sLineBreak ;
 
   cCNT_PROPERT =
-    '    property {atr} : {tip} read f{atr} write Set{atr};' + sLineBreak ;
+    '    property {atr} : {tip} read f{atr} write f{atr};' + sLineBreak ;
 
 procedure TC_PersistentCollection.processarEntidade(AContexto : TmContexto; AEntidade : String);
 var

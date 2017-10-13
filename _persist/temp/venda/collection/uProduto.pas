@@ -7,56 +7,50 @@ uses
   mCollection, mCollectionItem;
 
 type
-  TProduto = class;
-  TProdutoClass = class of TProduto;
-
-  TProdutoList = class;
-  TProdutoListClass = class of TProdutoList;
-
   TProduto = class(TmCollectionItem)
   private
     fId_Produto: String;
     fU_Version: String;
     fCd_Operador: Integer;
-    fDt_Cadastro: String;
+    fDt_Cadastro: TDateTime;
     fCd_Produto: Integer;
     fDs_Produto: String;
     fCd_Especie: String;
     fCd_Ncm: String;
     fCd_Cst: String;
     fCd_Csosn: String;
-    fPr_Aliquota: String;
+    fPr_Aliquota: Real;
     fTp_Producao: Integer;
-    fVl_Custo: String;
-    fVl_Venda: String;
-    fVl_Promocao: String;
+    fVl_Custo: Real;
+    fVl_Venda: Real;
+    fVl_Promocao: Real;
   public
     constructor Create(ACollection: TCollection); override;
     destructor Destroy; override;
   published
-    property Id_Produto : String read fId_Produto write SetId_Produto;
-    property U_Version : String read fU_Version write SetU_Version;
-    property Cd_Operador : Integer read fCd_Operador write SetCd_Operador;
-    property Dt_Cadastro : String read fDt_Cadastro write SetDt_Cadastro;
-    property Cd_Produto : Integer read fCd_Produto write SetCd_Produto;
-    property Ds_Produto : String read fDs_Produto write SetDs_Produto;
-    property Cd_Especie : String read fCd_Especie write SetCd_Especie;
-    property Cd_Ncm : String read fCd_Ncm write SetCd_Ncm;
-    property Cd_Cst : String read fCd_Cst write SetCd_Cst;
-    property Cd_Csosn : String read fCd_Csosn write SetCd_Csosn;
-    property Pr_Aliquota : String read fPr_Aliquota write SetPr_Aliquota;
-    property Tp_Producao : Integer read fTp_Producao write SetTp_Producao;
-    property Vl_Custo : String read fVl_Custo write SetVl_Custo;
-    property Vl_Venda : String read fVl_Venda write SetVl_Venda;
-    property Vl_Promocao : String read fVl_Promocao write SetVl_Promocao;
+    property Id_Produto : String read fId_Produto write fId_Produto;
+    property U_Version : String read fU_Version write fU_Version;
+    property Cd_Operador : Integer read fCd_Operador write fCd_Operador;
+    property Dt_Cadastro : TDateTime read fDt_Cadastro write fDt_Cadastro;
+    property Cd_Produto : Integer read fCd_Produto write fCd_Produto;
+    property Ds_Produto : String read fDs_Produto write fDs_Produto;
+    property Cd_Especie : String read fCd_Especie write fCd_Especie;
+    property Cd_Ncm : String read fCd_Ncm write fCd_Ncm;
+    property Cd_Cst : String read fCd_Cst write fCd_Cst;
+    property Cd_Csosn : String read fCd_Csosn write fCd_Csosn;
+    property Pr_Aliquota : Real read fPr_Aliquota write fPr_Aliquota;
+    property Tp_Producao : Integer read fTp_Producao write fTp_Producao;
+    property Vl_Custo : Real read fVl_Custo write fVl_Custo;
+    property Vl_Venda : Real read fVl_Venda write fVl_Venda;
+    property Vl_Promocao : Real read fVl_Promocao write fVl_Promocao;
   end;
 
-  TProdutoList = class(TmCollection)
+  TProdutos = class(TmCollection)
   private
     function GetItem(Index: Integer): TProduto;
     procedure SetItem(Index: Integer; Value: TProduto);
   public
-    constructor Create(AOwner: TPersistentCollection);
+    constructor Create(AItemClass: TCollectionItemClass); override;
     function Add: TProduto;
     property Items[Index: Integer]: TProduto read GetItem write SetItem; default;
   end;
@@ -77,25 +71,24 @@ begin
   inherited;
 end;
 
-{ TProdutoList }
+{ TProdutos }
 
-constructor TProdutoList.Create(AOwner: TPersistentCollection);
+constructor TProdutos.Create(AItemClass: TCollectionItemClass);
 begin
   inherited Create(TProduto);
 end;
 
-function TProdutoList.Add: TProduto;
+function TProdutos.Add: TProduto;
 begin
   Result := TProduto(inherited Add);
-  Result.create;
 end;
 
-function TProdutoList.GetItem(Index: Integer): TProduto;
+function TProdutos.GetItem(Index: Integer): TProduto;
 begin
   Result := TProduto(inherited GetItem(Index));
 end;
 
-procedure TProdutoList.SetItem(Index: Integer; Value: TProduto);
+procedure TProdutos.SetItem(Index: Integer; Value: TProduto);
 begin
   inherited SetItem(Index, Value);
 end;

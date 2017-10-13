@@ -2,10 +2,10 @@ program pPersistent;
 
 uses
   Forms,
+  uclsPersistentAbstract in 'uclsPersistentAbstract.pas',
+  uclsPersistentAttribute in 'uclsPersistentAttribute.pas',
   uclsPersistentCollection in 'uclsPersistentCollection.pas',
-  uclsPersistentContexto in 'uclsPersistentContexto.pas',
-  ufrmPersistent in 'ufrmPersistent.pas' {F_Persistent},
-  uclsPersistentAbstract in 'uclsPersistentAbstract.pas';
+  ufrmPersistent in 'ufrmPersistent.pas' {F_Persistent};
 
 {$R *.res}
 

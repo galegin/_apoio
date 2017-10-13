@@ -7,46 +7,40 @@ uses
   mCollection, mCollectionItem;
 
 type
-  TCaixacont = class;
-  TCaixacontClass = class of TCaixacont;
-
-  TCaixacontList = class;
-  TCaixacontListClass = class of TCaixacontList;
-
   TCaixacont = class(TmCollectionItem)
   private
     fId_Caixa: Integer;
     fId_Histrel: Integer;
     fU_Version: String;
     fCd_Operador: Integer;
-    fDt_Cadastro: String;
-    fVl_Contado: String;
-    fVl_Sistema: String;
-    fVl_Retirada: String;
-    fVl_Suprimento: String;
-    fVl_Diferenca: String;
+    fDt_Cadastro: TDateTime;
+    fVl_Contado: Real;
+    fVl_Sistema: Real;
+    fVl_Retirada: Real;
+    fVl_Suprimento: Real;
+    fVl_Diferenca: Real;
   public
     constructor Create(ACollection: TCollection); override;
     destructor Destroy; override;
   published
-    property Id_Caixa : Integer read fId_Caixa write SetId_Caixa;
-    property Id_Histrel : Integer read fId_Histrel write SetId_Histrel;
-    property U_Version : String read fU_Version write SetU_Version;
-    property Cd_Operador : Integer read fCd_Operador write SetCd_Operador;
-    property Dt_Cadastro : String read fDt_Cadastro write SetDt_Cadastro;
-    property Vl_Contado : String read fVl_Contado write SetVl_Contado;
-    property Vl_Sistema : String read fVl_Sistema write SetVl_Sistema;
-    property Vl_Retirada : String read fVl_Retirada write SetVl_Retirada;
-    property Vl_Suprimento : String read fVl_Suprimento write SetVl_Suprimento;
-    property Vl_Diferenca : String read fVl_Diferenca write SetVl_Diferenca;
+    property Id_Caixa : Integer read fId_Caixa write fId_Caixa;
+    property Id_Histrel : Integer read fId_Histrel write fId_Histrel;
+    property U_Version : String read fU_Version write fU_Version;
+    property Cd_Operador : Integer read fCd_Operador write fCd_Operador;
+    property Dt_Cadastro : TDateTime read fDt_Cadastro write fDt_Cadastro;
+    property Vl_Contado : Real read fVl_Contado write fVl_Contado;
+    property Vl_Sistema : Real read fVl_Sistema write fVl_Sistema;
+    property Vl_Retirada : Real read fVl_Retirada write fVl_Retirada;
+    property Vl_Suprimento : Real read fVl_Suprimento write fVl_Suprimento;
+    property Vl_Diferenca : Real read fVl_Diferenca write fVl_Diferenca;
   end;
 
-  TCaixacontList = class(TmCollection)
+  TCaixaconts = class(TmCollection)
   private
     function GetItem(Index: Integer): TCaixacont;
     procedure SetItem(Index: Integer; Value: TCaixacont);
   public
-    constructor Create(AOwner: TPersistentCollection);
+    constructor Create(AItemClass: TCollectionItemClass); override;
     function Add: TCaixacont;
     property Items[Index: Integer]: TCaixacont read GetItem write SetItem; default;
   end;
@@ -67,25 +61,24 @@ begin
   inherited;
 end;
 
-{ TCaixacontList }
+{ TCaixaconts }
 
-constructor TCaixacontList.Create(AOwner: TPersistentCollection);
+constructor TCaixaconts.Create(AItemClass: TCollectionItemClass);
 begin
   inherited Create(TCaixacont);
 end;
 
-function TCaixacontList.Add: TCaixacont;
+function TCaixaconts.Add: TCaixacont;
 begin
   Result := TCaixacont(inherited Add);
-  Result.create;
 end;
 
-function TCaixacontList.GetItem(Index: Integer): TCaixacont;
+function TCaixaconts.GetItem(Index: Integer): TCaixacont;
 begin
   Result := TCaixacont(inherited GetItem(Index));
 end;
 
-procedure TCaixacontList.SetItem(Index: Integer; Value: TCaixacont);
+procedure TCaixaconts.SetItem(Index: Integer; Value: TCaixacont);
 begin
   inherited SetItem(Index, Value);
 end;

@@ -7,27 +7,21 @@ uses
   mCollection, mCollectionItem;
 
 type
-  TTranspagto = class;
-  TTranspagtoClass = class of TTranspagto;
-
-  TTranspagtoList = class;
-  TTranspagtoListClass = class of TTranspagtoList;
-
   TTranspagto = class(TmCollectionItem)
   private
     fId_Transacao: String;
     fNr_Seq: Integer;
     fU_Version: String;
     fCd_Operador: Integer;
-    fDt_Cadastro: String;
+    fDt_Cadastro: TDateTime;
     fId_Caixa: Integer;
     fTp_Documento: Integer;
     fId_Histrel: Integer;
     fNr_Parcela: Integer;
     fNr_Parcelas: Integer;
     fNr_Documento: Integer;
-    fVl_Documento: String;
-    fDt_Vencimento: String;
+    fVl_Documento: Real;
+    fDt_Vencimento: TDateTime;
     fCd_Autorizacao: String;
     fNr_Nsu: Integer;
     fDs_Redetef: String;
@@ -39,44 +33,44 @@ type
     fDs_Cmc7: String;
     fTp_Baixa: Integer;
     fCd_Operbaixa: Integer;
-    fDt_Baixa: String;
+    fDt_Baixa: TDateTime;
   public
     constructor Create(ACollection: TCollection); override;
     destructor Destroy; override;
   published
-    property Id_Transacao : String read fId_Transacao write SetId_Transacao;
-    property Nr_Seq : Integer read fNr_Seq write SetNr_Seq;
-    property U_Version : String read fU_Version write SetU_Version;
-    property Cd_Operador : Integer read fCd_Operador write SetCd_Operador;
-    property Dt_Cadastro : String read fDt_Cadastro write SetDt_Cadastro;
-    property Id_Caixa : Integer read fId_Caixa write SetId_Caixa;
-    property Tp_Documento : Integer read fTp_Documento write SetTp_Documento;
-    property Id_Histrel : Integer read fId_Histrel write SetId_Histrel;
-    property Nr_Parcela : Integer read fNr_Parcela write SetNr_Parcela;
-    property Nr_Parcelas : Integer read fNr_Parcelas write SetNr_Parcelas;
-    property Nr_Documento : Integer read fNr_Documento write SetNr_Documento;
-    property Vl_Documento : String read fVl_Documento write SetVl_Documento;
-    property Dt_Vencimento : String read fDt_Vencimento write SetDt_Vencimento;
-    property Cd_Autorizacao : String read fCd_Autorizacao write SetCd_Autorizacao;
-    property Nr_Nsu : Integer read fNr_Nsu write SetNr_Nsu;
-    property Ds_Redetef : String read fDs_Redetef write SetDs_Redetef;
-    property Nm_Operadora : String read fNm_Operadora write SetNm_Operadora;
-    property Nr_Banco : Integer read fNr_Banco write SetNr_Banco;
-    property Nr_Agencia : Integer read fNr_Agencia write SetNr_Agencia;
-    property Ds_Conta : String read fDs_Conta write SetDs_Conta;
-    property Nr_Cheque : Integer read fNr_Cheque write SetNr_Cheque;
-    property Ds_Cmc7 : String read fDs_Cmc7 write SetDs_Cmc7;
-    property Tp_Baixa : Integer read fTp_Baixa write SetTp_Baixa;
-    property Cd_Operbaixa : Integer read fCd_Operbaixa write SetCd_Operbaixa;
-    property Dt_Baixa : String read fDt_Baixa write SetDt_Baixa;
+    property Id_Transacao : String read fId_Transacao write fId_Transacao;
+    property Nr_Seq : Integer read fNr_Seq write fNr_Seq;
+    property U_Version : String read fU_Version write fU_Version;
+    property Cd_Operador : Integer read fCd_Operador write fCd_Operador;
+    property Dt_Cadastro : TDateTime read fDt_Cadastro write fDt_Cadastro;
+    property Id_Caixa : Integer read fId_Caixa write fId_Caixa;
+    property Tp_Documento : Integer read fTp_Documento write fTp_Documento;
+    property Id_Histrel : Integer read fId_Histrel write fId_Histrel;
+    property Nr_Parcela : Integer read fNr_Parcela write fNr_Parcela;
+    property Nr_Parcelas : Integer read fNr_Parcelas write fNr_Parcelas;
+    property Nr_Documento : Integer read fNr_Documento write fNr_Documento;
+    property Vl_Documento : Real read fVl_Documento write fVl_Documento;
+    property Dt_Vencimento : TDateTime read fDt_Vencimento write fDt_Vencimento;
+    property Cd_Autorizacao : String read fCd_Autorizacao write fCd_Autorizacao;
+    property Nr_Nsu : Integer read fNr_Nsu write fNr_Nsu;
+    property Ds_Redetef : String read fDs_Redetef write fDs_Redetef;
+    property Nm_Operadora : String read fNm_Operadora write fNm_Operadora;
+    property Nr_Banco : Integer read fNr_Banco write fNr_Banco;
+    property Nr_Agencia : Integer read fNr_Agencia write fNr_Agencia;
+    property Ds_Conta : String read fDs_Conta write fDs_Conta;
+    property Nr_Cheque : Integer read fNr_Cheque write fNr_Cheque;
+    property Ds_Cmc7 : String read fDs_Cmc7 write fDs_Cmc7;
+    property Tp_Baixa : Integer read fTp_Baixa write fTp_Baixa;
+    property Cd_Operbaixa : Integer read fCd_Operbaixa write fCd_Operbaixa;
+    property Dt_Baixa : TDateTime read fDt_Baixa write fDt_Baixa;
   end;
 
-  TTranspagtoList = class(TmCollection)
+  TTranspagtos = class(TmCollection)
   private
     function GetItem(Index: Integer): TTranspagto;
     procedure SetItem(Index: Integer; Value: TTranspagto);
   public
-    constructor Create(AOwner: TPersistentCollection);
+    constructor Create(AItemClass: TCollectionItemClass); override;
     function Add: TTranspagto;
     property Items[Index: Integer]: TTranspagto read GetItem write SetItem; default;
   end;
@@ -97,25 +91,24 @@ begin
   inherited;
 end;
 
-{ TTranspagtoList }
+{ TTranspagtos }
 
-constructor TTranspagtoList.Create(AOwner: TPersistentCollection);
+constructor TTranspagtos.Create(AItemClass: TCollectionItemClass);
 begin
   inherited Create(TTranspagto);
 end;
 
-function TTranspagtoList.Add: TTranspagto;
+function TTranspagtos.Add: TTranspagto;
 begin
   Result := TTranspagto(inherited Add);
-  Result.create;
 end;
 
-function TTranspagtoList.GetItem(Index: Integer): TTranspagto;
+function TTranspagtos.GetItem(Index: Integer): TTranspagto;
 begin
   Result := TTranspagto(inherited GetItem(Index));
 end;
 
-procedure TTranspagtoList.SetItem(Index: Integer; Value: TTranspagto);
+procedure TTranspagtos.SetItem(Index: Integer; Value: TTranspagto);
 begin
   inherited SetItem(Index, Value);
 end;

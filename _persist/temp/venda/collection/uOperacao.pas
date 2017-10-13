@@ -7,18 +7,12 @@ uses
   mCollection, mCollectionItem;
 
 type
-  TOperacao = class;
-  TOperacaoClass = class of TOperacao;
-
-  TOperacaoList = class;
-  TOperacaoListClass = class of TOperacaoList;
-
   TOperacao = class(TmCollectionItem)
   private
     fId_Operacao: String;
     fU_Version: String;
     fCd_Operador: Integer;
-    fDt_Cadastro: String;
+    fDt_Cadastro: TDateTime;
     fDs_Operacao: String;
     fTp_Modelonf: Integer;
     fTp_Modalidade: Integer;
@@ -30,25 +24,25 @@ type
     constructor Create(ACollection: TCollection); override;
     destructor Destroy; override;
   published
-    property Id_Operacao : String read fId_Operacao write SetId_Operacao;
-    property U_Version : String read fU_Version write SetU_Version;
-    property Cd_Operador : Integer read fCd_Operador write SetCd_Operador;
-    property Dt_Cadastro : String read fDt_Cadastro write SetDt_Cadastro;
-    property Ds_Operacao : String read fDs_Operacao write SetDs_Operacao;
-    property Tp_Modelonf : Integer read fTp_Modelonf write SetTp_Modelonf;
-    property Tp_Modalidade : Integer read fTp_Modalidade write SetTp_Modalidade;
-    property Tp_Operacao : Integer read fTp_Operacao write SetTp_Operacao;
-    property Cd_Serie : String read fCd_Serie write SetCd_Serie;
-    property Cd_Cfop : Integer read fCd_Cfop write SetCd_Cfop;
-    property Id_Regrafiscal : Integer read fId_Regrafiscal write SetId_Regrafiscal;
+    property Id_Operacao : String read fId_Operacao write fId_Operacao;
+    property U_Version : String read fU_Version write fU_Version;
+    property Cd_Operador : Integer read fCd_Operador write fCd_Operador;
+    property Dt_Cadastro : TDateTime read fDt_Cadastro write fDt_Cadastro;
+    property Ds_Operacao : String read fDs_Operacao write fDs_Operacao;
+    property Tp_Modelonf : Integer read fTp_Modelonf write fTp_Modelonf;
+    property Tp_Modalidade : Integer read fTp_Modalidade write fTp_Modalidade;
+    property Tp_Operacao : Integer read fTp_Operacao write fTp_Operacao;
+    property Cd_Serie : String read fCd_Serie write fCd_Serie;
+    property Cd_Cfop : Integer read fCd_Cfop write fCd_Cfop;
+    property Id_Regrafiscal : Integer read fId_Regrafiscal write fId_Regrafiscal;
   end;
 
-  TOperacaoList = class(TmCollection)
+  TOperacaos = class(TmCollection)
   private
     function GetItem(Index: Integer): TOperacao;
     procedure SetItem(Index: Integer; Value: TOperacao);
   public
-    constructor Create(AOwner: TPersistentCollection);
+    constructor Create(AItemClass: TCollectionItemClass); override;
     function Add: TOperacao;
     property Items[Index: Integer]: TOperacao read GetItem write SetItem; default;
   end;
@@ -69,25 +63,24 @@ begin
   inherited;
 end;
 
-{ TOperacaoList }
+{ TOperacaos }
 
-constructor TOperacaoList.Create(AOwner: TPersistentCollection);
+constructor TOperacaos.Create(AItemClass: TCollectionItemClass);
 begin
   inherited Create(TOperacao);
 end;
 
-function TOperacaoList.Add: TOperacao;
+function TOperacaos.Add: TOperacao;
 begin
   Result := TOperacao(inherited Add);
-  Result.create;
 end;
 
-function TOperacaoList.GetItem(Index: Integer): TOperacao;
+function TOperacaos.GetItem(Index: Integer): TOperacao;
 begin
   Result := TOperacao(inherited GetItem(Index));
 end;
 
-procedure TOperacaoList.SetItem(Index: Integer; Value: TOperacao);
+procedure TOperacaos.SetItem(Index: Integer; Value: TOperacao);
 begin
   inherited SetItem(Index, Value);
 end;

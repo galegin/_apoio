@@ -30,7 +30,6 @@ uses
   uclsPersistentAbstract,
   uclsPersistentAttribute,
   uclsPersistentCollection,
-  uclsPersistentContexto,
   mMapping, mCollection, mCollectionItem,
   mContexto, mIniFiles,
   uPessoa, uProduto, uTransacao, uTransitem;
@@ -41,7 +40,6 @@ begin
     Items.Clear;
     Items.AddObject('Attribute', TC_PersistentAttribute.Create);
     Items.AddObject('Collection', TC_PersistentCollection.Create);
-    Items.AddObject('Contexto', TC_PersistentContexto.Create);
     ItemIndex := 0;
   end;
 
@@ -107,9 +105,9 @@ begin
 
   vTransacao := vContexto.GetObjeto(TTransacao, 'Id_Transacao = ''AC77EFA3#20170421#16''') as TTransacao;
   vTransacao.Id_Transacao := vTransacao.Id_Transacao;
-  vTransacao.Pessoa.Id_Pessoa := vTransacao.Pessoa.Id_Pessoa;
-  vTransacao.Itens[0].Id_Produto := vTransacao.Itens[0].Id_Produto;
-  vTransacao.Itens[0].Produto.Id_Produto := vTransacao.Itens[0].Produto.Id_Produto;
+//  vTransacao.Pessoa.Id_Pessoa := vTransacao.Pessoa.Id_Pessoa;
+//  vTransacao.Itens[0].Id_Produto := vTransacao.Itens[0].Id_Produto;
+//  vTransacao.Itens[0].Produto.Id_Produto := vTransacao.Itens[0].Produto.Id_Produto;
 
   vContexto.SetLista(vPessoas);
 

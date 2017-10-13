@@ -1,21 +1,21 @@
-unit uclsPersistentAttribute;
+unit uclsPersistentContexto;
 
 interface
 
 uses
   Classes, SysUtils, StrUtils, DB,
-  mContexto, mValue,
+  mContexto, mValue, 
   uclsPersistentAbstract;
 
 type
-  TC_PersistentAttribute = class(TC_PersistentAbstract)
-  protected
+  TC_PersistentContexto = class(TC_PersistentAbstract)
+  public
     procedure processarEntidade(AContexto : TmContexto; AEntidade : String); override;
   end;
 
 implementation
 
-{ TC_PersistentAttribute }
+{ TC_PersistentContexto }
 
 uses
   mDatabase, mArquivo, mString, mPath;
@@ -30,11 +30,10 @@ const
 
     'uses' + sLineBreak +
     '  Classes, SysUtils,' + sLineBreak +
-    '  mCollection, mCollectionItem, mMapping;' + sLineBreak +
+    '  mCollection, mCollectionItem;' + sLineBreak +
     '' + sLineBreak +
 
     'type' + sLineBreak +
-    '  [Tabela(''{tabela}'')]' + sLineBreak +
     '  T{cls} = class(TmCollectionItem)' + sLineBreak +
     '  private' + sLineBreak +
     '{fields}' +
@@ -110,10 +109,9 @@ const
     '    f{atr}: {tip};' + sLineBreak ;
 
   cCNT_PROPERT =
-    '    [Campo(''{cpo}'', {fld})]' + sLineBreak +
     '    property {atr} : {tip} read f{atr} write f{atr};' + sLineBreak ;
 
-procedure TC_PersistentAttribute.processarEntidade(AContexto : TmContexto; AEntidade : String);
+procedure TC_PersistentContexto.processarEntidade(AContexto : TmContexto; AEntidade : String);
 var
   vArquivo, vConteudo, vPath,
   vArq, vCls, vAtr, vTip, vFld,
@@ -133,6 +131,7 @@ begin
   vConteudo := AnsiReplaceStr(vConteudo, '{cls}', vCls);
 
   vTipoField := tfKey;
+  vFields := '';
   vProperts := '';
 
   for I := 0 to vMetadata.FieldCount - 1 do begin
@@ -156,8 +155,6 @@ begin
     vPropert := cCNT_PROPERT;
     vPropert := AnsiReplaceStr(vPropert, '{atr}', vAtr);
     vPropert := AnsiReplaceStr(vPropert, '{tip}', vTip);
-    vPropert := AnsiReplaceStr(vPropert, '{cpo}', vCampoF.FieldName);
-    vPropert := AnsiReplaceStr(vPropert, '{fld}', vFld);
     vProperts := vProperts + vPropert;
   end;
 
@@ -165,7 +162,7 @@ begin
   vConteudo := AnsiReplaceStr(vConteudo, '{fields}', vFields);
   vConteudo := AnsiReplaceStr(vConteudo, '{properts}', vProperts);
 
-  vPath := 'temp\' + AContexto.Database.Conexao.Parametro.Cd_Ambiente + '\attribute\';
+  vPath := 'temp\' + AContexto.Database.Conexao.Parametro.Cd_Ambiente + '\contexto\';
   vArquivo := TmPath.Current(vPath) + 'u' + vArq + '.pas';
   TmArquivo.Gravar(vArquivo, vConteudo);
 end;

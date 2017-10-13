@@ -7,12 +7,6 @@ uses
   mCollection, mCollectionItem;
 
 type
-  TNcmsubst = class;
-  TNcmsubstClass = class of TNcmsubst;
-
-  TNcmsubstList = class;
-  TNcmsubstListClass = class of TNcmsubstList;
-
   TNcmsubst = class(TmCollectionItem)
   private
     fUf_Origem: String;
@@ -20,27 +14,27 @@ type
     fCd_Ncm: String;
     fU_Version: String;
     fCd_Operador: Integer;
-    fDt_Cadastro: String;
+    fDt_Cadastro: TDateTime;
     fCd_Cest: String;
   public
     constructor Create(ACollection: TCollection); override;
     destructor Destroy; override;
   published
-    property Uf_Origem : String read fUf_Origem write SetUf_Origem;
-    property Uf_Destino : String read fUf_Destino write SetUf_Destino;
-    property Cd_Ncm : String read fCd_Ncm write SetCd_Ncm;
-    property U_Version : String read fU_Version write SetU_Version;
-    property Cd_Operador : Integer read fCd_Operador write SetCd_Operador;
-    property Dt_Cadastro : String read fDt_Cadastro write SetDt_Cadastro;
-    property Cd_Cest : String read fCd_Cest write SetCd_Cest;
+    property Uf_Origem : String read fUf_Origem write fUf_Origem;
+    property Uf_Destino : String read fUf_Destino write fUf_Destino;
+    property Cd_Ncm : String read fCd_Ncm write fCd_Ncm;
+    property U_Version : String read fU_Version write fU_Version;
+    property Cd_Operador : Integer read fCd_Operador write fCd_Operador;
+    property Dt_Cadastro : TDateTime read fDt_Cadastro write fDt_Cadastro;
+    property Cd_Cest : String read fCd_Cest write fCd_Cest;
   end;
 
-  TNcmsubstList = class(TmCollection)
+  TNcmsubsts = class(TmCollection)
   private
     function GetItem(Index: Integer): TNcmsubst;
     procedure SetItem(Index: Integer; Value: TNcmsubst);
   public
-    constructor Create(AOwner: TPersistentCollection);
+    constructor Create(AItemClass: TCollectionItemClass); override;
     function Add: TNcmsubst;
     property Items[Index: Integer]: TNcmsubst read GetItem write SetItem; default;
   end;
@@ -61,25 +55,24 @@ begin
   inherited;
 end;
 
-{ TNcmsubstList }
+{ TNcmsubsts }
 
-constructor TNcmsubstList.Create(AOwner: TPersistentCollection);
+constructor TNcmsubsts.Create(AItemClass: TCollectionItemClass);
 begin
   inherited Create(TNcmsubst);
 end;
 
-function TNcmsubstList.Add: TNcmsubst;
+function TNcmsubsts.Add: TNcmsubst;
 begin
   Result := TNcmsubst(inherited Add);
-  Result.create;
 end;
 
-function TNcmsubstList.GetItem(Index: Integer): TNcmsubst;
+function TNcmsubsts.GetItem(Index: Integer): TNcmsubst;
 begin
   Result := TNcmsubst(inherited GetItem(Index));
 end;
 
-procedure TNcmsubstList.SetItem(Index: Integer; Value: TNcmsubst);
+procedure TNcmsubsts.SetItem(Index: Integer; Value: TNcmsubst);
 begin
   inherited SetItem(Index, Value);
 end;

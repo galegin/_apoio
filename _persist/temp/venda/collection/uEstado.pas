@@ -7,18 +7,12 @@ uses
   mCollection, mCollectionItem;
 
 type
-  TEstado = class;
-  TEstadoClass = class of TEstado;
-
-  TEstadoList = class;
-  TEstadoListClass = class of TEstadoList;
-
   TEstado = class(TmCollectionItem)
   private
     fId_Estado: Integer;
     fU_Version: String;
     fCd_Operador: Integer;
-    fDt_Cadastro: String;
+    fDt_Cadastro: TDateTime;
     fCd_Estado: Integer;
     fDs_Estado: String;
     fDs_Sigla: String;
@@ -27,22 +21,22 @@ type
     constructor Create(ACollection: TCollection); override;
     destructor Destroy; override;
   published
-    property Id_Estado : Integer read fId_Estado write SetId_Estado;
-    property U_Version : String read fU_Version write SetU_Version;
-    property Cd_Operador : Integer read fCd_Operador write SetCd_Operador;
-    property Dt_Cadastro : String read fDt_Cadastro write SetDt_Cadastro;
-    property Cd_Estado : Integer read fCd_Estado write SetCd_Estado;
-    property Ds_Estado : String read fDs_Estado write SetDs_Estado;
-    property Ds_Sigla : String read fDs_Sigla write SetDs_Sigla;
-    property Id_Pais : Integer read fId_Pais write SetId_Pais;
+    property Id_Estado : Integer read fId_Estado write fId_Estado;
+    property U_Version : String read fU_Version write fU_Version;
+    property Cd_Operador : Integer read fCd_Operador write fCd_Operador;
+    property Dt_Cadastro : TDateTime read fDt_Cadastro write fDt_Cadastro;
+    property Cd_Estado : Integer read fCd_Estado write fCd_Estado;
+    property Ds_Estado : String read fDs_Estado write fDs_Estado;
+    property Ds_Sigla : String read fDs_Sigla write fDs_Sigla;
+    property Id_Pais : Integer read fId_Pais write fId_Pais;
   end;
 
-  TEstadoList = class(TmCollection)
+  TEstados = class(TmCollection)
   private
     function GetItem(Index: Integer): TEstado;
     procedure SetItem(Index: Integer; Value: TEstado);
   public
-    constructor Create(AOwner: TPersistentCollection);
+    constructor Create(AItemClass: TCollectionItemClass); override;
     function Add: TEstado;
     property Items[Index: Integer]: TEstado read GetItem write SetItem; default;
   end;
@@ -63,25 +57,24 @@ begin
   inherited;
 end;
 
-{ TEstadoList }
+{ TEstados }
 
-constructor TEstadoList.Create(AOwner: TPersistentCollection);
+constructor TEstados.Create(AItemClass: TCollectionItemClass);
 begin
   inherited Create(TEstado);
 end;
 
-function TEstadoList.Add: TEstado;
+function TEstados.Add: TEstado;
 begin
   Result := TEstado(inherited Add);
-  Result.create;
 end;
 
-function TEstadoList.GetItem(Index: Integer): TEstado;
+function TEstados.GetItem(Index: Integer): TEstado;
 begin
   Result := TEstado(inherited GetItem(Index));
 end;
 
-procedure TEstadoList.SetItem(Index: Integer; Value: TEstado);
+procedure TEstados.SetItem(Index: Integer; Value: TEstado);
 begin
   inherited SetItem(Index, Value);
 end;

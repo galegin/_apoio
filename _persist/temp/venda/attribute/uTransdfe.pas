@@ -4,15 +4,24 @@ interface
 
 uses
   Classes, SysUtils,
-  System.Generics.Collections,
-  mMapping;
+  mCollection, mCollectionItem, mMapping;
 
 type
   [Tabela('TRANSDFE')]
-  TTransdfe = class(TmMapping)
+  TTransdfe = class(TmCollectionItem)
   private
+    fId_Transacao: String;
+    fNr_Sequencia: Integer;
+    fU_Version: String;
+    fCd_Operador: Integer;
+    fDt_Cadastro: TDateTime;
+    fTp_Evento: Integer;
+    fTp_Ambiente: Integer;
+    fTp_Emissao: Integer;
+    fDs_Envioxml: String;
+    fDs_Retornoxml: String;
   public
-    constructor Create(AOwner: TComponent); override;
+    constructor Create(ACollection: TCollection); override;
     destructor Destroy; override;
   published
     [Campo('ID_TRANSACAO', tfKey)]
@@ -24,7 +33,7 @@ type
     [Campo('CD_OPERADOR', tfReq)]
     property Cd_Operador : Integer read fCd_Operador write fCd_Operador;
     [Campo('DT_CADASTRO', tfReq)]
-    property Dt_Cadastro : String read fDt_Cadastro write fDt_Cadastro;
+    property Dt_Cadastro : TDateTime read fDt_Cadastro write fDt_Cadastro;
     [Campo('TP_EVENTO', tfReq)]
     property Tp_Evento : Integer read fTp_Evento write fTp_Evento;
     [Campo('TP_AMBIENTE', tfReq)]
@@ -37,13 +46,21 @@ type
     property Ds_Retornoxml : String read fDs_Retornoxml write fDs_Retornoxml;
   end;
 
-  TTransdfes = class(TList<Transdfe>);
+  TTransdfes = class(TmCollection)
+  private
+    function GetItem(Index: Integer): TTransdfe;
+    procedure SetItem(Index: Integer; Value: TTransdfe);
+  public
+    constructor Create(AItemClass: TCollectionItemClass); override;
+    function Add: TTransdfe;
+    property Items[Index: Integer]: TTransdfe read GetItem write SetItem; default;
+  end;
 
 implementation
 
 { TTransdfe }
 
-constructor TTransdfe.Create(AOwner: TComponent);
+constructor TTransdfe.Create(ACollection: TCollection);
 begin
   inherited;
 
@@ -53,6 +70,28 @@ destructor TTransdfe.Destroy;
 begin
 
   inherited;
+end;
+
+{ TTransdfes }
+
+constructor TTransdfes.Create(AItemClass: TCollectionItemClass);
+begin
+  inherited Create(TTransdfe);
+end;
+
+function TTransdfes.Add: TTransdfe;
+begin
+  Result := TTransdfe(inherited Add);
+end;
+
+function TTransdfes.GetItem(Index: Integer): TTransdfe;
+begin
+  Result := TTransdfe(inherited GetItem(Index));
+end;
+
+procedure TTransdfes.SetItem(Index: Integer; Value: TTransdfe);
+begin
+  inherited SetItem(Index, Value);
 end;
 
 end.

@@ -46,9 +46,9 @@ uses
   begin
     case AFieldType of
       ftBoolean: Result := 'Boolean';
-      ftDateTime: Result := 'TDateTime';
-      ftFloat: Result := 'Real';
-      ftInteger: Result := 'Integer';
+      ftDateTime, ftTimeStamp, ftTime, ftDate: Result := 'TDateTime';
+      ftFloat, ftCurrency, ftBCD, ftFMTBcd: Result := 'Real';
+      ftInteger, ftSmallint, ftWord: Result := 'Integer';
       ftString: Result := 'String';
     else
       Result := 'String';

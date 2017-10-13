@@ -4,15 +4,25 @@ interface
 
 uses
   Classes, SysUtils,
-  System.Generics.Collections,
-  mMapping;
+  mCollection, mCollectionItem, mMapping;
 
 type
   [Tabela('OPERACAO')]
-  TOperacao = class(TmMapping)
+  TOperacao = class(TmCollectionItem)
   private
+    fId_Operacao: String;
+    fU_Version: String;
+    fCd_Operador: Integer;
+    fDt_Cadastro: TDateTime;
+    fDs_Operacao: String;
+    fTp_Modelonf: Integer;
+    fTp_Modalidade: Integer;
+    fTp_Operacao: Integer;
+    fCd_Serie: String;
+    fCd_Cfop: Integer;
+    fId_Regrafiscal: Integer;
   public
-    constructor Create(AOwner: TComponent); override;
+    constructor Create(ACollection: TCollection); override;
     destructor Destroy; override;
   published
     [Campo('ID_OPERACAO', tfKey)]
@@ -22,7 +32,7 @@ type
     [Campo('CD_OPERADOR', tfReq)]
     property Cd_Operador : Integer read fCd_Operador write fCd_Operador;
     [Campo('DT_CADASTRO', tfReq)]
-    property Dt_Cadastro : String read fDt_Cadastro write fDt_Cadastro;
+    property Dt_Cadastro : TDateTime read fDt_Cadastro write fDt_Cadastro;
     [Campo('DS_OPERACAO', tfReq)]
     property Ds_Operacao : String read fDs_Operacao write fDs_Operacao;
     [Campo('TP_MODELONF', tfReq)]
@@ -39,13 +49,21 @@ type
     property Id_Regrafiscal : Integer read fId_Regrafiscal write fId_Regrafiscal;
   end;
 
-  TOperacaos = class(TList<Operacao>);
+  TOperacaos = class(TmCollection)
+  private
+    function GetItem(Index: Integer): TOperacao;
+    procedure SetItem(Index: Integer; Value: TOperacao);
+  public
+    constructor Create(AItemClass: TCollectionItemClass); override;
+    function Add: TOperacao;
+    property Items[Index: Integer]: TOperacao read GetItem write SetItem; default;
+  end;
 
 implementation
 
 { TOperacao }
 
-constructor TOperacao.Create(AOwner: TComponent);
+constructor TOperacao.Create(ACollection: TCollection);
 begin
   inherited;
 
@@ -55,6 +73,28 @@ destructor TOperacao.Destroy;
 begin
 
   inherited;
+end;
+
+{ TOperacaos }
+
+constructor TOperacaos.Create(AItemClass: TCollectionItemClass);
+begin
+  inherited Create(TOperacao);
+end;
+
+function TOperacaos.Add: TOperacao;
+begin
+  Result := TOperacao(inherited Add);
+end;
+
+function TOperacaos.GetItem(Index: Integer): TOperacao;
+begin
+  Result := TOperacao(inherited GetItem(Index));
+end;
+
+procedure TOperacaos.SetItem(Index: Integer; Value: TOperacao);
+begin
+  inherited SetItem(Index, Value);
 end;
 
 end.

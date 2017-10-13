@@ -4,15 +4,27 @@ interface
 
 uses
   Classes, SysUtils,
-  System.Generics.Collections,
-  mMapping;
+  mCollection, mCollectionItem, mMapping;
 
 type
   [Tabela('TRANSFISCAL')]
-  TTransfiscal = class(TmMapping)
+  TTransfiscal = class(TmCollectionItem)
   private
+    fId_Transacao: String;
+    fU_Version: String;
+    fCd_Operador: Integer;
+    fDt_Cadastro: TDateTime;
+    fTp_Operacao: Integer;
+    fTp_Modalidade: Integer;
+    fTp_Modelonf: Integer;
+    fCd_Serie: String;
+    fNr_Nf: Integer;
+    fTp_Processamento: String;
+    fDs_Chaveacesso: String;
+    fDt_Recebimento: TDateTime;
+    fNr_Recibo: String;
   public
-    constructor Create(AOwner: TComponent); override;
+    constructor Create(ACollection: TCollection); override;
     destructor Destroy; override;
   published
     [Campo('ID_TRANSACAO', tfKey)]
@@ -22,7 +34,7 @@ type
     [Campo('CD_OPERADOR', tfReq)]
     property Cd_Operador : Integer read fCd_Operador write fCd_Operador;
     [Campo('DT_CADASTRO', tfReq)]
-    property Dt_Cadastro : String read fDt_Cadastro write fDt_Cadastro;
+    property Dt_Cadastro : TDateTime read fDt_Cadastro write fDt_Cadastro;
     [Campo('TP_OPERACAO', tfReq)]
     property Tp_Operacao : Integer read fTp_Operacao write fTp_Operacao;
     [Campo('TP_MODALIDADE', tfReq)]
@@ -38,18 +50,26 @@ type
     [Campo('DS_CHAVEACESSO', tfNul)]
     property Ds_Chaveacesso : String read fDs_Chaveacesso write fDs_Chaveacesso;
     [Campo('DT_RECEBIMENTO', tfNul)]
-    property Dt_Recebimento : String read fDt_Recebimento write fDt_Recebimento;
+    property Dt_Recebimento : TDateTime read fDt_Recebimento write fDt_Recebimento;
     [Campo('NR_RECIBO', tfNul)]
     property Nr_Recibo : String read fNr_Recibo write fNr_Recibo;
   end;
 
-  TTransfiscals = class(TList<Transfiscal>);
+  TTransfiscals = class(TmCollection)
+  private
+    function GetItem(Index: Integer): TTransfiscal;
+    procedure SetItem(Index: Integer; Value: TTransfiscal);
+  public
+    constructor Create(AItemClass: TCollectionItemClass); override;
+    function Add: TTransfiscal;
+    property Items[Index: Integer]: TTransfiscal read GetItem write SetItem; default;
+  end;
 
 implementation
 
 { TTransfiscal }
 
-constructor TTransfiscal.Create(AOwner: TComponent);
+constructor TTransfiscal.Create(ACollection: TCollection);
 begin
   inherited;
 
@@ -59,6 +79,28 @@ destructor TTransfiscal.Destroy;
 begin
 
   inherited;
+end;
+
+{ TTransfiscals }
+
+constructor TTransfiscals.Create(AItemClass: TCollectionItemClass);
+begin
+  inherited Create(TTransfiscal);
+end;
+
+function TTransfiscals.Add: TTransfiscal;
+begin
+  Result := TTransfiscal(inherited Add);
+end;
+
+function TTransfiscals.GetItem(Index: Integer): TTransfiscal;
+begin
+  Result := TTransfiscal(inherited GetItem(Index));
+end;
+
+procedure TTransfiscals.SetItem(Index: Integer; Value: TTransfiscal);
+begin
+  inherited SetItem(Index, Value);
 end;
 
 end.

@@ -7,38 +7,32 @@ uses
   mCollection, mCollectionItem;
 
 type
-  TTranscont = class;
-  TTranscontClass = class of TTranscont;
-
-  TTranscontList = class;
-  TTranscontListClass = class of TTranscontList;
-
   TTranscont = class(TmCollectionItem)
   private
     fId_Transacao: String;
     fU_Version: String;
     fCd_Operador: Integer;
-    fDt_Cadastro: String;
+    fDt_Cadastro: TDateTime;
     fTp_Situacao: Integer;
     fCd_Terminal: Integer;
   public
     constructor Create(ACollection: TCollection); override;
     destructor Destroy; override;
   published
-    property Id_Transacao : String read fId_Transacao write SetId_Transacao;
-    property U_Version : String read fU_Version write SetU_Version;
-    property Cd_Operador : Integer read fCd_Operador write SetCd_Operador;
-    property Dt_Cadastro : String read fDt_Cadastro write SetDt_Cadastro;
-    property Tp_Situacao : Integer read fTp_Situacao write SetTp_Situacao;
-    property Cd_Terminal : Integer read fCd_Terminal write SetCd_Terminal;
+    property Id_Transacao : String read fId_Transacao write fId_Transacao;
+    property U_Version : String read fU_Version write fU_Version;
+    property Cd_Operador : Integer read fCd_Operador write fCd_Operador;
+    property Dt_Cadastro : TDateTime read fDt_Cadastro write fDt_Cadastro;
+    property Tp_Situacao : Integer read fTp_Situacao write fTp_Situacao;
+    property Cd_Terminal : Integer read fCd_Terminal write fCd_Terminal;
   end;
 
-  TTranscontList = class(TmCollection)
+  TTransconts = class(TmCollection)
   private
     function GetItem(Index: Integer): TTranscont;
     procedure SetItem(Index: Integer; Value: TTranscont);
   public
-    constructor Create(AOwner: TPersistentCollection);
+    constructor Create(AItemClass: TCollectionItemClass); override;
     function Add: TTranscont;
     property Items[Index: Integer]: TTranscont read GetItem write SetItem; default;
   end;
@@ -59,25 +53,24 @@ begin
   inherited;
 end;
 
-{ TTranscontList }
+{ TTransconts }
 
-constructor TTranscontList.Create(AOwner: TPersistentCollection);
+constructor TTransconts.Create(AItemClass: TCollectionItemClass);
 begin
   inherited Create(TTranscont);
 end;
 
-function TTranscontList.Add: TTranscont;
+function TTransconts.Add: TTranscont;
 begin
   Result := TTranscont(inherited Add);
-  Result.create;
 end;
 
-function TTranscontList.GetItem(Index: Integer): TTranscont;
+function TTransconts.GetItem(Index: Integer): TTranscont;
 begin
   Result := TTranscont(inherited GetItem(Index));
 end;
 
-procedure TTranscontList.SetItem(Index: Integer; Value: TTranscont);
+procedure TTransconts.SetItem(Index: Integer; Value: TTranscont);
 begin
   inherited SetItem(Index, Value);
 end;

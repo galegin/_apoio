@@ -1,9 +1,9 @@
 object F_Persistent: TF_Persistent
   Left = 325
   Top = 242
-  Width = 379
-  Height = 285
   Caption = 'F_Persistent'
+  ClientHeight = 247
+  ClientWidth = 363
   Color = clBtnFace
   Font.Charset = DEFAULT_CHARSET
   Font.Color = clWindowText
@@ -50,14 +50,13 @@ object F_Persistent: TF_Persistent
     Width = 197
     Height = 24
     BevelKind = bkFlat
+    Style = csDropDownList
     Font.Charset = DEFAULT_CHARSET
     Font.Color = clWindowText
     Font.Height = -13
     Font.Name = 'MS Sans Serif'
     Font.Style = []
-    ItemHeight = 16
     ParentFont = False
     TabOrder = 2
-    Text = 'ComboBoxTtipo'
   end
 end

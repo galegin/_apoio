@@ -4,15 +4,39 @@ interface
 
 uses
   Classes, SysUtils,
-  System.Generics.Collections,
-  mMapping;
+  mCollection, mCollectionItem, mMapping;
 
 type
   [Tabela('PESSOA')]
-  TPessoa = class(TmMapping)
+  TPessoa = class(TmCollectionItem)
   private
+    fId_Pessoa: String;
+    fU_Version: String;
+    fCd_Operador: Integer;
+    fDt_Cadastro: TDateTime;
+    fCd_Pessoa: Integer;
+    fNm_Pessoa: String;
+    fNr_Cpfcnpj: String;
+    fNr_Rgie: String;
+    fNm_Fantasia: String;
+    fCd_Cep: Integer;
+    fNm_Logradouro: String;
+    fNr_Logradouro: String;
+    fDs_Bairro: String;
+    fDs_Complemento: String;
+    fCd_Municipio: Integer;
+    fDs_Municipio: String;
+    fCd_Estado: Integer;
+    fDs_Estado: String;
+    fDs_Siglaestado: String;
+    fCd_Pais: Integer;
+    fDs_Pais: String;
+    fDs_Fone: String;
+    fDs_Celular: String;
+    fDs_Email: String;
+    fIn_Consumidorfinal: String;
   public
-    constructor Create(AOwner: TComponent); override;
+    constructor Create(ACollection: TCollection); override;
     destructor Destroy; override;
   published
     [Campo('ID_PESSOA', tfKey)]
@@ -22,7 +46,7 @@ type
     [Campo('CD_OPERADOR', tfReq)]
     property Cd_Operador : Integer read fCd_Operador write fCd_Operador;
     [Campo('DT_CADASTRO', tfReq)]
-    property Dt_Cadastro : String read fDt_Cadastro write fDt_Cadastro;
+    property Dt_Cadastro : TDateTime read fDt_Cadastro write fDt_Cadastro;
     [Campo('CD_PESSOA', tfReq)]
     property Cd_Pessoa : Integer read fCd_Pessoa write fCd_Pessoa;
     [Campo('NM_PESSOA', tfReq)]
@@ -67,13 +91,21 @@ type
     property In_Consumidorfinal : String read fIn_Consumidorfinal write fIn_Consumidorfinal;
   end;
 
-  TPessoas = class(TList<Pessoa>);
+  TPessoas = class(TmCollection)
+  private
+    function GetItem(Index: Integer): TPessoa;
+    procedure SetItem(Index: Integer; Value: TPessoa);
+  public
+    constructor Create(AItemClass: TCollectionItemClass); override;
+    function Add: TPessoa;
+    property Items[Index: Integer]: TPessoa read GetItem write SetItem; default;
+  end;
 
 implementation
 
 { TPessoa }
 
-constructor TPessoa.Create(AOwner: TComponent);
+constructor TPessoa.Create(ACollection: TCollection);
 begin
   inherited;
 
@@ -83,6 +115,28 @@ destructor TPessoa.Destroy;
 begin
 
   inherited;
+end;
+
+{ TPessoas }
+
+constructor TPessoas.Create(AItemClass: TCollectionItemClass);
+begin
+  inherited Create(TPessoa);
+end;
+
+function TPessoas.Add: TPessoa;
+begin
+  Result := TPessoa(inherited Add);
+end;
+
+function TPessoas.GetItem(Index: Integer): TPessoa;
+begin
+  Result := TPessoa(inherited GetItem(Index));
+end;
+
+procedure TPessoas.SetItem(Index: Integer; Value: TPessoa);
+begin
+  inherited SetItem(Index, Value);
 end;
 
 end.

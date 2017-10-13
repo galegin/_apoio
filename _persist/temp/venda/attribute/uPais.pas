@@ -4,15 +4,21 @@ interface
 
 uses
   Classes, SysUtils,
-  System.Generics.Collections,
-  mMapping;
+  mCollection, mCollectionItem, mMapping;
 
 type
   [Tabela('PAIS')]
-  TPais = class(TmMapping)
+  TPais = class(TmCollectionItem)
   private
+    fId_Pais: Integer;
+    fU_Version: String;
+    fCd_Operador: Integer;
+    fDt_Cadastro: TDateTime;
+    fCd_Pais: Integer;
+    fDs_Pais: String;
+    fDs_Sigla: String;
   public
-    constructor Create(AOwner: TComponent); override;
+    constructor Create(ACollection: TCollection); override;
     destructor Destroy; override;
   published
     [Campo('ID_PAIS', tfKey)]
@@ -22,7 +28,7 @@ type
     [Campo('CD_OPERADOR', tfReq)]
     property Cd_Operador : Integer read fCd_Operador write fCd_Operador;
     [Campo('DT_CADASTRO', tfReq)]
-    property Dt_Cadastro : String read fDt_Cadastro write fDt_Cadastro;
+    property Dt_Cadastro : TDateTime read fDt_Cadastro write fDt_Cadastro;
     [Campo('CD_PAIS', tfReq)]
     property Cd_Pais : Integer read fCd_Pais write fCd_Pais;
     [Campo('DS_PAIS', tfReq)]
@@ -31,13 +37,21 @@ type
     property Ds_Sigla : String read fDs_Sigla write fDs_Sigla;
   end;
 
-  TPaiss = class(TList<Pais>);
+  TPaiss = class(TmCollection)
+  private
+    function GetItem(Index: Integer): TPais;
+    procedure SetItem(Index: Integer; Value: TPais);
+  public
+    constructor Create(AItemClass: TCollectionItemClass); override;
+    function Add: TPais;
+    property Items[Index: Integer]: TPais read GetItem write SetItem; default;
+  end;
 
 implementation
 
 { TPais }
 
-constructor TPais.Create(AOwner: TComponent);
+constructor TPais.Create(ACollection: TCollection);
 begin
   inherited;
 
@@ -47,6 +61,28 @@ destructor TPais.Destroy;
 begin
 
   inherited;
+end;
+
+{ TPaiss }
+
+constructor TPaiss.Create(AItemClass: TCollectionItemClass);
+begin
+  inherited Create(TPais);
+end;
+
+function TPaiss.Add: TPais;
+begin
+  Result := TPais(inherited Add);
+end;
+
+function TPaiss.GetItem(Index: Integer): TPais;
+begin
+  Result := TPais(inherited GetItem(Index));
+end;
+
+procedure TPaiss.SetItem(Index: Integer; Value: TPais);
+begin
+  inherited SetItem(Index, Value);
 end;
 
 end.

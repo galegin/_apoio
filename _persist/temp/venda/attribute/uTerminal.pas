@@ -4,15 +4,20 @@ interface
 
 uses
   Classes, SysUtils,
-  System.Generics.Collections,
-  mMapping;
+  mCollection, mCollectionItem, mMapping;
 
 type
   [Tabela('TERMINAL')]
-  TTerminal = class(TmMapping)
+  TTerminal = class(TmCollectionItem)
   private
+    fId_Terminal: Integer;
+    fU_Version: String;
+    fCd_Operador: Integer;
+    fDt_Cadastro: TDateTime;
+    fCd_Terminal: Integer;
+    fDs_Terminal: String;
   public
-    constructor Create(AOwner: TComponent); override;
+    constructor Create(ACollection: TCollection); override;
     destructor Destroy; override;
   published
     [Campo('ID_TERMINAL', tfKey)]
@@ -22,20 +27,28 @@ type
     [Campo('CD_OPERADOR', tfReq)]
     property Cd_Operador : Integer read fCd_Operador write fCd_Operador;
     [Campo('DT_CADASTRO', tfReq)]
-    property Dt_Cadastro : String read fDt_Cadastro write fDt_Cadastro;
+    property Dt_Cadastro : TDateTime read fDt_Cadastro write fDt_Cadastro;
     [Campo('CD_TERMINAL', tfReq)]
     property Cd_Terminal : Integer read fCd_Terminal write fCd_Terminal;
     [Campo('DS_TERMINAL', tfReq)]
     property Ds_Terminal : String read fDs_Terminal write fDs_Terminal;
   end;
 
-  TTerminals = class(TList<Terminal>);
+  TTerminals = class(TmCollection)
+  private
+    function GetItem(Index: Integer): TTerminal;
+    procedure SetItem(Index: Integer; Value: TTerminal);
+  public
+    constructor Create(AItemClass: TCollectionItemClass); override;
+    function Add: TTerminal;
+    property Items[Index: Integer]: TTerminal read GetItem write SetItem; default;
+  end;
 
 implementation
 
 { TTerminal }
 
-constructor TTerminal.Create(AOwner: TComponent);
+constructor TTerminal.Create(ACollection: TCollection);
 begin
   inherited;
 
@@ -45,6 +58,28 @@ destructor TTerminal.Destroy;
 begin
 
   inherited;
+end;
+
+{ TTerminals }
+
+constructor TTerminals.Create(AItemClass: TCollectionItemClass);
+begin
+  inherited Create(TTerminal);
+end;
+
+function TTerminals.Add: TTerminal;
+begin
+  Result := TTerminal(inherited Add);
+end;
+
+function TTerminals.GetItem(Index: Integer): TTerminal;
+begin
+  Result := TTerminal(inherited GetItem(Index));
+end;
+
+procedure TTerminals.SetItem(Index: Integer; Value: TTerminal);
+begin
+  inherited SetItem(Index, Value);
 end;
 
 end.
