@@ -30,15 +30,15 @@ const
 
     'uses' + sLineBreak +
     '  Classes, SysUtils,' + sLineBreak +
-    '  mMapping;' + sLineBreak +
+    '  mMapping, mCollection, mCollectionItem;' + sLineBreak +
     '' + sLineBreak +
 
     'type' + sLineBreak +
-    '  T{cls} = class(TmMapping)' + sLineBreak +
+    '  T{cls} = class(TmCollectionItem)' + sLineBreak +
     '  private' + sLineBreak +
     '{fields}' +
     '  public' + sLineBreak +
-    '    constructor Create(AOwner: TComponent); override;' + sLineBreak +
+    '    constructor Create(ACollection: TCollection); override;' + sLineBreak +
     '    destructor Destroy; override;' + sLineBreak +
     '    function GetMapping() : PmMapping; override;' + sLineBreak +
     '  published' + sLineBreak +
@@ -46,9 +46,14 @@ const
     '  end;' + sLineBreak +
     '' + sLineBreak +
 
-    '  T{cls}s = class(TList)' + sLineBreak +
+    '  T{cls}List = class(TmCollection)' + sLineBreak +
+    '  private' + sLineBreak +
+    '    function GetItem(Index: Integer): T{cls};' + sLineBreak +
+    '    procedure SetItem(Index: Integer; Value: T{cls});' + sLineBreak +
     '  public' + sLineBreak +
-    '    function Add: T{cls}; overload;' + sLineBreak +
+    '    constructor Create(AOwner: TCollection);' + sLineBreak +
+    '    function Add: T{cls};' + sLineBreak +
+    '    property Items[Index: Integer]: T{cls} read GetItem write SetItem; default;' + sLineBreak +
     '  end;' + sLineBreak +
     '' + sLineBreak +
 
@@ -58,7 +63,7 @@ const
     '{ T{cls} }' + sLineBreak +
     '' + sLineBreak +
 
-    'constructor T{cls}.Create(AOwner: TComponent);' + sLineBreak +
+    'constructor T{cls}.Create(AOwner: TCollection);' + sLineBreak +
     'begin' + sLineBreak +
     '  inherited;' + sLineBreak +
     '' + sLineBreak +
@@ -70,9 +75,6 @@ const
     '' + sLineBreak +
     '  inherited;' + sLineBreak +
     'end;' + sLineBreak +
-    '' + sLineBreak +
-
-    '//--' + sLineBreak +
     '' + sLineBreak +
 
     'function T{cls}.GetMapping: PmMapping;' + sLineBreak +
@@ -90,24 +92,33 @@ const
     '  with Result.Campos do begin' + sLineBreak +
     '{campos}' +
     '  end;' + sLineBreak +
-    '' + sLineBreak +
-
-    '  Result.Relacoes := TmRelacoes.Create;' + sLineBreak +
-    '  with Result.Relacoes do begin' + sLineBreak +
-    '  end;' + sLineBreak +
     'end;' + sLineBreak +
     '' + sLineBreak +
 
-    '//--' + sLineBreak +
+    '{ T{cls}List }' + sLineBreak +
     '' + sLineBreak +
 
-    '{ T{cls}s }' + sLineBreak +
-    '' + sLineBreak +
-
-    'function T{cls}s.Add: T{cls};' + sLineBreak +
+    'constructor T{cls}List.Create(AOwner: TCollection);' + sLineBreak +
     'begin' + sLineBreak +
-    '  Result := T{cls}.Create(nil);' + sLineBreak +
-    '  Self.Add(Result);' + sLineBreak +
+    '  inherited Create(T{cls});' + sLineBreak +
+    'end;' + sLineBreak +
+    '' + sLineBreak +
+
+    'function T{cls}List.Add: T{cls};' + sLineBreak +
+    'begin' + sLineBreak +
+    '  Result := T{cls}(inherited Add);' + sLineBreak +
+    'end;' + sLineBreak +
+    '' + sLineBreak +
+
+    'function T{cls}List.GetItem(Index: Integer): T{cls};' + sLineBreak +
+    'begin' + sLineBreak +
+    '  Result := T{cls}(inherited GetItem(Index));' + sLineBreak +
+    'end;' + sLineBreak +
+    '' + sLineBreak +
+
+    'procedure T{cls}List.SetItem(Index: Integer; Value: T{cls});' + sLineBreak +
+    'begin' + sLineBreak +
+    '  inherited SetItem(Index, Value);' + sLineBreak +
     'end;' + sLineBreak +
     '' + sLineBreak +
 

@@ -4,7 +4,7 @@ interface
 
 uses
   Classes, SysUtils, StrUtils, DB,
-  mContexto, 
+  mContexto, mValue,
   uclsPersistentAbstract;
 
 type
@@ -82,7 +82,7 @@ var
   vProperts, vPropert : String;
   vMetadata : TDataSet;
   vCampoF : TField;
-  vKey : Boolean;
+  vTipoField : TTipoField;
   I : Integer;
 begin
   vArq := NomeArquivo(AEntidade);
@@ -94,7 +94,7 @@ begin
   vConteudo := AnsiReplaceStr(vConteudo, '{arq}', vArq);
   vConteudo := AnsiReplaceStr(vConteudo, '{cls}', vCls);
 
-  vKey := True;
+  vTipoField := tfKey;
   vProperts := '';
 
   for I := 0 to vMetadata.FieldCount - 1 do begin
@@ -104,9 +104,9 @@ begin
     vTip := TipoAtributo(vCampoF.DataType);
 
     if vAtr = 'U_Version' then
-      vKey := False;
+      vTipoField := tfNul;
 
-    if vKey then
+    if vTipoField in [tfKey] then
       vFld := 'tfKey'
     else if vCampoF.Required then
       vFld := 'tfReq'

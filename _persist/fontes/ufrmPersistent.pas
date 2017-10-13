@@ -31,10 +31,9 @@ uses
   uclsPersistentAttribute,
   uclsPersistentCollection,
   uclsPersistentContexto,
-  mCollection, mCollectionItem,
-  cContexto, mContexto, mMapping, mIniFiles,
-  uPessoa, uProduto, uTransacao, uTransitem,
-  uPessoaJson, uProdutoJson, uTransacaoJson, Contnrs;
+  mMapping, mCollection, mCollectionItem,
+  mContexto, mIniFiles,
+  uPessoa, uProduto, uTransacao, uTransitem;
 
 procedure TF_Persistent.FormCreate(Sender: TObject);
 begin
