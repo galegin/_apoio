@@ -19,10 +19,10 @@
 
 <variables>
   <variable cod="LIB_ACBR"   val="c:\Projetos\_acbr\fontes" />
-  <variable cod="LIB_COMPS"  val="c:\Projetos\_comps" />
   <variable cod="LIB_INDY"   val="c:\Projetos\_indy\Indy10" />
   <variable cod="LIB_REPORT" val="c:\Projetos\_report" />
   <variable cod="LIB_ZEOS"   val="c:\Projetos\_zeos" />
+  <variable cod="LIB_MORM"   val="c:\Projetos\MORM\MORM.Delphi" />
 </variables>
 
 <librarys>
@@ -57,15 +57,6 @@ $(LIB_ACBR)\Terceiros\JediWin32API;
 $(LIB_ACBR)\Terceiros\synalist;
 $(LIB_ACBR)\Terceiros\ZLibExGZ;
 
-$(LIB_COMPS);
-$(LIB_COMPS)\classe;
-$(LIB_COMPS)\enum;
-$(LIB_COMPS)\model;
-$(LIB_COMPS)\report;
-$(LIB_COMPS)\repositorio;
-$(LIB_COMPS)\terceiro;
-$(LIB_COMPS)\view;
-
 $(LIB_INDY)\Lib\System;
 $(LIB_INDY)\Lib\Core;
 $(LIB_INDY)\Lib\Protocols;
@@ -74,6 +65,7 @@ $(LIB_REPORT)\FastReport4\Completo\Source;
 $(LIB_REPORT)\FastReport4\Completo\LibD7;
 $(LIB_REPORT)\FortesReport;
 $(LIB_REPORT)\FortesReport-ce-master\Source;
+$(LIB_REPORT)\QuickReport_5;
 
 $(LIB_ZEOS)\packages\delphi7;
 $(LIB_ZEOS)\src\component;
@@ -81,6 +73,12 @@ $(LIB_ZEOS)\src\core;
 $(LIB_ZEOS)\src\dbc;
 $(LIB_ZEOS)\src\parsesql;
 $(LIB_ZEOS)\src\plain;
+
+$(LIB_MORM)\Classes;
+$(LIB_MORM)\Comps;
+$(LIB_MORM)\Models;
+$(LIB_MORM)\Terceiros;
+$(LIB_MORM)\Utils;
 </librarys>
 
 </doc>
